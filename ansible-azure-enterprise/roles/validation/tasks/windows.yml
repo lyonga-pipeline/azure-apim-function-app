@@ -14,7 +14,6 @@
   loop: "{{ windows_service_results.results }}"
   loop_control:
     label: "{{ item.item }}"
-  ignore_errors: true
 
 - name: Validate PSRP listener
   ansible.windows.win_shell: Test-WSMan localhost

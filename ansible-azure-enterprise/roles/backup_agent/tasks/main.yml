@@ -7,6 +7,17 @@
     - backup_agent_enabled
     - ansible_system == 'Linux'
 
+- name: Ensure backup agent config directory exists on Linux
+  ansible.builtin.file:
+    path: "{{ backup_agent_config_dir_linux }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  when:
+    - backup_agent_enabled
+    - ansible_system == 'Linux'
+
 - name: Configure backup agent on Linux
   ansible.builtin.template:
     src: backup-agent.conf.j2

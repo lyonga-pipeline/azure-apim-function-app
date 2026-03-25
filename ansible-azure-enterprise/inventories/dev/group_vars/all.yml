@@ -32,13 +32,15 @@ audit_logging_enabled: true
 service_accounts_enabled: true
 cis_controls_enabled: true
 
-ama_linux_package_url: https://example.com/packages/azuremonitoragent-latest.rpm
+ama_linux_package_url_redhat: https://example.com/packages/azuremonitoragent-latest.rpm
+ama_linux_package_url_debian: https://example.com/packages/azuremonitoragent-latest.deb
+ama_linux_package_url: "{{ ama_linux_package_url_redhat if ansible_os_family == 'RedHat' else ama_linux_package_url_debian }}"
 ama_windows_package_url: https://example.com/packages/AzureMonitorAgent.msi
 ama_service_name_linux: azuremonitoragent
 ama_service_name_windows: HealthService
 
-corp_root_ca_linux_dest: /etc/pki/ca-trust/source/anchors/fincorp-root-ca.pem
-corp_intermediate_ca_linux_dest: /etc/pki/ca-trust/source/anchors/fincorp-intermediate-ca.pem
+corp_root_ca_linux_dest: "{{ '/etc/pki/ca-trust/source/anchors/fincorp-root-ca.pem' if ansible_os_family == 'RedHat' else '/usr/local/share/ca-certificates/fincorp-root-ca.crt' }}"
+corp_intermediate_ca_linux_dest: "{{ '/etc/pki/ca-trust/source/anchors/fincorp-intermediate-ca.pem' if ansible_os_family == 'RedHat' else '/usr/local/share/ca-certificates/fincorp-intermediate-ca.crt' }}"
 corp_root_ca_windows_store: Root
 corp_intermediate_ca_windows_store: CA
 

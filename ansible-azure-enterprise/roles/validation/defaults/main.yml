@@ -1,7 +1,7 @@
 ---
-validation_expected_linux_services:
+validation_linux_chrony_service_name: "{{ 'chronyd' if ansible_os_family == 'RedHat' else 'chrony' }}"
+validation_expected_linux_services_base:
   - rsyslog
-  - chronyd
 validation_expected_windows_services:
   - W32Time
   - WinDefend

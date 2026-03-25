@@ -1,3 +1,6 @@
 ---
 cert_trust_manage_linux: true
 cert_trust_manage_windows: true
+corp_root_ca_linux_dest: "{{ '/etc/pki/ca-trust/source/anchors/fincorp-root-ca.pem' if ansible_os_family == 'RedHat' else '/usr/local/share/ca-certificates/fincorp-root-ca.crt' }}"
+corp_intermediate_ca_linux_dest: "{{ '/etc/pki/ca-trust/source/anchors/fincorp-intermediate-ca.pem' if ansible_os_family == 'RedHat' else '/usr/local/share/ca-certificates/fincorp-intermediate-ca.crt' }}"
+linux_ca_trust_update_command: "{{ 'update-ca-trust extract' if ansible_os_family == 'RedHat' else 'update-ca-certificates' }}"

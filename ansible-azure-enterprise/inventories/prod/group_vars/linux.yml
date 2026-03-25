@@ -1,16 +1,23 @@
 ---
-baseline_packages_linux:
+baseline_packages_linux_common:
   - curl
   - jq
   - unzip
   - rsyslog
   - chrony
-  - audit
   - openssl
   - ca-certificates
   - python3-pip
-  - bind-utils
-  - nmap-ncat
+baseline_packages_linux_family:
+  RedHat:
+    - audit
+    - bind-utils
+    - nmap-ncat
+  Debian:
+    - auditd
+    - dnsutils
+    - netcat-openbsd
+baseline_packages_linux: "{{ baseline_packages_linux_common + baseline_packages_linux_family.get(ansible_os_family, []) }}"
 baseline_services_linux:
   - rsyslog
 linux_disable_root_ssh: true

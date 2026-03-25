@@ -1,3 +1,4 @@
 ---
-linux_chrony_service_name: chronyd
+linux_chrony_service_name: "{{ 'chronyd' if ansible_os_family == 'RedHat' else 'chrony' }}"
+linux_chrony_config_path: "{{ '/etc/chrony.conf' if ansible_os_family == 'RedHat' else '/etc/chrony/chrony.conf' }}"
 linux_motd_path: /etc/motd

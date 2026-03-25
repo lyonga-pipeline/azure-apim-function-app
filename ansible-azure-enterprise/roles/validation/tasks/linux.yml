@@ -8,10 +8,9 @@
       - "item + '.service' in ansible_facts.services"
       - "ansible_facts.services[item + '.service'].state == 'running'"
     fail_msg: "{{ item }} is not running"
-  loop: "{{ validation_expected_linux_services }}"
+  loop: "{{ validation_expected_linux_services_base + [validation_linux_chrony_service_name] }}"
   loop_control:
     label: "{{ item }}"
-  ignore_errors: true
 
 - name: Validate SSH port
   ansible.builtin.wait_for:

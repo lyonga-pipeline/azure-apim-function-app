@@ -25,7 +25,7 @@
   handlers:
     - name: restart sshd
       ansible.builtin.service:
-        name: sshd
+        name: "{{ 'sshd' if ansible_os_family == 'RedHat' else 'ssh' }}"
         state: restarted
 
 - name: Emergency lockdown for public-facing Windows systems

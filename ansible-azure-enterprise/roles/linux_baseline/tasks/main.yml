@@ -2,7 +2,7 @@
 - name: Configure chrony
   ansible.builtin.template:
     src: chrony.conf.j2
-    dest: /etc/chrony.conf
+    dest: "{{ linux_chrony_config_path }}"
     mode: '0644'
   notify: restart chrony
 

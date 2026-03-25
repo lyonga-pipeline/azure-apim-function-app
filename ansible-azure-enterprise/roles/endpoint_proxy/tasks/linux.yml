@@ -7,6 +7,15 @@
     create: true
   when: ansible_os_family == 'RedHat'
 
+- name: Configure proxy for apt
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/95proxy
+    mode: '0644'
+    content: |
+      Acquire::http::Proxy "{{ proxy_url }}";
+      Acquire::https::Proxy "{{ proxy_url }}";
+  when: ansible_os_family == 'Debian'
+
 - name: Configure environment proxy
   ansible.builtin.copy:
     dest: /etc/profile.d/proxy.sh

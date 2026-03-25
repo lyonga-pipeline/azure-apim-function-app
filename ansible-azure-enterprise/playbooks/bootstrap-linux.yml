@@ -7,11 +7,11 @@
     - ../vars/global.yml
     - ../vars/compliance.yml
   roles:
-    - common_baseline
     - cert_trust
+    - endpoint_proxy
+    - common_baseline
     - linux_baseline
     - linux_hardening
-    - endpoint_proxy
     - audit_logging
     - azure_monitor_agent
     - defender_for_endpoint

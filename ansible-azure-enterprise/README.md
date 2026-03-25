@@ -886,17 +886,22 @@ would normally expect at the OS layer.
 
 ### Linux
 
-- `chrony` / `chronyd`
+- core Linux baseline packages are installed by
+  [common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml)
+  using the `baseline_packages_linux` variable from
+  [inventories/dev/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml)
+  and the matching `qa` and `prod` files
+- `chrony` with the correct service name selected for the Linux family
 - `rsyslog`
-- `audit` / `auditd`
+- audit package with the correct distro package name (`audit` or `auditd`)
 - `curl`
 - `jq`
 - `unzip`
 - `openssl`
 - `ca-certificates`
 - `python3-pip`
-- `bind-utils`
-- `nmap-ncat`
+- DNS utilities with the correct distro package name (`bind-utils` or `dnsutils`)
+- netcat utilities with the correct distro package name (`nmap-ncat` or `netcat-openbsd`)
 - optional Java runtime
 - optional SQL client tools
 - optional `nginx`
