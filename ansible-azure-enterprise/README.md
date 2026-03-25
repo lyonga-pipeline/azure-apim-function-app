@@ -147,6 +147,160 @@ When someone runs a playbook, the repository works in this order:
 5. each role runs its tasks, templates, files, and handlers.
 6. validation confirms the expected end state.
 
+## How The Main Playbooks Are Wired End To End
+
+This section shows the normal call path for the main operating-system baseline
+playbooks. This is the easiest way for a new engineer to understand how the
+files connect.
+
+### Linux bootstrap flow
+
+File chain:
+
+1. [ansible.cfg](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/ansible.cfg)
+   sets the default inventory, roles path, collections path, and vault
+   identities.
+2. [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+   discovers Azure VMs and creates groups such as `linux`, `env_dev`,
+   `env_prod`, and `app_*`.
+3. [inventories/<env>/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+   loads automatically for every discovered host in that environment.
+4. [inventories/<env>/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml)
+   loads automatically for hosts in the `linux` group.
+5. [inventories/<env>/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+   loads automatically too, if it can be decrypted.
+6. [playbooks/bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml)
+   targets `hosts: linux` and explicitly adds
+   [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
+   and
+   [vars/compliance.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/compliance.yml).
+7. The playbook runs roles in this order:
+   `cert_trust -> endpoint_proxy -> common_baseline -> linux_baseline -> linux_hardening -> audit_logging -> azure_monitor_agent -> defender_for_endpoint -> backup_agent -> vulnerability_scanner -> service_accounts -> cis_controls -> java_runtime -> sql_client_tools -> nginx_reverse_proxy -> validation`
+8. Each role starts at its own `tasks/main.yml`, which may then include
+   `linux.yml`, `windows.yml`, templates, and handlers.
+
+Important examples:
+
+- `baseline_packages_linux` from
+  [inventories/dev/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml)
+  is consumed by
+  [roles/common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml).
+- `ntp_servers` from
+  [inventories/dev/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+  is consumed by
+  [roles/linux_baseline/templates/chrony.conf.j2](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/linux_baseline/templates/chrony.conf.j2).
+- `proxy_url` and `no_proxy_list` from
+  [inventories/dev/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+  are consumed by
+  [roles/endpoint_proxy/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/endpoint_proxy/tasks/linux.yml)
+  and
+  [roles/backup_agent/templates/backup-agent.conf.j2](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/backup_agent/templates/backup-agent.conf.j2).
+- `monitoring_enabled` and `ama_*` values from
+  [inventories/dev/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+  are consumed by
+  [roles/azure_monitor_agent/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/azure_monitor_agent/tasks/main.yml)
+  and
+  [roles/azure_monitor_agent/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/azure_monitor_agent/tasks/linux.yml).
+
+### Windows bootstrap flow
+
+File chain:
+
+1. [ansible.cfg](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/ansible.cfg)
+   sets the default inventory, roles path, collections path, and vault
+   identities.
+2. [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+   discovers Azure VMs and creates groups such as `windows`,
+   `role_domaincontroller`, and `env_prod`.
+3. [inventories/<env>/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+   loads automatically for every discovered host.
+4. [inventories/<env>/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
+   loads automatically for Windows hosts.
+5. [inventories/<env>/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+   provides domain-join and service-account secrets.
+6. [playbooks/bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml)
+   contains:
+   - one play for `hosts: windows`
+   - one play for `hosts: "windows:&role_domaincontroller"`
+7. The first play loads
+   [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
+   and
+   [vars/compliance.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/compliance.yml),
+   then runs:
+   `cert_trust -> endpoint_proxy -> common_baseline -> domain_join -> windows_baseline -> windows_hardening -> audit_logging -> azure_monitor_agent -> defender_for_endpoint -> backup_agent -> vulnerability_scanner -> service_accounts -> cis_controls -> dotnet_runtime -> sql_client_tools -> iis_baseline -> validation`
+8. The second play runs only the `ad_foundation` role for domain controller
+   hosts.
+
+Important examples:
+
+- `ansible_connection`, `ansible_psrp_*`, and `ansible_shell_type` from
+  [inventories/dev/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
+  are consumed by Ansible itself before any role runs.
+- `windows_features_common`, `windows_installers_common`, and
+  `windows_timezone` from
+  [inventories/dev/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
+  are consumed by
+  [roles/common_baseline/tasks/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/windows.yml).
+- `ad_domain_name`, `ad_join_user`, and `ad_join_password` from
+  [inventories/dev/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+  are consumed by
+  [roles/domain_join/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/domain_join/tasks/main.yml)
+  and
+  [roles/ad_foundation/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/ad_foundation/tasks/main.yml).
+
+### Production-style site flow
+
+[playbooks/site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+uses the same inventory and variable loading model as the bootstrap playbooks,
+but adds rollout safety for production.
+
+What is different:
+
+- it targets `linux:&env_prod` and `windows:&env_prod`, so it depends on the
+  `env_prod` group created by
+  [inventories/prod/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/prod/azure_rm.yml)
+- it uses `rolling_batch_linux`, `rolling_batch_windows`, and `max_fail_pct`
+  from
+  [inventories/prod/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/prod/group_vars/all.yml)
+- it checks `change_freeze` before making changes
+- it includes a third play for `windows:&env_prod:&role_domaincontroller`
+
+### Linux patch flow
+
+[playbooks/patch-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-linux.yml)
+is simpler than the bootstrap playbooks.
+
+It still depends on:
+
+- [ansible.cfg](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/ansible.cfg)
+- [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+- auto-loaded inventory variables
+
+It does not call the role stack.
+
+Instead it:
+
+- targets `hosts: linux`
+- uses `ansible_os_family` facts to decide between `yum` and `apt`
+- optionally uses `linux_reboot_after_patch` if you pass it as an inventory
+  variable or extra var
+
+### Windows patch flow
+
+[playbooks/patch-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-windows.yml)
+is the Windows equivalent.
+
+It depends on:
+
+- [ansible.cfg](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/ansible.cfg)
+- [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+- Windows connection values from
+  [inventories/<env>/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
+
+It does not call the role stack either.
+
+It directly runs `ansible.windows.win_updates` against the `windows` group.
+
 ## Key Files Explained
 
 This section explains the files most teams will touch.
@@ -154,9 +308,10 @@ This section explains the files most teams will touch.
 Each file uses the same pattern:
 
 1. where it lives
-2. how it is wired into Ansible
-3. what the important settings mean
-4. how to verify it and common gotchas
+2. why it matters in this project
+3. where and how it is used
+4. what the important settings mean
+5. how to verify it and common gotchas
 
 ### `ansible.cfg`
 
@@ -165,14 +320,34 @@ Each file uses the same pattern:
 - File: [ansible.cfg](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/ansible.cfg)
 - Location: repository root
 
-#### 2. How it is wired into Ansible
+#### 2. Why this file matters in this project
+
+This is the starting point for local runs.
+
+If a new engineer opens only one file after this README, this is usually the
+next best file because it shows:
+
+- which inventory Ansible uses by default
+- where roles are loaded from
+- where collections are loaded from
+- how vault decryption is expected to work
+
+#### 3. Where and how it is used
 
 Ansible reads this file automatically when you run commands from the repository
 root.
 
-It sets the default behavior for the whole project.
+In this project it is what connects:
 
-#### 3. Important settings and what they mean
+- the root command line experience to
+  [inventories/dev/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+- the entry playbooks to local roles under
+  [roles](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles)
+- encrypted `vault.yml` files to the vault identities configured on the
+  control node
+- dynamic inventory support to the Azure plugin
+
+#### 4. Important settings and what they mean
 
 - `inventory = ./inventories/dev/azure_rm.yml`
   - default inventory file if you do not pass `-i`
@@ -194,7 +369,7 @@ It sets the default behavior for the whole project.
 - `enable_plugins = ..., azure.azcollection.azure_rm`
   - allows the Azure dynamic inventory plugin to run
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -217,7 +392,14 @@ Common gotchas:
   [inventories/dev/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
 - Location: one per environment under `inventories/<env>/`
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
+
+This file tells Ansible which Azure VMs exist and which groups they belong to.
+
+Without this file, the playbooks do not know which servers are Linux, which are
+Windows, which are `prod`, or which hosts are domain controllers.
+
+#### 3. Where and how it is used
 
 This is the Azure dynamic inventory source.
 
@@ -233,7 +415,26 @@ ansible-inventory -i inventories/dev/azure_rm.yml --graph
 ansible-playbook -i inventories/dev/azure_rm.yml playbooks/bootstrap-linux.yml
 ```
 
-#### 3. Important settings and what they mean
+The groups created here are used directly by the main playbooks:
+
+- `linux` in
+  [bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml),
+  [patch-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-linux.yml),
+  and the Linux plays in
+  [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+- `windows` in
+  [bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml),
+  [patch-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-windows.yml),
+  and the Windows plays in
+  [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+- `env_prod` in
+  [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+- `role_domaincontroller` in
+  [bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml)
+  and
+  [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+
+#### 4. Important settings and what they mean
 
 - `plugin: azure.azcollection.azure_rm`
   - use the Azure Resource Manager inventory plugin
@@ -267,7 +468,7 @@ ansible-playbook -i inventories/dev/azure_rm.yml playbooks/bootstrap-linux.yml
     - exclude stopped VMs
     - exclude decommissioned VMs
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -291,13 +492,41 @@ Common gotchas:
   [inventories/dev/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
 - Location: `inventories/<env>/group_vars/`
 
-#### 2. How it is wired into Ansible
-
-Ansible loads this automatically for all hosts in that inventory.
+#### 2. What this file is for and why it matters
 
 This is the main environment-level configuration file.
 
-#### 3. Important settings and what they mean
+If a team wants to change how a whole environment behaves, this is usually the
+first file they update.
+
+#### 3. Where and how it is used
+
+Ansible loads this automatically for all hosts in that inventory.
+
+The values in this file are consumed by multiple roles and playbooks:
+
+- `linux_admin_group` and `linux_ansible_user` are used by
+  [roles/common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml)
+- `proxy_enabled`, `proxy_url`, and `no_proxy_list` are used by
+  [roles/endpoint_proxy/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/endpoint_proxy/tasks/main.yml)
+  and OS-specific proxy tasks
+- `ntp_servers` is used by
+  [roles/linux_baseline/templates/chrony.conf.j2](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/linux_baseline/templates/chrony.conf.j2)
+- `monitoring_enabled` and `ama_*` values are used by
+  [roles/azure_monitor_agent/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/azure_monitor_agent/tasks/main.yml)
+- `corp_*` values are used by
+  [roles/cert_trust/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/cert_trust/tasks/linux.yml)
+  and
+  [roles/cert_trust/tasks/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/cert_trust/tasks/windows.yml)
+- `backup_agent_*` values are used by
+  [roles/backup_agent/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/backup_agent/tasks/main.yml)
+- `vuln_scanner_*` values are used by
+  [roles/vulnerability_scanner/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/vulnerability_scanner/tasks/main.yml)
+- `change_freeze`, `rolling_batch_linux`, `rolling_batch_windows`, and
+  `max_fail_pct` are used in
+  [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+
+#### 4. Important settings and what they mean
 
 - `environment_name`
   - environment label such as `dev`
@@ -340,7 +569,7 @@ This is the main environment-level configuration file.
 - `backup_agent_*`, `vuln_scanner_*`
   - package names and MSI paths for required agents
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -361,11 +590,33 @@ Common gotchas:
 - Example file:
   [inventories/dev/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
+
+This file defines the Linux baseline and hardening inputs for one environment.
+
+When a Linux engineer wants to understand why a server got certain packages,
+service settings, SSH restrictions, or validation checks, this is one of the
+main files to inspect.
+
+#### 3. Where and how it is used
 
 Ansible loads this automatically for Linux hosts in that inventory.
 
-#### 3. Important settings and what they mean
+The main values are wired into these active role files:
+
+- `baseline_packages_linux` and `baseline_services_linux` are used by
+  [roles/common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml)
+- `linux_disable_root_ssh`, `linux_password_authentication`, `linux_umask`,
+  and `linux_auditd_enabled` are used by
+  [roles/linux_hardening/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/linux_hardening/tasks/main.yml)
+- distro-specific service handling is completed by
+  [roles/linux_baseline/defaults/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/linux_baseline/defaults/main.yml)
+  and
+  [roles/validation/defaults/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/validation/defaults/main.yml)
+- `linux_fips_mode_required` and `linux_open_ports_allowlist` are not consumed
+  by active tasks today; they are stored here as future baseline inputs
+
+#### 4. Important settings and what they mean
 
 - `baseline_packages_linux`
   - Linux packages that should exist on every managed Linux host
@@ -384,7 +635,7 @@ Ansible loads this automatically for Linux hosts in that inventory.
 - `linux_open_ports_allowlist`
   - baseline open-port expectation used by validation or hardening logic
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -394,7 +645,9 @@ ansible -i inventories/dev/azure_rm.yml linux -m ansible.builtin.debug -a "var=b
 
 Common gotchas:
 
-- package names differ between Linux distributions
+- package names differ between Linux distributions, which is why this file now
+  builds `baseline_packages_linux` from a common list plus distro-specific
+  additions
 - hardening changes can block access if SSH assumptions are wrong
 
 ### `inventories/<env>/group_vars/windows.yml`
@@ -404,11 +657,33 @@ Common gotchas:
 - Example file:
   [inventories/dev/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
+
+This file does two jobs:
+
+- it gives Ansible the connection settings needed to reach Windows hosts
+- it provides the Windows baseline values used by the roles
+
+#### 3. Where and how it is used
 
 Ansible loads this automatically for Windows hosts in that inventory.
 
-#### 3. Important settings and what they mean
+The values in this file are wired in two different ways:
+
+- `ansible_connection`, `ansible_psrp_protocol`, `ansible_psrp_port`,
+  `ansible_psrp_auth`, `ansible_psrp_cert_validation`, and
+  `ansible_shell_type` are consumed by Ansible itself before any playbook role
+  runs
+- `windows_features_common`, `windows_installers_common`, and
+  `windows_timezone` are used by
+  [roles/common_baseline/tasks/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/windows.yml)
+- `windows_enable_rdp` is used by
+  [roles/windows_hardening/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/windows_hardening/tasks/main.yml)
+- `windows_firewall_*` values are not consumed directly today; the current
+  hardening role enables all three Windows firewall profiles without reading
+  those switches
+
+#### 4. Important settings and what they mean
 
 - `ansible_connection`
   - connection type for Windows hosts
@@ -432,7 +707,7 @@ Ansible loads this automatically for Windows hosts in that inventory.
 - `windows_installers_common`
   - standard Chocolatey packages installed by the baseline
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -453,12 +728,31 @@ Common gotchas:
 - Example file:
   [inventories/dev/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
+
+This file stores secrets and private values that should not live in the normal
+inventory files.
+
+For most teams, this is the file that controls domain join, privileged local
+account passwords, and service-account passwords.
+
+#### 3. Where and how it is used
 
 Ansible loads this automatically with the other `group_vars` files, but this
 file should be encrypted with Ansible Vault.
 
-#### 3. Important settings and what they mean
+These values are consumed by active roles:
+
+- `ad_domain_name`, `ad_join_user`, and `ad_join_password` are used by
+  [roles/domain_join/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/domain_join/tasks/main.yml)
+  and
+  [roles/ad_foundation/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/ad_foundation/tasks/main.yml)
+- `linux_local_admin_password` is used by
+  [roles/common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml)
+- `windows_local_admin_password` and `service_account_passwords` are used by
+  [roles/service_accounts/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/service_accounts/tasks/main.yml)
+
+#### 4. Important settings and what they mean
 
 - `ad_domain_name`
   - Active Directory domain name
@@ -473,7 +767,7 @@ file should be encrypted with Ansible Vault.
 - `service_account_passwords`
   - password map for named service accounts
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -494,11 +788,38 @@ Common gotchas:
 - File:
   [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
-This file is loaded explicitly by the main playbooks using `vars_files`.
+This file holds shared repository-wide switches for optional roles and runtime
+components.
 
-#### 3. Important settings and what they mean
+It is where teams usually turn optional capabilities on or off for all runs
+that use the main baseline playbooks.
+
+#### 3. Where and how it is used
+
+This file is loaded explicitly by:
+
+- [playbooks/bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml)
+- [playbooks/bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml)
+- [playbooks/site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+
+The main values are then consumed by these roles:
+
+- `linux_java_required` ->
+  [roles/java_runtime/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/java_runtime/tasks/main.yml)
+- `windows_dotnet_required` ->
+  [roles/dotnet_runtime/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/dotnet_runtime/tasks/main.yml)
+- `sql_client_tools_enabled` ->
+  [roles/sql_client_tools/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/sql_client_tools/tasks/main.yml)
+- `nginx_reverse_proxy_enabled` ->
+  [roles/nginx_reverse_proxy/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/nginx_reverse_proxy/tasks/main.yml)
+- `iis_baseline_enabled` ->
+  [roles/iis_baseline/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/iis_baseline/tasks/main.yml)
+- `release_metadata_owner` and `release_metadata_repo` are stored here as
+  shared metadata, but they are not consumed by active tasks today
+
+#### 4. Important settings and what they mean
 
 - `release_metadata_owner`, `release_metadata_repo`
   - release metadata values used by supporting tooling
@@ -513,7 +834,7 @@ This file is loaded explicitly by the main playbooks using `vars_files`.
 - `iis_baseline_enabled`
   - turn on the IIS role
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -533,11 +854,27 @@ Common gotchas:
 - File:
   [vars/compliance.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/compliance.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
-This file is also loaded explicitly by the main playbooks using `vars_files`.
+This file documents the shared compliance model the baseline is meant to align
+to.
 
-#### 3. Important settings and what they mean
+It helps teams understand the target control posture even when a given control
+is implemented outside Ansible, for example in Terraform, Azure Policy, or a
+security product.
+
+#### 3. Where and how it is used
+
+This file is loaded explicitly by:
+
+- [playbooks/bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml)
+- [playbooks/bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml)
+- [playbooks/site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+
+Today these values are mainly documentation and shared reference values. They
+are not heavily consumed by active role tasks yet.
+
+#### 4. Important settings and what they mean
 
 - `compliance_frameworks`
   - the compliance baselines the repository is aligned to
@@ -548,7 +885,7 @@ This file is also loaded explicitly by the main playbooks using `vars_files`.
 - `security_controls.log_retention_days`
   - log retention expectation
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -570,20 +907,35 @@ Common gotchas:
 - File:
   [playbooks/bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
 This is one of the main entry playbooks engineers run.
 
-It targets the `linux` group returned by the dynamic inventory.
+Use this playbook when you want to apply the full Linux operating-system
+baseline to the selected environment.
 
-It explicitly loads:
+It is usually the first full Linux configuration run after Terraform creates
+servers.
 
-- `vars/global.yml`
-- `vars/compliance.yml`
+#### 3. Where and how it is used
 
-It also automatically receives the relevant inventory `group_vars`.
+This playbook is wired to the rest of the repository like this:
 
-#### 3. Important settings and what they mean
+- it depends on the `linux` group created by
+  [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+- it auto-loads
+  [inventories/<env>/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml),
+  [inventories/<env>/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml),
+  and
+  [inventories/<env>/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+- it explicitly loads
+  [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
+  and
+  [vars/compliance.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/compliance.yml)
+- it then calls roles in a fixed order so certificates and proxy settings are
+  in place before package-based roles run
+
+#### 4. Important settings and what they mean
 
 - `hosts: linux`
   - run only on hosts grouped as Linux
@@ -598,11 +950,11 @@ It also automatically receives the relevant inventory `group_vars`.
 
 Role order in this file:
 
-- `common_baseline`
 - `cert_trust`
+- `endpoint_proxy`
+- `common_baseline`
 - `linux_baseline`
 - `linux_hardening`
-- `endpoint_proxy`
 - `audit_logging`
 - `azure_monitor_agent`
 - `defender_for_endpoint`
@@ -615,7 +967,15 @@ Role order in this file:
 - `nginx_reverse_proxy`
 - `validation`
 
-#### 4. How to verify it and common gotchas
+Why this order matters:
+
+- `cert_trust` comes first so internal certificates are available
+- `endpoint_proxy` comes next so package managers can reach internal package
+  sources
+- `common_baseline` installs the core OS packages and service-account baseline
+- later roles add monitoring, protection, backup, scanning, and validation
+
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -635,7 +995,7 @@ Common gotchas:
 - File:
   [playbooks/bootstrap-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-windows.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
 This is the main Windows bootstrap playbook.
 
@@ -644,12 +1004,26 @@ It contains two plays:
 - one for all Windows servers
 - one for domain controller hosts only
 
-It explicitly loads:
+Use this when you want to apply the full Windows baseline after the VM exists.
 
-- `vars/global.yml`
-- `vars/compliance.yml`
+#### 3. Where and how it is used
 
-#### 3. Important settings and what they mean
+This playbook is wired to the rest of the repository like this:
+
+- it depends on the `windows` and `role_domaincontroller` groups created by
+  [inventories/<env>/azure_rm.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/azure_rm.yml)
+- it auto-loads
+  [inventories/<env>/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml),
+  [inventories/<env>/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml),
+  and
+  [inventories/<env>/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+- it explicitly loads
+  [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
+  and
+  [vars/compliance.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/compliance.yml)
+- it runs one main Windows baseline play and one narrower AD foundation play
+
+#### 4. Important settings and what they mean
 
 First play:
 
@@ -667,12 +1041,12 @@ Second play:
 
 Main Windows role order:
 
-- `common_baseline`
 - `cert_trust`
+- `endpoint_proxy`
+- `common_baseline`
 - `domain_join`
 - `windows_baseline`
 - `windows_hardening`
-- `endpoint_proxy`
 - `audit_logging`
 - `azure_monitor_agent`
 - `defender_for_endpoint`
@@ -685,7 +1059,16 @@ Main Windows role order:
 - `iis_baseline`
 - `validation`
 
-#### 4. How to verify it and common gotchas
+Why this order matters:
+
+- `cert_trust` and `endpoint_proxy` prepare trusted and reachable package
+  sources
+- `common_baseline` establishes the common Windows features and packages
+- `domain_join` happens before the AD-specific or application-specific roles
+- the second play is isolated so only domain controller hosts get the AD
+  foundation tasks
+
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -706,7 +1089,7 @@ Common gotchas:
 - File:
   [playbooks/site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
 This is the production-style rollout playbook.
 
@@ -721,7 +1104,22 @@ Each play loads:
 - `vars/global.yml`
 - `vars/compliance.yml`
 
-#### 3. Important settings and what they mean
+Use this when you want controlled, batched changes in a production
+environment.
+
+#### 3. Where and how it is used
+
+This playbook is wired like the bootstrap playbooks, but it adds production
+targeting and rollout guards:
+
+- it depends on `env_prod` and `role_domaincontroller` groups created by the
+  inventory
+- it consumes `change_freeze`, `rolling_batch_linux`,
+  `rolling_batch_windows`, and `max_fail_pct` from
+  [inventories/prod/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/prod/group_vars/all.yml)
+- it uses the same role stack as bootstrap, but only against production hosts
+
+#### 4. Important settings and what they mean
 
 Linux production play:
 
@@ -748,7 +1146,7 @@ AD production play:
   - only production domain-controller hosts
 - same `change_freeze` guard
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -761,6 +1159,105 @@ Common gotchas:
 - if `change_freeze: true`, this playbook should stop by design
 - `env_prod` must exist in inventory or the plays will match no hosts
 
+### `playbooks/patch-linux.yml`
+
+#### 1. File name and where it lives
+
+- File:
+  [playbooks/patch-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-linux.yml)
+
+#### 2. What this file is for and why it matters
+
+This is the Linux patching playbook.
+
+Use it when you only want operating-system package patching and reboot handling,
+not the full baseline role stack.
+
+#### 3. Where and how it is used
+
+This playbook is wired more simply than the bootstrap playbooks:
+
+- it depends on the `linux` group created by the inventory
+- it uses gathered facts such as `ansible_os_family` to choose `yum` or `apt`
+- it does not load `vars/global.yml` or `vars/compliance.yml`
+- it does not call repository roles
+- it optionally reads `linux_reboot_after_patch` if you pass it as an extra var
+  or define it in inventory
+
+#### 4. Important settings and what they mean
+
+- `hosts: linux`
+  - patch all Linux hosts in the selected inventory
+- `serial: 5`
+  - patch five hosts at a time
+- Red Hat task
+  - updates all packages with `yum`
+- Debian task
+  - updates all packages with `apt`
+- reboot task
+  - reboots when `linux_reboot_after_patch` is true or not set
+
+#### 5. How to verify it and common gotchas
+
+Verify:
+
+```bash
+ansible-playbook -i inventories/prod/azure_rm.yml playbooks/patch-linux.yml --list-tasks
+```
+
+Common gotchas:
+
+- this playbook does not apply hardening, agents, or validation roles
+- `linux_reboot_after_patch` is optional and defaults to `true`
+
+### `playbooks/patch-windows.yml`
+
+#### 1. File name and where it lives
+
+- File:
+  [playbooks/patch-windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/patch-windows.yml)
+
+#### 2. What this file is for and why it matters
+
+This is the Windows patching playbook.
+
+Use it when you only want Windows Update execution and reboot handling, not the
+full Windows baseline.
+
+#### 3. Where and how it is used
+
+This playbook depends on:
+
+- the `windows` group created by the inventory
+- Windows connection settings from
+  [inventories/<env>/group_vars/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/windows.yml)
+
+Like the Linux patch playbook, it does not load shared `vars_files` and does
+not call repository roles.
+
+#### 4. Important settings and what they mean
+
+- `hosts: windows`
+  - patch all Windows hosts in the selected inventory
+- `serial: 3`
+  - patch three hosts at a time
+- `ansible.windows.win_updates`
+  - installs Windows critical, security, and rollup updates
+  - reboots automatically when Windows Update requires it
+
+#### 5. How to verify it and common gotchas
+
+Verify:
+
+```bash
+ansible-playbook -i inventories/prod/azure_rm.yml playbooks/patch-windows.yml --list-tasks
+```
+
+Common gotchas:
+
+- Windows remoting must already be working
+- this playbook does not run the baseline, security, or validation roles
+
 ### `playbooks/validate.yml`
 
 #### 1. File name and where it lives
@@ -768,20 +1265,34 @@ Common gotchas:
 - File:
   [playbooks/validate.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/validate.yml)
 
-#### 2. How it is wired into Ansible
+#### 2. What this file is for and why it matters
 
 This playbook is intentionally simple.
 
-It targets all hosts and runs only the `validation` role.
+Use it when you want to check the current baseline state without rerunning the
+full bootstrap or site playbooks.
 
-#### 3. Important settings and what they mean
+#### 3. Where and how it is used
+
+This playbook depends on:
+
+- the selected inventory and host groups
+- the `validation` role under
+  [roles/validation](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/validation)
+
+It does not load `vars/global.yml` or `vars/compliance.yml`.
+
+It simply runs validation tasks against every host matched by the chosen
+inventory.
+
+#### 4. Important settings and what they mean
 
 - `hosts: all`
   - run validation everywhere in the chosen inventory
 - `roles: validation`
   - run only validation tasks
 
-#### 4. How to verify it and common gotchas
+#### 5. How to verify it and common gotchas
 
 Verify:
 
@@ -793,6 +1304,53 @@ Common gotchas:
 
 - validation only checks what the role is written to check
 - passing validation does not mean every business application is healthy
+
+## How To Trace A Setting Through The Repository
+
+When you need to understand why a server changed, use this method:
+
+1. Start with the playbook you ran.
+2. Confirm the target host group in the inventory.
+3. Check which `group_vars` files were auto-loaded.
+4. Check whether the playbook also loaded `vars/global.yml` or
+   `vars/compliance.yml`.
+5. Find the role in the playbook role list.
+6. Open that role's `tasks/main.yml`.
+7. Follow any `include_tasks`, templates, defaults, and handlers.
+
+Examples:
+
+- `baseline_packages_linux`
+  - defined in
+    [inventories/dev/group_vars/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/linux.yml)
+  - loaded automatically for Linux hosts
+  - consumed by
+    [roles/common_baseline/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/common_baseline/tasks/linux.yml)
+  - playbooks that use it:
+    [bootstrap-linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/bootstrap-linux.yml)
+    and the Linux play in
+    [site.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/playbooks/site.yml)
+- `proxy_url`
+  - defined in
+    [inventories/dev/group_vars/all.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/all.yml)
+  - consumed by
+    [roles/endpoint_proxy/tasks/linux.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/endpoint_proxy/tasks/linux.yml),
+    [roles/endpoint_proxy/tasks/windows.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/endpoint_proxy/tasks/windows.yml),
+    and
+    [roles/backup_agent/templates/backup-agent.conf.j2](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/backup_agent/templates/backup-agent.conf.j2)
+- `ad_join_password`
+  - defined in
+    [inventories/dev/group_vars/vault.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/inventories/dev/group_vars/vault.yml)
+  - consumed by
+    [roles/domain_join/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/domain_join/tasks/main.yml)
+    and
+    [roles/ad_foundation/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/ad_foundation/tasks/main.yml)
+- `linux_java_required`
+  - defined in
+    [vars/global.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/vars/global.yml)
+  - loaded only by the bootstrap and `site.yml` playbooks
+  - consumed by
+    [roles/java_runtime/tasks/main.yml](/Users/charleslyonga/Documents/azure-cloud/azure-apim-function-app/ansible-azure-enterprise/roles/java_runtime/tasks/main.yml)
 
 ## How Roles Are Wired
 
