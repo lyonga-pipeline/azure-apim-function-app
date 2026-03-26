@@ -796,7 +796,7 @@ components.
 It is where teams usually turn optional capabilities on or off for all runs
 that use the main baseline playbooks.
 
-#### 3. Where and how it is used
+#### 3. Where and how it is used(-->> mostlt to turn on/off roles, when set to true role will be turned off. This uses the "when" condition in the role task config)
 
 This file is loaded explicitly by:
 

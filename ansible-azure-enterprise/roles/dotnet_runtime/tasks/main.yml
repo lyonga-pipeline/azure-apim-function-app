@@ -3,7 +3,7 @@
   ansible.windows.win_get_url:
     url: "{{ dotnet_hosting_bundle_url }}"
     dest: C:\Temp\dotnet-hosting.exe
-  when:
+  when: ####set in vars/global.yml
     - windows_dotnet_required | bool
     - ansible_os_family == 'Windows'
 
