@@ -42,11 +42,35 @@ locals {
         principal_id         = var.security_reader_principal_id
       }
     },
+    var.security_deployer_principal_id == "" ? {} : {
+      security_contributor = {
+        scope                = local.management_group_ids["security"]
+        role_definition_name = "Contributor"
+        principal_id         = var.security_deployer_principal_id
+      }
+      security_user_access_admin = {
+        scope                = local.management_group_ids["security"]
+        role_definition_name = "User Access Administrator"
+        principal_id         = var.security_deployer_principal_id
+      }
+    },
     var.nonprod_workload_deployer_principal_id == "" ? {} : {
       nonprod_contributor = {
         scope                = local.management_group_ids["nonprod"]
         role_definition_name = "Contributor"
         principal_id         = var.nonprod_workload_deployer_principal_id
+      }
+    },
+    var.prod_workload_deployer_principal_id == "" ? {} : {
+      prod_contributor = {
+        scope                = local.management_group_ids["prod"]
+        role_definition_name = "Contributor"
+        principal_id         = var.prod_workload_deployer_principal_id
+      }
+      prod_user_access_admin = {
+        scope                = local.management_group_ids["prod"]
+        role_definition_name = "User Access Administrator"
+        principal_id         = var.prod_workload_deployer_principal_id
       }
     },
     var.prod_workload_reader_principal_id == "" ? {} : {

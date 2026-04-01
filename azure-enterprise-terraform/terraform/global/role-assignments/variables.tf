@@ -45,9 +45,21 @@ variable "security_reader_principal_id" {
   default     = ""
 }
 
+variable "security_deployer_principal_id" {
+  type        = string
+  description = "Principal id for the security deployment identity."
+  default     = ""
+}
+
 variable "nonprod_workload_deployer_principal_id" {
   type        = string
   description = "Principal id for the nonprod workload deployment identity."
+  default     = ""
+}
+
+variable "prod_workload_deployer_principal_id" {
+  type        = string
+  description = "Principal id for the prod workload deployment identity."
   default     = ""
 }
 

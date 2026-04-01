@@ -50,8 +50,10 @@ For the broader design rationale, see `terraform/README-v2.md`.
 Typical assignments in this stack are:
 
 - platform deployer roles
+- security deployer roles
 - security reader roles
 - shared nonprod workload operator roles
+- shared prod workload deployer roles
 - shared prod reader roles
 
 ## Current Conditional Assignments
@@ -61,10 +63,14 @@ set to a non-empty value.
 
 - if `platform_deployer_principal_id` is set, grant that principal
   `Contributor` and `User Access Administrator` on `platform`
+- if `security_deployer_principal_id` is set, grant that principal
+  `Contributor` and `User Access Administrator` on `security`
 - if `security_reader_principal_id` is set, grant that principal `Reader` on
   `security`
 - if `nonprod_workload_deployer_principal_id` is set, grant that principal
   `Contributor` on `nonprod`
+- if `prod_workload_deployer_principal_id` is set, grant that principal
+  `Contributor` and `User Access Administrator` on `prod`
 - if `prod_workload_reader_principal_id` is set, grant that principal `Reader`
   on `prod`
 
@@ -77,12 +83,19 @@ These assignments are made at management-group scope, so Azure RBAC inheritance
 applies to child management groups, subscriptions, resource groups, and
 resources under that branch.
 
+These are branch-scoped deployment permissions. They are not custom
+resource-type-specific roles.
+
 - `platform_deployer_principal_id`
   - gets `Contributor` and `User Access Administrator` on `platform`
   - can create, update, and delete resources in the `platform` branch
   - can manage RBAC assignments in the `platform` branch
   - because `connectivity`, `management`, `identity`, and `security` sit under
     `platform`, this principal inherits access to those child branches too
+- `security_deployer_principal_id`
+  - gets `Contributor` and `User Access Administrator` on `security`
+  - can create, update, and delete resources in the `security` branch
+  - can manage RBAC assignments in the `security` branch
 - `security_reader_principal_id`
   - gets `Reader` on `security`
   - can view resources in the `security` branch
@@ -92,11 +105,25 @@ resources under that branch.
   - gets `Contributor` on `nonprod`
   - can create, update, and delete resources in the `nonprod` branch
   - cannot manage RBAC there because it does not receive `User Access Administrator`
+- `prod_workload_deployer_principal_id`
+  - gets `Contributor` and `User Access Administrator` on `prod`
+  - can create, update, and delete resources in the `prod` branch
+  - can manage RBAC assignments in the `prod` branch
 - `prod_workload_reader_principal_id`
   - gets `Reader` on `prod`
   - can view resources in the `prod` branch
   - cannot create, update, or delete resources in `prod` unless another
     assignment grants write access
+
+`User Access Administrator` is included for the `platform`, `security`, and
+`prod` deployer identities because this repo's Terraform stacks create Azure
+RBAC assignments as part of normal deployment flows. `Contributor` alone can
+deploy resources, but it cannot create `azurerm_role_assignment` resources.
+
+The `nonprod_workload_deployer_principal_id` is left as `Contributor` only to
+preserve the existing access model. If your nonprod workload deployments also
+need to manage Terraform-created RBAC assignments, extend that identity with
+`User Access Administrator` or use a separate privileged deployment identity.
 
 Reader access alone does not permit deployments.
 
@@ -104,8 +131,15 @@ With the current hierarchy:
 
 - a principal that only has `Reader` on `prod` cannot deploy to `prod`
 - a principal that only has `Reader` on `security` cannot deploy to `security`
+- a principal that has `Contributor` and `User Access Administrator` on
+  `security` can deploy security-branch resources and manage RBAC there
+- a principal that has `Contributor` and `User Access Administrator` on `prod`
+  can deploy prod workload resources and manage RBAC there
 - the `platform_deployer_principal_id` can deploy to `security` because
   `security` is a child of `platform`
+- the `platform_deployer_principal_id` still inherits access to `security` even
+  if `security_deployer_principal_id` is also configured, because `security` is
+  a child of `platform`
 - the `platform_deployer_principal_id` cannot deploy to `prod` based on this
   stack alone because `prod` is under the separate `landing_zones` branch
 - the `nonprod_workload_deployer_principal_id` cannot deploy to `prod` based on
@@ -116,6 +150,7 @@ With the current hierarchy:
 - you have separate deployment identities for platform and workloads
 - you want nonprod deployers to have write access but prod identities to be
   read-only
+- you want dedicated deployer identities for `security` and `prod`
 - you want security or audit identities to have centralized read access
 - you want RBAC changes versioned, reviewed, and reproducible in Git instead of
   manual portal changes
@@ -178,3 +213,9 @@ One more important constraint: this stack is for codifying ongoing RBAC, not
 for self-bootstrapping an underprivileged deployment identity. The principal
 running Terraform must already have enough rights to create these role
 assignments at the target management-group scopes.
+
+Another important design caveat: adding a dedicated `security` deployer does not
+remove the inherited access that the `platform` deployer already has today. If
+you need strict separation of duties between platform and security deployments,
+you must also change the management-group hierarchy or reduce the platform
+deployer scope.
