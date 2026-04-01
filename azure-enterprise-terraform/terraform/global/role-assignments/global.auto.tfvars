@@ -3,3 +3,8 @@ management_groups_state_rg              = "rg-tfstate-dev"
 management_groups_state_sa              = "demotest822e"
 management_groups_state_key             = "global/management-groups.tfstate"
 management_groups_state_subscription_id = "65ac2b14-e13a-40a0-bb50-93359232816e"
+
+# platform_deployer_principal_id         = "00000000-0000-0000-0000-000000000001"
+# security_reader_principal_id           = "00000000-0000-0000-0000-000000000002"
+# nonprod_workload_deployer_principal_id = "00000000-0000-0000-0000-000000000003"
+# prod_workload_reader_principal_id      = "00000000-0000-0000-0000-000000000004"

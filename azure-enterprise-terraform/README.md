@@ -327,6 +327,16 @@ Creates:
 
 This keeps high-scope RBAC out of workload stacks.
 
+Use this stack when you want inherited access across a management-group branch,
+such as a platform deployer that can manage the full `platform` branch or a
+read-only identity for `prod`.
+
+Reader assignments do not allow deployments. With the current hierarchy,
+`platform` is the parent of `security`, so a platform deployer assigned at
+`platform` inherits write access into `security`. That same assignment does not
+grant write access to `prod`, because `prod` sits under the separate
+`landing_zones` branch.
+
 ### `platform-v2/connectivity`
 
 Creates:

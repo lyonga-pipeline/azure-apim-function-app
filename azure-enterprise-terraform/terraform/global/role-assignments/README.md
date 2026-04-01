@@ -54,6 +54,82 @@ Typical assignments in this stack are:
 - shared nonprod workload operator roles
 - shared prod reader roles
 
+## Current Conditional Assignments
+
+This stack only creates an assignment when the matching principal ID variable is
+set to a non-empty value.
+
+- if `platform_deployer_principal_id` is set, grant that principal
+  `Contributor` and `User Access Administrator` on `platform`
+- if `security_reader_principal_id` is set, grant that principal `Reader` on
+  `security`
+- if `nonprod_workload_deployer_principal_id` is set, grant that principal
+  `Contributor` on `nonprod`
+- if `prod_workload_reader_principal_id` is set, grant that principal `Reader`
+  on `prod`
+
+If those variables are left empty, this stack plans and applies successfully
+but creates no RBAC assignments for that branch.
+
+## Effective Access Model
+
+These assignments are made at management-group scope, so Azure RBAC inheritance
+applies to child management groups, subscriptions, resource groups, and
+resources under that branch.
+
+- `platform_deployer_principal_id`
+  - gets `Contributor` and `User Access Administrator` on `platform`
+  - can create, update, and delete resources in the `platform` branch
+  - can manage RBAC assignments in the `platform` branch
+  - because `connectivity`, `management`, `identity`, and `security` sit under
+    `platform`, this principal inherits access to those child branches too
+- `security_reader_principal_id`
+  - gets `Reader` on `security`
+  - can view resources in the `security` branch
+  - cannot create, update, or delete resources in `security` unless another
+    assignment grants write access
+- `nonprod_workload_deployer_principal_id`
+  - gets `Contributor` on `nonprod`
+  - can create, update, and delete resources in the `nonprod` branch
+  - cannot manage RBAC there because it does not receive `User Access Administrator`
+- `prod_workload_reader_principal_id`
+  - gets `Reader` on `prod`
+  - can view resources in the `prod` branch
+  - cannot create, update, or delete resources in `prod` unless another
+    assignment grants write access
+
+Reader access alone does not permit deployments.
+
+With the current hierarchy:
+
+- a principal that only has `Reader` on `prod` cannot deploy to `prod`
+- a principal that only has `Reader` on `security` cannot deploy to `security`
+- the `platform_deployer_principal_id` can deploy to `security` because
+  `security` is a child of `platform`
+- the `platform_deployer_principal_id` cannot deploy to `prod` based on this
+  stack alone because `prod` is under the separate `landing_zones` branch
+- the `nonprod_workload_deployer_principal_id` cannot deploy to `prod` based on
+  this stack alone
+
+## When This Stack Is Useful
+
+- you have separate deployment identities for platform and workloads
+- you want nonprod deployers to have write access but prod identities to be
+  read-only
+- you want security or audit identities to have centralized read access
+- you want RBAC changes versioned, reviewed, and reproducible in Git instead of
+  manual portal changes
+- you expect multiple subscriptions under the same management-group branch and
+  want inheritance
+
+## When It May Be Unnecessary
+
+- you have one Terraform OIDC principal
+- its permissions are already managed outside Terraform
+- your environment is small and you do not need separate
+  platform/nonprod/prod/security identities
+- you are not trying to codify RBAC as part of the landing zone
+
 ## What Other Stacks Use From It
 
 This stack mostly serves the estate operationally rather than through data
@@ -97,3 +173,8 @@ This separation is important.
 If high-scope RBAC and workload-local RBAC are mixed together, engineers have a
 hard time understanding who owns access and why. Keeping central assignments in
 this stack makes the access model much easier to explain and scale.
+
+One more important constraint: this stack is for codifying ongoing RBAC, not
+for self-bootstrapping an underprivileged deployment identity. The principal
+running Terraform must already have enough rights to create these role
+assignments at the target management-group scopes.

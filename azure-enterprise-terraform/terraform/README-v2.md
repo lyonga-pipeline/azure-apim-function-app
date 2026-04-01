@@ -149,6 +149,16 @@ Used by:
 Why it matters:
 
 - separates tenant and management-group access from workload-local RBAC
+- lets you codify inherited management-group RBAC in Git instead of relying on
+  manual portal assignments
+
+Notes:
+
+- `Reader` assignments provide visibility only and do not allow deployments
+- a deployer assigned at `platform` inherits access to child branches such as
+  `security`
+- that same `platform` assignment does not grant access to `prod`, because
+  `prod` is under the separate `landing_zones` branch
 
 ### `platform-v2/connectivity`
 
