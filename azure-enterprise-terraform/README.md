@@ -338,7 +338,7 @@ Reader assignments do not allow deployments. With the current hierarchy,
 grant write access to `prod`, because `prod` sits under the separate
 `landing_zones` branch.
 
-The `security` and `prod` deployer identities in this stack receive both
+The `nonprod`, `security`, and `prod` deployer identities in this stack receive both
 `Contributor` and `User Access Administrator` so they can deploy resources and
 also manage Terraform-driven RBAC assignments inside those branches.
 

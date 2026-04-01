@@ -60,6 +60,11 @@ locals {
         role_definition_name = "Contributor"
         principal_id         = var.nonprod_workload_deployer_principal_id
       }
+      nonprod_user_access_admin = {
+        scope                = local.management_group_ids["nonprod"]
+        role_definition_name = "User Access Administrator"
+        principal_id         = var.nonprod_workload_deployer_principal_id
+      }
     },
     var.prod_workload_deployer_principal_id == "" ? {} : {
       prod_contributor = {

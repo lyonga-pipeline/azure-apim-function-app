@@ -68,7 +68,7 @@ set to a non-empty value.
 - if `security_reader_principal_id` is set, grant that principal `Reader` on
   `security`
 - if `nonprod_workload_deployer_principal_id` is set, grant that principal
-  `Contributor` on `nonprod`
+  `Contributor` and `User Access Administrator` on `nonprod`
 - if `prod_workload_deployer_principal_id` is set, grant that principal
   `Contributor` and `User Access Administrator` on `prod`
 - if `prod_workload_reader_principal_id` is set, grant that principal `Reader`
@@ -102,9 +102,9 @@ resource-type-specific roles.
   - cannot create, update, or delete resources in `security` unless another
     assignment grants write access
 - `nonprod_workload_deployer_principal_id`
-  - gets `Contributor` on `nonprod`
+  - gets `Contributor` and `User Access Administrator` on `nonprod`
   - can create, update, and delete resources in the `nonprod` branch
-  - cannot manage RBAC there because it does not receive `User Access Administrator`
+  - can manage RBAC assignments in the `nonprod` branch
 - `prod_workload_deployer_principal_id`
   - gets `Contributor` and `User Access Administrator` on `prod`
   - can create, update, and delete resources in the `prod` branch
@@ -115,15 +115,11 @@ resource-type-specific roles.
   - cannot create, update, or delete resources in `prod` unless another
     assignment grants write access
 
-`User Access Administrator` is included for the `platform`, `security`, and
-`prod` deployer identities because this repo's Terraform stacks create Azure
-RBAC assignments as part of normal deployment flows. `Contributor` alone can
-deploy resources, but it cannot create `azurerm_role_assignment` resources.
-
-The `nonprod_workload_deployer_principal_id` is left as `Contributor` only to
-preserve the existing access model. If your nonprod workload deployments also
-need to manage Terraform-created RBAC assignments, extend that identity with
-`User Access Administrator` or use a separate privileged deployment identity.
+`User Access Administrator` is included for the `platform`, `nonprod`,
+`security`, and `prod` deployer identities because this repo's Terraform stacks
+create Azure RBAC assignments as part of normal deployment flows.
+`Contributor` alone can deploy resources, but it cannot create
+`azurerm_role_assignment` resources.
 
 Reader access alone does not permit deployments.
 

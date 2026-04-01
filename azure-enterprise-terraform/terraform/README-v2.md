@@ -159,7 +159,7 @@ Notes:
   `security`
 - that same `platform` assignment does not grant access to `prod`, because
   `prod` is under the separate `landing_zones` branch
-- dedicated `security` and `prod` deployer identities can be granted
+- dedicated `nonprod`, `security`, and `prod` deployer identities can be granted
   `Contributor` plus `User Access Administrator` so they can deploy resources
   and manage Terraform-created RBAC in those branches
 
