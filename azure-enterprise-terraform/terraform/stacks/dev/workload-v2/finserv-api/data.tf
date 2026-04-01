@@ -149,7 +149,7 @@ locals {
     !var.use_subscriptions_state ? [] : local.expected_subscription_id != null ? [] : [
       "The subscriptions stack does not contain an entry for subscription_catalog_entry_key = ${var.subscription_catalog_entry_key}.",
     ],
-    !var.use_subscriptions_state || local.expected_subscription_id == var.subscription_id ? [] : [
+    !var.use_subscriptions_state || local.expected_subscription_id == "" || local.expected_subscription_id == var.subscription_id ? [] : [
       "The workload stack subscription_id does not match the central subscriptions catalog.",
     ],
     length(keys(local.connectivity_outputs_raw)) > 0 ? [] : [

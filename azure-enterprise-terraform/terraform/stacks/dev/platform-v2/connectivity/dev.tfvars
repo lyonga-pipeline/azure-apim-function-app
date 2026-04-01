@@ -1,6 +1,6 @@
 environment                    = "dev"
 subscription_id                = "65ac2b14-e13a-40a0-bb50-93359232816e"
-subscription_catalog_entry_key = "platform"
+subscription_catalog_entry_key = "connectivity"
 application                    = "connectivity"
 created_by                     = "terraform"
 location                       = "eastus2"

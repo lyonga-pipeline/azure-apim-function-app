@@ -16,7 +16,7 @@ variable "subscription_id" {
 variable "subscription_catalog_entry_key" {
   type        = string
   description = "Entry key in the subscriptions catalog for this stack."
-  default     = "nonprod_workload"
+  default     = "nonprod_finserv_api"
 }
 
 variable "use_subscriptions_state" {

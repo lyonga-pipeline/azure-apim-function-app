@@ -16,12 +16,16 @@ data "terraform_remote_state" "subscriptions" {
   )
 }
 
+locals {
+  expected_subscription_id = var.use_subscriptions_state ? try(
+    trimspace(data.terraform_remote_state.subscriptions[0].outputs.subscription_catalog[var.subscription_catalog_entry_key].existing_subscription_id),
+    null,
+  ) : null
+}
+
 check "subscription_target_matches_catalog" {
   assert {
-    condition = !var.use_subscriptions_state || try(
-      data.terraform_remote_state.subscriptions[0].outputs.subscription_catalog[var.subscription_catalog_entry_key].existing_subscription_id,
-      null,
-    ) == var.subscription_id
+    condition     = !var.use_subscriptions_state || local.expected_subscription_id == "" || local.expected_subscription_id == var.subscription_id
     error_message = "The management stack subscription_id does not match the central subscriptions catalog."
   }
 }

@@ -38,6 +38,23 @@ For the broader design rationale, see `terraform/README-v2.md`.
 - optional `global/subscriptions` remote state
   - Used for subscription validation.
 
+## Subscription Catalog Mapping
+
+This sample stack should use the `identity` entry in `global/subscriptions`.
+
+That means:
+
+- `subscription_catalog_entry_key = "identity"`
+- `subscription_id` should eventually match the real identity subscription ID
+  recorded in the central catalog
+
+Why this matters:
+
+- the identity stack is a shared platform service
+- it should validate against the identity platform subscription, not a generic
+  shared platform placeholder
+- this keeps reusable identity assets in their own subscription boundary
+
 ## Main Inputs
 
 - `subscription_id`

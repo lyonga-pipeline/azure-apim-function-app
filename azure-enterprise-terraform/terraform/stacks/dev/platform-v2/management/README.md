@@ -33,6 +33,24 @@ For the broader design rationale, see `terraform/README-v2.md`.
 This stack does not need connectivity or identity state to stand up its core
 services.
 
+## Subscription Catalog Mapping
+
+This sample stack should use the `management` entry in `global/subscriptions`.
+
+That means:
+
+- `subscription_catalog_entry_key = "management"`
+- `subscription_id` should eventually match the real management subscription ID
+  recorded in the central catalog
+
+Why this matters:
+
+- the management stack is a shared platform service
+- it should validate against the management platform subscription, not a
+  generic shared platform placeholder
+- this keeps shared monitoring and operations services in their own
+  subscription boundary
+
 ## Main Inputs
 
 - `subscription_id`

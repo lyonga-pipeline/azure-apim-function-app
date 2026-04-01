@@ -30,6 +30,25 @@ For the broader design rationale, see `terraform/README-v2.md`.
 
 This stack does not depend on identity, management, or workload state.
 
+## Subscription Catalog Mapping
+
+This sample stack should use the `connectivity` entry in
+`global/subscriptions`.
+
+That means:
+
+- `subscription_catalog_entry_key = "connectivity"`
+- `subscription_id` should eventually match the real connectivity subscription
+  ID recorded in the central catalog
+
+Why this matters:
+
+- the connectivity stack is a shared platform service
+- it should validate against the connectivity platform subscription, not a
+  generic shared platform placeholder
+- this keeps the sample aligned with the stronger enterprise pattern of one
+  subscription per major platform function
+
 ## Main Inputs
 
 - `subscription_id`
