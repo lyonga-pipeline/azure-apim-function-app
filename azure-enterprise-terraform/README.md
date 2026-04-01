@@ -545,8 +545,9 @@ Operational rules:
 - lease contention is expected when two runs hit the same key
 - do not disable locking
 - do not share a state key across unrelated stacks
-- serialize applies with GitHub Actions `concurrency`
+- serialize all stateful runs with GitHub Actions `concurrency`
 - use separate keys to reduce contention
+- use a bounded `-lock-timeout` so lease contention waits briefly instead of failing immediately
 - only run `terraform force-unlock` when you have confirmed the lock is stale
 
 ### Lease Handling Runbook
@@ -564,15 +565,18 @@ Use this order of operations when a stack appears locked:
 - One concurrency group per stack path is the correct minimum control.
 - Allow different stacks to plan in parallel when they use different backend keys.
 - Do not run parallel applies against the same stack.
+- Use the same concurrency group naming for manual plan/apply and scheduled drift jobs.
 - Prefer reviewed-plan artifacts over recomputing a fresh plan during apply.
 - Keep `cancel-in-progress: false` for applies so one run does not interrupt another mid-change.
-- Be careful with scheduled drift jobs and manual applies against the same key. They should not overlap.
+- Be careful with scheduled drift jobs and manual applies against the same key. They should share the same concurrency group so they do not overlap.
+- Use `-lock-timeout` on import, plan, apply, and destroy so a brief overlapping lease waits instead of failing immediately.
 
-This repo’s plan/apply workflow uses:
+This repo’s active workflows use:
 
 - one concurrency group per stack path
+- `-lock-timeout` on stateful Terraform commands
 - artifacted plans
-- explicit manual dispatch for apply
+- explicit manual dispatch
 
 ## Drift Detection
 
@@ -583,6 +587,8 @@ This repo’s plan/apply workflow uses:
 - publishes the plan to the workflow summary
 - opens or updates a GitHub issue when drift is detected
 - closes the issue when drift clears
+- shares the same per-stack concurrency model as the manual plan/apply workflow
+- uses a configurable `lock_timeout` input, defaulting to `5m`
 
 ### Drift Operating Model
 

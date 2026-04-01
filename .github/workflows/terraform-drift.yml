@@ -19,6 +19,10 @@ on:
         description: "GitHub Environment holding OIDC Azure configuration"
         required: false
         default: "dev"
+      lock_timeout:
+        description: "Terraform state lock timeout for stateful commands"
+        required: false
+        default: "5m"
   schedule:
     - cron: "41 3 * * *"
 
@@ -32,6 +36,9 @@ jobs:
     name: Terraform Drift Plan
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment_name || 'dev' }}
+    concurrency:
+      group: terraform-${{ inputs.stack_path || 'azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api' }}
+      cancel-in-progress: false
     env:
       ARM_USE_OIDC: true
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID != '' && vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_ID || secrets.ARM_CLIENT_ID }}
@@ -41,6 +48,7 @@ jobs:
       STACK_PATH: ${{ inputs.stack_path || 'azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api' }}
       BACKEND_CONFIG_PATH: ${{ inputs.backend_config_path || '' }}
       VAR_FILE: ${{ inputs.var_file || 'dev.tfvars' }}
+      TF_LOCK_TIMEOUT: ${{ inputs.lock_timeout || '5m' }}
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
 
@@ -136,9 +144,9 @@ jobs:
         run: |
           export exitcode=0
           if [ -n "${{ steps.resolve-inputs.outputs.var_file }}" ]; then
-            terraform plan -detailed-exitcode -no-color -out tfplan -var-file="${{ steps.resolve-inputs.outputs.var_file }}" || export exitcode=$?
+            terraform plan -lock-timeout="${TF_LOCK_TIMEOUT}" -detailed-exitcode -no-color -out tfplan -var-file="${{ steps.resolve-inputs.outputs.var_file }}" || export exitcode=$?
           else
-            terraform plan -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+            terraform plan -lock-timeout="${TF_LOCK_TIMEOUT}" -detailed-exitcode -no-color -out tfplan || export exitcode=$?
           fi
 
           echo "exitcode=${exitcode}" >> "$GITHUB_OUTPUT"

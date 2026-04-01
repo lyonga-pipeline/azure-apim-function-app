@@ -32,6 +32,10 @@ on:
         description: "GitHub Environment holding OIDC Azure configuration"
         required: false
         default: "dev"
+      lock_timeout:
+        description: "Terraform state lock timeout for stateful commands"
+        required: false
+        default: "5m"
 
 permissions:
   id-token: write
@@ -47,6 +51,7 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID != '' && secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID != '' && vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID != '' && secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
       TF_VAR_demo_windows_vm_admin_password: ${{ secrets.DEMO_WINDOWS_VM_ADMIN_PASSWORD }}
+      TF_LOCK_TIMEOUT: ${{ inputs.lock_timeout }}
     concurrency:
       group: terraform-${{ inputs.stack_path }}
       cancel-in-progress: false
@@ -184,9 +189,9 @@ jobs:
           fi
 
           if [ -n "${{ steps.resolve-inputs.outputs.var_file }}" ]; then
-            terraform import -var-file="${{ steps.resolve-inputs.outputs.var_file }}" "${import_address}" "${import_id}"
+            terraform import -lock-timeout="${TF_LOCK_TIMEOUT}" -var-file="${{ steps.resolve-inputs.outputs.var_file }}" "${import_address}" "${import_id}"
           else
-            terraform import "${import_address}" "${import_id}"
+            terraform import -lock-timeout="${TF_LOCK_TIMEOUT}" "${import_address}" "${import_id}"
           fi
 
       - name: Terraform Plan
@@ -194,9 +199,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${{ steps.resolve-inputs.outputs.var_file }}" ]; then
-            terraform plan -out=tfplan -var-file="${{ steps.resolve-inputs.outputs.var_file }}"
+            terraform plan -lock-timeout="${TF_LOCK_TIMEOUT}" -out=tfplan -var-file="${{ steps.resolve-inputs.outputs.var_file }}"
           else
-            terraform plan -out=tfplan
+            terraform plan -lock-timeout="${TF_LOCK_TIMEOUT}" -out=tfplan
           fi
 
       - name: Terraform Destroy
@@ -216,9 +221,9 @@ jobs:
           done < <(terraform state list | grep 'azapi_resource' || true)
 
           if [ -n "${{ steps.resolve-inputs.outputs.var_file }}" ]; then
-            terraform destroy -auto-approve -var-file="${{ steps.resolve-inputs.outputs.var_file }}"
+            terraform destroy -lock-timeout="${TF_LOCK_TIMEOUT}" -auto-approve -var-file="${{ steps.resolve-inputs.outputs.var_file }}"
           else
-            terraform destroy -auto-approve
+            terraform destroy -lock-timeout="${TF_LOCK_TIMEOUT}" -auto-approve
           fi
 
       # - name: Upload Plan Artifact
@@ -230,4 +235,4 @@ jobs:
       # - name: Terraform Apply
       #   if: ${{ inputs.apply == true }}
       #   working-directory: ${{ inputs.stack_path }}
-      #   run: terraform apply -auto-approve tfplan
+      #   run: terraform apply -lock-timeout="${TF_LOCK_TIMEOUT}" -auto-approve tfplan
