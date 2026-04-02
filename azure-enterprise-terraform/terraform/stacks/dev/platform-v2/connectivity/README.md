@@ -35,7 +35,8 @@ into shared child modules.
    Calls `modules/vnet-hub` to build the hub VNet and its subnet layout.
 3. `modules/vnet-hub`
    Decides which subnets to create, applies the default subnet CIDRs when no
-   custom subnet map is supplied, and optionally deploys Azure Firewall.
+   custom subnet map is supplied, and optionally deploys Azure Firewall, NAT
+   Gateway, and Azure Bastion.
 4. `modules/vnet-hub -> module "network"`
    Calls the generic `modules/network` module to create the VNet, subnets,
    NSGs, NSG rules, subnet associations, route table associations, and NAT
@@ -47,7 +48,7 @@ That means this stack forms the hub by combining:
 
 - a resource group
 - a hub VNet with a predefined subnet layout
-- optional hub firewall resources
+- optional hub firewall, NAT, and Bastion resources
 - shared Private DNS zones linked to the hub VNet
 
 ## How Typical This Is For Enterprise Azure
@@ -65,6 +66,8 @@ What is typical about it:
   Bastion, and DNS
 - Azure Firewall is treated as a shared hub capability rather than a
   workload-local component
+- Firewall Policy is used to centralize firewall rule management instead of
+  relying only on classic per-firewall rule collections
 
 That aligns well with Microsoft guidance that connectivity subscriptions host
 shared networking resources like hub networking, Azure Firewall, and Azure
@@ -74,11 +77,10 @@ What is still simplified in this repo:
 
 - no route tables currently force spoke egress or east-west traffic through the
   firewall
-- no Azure Firewall policy, rule collections, or DNS proxy configuration exist
-  yet
+- no DNS proxy configuration exists yet
 - no DNS Private Resolver is deployed yet for on-premises or custom DNS
   forwarding
-- no VPN gateway, ExpressRoute gateway, or Bastion resource is deployed yet
+- no VPN gateway or ExpressRoute gateway is deployed yet
 - no DDoS plan is attached yet
 - no multi-region hub pattern is modeled yet
 
@@ -93,7 +95,11 @@ The checked-in `dev.tfvars` currently deploys:
 - hub VNet `vnet-dev-hub`
 - hub VNet CIDR `10.0.0.0/16`
 - Azure region `eastus2`
-- Azure Firewall disabled
+- Azure Firewall enabled
+- Azure Firewall Policy attached to the hub firewall
+- one baseline firewall network rule collection
+- NAT Gateway enabled and attached to `AzureFirewallSubnet`
+- Azure Bastion enabled on `AzureBastionSubnet`
 
 ## Default Hub Subnet Layout
 
@@ -289,9 +295,20 @@ stack does not deploy all of them by default.
 Current behavior:
 
 - `AzureFirewallSubnet` is always created as part of the default layout
-- Azure Firewall and its public IP are created only when `enable_firewall = true`
-- the current `dev.tfvars` sets `enable_firewall = false`
-- `AzureBastionSubnet` is created, but no Bastion resource is created here
+- Azure Firewall, its public IP, and its attached Firewall Policy are created
+  only when `enable_firewall = true`
+- firewall policy rule collection groups are created only when
+  `firewall_network_rule_collections` is non-empty
+- the current `dev.tfvars` enables the firewall and adds a baseline
+  `spoke-to-internet` policy-based network rule collection for outbound web
+  traffic
+- NAT Gateway can optionally be created with its own Standard public IP and
+  attached to selected hub subnets
+- the current `dev.tfvars` enables the NAT Gateway and attaches it to
+  `AzureFirewallSubnet`
+- `AzureBastionSubnet` is always created as part of the default layout
+- Azure Bastion is created only when `enable_bastion = true`
+- the current `dev.tfvars` enables Azure Bastion on `AzureBastionSubnet`
 - `dns-inbound` and `dns-outbound` subnets are created, but no DNS Private
   Resolver resources are created here
 
@@ -320,12 +337,17 @@ link their spoke VNets to those same shared zones.
 
 ### Public IP
 
-The public IP in this stack exists only for Azure Firewall.
+The public IP resources in this stack back Azure Firewall, Azure Bastion, and
+optionally the NAT Gateway.
 
 Why it matters:
 
 - Azure Firewall uses a public IP for internet egress and DNAT scenarios in the
   standard hub pattern
+- Azure Bastion uses a public IP to provide browser-based or native-client
+  administrative access without exposing workload VMs directly
+- NAT Gateway uses a public IP to provide stable and scalable outbound SNAT
+  when that pattern is needed
 - it gives the hub a controlled and auditable outbound public address
 - it becomes one of the important public edge assets that should be protected,
   monitored, and often DDoS-covered
@@ -334,7 +356,9 @@ Important nuance:
 
 - in this repo, the firewall public IP is created only when `enable_firewall`
   is `true`
-- this stack does not create any other public IP resources
+- the Bastion public IP is created only when `enable_bastion` is `true`
+- the NAT Gateway public IP is created only when `enable_nat_gateway` and
+  `nat_gateway_create_public_ip` are both `true`
 
 ### Firewall
 
@@ -348,16 +372,89 @@ Why it matters:
   is designed for it
 - it is the common place to apply egress policy, FQDN filtering, DNAT, and
   network rule control
+- Firewall Policy makes that rule model easier to standardize, reuse, and grow
+  than classic direct firewall rule collections
 
 Important nuance for this repo:
 
-- enabling the firewall here creates the firewall and its public IP
+- enabling the firewall here creates the firewall, its public IP, and an
+  attached Firewall Policy
 - it does **not** by itself force traffic through the firewall
 - to make the firewall operational as the transit security control, you still
   need route tables, firewall policy/rules, and usually DNS alignment
 
 So the firewall in this stack is a **foundational hub component**, but not a
 complete secured-routing implementation yet.
+
+### Bastion
+
+Azure Bastion is a common hub-hosted administrative access service.
+
+Why it matters:
+
+- it lets operators reach private VMs over TLS from the Azure portal or native
+  client without giving those VMs public IPs
+- it fits naturally in the hub because it is a shared management-plane service
+- it reduces the pressure to expose jump hosts or management VMs directly to
+  the internet
+
+Important nuance for this repo:
+
+- Bastion is now exposed as a first-class optional hub feature
+- the current `dev.tfvars` enables it
+- Bastion is useful when you want shared secure admin access, but it is not
+  required for every landing zone
+
+### NAT Gateway
+
+NAT Gateway is optional and not universally required in a hub design, but it is
+useful when you need predictable or higher-scale outbound SNAT.
+
+Why it matters:
+
+- it provides stable outbound public IPs
+- it increases available SNAT ports compared with relying only on a single
+  firewall public IP
+- it can complement a firewall design when outbound scale is a concern
+
+Important nuance for this repo:
+
+- the current implementation can create a NAT Gateway, its public IP, and its
+  subnet associations
+- the current `dev.tfvars` attaches NAT Gateway to `AzureFirewallSubnet`
+- this is primarily a scale and egress-control enhancement, not a replacement
+  for firewall routing or firewall rules
+
+## How To Customize Firewall Policy Rules
+
+Firewall Policy rules are configured separately from subnet NSGs.
+
+In this stack:
+
+- subnet NSGs are defined through subnet `nsg_rules`
+- firewall policy rules are defined through `firewall_network_rule_collections`
+
+The connectivity stack now exposes `firewall_network_rule_collections` at the
+stack root, so the normal override point is:
+
+- `terraform/stacks/dev/platform-v2/connectivity/dev.tfvars`
+
+The current `dev` sample enables one collection:
+
+- `spoke-to-internet`
+- action `Allow`
+- one rule named `allow-web`
+- source CIDRs `10.0.0.0/16` and `10.20.0.0/16`
+- destination ports `80` and `443`
+- destination addresses `*`
+
+When you add more workload spokes, update the source CIDRs so the firewall rule
+collections reflect the address spaces that are actually routed through the
+hub.
+
+Those rule collections are now rendered into an Azure Firewall Policy rule
+collection group, which is the better enterprise pattern for centralized rule
+management.
 
 ## Private DNS Zones
 
@@ -404,7 +501,8 @@ and prioritize.
 
 - add route tables to workload and shared-service subnets so traffic actually
   traverses the firewall
-- add Azure Firewall Policy and rule collections
+- consider moving from inline firewall rule collections to Azure Firewall Policy
+- and rule collection groups when the rulebase grows further
 - decide whether forced tunneling or direct internet egress is required
 - consider multiple firewall public IPs or NAT Gateway integration for large
   SNAT demand
@@ -443,17 +541,21 @@ The hub is formed in this order:
 4. `modules/vnet-hub` calls `modules/network`
 5. `modules/network` creates the VNet and all six subnets
 6. `modules/network` creates NSGs only if subnet rules were supplied
-7. `modules/vnet-hub` optionally adds Azure Firewall on the reserved firewall
-   subnet
-8. the stack calls `modules/private-dns`
-9. `modules/private-dns` creates the shared Private DNS zones and links the
+7. `modules/vnet-hub` optionally adds Azure Firewall, Azure Firewall Policy,
+   and policy-based network rule collections on the reserved firewall subnet
+8. `modules/vnet-hub` can optionally add NAT Gateway on selected hub subnets
+9. `modules/vnet-hub` can optionally add Azure Bastion on
+   `AzureBastionSubnet`
+10. the stack calls `modules/private-dns`
+11. `modules/private-dns` creates the shared Private DNS zones and links the
    hub VNet to them
 
 That combination gives you:
 
 - a hub VNet
 - a hub subnet plan for shared services and future expansion
-- optional hub security controls such as subnet NSGs and firewall
+- optional hub security controls such as subnet NSGs, firewall, NAT-backed
+  egress scaling, and Bastion-based admin access
 - a centralized Private DNS layer for Private Endpoint resolution
 
 ## Outputs Other Stacks Use
@@ -464,6 +566,12 @@ This stack publishes the shared network facts that other stacks consume:
 - `hub_vnet_name`
 - `hub_subnet_ids`
 - `firewall_private_ip`
+- `firewall_policy_id`
+- `firewall_public_ip`
+- `nat_gateway_id`
+- `nat_gateway_public_ip`
+- `bastion_id`
+- `bastion_public_ip`
 - `private_dns_zone_ids`
 - `private_dns_zone_names`
 
@@ -496,3 +604,5 @@ Why this matters:
 - if you expect workloads to enforce subnet isolation through NSGs, you need to
   explicitly pass NSG rules into the hub module because the current sample does
   not create any NSGs by default
+- if you enable the firewall, remember that route tables are still required if
+  you want spokes to actually send traffic through it

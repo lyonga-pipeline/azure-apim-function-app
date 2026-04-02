@@ -88,6 +88,144 @@ variable "enable_firewall" {
   default     = false
 }
 
+variable "firewall_sku_tier" {
+  type        = string
+  description = "Azure Firewall SKU tier."
+  default     = "Standard"
+}
+
+variable "firewall_network_rule_collections" {
+  type = list(object({
+    name     = string
+    priority = number
+    action   = string
+    rules = list(object({
+      name                  = string
+      source_addresses      = list(string)
+      destination_ports     = list(string)
+      destination_addresses = optional(list(string))
+      destination_fqdns     = optional(list(string))
+      protocols             = list(string)
+    }))
+  }))
+  description = "Optional Azure Firewall network rule collections to attach when the hub firewall is enabled."
+  default     = []
+}
+
+variable "firewall_policy_name" {
+  type        = string
+  description = "Optional Azure Firewall Policy name override."
+  default     = null
+}
+
+variable "firewall_policy_rule_collection_group_name" {
+  type        = string
+  description = "Azure Firewall Policy rule collection group name."
+  default     = "default-network"
+}
+
+variable "firewall_policy_rule_collection_group_priority" {
+  type        = number
+  description = "Azure Firewall Policy rule collection group priority."
+  default     = 100
+}
+
+variable "firewall_threat_intelligence_mode" {
+  type        = string
+  description = "Azure Firewall Policy threat intelligence mode."
+  default     = "Alert"
+}
+
+variable "enable_nat_gateway" {
+  type        = bool
+  description = "Deploy a NAT Gateway in the hub and attach it to selected hub subnets."
+  default     = false
+}
+
+variable "nat_gateway_name" {
+  type        = string
+  description = "Optional NAT Gateway name override."
+  default     = null
+}
+
+variable "nat_gateway_subnet_keys" {
+  type        = list(string)
+  description = "Hub subnet keys to associate with the NAT Gateway."
+  default     = ["AzureFirewallSubnet"]
+}
+
+variable "nat_gateway_create_public_ip" {
+  type        = bool
+  description = "Create and associate a Standard public IP for the NAT Gateway."
+  default     = true
+}
+
+variable "nat_gateway_idle_timeout_in_minutes" {
+  type        = number
+  description = "NAT Gateway idle timeout in minutes."
+  default     = 10
+}
+
+variable "nat_gateway_zones" {
+  type        = list(string)
+  description = "Availability zones for the NAT Gateway and its public IP."
+  default     = []
+}
+
+variable "enable_bastion" {
+  type        = bool
+  description = "Deploy Azure Bastion into the hub."
+  default     = false
+}
+
+variable "bastion_name" {
+  type        = string
+  description = "Optional Azure Bastion name override."
+  default     = null
+}
+
+variable "bastion_sku" {
+  type        = string
+  description = "Azure Bastion SKU."
+  default     = "Standard"
+}
+
+variable "bastion_copy_paste_enabled" {
+  type        = bool
+  description = "Enable copy/paste in Bastion sessions."
+  default     = true
+}
+
+variable "bastion_file_copy_enabled" {
+  type        = bool
+  description = "Enable file copy in Bastion sessions."
+  default     = false
+}
+
+variable "bastion_ip_connect_enabled" {
+  type        = bool
+  description = "Enable IP-based Bastion connections."
+  default     = false
+}
+
+variable "bastion_shareable_link_enabled" {
+  type        = bool
+  description = "Enable shareable links in Bastion."
+  default     = false
+}
+
+variable "bastion_tunneling_enabled" {
+  type        = bool
+  description = "Enable native client tunneling in Bastion."
+  default     = true
+}
+
+variable "bastion_scale_units" {
+  type        = number
+  description = "Azure Bastion scale units."
+  default     = 2
+}
+
 variable "dns_servers" {
   type        = list(string)
   description = "Optional custom DNS servers."

@@ -11,7 +11,27 @@ hub_address_space = [
   "10.0.0.0/16",
 ]
 
-enable_firewall     = false
+enable_firewall = true
+firewall_network_rule_collections = [
+  {
+    name     = "spoke-to-internet"
+    priority = 100
+    action   = "Allow"
+    rules = [
+      {
+        name                  = "allow-web"
+        source_addresses      = ["10.0.0.0/16", "10.20.0.0/16"]
+        destination_ports     = ["80", "443"]
+        destination_addresses = ["*"]
+        protocols             = ["TCP"]
+      }
+    ]
+  }
+]
+
+enable_nat_gateway = true
+
+enable_bastion      = true
 business_owner      = "network"
 source_repo         = "azure-apim-function-app"
 terraform_workspace = "platform-v2-connectivity-dev"
