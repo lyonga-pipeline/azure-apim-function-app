@@ -50,6 +50,41 @@ That means this stack forms the hub by combining:
 - optional hub firewall resources
 - shared Private DNS zones linked to the hub VNet
 
+## How Typical This Is For Enterprise Azure
+
+Yes, this is a **typical starting pattern** for an enterprise Azure hub in a
+landing zone architecture.
+
+What is typical about it:
+
+- the hub lives in a dedicated connectivity stack and subscription boundary
+- shared network services are centralized in the hub instead of duplicated in
+  workload subscriptions
+- Private DNS zones for Private Link-enabled services are centralized
+- the subnet layout reserves space for common shared services like Firewall,
+  Bastion, and DNS
+- Azure Firewall is treated as a shared hub capability rather than a
+  workload-local component
+
+That aligns well with Microsoft guidance that connectivity subscriptions host
+shared networking resources like hub networking, Azure Firewall, and Azure
+Private DNS zones.
+
+What is still simplified in this repo:
+
+- no route tables currently force spoke egress or east-west traffic through the
+  firewall
+- no Azure Firewall policy, rule collections, or DNS proxy configuration exist
+  yet
+- no DNS Private Resolver is deployed yet for on-premises or custom DNS
+  forwarding
+- no VPN gateway, ExpressRoute gateway, or Bastion resource is deployed yet
+- no DDoS plan is attached yet
+- no multi-region hub pattern is modeled yet
+
+So the current stack is a good **hub baseline**, but not yet a full
+enterprise-grade secured transit hub by itself.
+
 ## Current Dev Deployment Shape
 
 The checked-in `dev.tfvars` currently deploys:
@@ -99,6 +134,65 @@ In the current `dev` example:
 - VNet CIDR: `10.0.0.0/16`
 - default subnets are carved from that space using the fixed defaults above
 
+## Where To Override Or Add Custom CIDRs
+
+There are two different answers depending on whether you want to change the VNet
+CIDR or the subnet CIDRs.
+
+### Override The Hub VNet CIDR
+
+This is already exposed at the stack root.
+
+Change it in:
+
+- `terraform/stacks/dev/platform-v2/connectivity/dev.tfvars`
+
+using:
+
+- `hub_address_space`
+
+That value is passed from the stack root into `module "hub_network"` and then
+into `modules/network` as the VNet `address_space`.
+
+### Override The Hub Subnet CIDRs
+
+This is **not currently exposed** by the connectivity stack root.
+
+Right now, subnet CIDRs come from defaults inside `modules/vnet-hub`:
+
+- `firewall_subnet_cidr`
+- `bastion_subnet_cidr`
+- `shared_services_subnet_cidr`
+- `private_endpoints_subnet_cidr`
+- `dns_inbound_subnet_cidr`
+- `dns_outbound_subnet_cidr`
+
+If you want to change those values without editing the child module defaults,
+the recommended approach is:
+
+1. add matching input variables to
+   `terraform/stacks/dev/platform-v2/connectivity/variables.tf`
+2. pass those variables into `module "hub_network"` in
+   `terraform/stacks/dev/platform-v2/connectivity/main.tf`
+3. set the environment-specific values in `dev.tfvars`
+
+### Replace The Entire Default Hub Subnet Layout
+
+If you need more than just CIDR changes, for example:
+
+- extra subnets
+- different subnet names
+- route-table associations
+- NAT gateway associations
+- per-subnet NSG rules
+- subnet delegations
+
+then the better pattern is to expose and pass a full custom `subnets` map from
+the connectivity stack root into `modules/vnet-hub`.
+
+When a non-empty `subnets` map is supplied to `modules/vnet-hub`, it replaces
+the default 6-subnet layout entirely.
+
 ## NSG Behavior
 
 NSGs are created by the generic `modules/network` module, not directly by the
@@ -121,6 +215,49 @@ What that means for this stack today:
 
 So the subnet layout exists today, but the default sample does not yet attach
 NSGs to those subnets.
+
+## How To Add Custom NSG Rules
+
+There are two levels of customization available in the child modules, but only
+one of them is currently practical from this stack without code changes.
+
+### Shared-Services Subnet Rules
+
+`modules/vnet-hub` supports `shared_services_nsg_rules`.
+
+That is the simplest way to attach an NSG to the `shared-services` subnet.
+
+To make that configurable from this stack, the recommended change is:
+
+1. add a `shared_services_nsg_rules` variable to
+   `terraform/stacks/dev/platform-v2/connectivity/variables.tf`
+2. pass it into `module "hub_network"` in
+   `terraform/stacks/dev/platform-v2/connectivity/main.tf`
+3. define the rules in `dev.tfvars`
+
+The rule objects need values like:
+
+- `name`
+- `priority`
+- `direction`
+- `access`
+- `protocol`
+- optional source and destination port and address fields
+
+### NSG Rules For Any Hub Subnet
+
+If you need NSGs on subnets other than `shared-services`, then exposing
+`shared_services_nsg_rules` is not enough.
+
+In that case, expose and pass a full `subnets` map from the stack root into
+`modules/vnet-hub`, because the generic `modules/network` module creates NSGs
+for any subnet that has non-empty `nsg_rules`.
+
+Practical recommendation:
+
+- use `shared_services_nsg_rules` when you only need rules on
+  `shared-services`
+- use a full custom `subnets` map when you need per-subnet NSGs across the hub
 
 ## Other Subnet-Level Features Supported By The Child Modules
 
@@ -162,6 +299,66 @@ So this stack currently creates the **hub-ready network shape**, while some of
 the shared services that could live in that shape are still optional or future
 additions.
 
+## Why Private DNS, Public IP, And Firewall Matter
+
+These are some of the most important moving parts in a hub-based Azure network.
+
+### Private DNS
+
+Private DNS zones are what make Private Endpoints usable by name instead of by
+raw IP address.
+
+Why they matter:
+
+- workloads can keep using the normal service FQDNs
+- DNS resolves those names to private endpoint IPs instead of public endpoints
+- private endpoint records can be managed centrally in the connectivity layer
+- workloads in different subscriptions can share the same central DNS plane
+
+In this repo, the connectivity stack creates the zones, and workload stacks
+link their spoke VNets to those same shared zones.
+
+### Public IP
+
+The public IP in this stack exists only for Azure Firewall.
+
+Why it matters:
+
+- Azure Firewall uses a public IP for internet egress and DNAT scenarios in the
+  standard hub pattern
+- it gives the hub a controlled and auditable outbound public address
+- it becomes one of the important public edge assets that should be protected,
+  monitored, and often DDoS-covered
+
+Important nuance:
+
+- in this repo, the firewall public IP is created only when `enable_firewall`
+  is `true`
+- this stack does not create any other public IP resources
+
+### Firewall
+
+Azure Firewall is the central network security boundary in many enterprise hub
+designs.
+
+Why it matters:
+
+- it can centralize outbound filtering
+- it can inspect and control spoke-to-spoke or north-south traffic when routing
+  is designed for it
+- it is the common place to apply egress policy, FQDN filtering, DNAT, and
+  network rule control
+
+Important nuance for this repo:
+
+- enabling the firewall here creates the firewall and its public IP
+- it does **not** by itself force traffic through the firewall
+- to make the firewall operational as the transit security control, you still
+  need route tables, firewall policy/rules, and usually DNS alignment
+
+So the firewall in this stack is a **foundational hub component**, but not a
+complete secured-routing implementation yet.
+
 ## Private DNS Zones
 
 This stack also creates centrally managed Private DNS zones through
@@ -187,6 +384,54 @@ that produces:
 
 This is what lets other stacks consume the shared hub DNS plane for Private
 Endpoints.
+
+## Additional Customizations To Consider
+
+If you want this stack to evolve from a baseline hub into a fuller enterprise
+connectivity hub, these are the next customizations I would normally document
+and prioritize.
+
+### DNS And Name Resolution
+
+- add Azure DNS Private Resolver in the `dns-inbound` and `dns-outbound`
+  subnets if on-premises or custom DNS integration is required
+- decide whether spokes should keep Azure-provided DNS or use a custom DNS
+  server / firewall DNS proxy model
+- if you use Azure Firewall application rules or FQDN-based network controls,
+  align workload DNS with the firewall DNS path
+
+### Secured Egress And Transit
+
+- add route tables to workload and shared-service subnets so traffic actually
+  traverses the firewall
+- add Azure Firewall Policy and rule collections
+- decide whether forced tunneling or direct internet egress is required
+- consider multiple firewall public IPs or NAT Gateway integration for large
+  SNAT demand
+
+### Shared Connectivity Services
+
+- add Azure Bastion if secure admin access to private VMs is needed
+- add VPN gateway or ExpressRoute gateway if hybrid connectivity is needed
+- add gateway transit and routing standards for spokes that must use the hub
+
+### Resiliency And Scale
+
+- add Azure DDoS Network Protection when public IP-based edge resources are in
+  use
+- consider one hub per region for stronger blast-radius isolation and
+  resiliency
+- consider a per-region connectivity subscription model if scale or quota
+  pressures grow
+
+### Governance And Automation
+
+- centralize private endpoint DNS integration through policy if many workload
+  teams will deploy private endpoints
+- expose subnet CIDR, NSG, and route-table inputs at the stack root rather than
+  editing child module defaults directly
+- document which customizations belong in connectivity versus workload stacks so
+  ownership stays clear
 
 ## How The Pieces Work Together To Form The Hub
 
