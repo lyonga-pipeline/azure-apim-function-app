@@ -123,7 +123,13 @@ variable "apim_subnet_cidr" {
 
 variable "storage_account_name" {
   type        = string
-  description = "Storage account name."
+  description = "App data storage account name. Managed-identity access only; no shared key."
+}
+
+variable "function_host_storage_account_name" {
+  type        = string
+  description = "Function App host storage account name. Separate from app data storage. The Azure Functions runtime requires shared key access to this account."
+  default     = null
 }
 
 variable "key_vault_name" {

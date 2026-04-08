@@ -26,6 +26,54 @@ locals {
     contains(keys(local.management_group_ids), "prod") ? null : "Management groups state is missing the prod management group id.",
     contains(keys(local.management_group_ids), "nonprod") ? null : "Management groups state is missing the nonprod management group id.",
   ])
+
+  # Shared policy rule bodies — defined once and referenced by both root and
+  # landing_zones scoped definitions to prevent silent divergence when rules change.
+  allowed_locations_policy_rule = jsonencode({
+    if = {
+      allOf = [
+        {
+          field = "location"
+          notIn = var.allowed_locations
+        },
+        {
+          field     = "location"
+          notEquals = "global"
+        }
+      ]
+    }
+    then = {
+      effect = "deny"
+    }
+  })
+
+  required_tag_policy_rule = jsonencode({
+    if = {
+      allOf = [
+        {
+          field     = "type"
+          notEquals = "Microsoft.Resources/subscriptions/resourceGroups"
+        },
+        {
+          field  = "[concat('tags[', parameters('tagName'), ']')]"
+          exists = "false"
+        }
+      ]
+    }
+    then = {
+      effect = "deny"
+    }
+  })
+
+  required_tag_parameters = jsonencode({
+    tagName = {
+      type = "String"
+      metadata = {
+        displayName = "Tag name"
+        description = "Name of the required tag."
+      }
+    }
+  })
 }
 
 resource "terraform_data" "dependency_guard" {
@@ -47,23 +95,7 @@ resource "azurerm_policy_definition" "allowed_locations" {
   display_name        = "Allow approved Azure regions"
   description         = "Denies deployments outside approved Azure regions."
 
-  policy_rule = jsonencode({
-    if = {
-      allOf = [
-        {
-          field = "location"
-          notIn = var.allowed_locations
-        },
-        {
-          field     = "location"
-          notEquals = "global"
-        }
-      ]
-    }
-    then = {
-      effect = "deny"
-    }
-  })
+  policy_rule = local.allowed_locations_policy_rule
 }
 
 resource "azurerm_policy_definition" "required_tag" {
@@ -74,33 +106,8 @@ resource "azurerm_policy_definition" "required_tag" {
   display_name        = "Require enterprise tag"
   description         = "Denies resources missing a required enterprise tag."
 
-  parameters = jsonencode({
-    tagName = {
-      type = "String"
-      metadata = {
-        displayName = "Tag name"
-        description = "Name of the required tag."
-      }
-    }
-  })
-
-  policy_rule = jsonencode({
-    if = {
-      allOf = [
-        {
-          field     = "type"
-          notEquals = "Microsoft.Resources/subscriptions/resourceGroups"
-        },
-        {
-          field  = "[concat('tags[', parameters('tagName'), ']')]"
-          exists = "false"
-        }
-      ]
-    }
-    then = {
-      effect = "deny"
-    }
-  })
+  parameters  = local.required_tag_parameters
+  policy_rule = local.required_tag_policy_rule
 }
 
 resource "azurerm_policy_definition" "allowed_locations_root" {
@@ -111,23 +118,7 @@ resource "azurerm_policy_definition" "allowed_locations_root" {
   display_name        = "Allow approved Azure regions (root)"
   description         = "Denies deployments outside approved Azure regions."
 
-  policy_rule = jsonencode({
-    if = {
-      allOf = [
-        {
-          field = "location"
-          notIn = var.allowed_locations
-        },
-        {
-          field     = "location"
-          notEquals = "global"
-        }
-      ]
-    }
-    then = {
-      effect = "deny"
-    }
-  })
+  policy_rule = local.allowed_locations_policy_rule
 }
 
 resource "azurerm_policy_definition" "required_tag_root" {
@@ -138,33 +129,8 @@ resource "azurerm_policy_definition" "required_tag_root" {
   display_name        = "Require enterprise tag (root)"
   description         = "Denies resources missing a required enterprise tag."
 
-  parameters = jsonencode({
-    tagName = {
-      type = "String"
-      metadata = {
-        displayName = "Tag name"
-        description = "Name of the required tag."
-      }
-    }
-  })
-
-  policy_rule = jsonencode({
-    if = {
-      allOf = [
-        {
-          field     = "type"
-          notEquals = "Microsoft.Resources/subscriptions/resourceGroups"
-        },
-        {
-          field  = "[concat('tags[', parameters('tagName'), ']')]"
-          exists = "false"
-        }
-      ]
-    }
-    then = {
-      effect = "deny"
-    }
-  })
+  parameters  = local.required_tag_parameters
+  policy_rule = local.required_tag_policy_rule
 }
 
 resource "azurerm_policy_definition" "deny_public_ip" {
@@ -442,6 +408,15 @@ resource "azurerm_management_group_policy_assignment" "platform" {
   display_name         = "Platform Foundation"
   management_group_id  = local.management_group_ids["platform"]
   policy_definition_id = azurerm_policy_set_definition.platform_foundation.id
+  location             = var.policy_assignment_location
+
+  # SystemAssigned identity is required when any policy in this initiative is
+  # promoted from deny to deployIfNotExists or modify effect (e.g. diagnostic
+  # settings automation). Adding it now avoids a destroy/recreate of the
+  # assignment resource when DINE policies are activated.
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_management_group_policy_assignment" "prod" {
@@ -449,6 +424,11 @@ resource "azurerm_management_group_policy_assignment" "prod" {
   display_name         = "Prod Landing Zone Baseline"
   management_group_id  = local.management_group_ids["prod"]
   policy_definition_id = azurerm_policy_set_definition.landing_zone_baseline.id
+  location             = var.policy_assignment_location
+
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_management_group_policy_assignment" "nonprod" {
@@ -456,4 +436,9 @@ resource "azurerm_management_group_policy_assignment" "nonprod" {
   display_name         = "Nonprod Landing Zone Baseline"
   management_group_id  = local.management_group_ids["nonprod"]
   policy_definition_id = azurerm_policy_set_definition.landing_zone_baseline.id
+  location             = var.policy_assignment_location
+
+  identity {
+    type = "SystemAssigned"
+  }
 }

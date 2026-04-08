@@ -18,6 +18,13 @@ resource "azurerm_network_interface" "this" {
     private_ip_address            = var.private_ip_address_allocation == "Static" ? var.private_ip_address : null
     public_ip_address_id          = var.public_ip_address_id
   }
+
+  lifecycle {
+    precondition {
+      condition     = var.private_ip_address_allocation == "Dynamic" || var.private_ip_address != null
+      error_message = "private_ip_address must be set when private_ip_address_allocation is Static."
+    }
+  }
 }
 
 resource "azurerm_network_interface_security_group_association" "this" {

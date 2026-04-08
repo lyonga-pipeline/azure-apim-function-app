@@ -29,8 +29,12 @@ variable "management_groups_state_key" {
 
 variable "management_groups_state_subscription_id" {
   type        = string
-  description = "Subscription containing the management-groups remote state."
-  default     = "65ac2b14-e13a-40a0-bb50-93359232816e"
+  description = "Subscription containing the management-groups remote state. Must be set explicitly — no default so that test/prod activations cannot silently inherit the dev platform subscription."
+
+  validation {
+    condition     = !can(regex("^0{8}-0{4}-0{4}-0{4}-0{12}$", var.management_groups_state_subscription_id))
+    error_message = "management_groups_state_subscription_id still uses the all-zero placeholder. Set the real platform subscription id in tfvars."
+  }
 }
 
 variable "root_management_group_id" {
@@ -49,9 +53,15 @@ variable "allowed_locations" {
   description = "Allowed Azure regions."
 }
 
+variable "policy_assignment_location" {
+  type        = string
+  description = "Azure region used for the SystemAssigned managed identity on policy assignments. Required when any policy in the initiative uses deployIfNotExists or modify effect."
+  default     = "eastus"
+}
+
 variable "required_tags" {
   type        = list(string)
-  description = "Required enterprise tags."
+  description = "Required enterprise tags enforced by the active policy initiatives. All resources in managed scopes must carry these tags or deployment is denied."
   default = [
     "env",
     "application",
@@ -61,5 +71,7 @@ variable "required_tags" {
     "tf_workspace",
     "recovery",
     "cost_center",
+    "data_classification",
+    "compliance_boundary",
   ]
 }

@@ -101,7 +101,22 @@ Current landing-zone alignment for the active v2 path:
 - implemented: shared identity and CMK services through `platform-v2/identity`
 - implemented: OIDC-capable plan/drift workflows and backend Azure AD auth
 - implemented: ALZ-lite governance baseline for regions, enterprise tags, public IP denial, and private-by-default platform services in landing zones
-- partial: governance baseline is still smaller than a full enterprise ALZ policy estate and does not yet model diagnostics `deployIfNotExists`, policy exemptions, or broader compliance initiatives
+- implemented: ABAC conditions on all `User Access Administrator` assignments to prevent privilege escalation to Owner-equivalent access
+- implemented: `SystemAssigned` identity on all policy assignments so future `deployIfNotExists` policies can be activated without destroying and recreating assignments
+- implemented: `data_classification` and `compliance_boundary` promoted to active required tags in the policy initiatives
+- implemented: `GatewaySubnet` pre-provisioned in the hub VNet to reserve address space for future ExpressRoute or VPN gateways
+- implemented: `CanNotDelete` resource locks on connectivity, management, and identity resource groups
+- implemented: Recovery Services Vault diagnostics wired to the central Log Analytics workspace
+- implemented: policy exemption pattern documented in `global/policy/exemptions.tf`
+- implemented: TFLint and `.terraform.lock.hcl` presence check added to CI
+- implemented: plan-apply workflow now uploads plan artifact and gates apply on the `apply` input; destroy is a separate explicit input
+- implemented: drift workflow converted to a full matrix covering all 8 active stacks; test/prod rows are pre-commented for easy activation
+- implemented: SQL auditing uses `log_monitoring_enabled = true` (Log Analytics path) — storage keys are no longer passed into Terraform state for SQL auditing or security alert policies
+- implemented: function host storage split from app data storage — app data storage is now `shared_access_key_enabled = false` (managed identity only); host storage retains shared key only for the Azure Functions runtime
+- implemented: Microsoft Defender for Cloud plans wired into the management stack behind `enable_defender` toggle; set `true` for production deployments
+- implemented: GitHub Environment reviewer mechanism documented in the workflow with required setup steps
+- implemented: hard-coded subscription ID defaults removed from `global/role-assignments` and `global/policy` variable declarations — must be set explicitly in tfvars
+- partial: governance baseline is still smaller than a full enterprise ALZ policy estate and does not yet model diagnostics `deployIfNotExists` or broader compliance initiatives
 - partial: only the `dev` v2 estate is active and validated; `test` and `prod` are placeholders that still need environment-specific configuration and promotion
 - partial: modules are custom and ALZ/AVM-aligned in structure, but not yet AVM-backed across the board
 
@@ -199,6 +214,60 @@ This repo now shows a full three-environment landing-zone picture:
 - `prod`: placeholder production environment
 
 Only `dev` should be planned or applied without first replacing placeholder values in the other environments.
+
+### Environment Promotion Checklist
+
+Before treating `test` or `prod` as deployable, complete every item in this checklist for the target environment. Use `ENV` as a placeholder for `test` or `prod` below.
+
+**1. Subscriptions**
+
+- [ ] Create or identify the platform subscription for `ENV` and record its ID
+- [ ] Create or identify the workload subscription for `ENV` and record its ID
+- [ ] Add both subscriptions to `global/subscriptions/global.auto.tfvars` under appropriate keys (e.g. `test_platform`, `test_workload`)
+- [ ] Register required resource providers in both subscriptions (see First-Apply Runbook above)
+
+**2. Backend**
+
+- [ ] Create a backend storage account for `ENV` (or reuse a shared one with a separate container)
+- [ ] Update `stacks/ENV/platform-v2/connectivity/backend.hcl` — set `key`, `subscription_id`
+- [ ] Update `stacks/ENV/platform-v2/management/backend.hcl` — set `key`, `subscription_id`
+- [ ] Update `stacks/ENV/platform-v2/identity/backend.hcl` — set `key`, `subscription_id`
+- [ ] Update `stacks/ENV/workload-v2/finserv-api/backend.hcl` — set `key`, `subscription_id`
+- [ ] Grant the CI identity `Storage Blob Data Contributor` on the backend storage account
+
+**3. Stack configuration (tfvars)**
+
+- [ ] Copy `stacks/dev/platform-v2/connectivity/dev.tfvars` → `stacks/ENV/platform-v2/connectivity/ENV.tfvars`; update `subscription_id`, `resource_group_name`, `hub_vnet_name`, CIDR ranges, environment tag
+- [ ] Copy and update `stacks/dev/platform-v2/management/dev.tfvars` → `ENV.tfvars`
+- [ ] Copy and update `stacks/dev/platform-v2/identity/dev.tfvars` → `ENV.tfvars`
+- [ ] Copy and update `stacks/dev/workload-v2/finserv-api/dev.tfvars` → `ENV.tfvars`; update `subscription_id`, spoke CIDRs, resource names, `environment` tag
+- [ ] Set `connectivity_state_key`, `management_state_key`, `identity_state_key` in the workload tfvars to the ENV backend keys
+
+**4. Remote state cross-references**
+
+- [ ] Verify all `*_state_rg`, `*_state_sa`, `*_state_key`, and `*_state_subscription_id` variables in each stack's tfvars point at the correct ENV backend location
+
+**5. CI**
+
+- [ ] Add the ENV stacks to the `validate` and `checkov` matrices in `.github/workflows/terraform-ci.yml`
+- [ ] Add the ENV stacks to the drift detection matrix in `.github/workflows/terraform-drift.yml`
+- [ ] Create a GitHub Environment named `ENV` with required reviewers for apply
+- [ ] Configure `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` secrets/vars in the `ENV` GitHub Environment for the ENV-scoped OIDC identity
+
+**6. RBAC**
+
+- [ ] Add ENV deployer and reader principal IDs to `global/role-assignments` tfvars
+- [ ] Apply `global/role-assignments` to grant the ENV CI identity the correct management group scope
+
+**7. Policy location**
+
+- [ ] Confirm `allowed_locations` in `global/policy/global.auto.tfvars` includes the regions used by ENV stacks
+
+**8. Validation**
+
+- [ ] Run `terraform validate` for all ENV stacks
+- [ ] Run `terraform plan` for all ENV stacks and review output
+- [ ] Apply in deployment order (subscriptions → management-groups → policy → role-assignments → connectivity → management → identity → workload)
 
 ### How to choose a subscription
 
@@ -614,6 +683,86 @@ This repo’s active workflows use:
 - If drift is caused by manual changes, import the resource or remove the manual process.
 - If drift repeats on every run, fix the module contract instead of suppressing the symptom.
 
+## Key Variable Reference
+
+Each stack has 20–80 variables. This table lists the ones you must supply (no default or a placeholder default) for the most commonly deployed stacks. Run `terraform validate` to catch any missing values before plan.
+
+### `global/policy`
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `subscription_id` | yes | — | Execution subscription |
+| `root_management_group_id` | yes | — | Tenant root MG ID |
+| `allowed_locations` | yes | — | List of approved regions, e.g. `["eastus","eastus2"]` |
+| `policy_assignment_location` | no | `eastus` | Region for the SystemAssigned identity on assignments |
+| `organization_prefix` | no | `fin` | Short prefix used in resource names |
+| `required_tags` | no | 10 tags | Override only if enterprise tag set differs |
+
+### `platform-v2/connectivity`
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `subscription_id` | yes | — | Platform subscription |
+| `environment` | yes | — | `dev`, `test`, or `prod` |
+| `location` | yes | — | Azure region |
+| `resource_group_name` | yes | — | Hub resource group name |
+| `hub_vnet_name` | yes | — | Hub VNet name |
+| `hub_address_space` | yes | — | List of CIDR ranges; must include room for all hub subnets |
+| `enable_firewall` | no | `false` | Set to `true` for production |
+| `enable_bastion` | no | `false` | Set to `true` for production |
+
+### `platform-v2/management`
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `subscription_id` | yes | — | Platform subscription |
+| `environment` | yes | — | |
+| `location` | yes | — | |
+| `resource_group_name` | yes | — | |
+| `workspace_name` | yes | — | Log Analytics workspace name |
+| `diagnostics_storage_account_name` | yes | — | Must be globally unique |
+| `action_group_name` | yes | — | |
+| `recovery_services_vault_name` | yes | — | |
+| `enable_defender` | no | `false` | Set `true` for prod — enables Defender Standard plans for AppServices, KeyVaults, SqlServers, StorageAccounts, Containers, Arm |
+
+### `workload-v2/finserv-api`
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `subscription_id` | yes | — | Workload subscription; validated against catalog |
+| `environment` | yes | — | |
+| `location` | yes | — | |
+| `application` | yes | — | Short app code used in resource names |
+| `workload_resource_group_name` | yes | — | |
+| `spoke_vnet_name` | yes | — | |
+| `spoke_address_space` | yes | — | Must not overlap hub or other spokes |
+| `storage_account_name` | yes | — | App data storage — managed identity only, no shared key |
+| `function_host_storage_account_name` | yes (if `enable_function_app=true`) | `null` | Separate host storage for the Functions runtime — must be globally unique |
+| `key_vault_name` | yes | — | |
+| `function_app_name` | yes | — | |
+| `cost_center` | yes | — | |
+| `business_owner` | yes | — | |
+| `connectivity_state_rg` | yes | — | Backend RG for connectivity state |
+| `connectivity_state_sa` | yes | — | Backend SA for connectivity state |
+| `connectivity_state_key` | yes | — | Backend key for connectivity state |
+| `management_state_rg` | yes | — | Backend RG for management state |
+| `management_state_sa` | yes | — | Backend SA for management state |
+| `management_state_key` | yes | — | Backend key for management state |
+
+## Policy Exemption Lifecycle
+
+The active `deny` policies will block any resource that violates them. When a legitimate exception is needed:
+
+1. Open a change request ticket.
+2. Add an `azurerm_resource_group_policy_exemption` or `azurerm_resource_policy_exemption` resource to `global/policy/exemptions.tf` using the commented examples in that file as a template.
+3. Set `exemption_category` to `"Waiver"` (time-limited risk acceptance) or `"MitigationComplete"` (alternative control satisfies the intent).
+4. Always set `expires_on` — Azure stops enforcing the exemption after that date.
+5. Reference the ticket in `description`.
+6. Peer-review and merge through the normal PR gate.
+7. Remove the exemption resource when the underlying gap is resolved.
+
+Waivers must not be renewed silently — review them before expiry and document the outcome.
+
 ## Validation, Testing, and Scanning
 
 `/.github/workflows/terraform-ci.yml` runs:
@@ -621,6 +770,8 @@ This repo’s active workflows use:
 - `terraform fmt -check -recursive`
 - `terraform init -backend=false`
 - `terraform validate`
+- `.terraform.lock.hcl` presence check for all active stacks
+- TFLint with per-stack init (Azure ruleset via `.tflint.hcl` when present)
 - Checkov with SARIF upload
 
 ### Minimum PR Gate
@@ -665,10 +816,10 @@ For integration tests in a real subscription:
 
 ### Recommended Additions
 
-- TFLint with Azure rules
 - policy-as-code tests for custom policy definitions and initiatives
 - `terraform providers lock` refresh in a controlled upgrade process
 - a smoke test workflow that verifies private DNS, Function App reachability, and Key Vault resolution
+- add `.tflint.hcl` to each stack to enable the `tflint-ruleset-azurerm` plugin for Azure-specific lint rules
 
 ## Plan and Apply Workflow
 
@@ -760,6 +911,73 @@ Recommended environment variables:
 - `AZDO_PERSONAL_ACCESS_TOKEN`
 
 Keep Azure DevOps resources optional so Terraform can still validate in environments that do not use Azure DevOps.
+
+## First-Apply Runbook (Starting From Zero)
+
+If the shared backend storage account does not yet exist, create it once before running any stack.
+
+```bash
+# 1. Set your platform subscription
+az account set --subscription "65ac2b14-e13a-40a0-bb50-93359232816e"
+
+# 2. Create the state resource group
+az group create --name rg-tfstate-dev --location eastus
+
+# 3. Create the storage account (name must be globally unique)
+az storage account create \
+  --name demotest822e \
+  --resource-group rg-tfstate-dev \
+  --location eastus \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --min-tls-version TLS1_2 \
+  --allow-blob-public-access false \
+  --https-only true
+
+# 4. Enable versioning and soft delete
+az storage blob service-properties update \
+  --account-name demotest822e \
+  --enable-versioning true \
+  --enable-delete-retention true \
+  --delete-retention-days 7
+
+# 5. Create the state container
+az storage container create \
+  --name deploy-container \
+  --account-name demotest822e \
+  --auth-mode login
+
+# 6. Grant yourself Storage Blob Data Contributor
+az role assignment create \
+  --role "Storage Blob Data Contributor" \
+  --assignee "$(az ad signed-in-user show --query id -o tsv)" \
+  --scope "$(az storage account show --name demotest822e --resource-group rg-tfstate-dev --query id -o tsv)"
+```
+
+Then register required resource providers in each target subscription before first deployment:
+
+```bash
+# Platform subscription
+for ns in Microsoft.Management Microsoft.Authorization Microsoft.Network \
+           Microsoft.OperationalInsights microsoft.insights \
+           Microsoft.RecoveryServices Microsoft.Storage \
+           Microsoft.KeyVault Microsoft.ManagedIdentity; do
+  az provider register --namespace "$ns" \
+    --subscription 65ac2b14-e13a-40a0-bb50-93359232816e --wait
+done
+
+# Workload subscription
+for ns in Microsoft.Network Microsoft.Storage Microsoft.KeyVault \
+           Microsoft.ManagedIdentity Microsoft.AppConfiguration \
+           Microsoft.ServiceBus Microsoft.Sql Microsoft.ContainerRegistry \
+           Microsoft.Web Microsoft.ApiManagement \
+           Microsoft.OperationalInsights microsoft.insights; do
+  az provider register --namespace "$ns" \
+    --subscription ce792f64-9e63-483b-8136-a2538b764f3d --wait
+done
+```
+
+Then apply stacks in order (see Deployment Order section).
 
 ## Local Usage
 

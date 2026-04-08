@@ -156,6 +156,13 @@ variable "bastion_subnet_cidr" {
   default = "10.0.0.64/26"
 }
 
+# GatewaySubnet must be at least /27. Pre-provisioned so address space cannot
+# be reallocated after initial deployment, even when no gateway is deployed yet.
+variable "gateway_subnet_cidr" {
+  type    = string
+  default = "10.0.0.128/27"
+}
+
 variable "shared_services_subnet_cidr" {
   type    = string
   default = "10.0.1.0/24"

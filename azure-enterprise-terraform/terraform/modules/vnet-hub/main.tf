@@ -19,6 +19,15 @@ locals {
     AzureBastionSubnet = merge(local.subnet_defaults, {
       address_prefixes = [var.bastion_subnet_cidr]
     })
+    # GatewaySubnet is pre-provisioned even when no gateway is deployed.
+    # Azure requires this exact name and a minimum /27 for VPN/ER gateways.
+    # Adding it retroactively after address space is allocated is destructive,
+    # so it is included in the hub from first deployment. Deploy an
+    # azurerm_virtual_network_gateway into this subnet when ExpressRoute
+    # or VPN connectivity is required.
+    GatewaySubnet = merge(local.subnet_defaults, {
+      address_prefixes = [var.gateway_subnet_cidr]
+    })
     shared-services = merge(local.subnet_defaults, {
       address_prefixes = [var.shared_services_subnet_cidr]
       nsg_rules        = var.shared_services_nsg_rules

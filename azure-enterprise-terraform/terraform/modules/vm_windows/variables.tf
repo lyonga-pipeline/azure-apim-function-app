@@ -47,7 +47,7 @@ variable "computer_name" {
   default     = null
 
   validation {
-    condition     = var.computer_name == null || length(var.computer_name) <= 15
+    condition     = try(length(var.computer_name) <= 15, true)
     error_message = "computer_name must be 15 characters or fewer for Windows."
   }
 }
@@ -206,11 +206,6 @@ variable "private_ip_address" {
   description = "Private IP address when using Static allocation."
   type        = string
   default     = null
-
-  validation {
-    condition     = var.private_ip_address_allocation == "Dynamic" || var.private_ip_address != null
-    error_message = "private_ip_address must be set when private_ip_address_allocation is Static."
-  }
 }
 
 variable "public_ip_address_id" {

@@ -65,6 +65,74 @@ jobs:
         working-directory: ${{ matrix.stack }}
         run: terraform validate
 
+  lock-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check lock files are committed
+        shell: bash
+        run: |
+          set -euo pipefail
+          stacks=(
+            azure-enterprise-terraform/terraform/global/subscriptions
+            azure-enterprise-terraform/terraform/global/management-groups
+            azure-enterprise-terraform/terraform/global/policy
+            azure-enterprise-terraform/terraform/global/role-assignments
+            azure-enterprise-terraform/terraform/stacks/dev/platform-v2/connectivity
+            azure-enterprise-terraform/terraform/stacks/dev/platform-v2/management
+            azure-enterprise-terraform/terraform/stacks/dev/platform-v2/identity
+            azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api
+          )
+          missing=()
+          for stack in "${stacks[@]}"; do
+            if [ ! -f "${stack}/.terraform.lock.hcl" ]; then
+              missing+=("${stack}/.terraform.lock.hcl")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Missing committed lock files. Run 'terraform init' in each stack and commit .terraform.lock.hcl:"
+            printf '  %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All lock files present."
+
+  tflint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          - azure-enterprise-terraform/terraform/global/subscriptions
+          - azure-enterprise-terraform/terraform/global/management-groups
+          - azure-enterprise-terraform/terraform/global/policy
+          - azure-enterprise-terraform/terraform/global/role-assignments
+          - azure-enterprise-terraform/terraform/stacks/dev/platform-v2/connectivity
+          - azure-enterprise-terraform/terraform/stacks/dev/platform-v2/management
+          - azure-enterprise-terraform/terraform/stacks/dev/platform-v2/identity
+          - azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.55.0
+
+      - name: Init TFLint
+        working-directory: ${{ matrix.stack }}
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run TFLint
+        working-directory: ${{ matrix.stack }}
+        run: tflint --format compact
+
   checkov:
     runs-on: ubuntu-latest
     strategy:

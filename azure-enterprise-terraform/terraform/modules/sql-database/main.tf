@@ -28,17 +28,49 @@ resource "azurerm_mssql_server" "this" {
   }
 }
 
-resource "azurerm_mssql_server_extended_auditing_policy" "this" {
+# Log Analytics auditing — preferred path; no storage key in state.
+# Active when extended_auditing_policy_enabled = true (default for this module).
+# Routes audit events to the Log Analytics workspace linked through Azure Monitor
+# Diagnostic Settings rather than writing to a storage account directly.
+resource "azurerm_mssql_server_extended_auditing_policy" "log_analytics" {
+  count = var.extended_auditing_policy_enabled ? 1 : 0
+
+  server_id              = azurerm_mssql_server.this.id
+  enabled                = true
+  log_monitoring_enabled = true
+  retention_in_days      = var.extended_auditing_retention_in_days
+}
+
+# Storage-key auditing — legacy path kept for backwards compatibility.
+# Only creates when both storage_endpoint AND access_key are explicitly provided.
+# Do not use in new finserv deployments: storage keys land in Terraform state and
+# are a control finding. Use the log_analytics resource above instead.
+resource "azurerm_mssql_server_extended_auditing_policy" "storage_key" {
   count = var.extended_auditing_policy_enabled && var.extended_auditing_storage_endpoint != null && var.extended_auditing_storage_account_access_key != null ? 1 : 0
 
   server_id                  = azurerm_mssql_server.this.id
   enabled                    = true
-  log_monitoring_enabled     = true
+  log_monitoring_enabled     = false
   retention_in_days          = var.extended_auditing_retention_in_days
   storage_endpoint           = var.extended_auditing_storage_endpoint
   storage_account_access_key = var.extended_auditing_storage_account_access_key
 }
 
+# Security alert policy — email-only path; no storage key in state.
+# Active when security_alert_policy_enabled = true and no storage key is supplied.
+resource "azurerm_mssql_server_security_alert_policy" "email_only" {
+  count = var.security_alert_policy_enabled && var.security_alert_storage_account_access_key == null ? 1 : 0
+
+  resource_group_name  = var.resource_group_name
+  server_name          = azurerm_mssql_server.this.name
+  state                = "Enabled"
+  retention_days       = var.security_alert_retention_days
+  email_account_admins = var.security_alert_email_account_admins
+  email_addresses      = var.security_alert_email_addresses
+}
+
+# Security alert policy — storage-key path; legacy / kept for backwards compatibility.
+# Only creates when both storage_endpoint AND access_key are explicitly provided.
 resource "azurerm_mssql_server_security_alert_policy" "this" {
   count = var.security_alert_policy_enabled && var.security_alert_storage_endpoint != null && var.security_alert_storage_account_access_key != null ? 1 : 0
 

@@ -55,7 +55,7 @@ module "demo_windows_vm" {
   identity_type                 = "SystemAssigned"
   os_disk_storage_account_type  = var.demo_windows_vm_os_disk_storage_account_type
   enable_accelerated_networking = false
-  encryption_at_host_enabled    = false
+  encryption_at_host_enabled    = true
   allow_extension_operations    = true
   tags                          = module.tags.tags
   depends_on                    = [terraform_data.demo_windows_vm_password_guard]
@@ -108,9 +108,10 @@ module "app_identity" {
   tags                = module.tags.tags
 }
 
+# App data storage — accessed exclusively via managed identity and RBAC.
+# No shared key: shared_access_key_enabled = false.
 #checkov:skip=CKV2_AZURE_33: Storage private endpoints are provisioned through the dedicated private-endpoint module in this stack.
 #checkov:skip=CKV2_AZURE_1: This workload storage account is not yet attached to a CMK-backed identity flow.
-#checkov:skip=CKV2_AZURE_40: Function App runtime storage still requires shared key authorization for compatibility.
 #checkov:skip=CKV2_AZURE_21: Blob monitoring is handled through Azure Monitor rather than a directly-connected storage-insights graph resource.
 module "storage_account" {
   source                        = "../../../../modules/storage"
@@ -118,21 +119,43 @@ module "storage_account" {
   resource_group_name           = module.resource_group.name
   location                      = var.location
   public_network_access_enabled = false
-  shared_access_key_enabled     = true
+  shared_access_key_enabled     = false
   containers = {
     app = { access_type = "private" }
   }
   tags = module.tags.tags
 }
 
+# Function host storage — separate from app data storage so that the shared key
+# required by the Azure Functions runtime does not reach app data access paths.
+# The Functions runtime (WEBSITE_CONTENTOVERVNET=1) requires shared key access to
+# this account; all other platform access uses Azure AD RBAC.
+#checkov:skip=CKV2_AZURE_33: Function host storage private endpoints are provisioned through the dedicated private-endpoint module below.
+#checkov:skip=CKV2_AZURE_1: Function host storage uses platform-managed keys; CMK is tracked as a future enhancement.
+#checkov:skip=CKV2_AZURE_40: Function App runtime storage requires shared key authorization for compatibility.
+#checkov:skip=CKV2_AZURE_21: Blob monitoring is handled through Azure Monitor rather than a directly-connected storage-insights graph resource.
+module "function_host_storage" {
+  count                         = var.enable_function_app ? 1 : 0
+  source                        = "../../../../modules/storage"
+  name                          = var.function_host_storage_account_name
+  resource_group_name           = module.resource_group.name
+  location                      = var.location
+  public_network_access_enabled = false
+  shared_access_key_enabled     = true
+  tags                          = module.tags.tags
+}
+
+# Storage insights targets the function host storage (shared_access_key_enabled=true)
+# not the app data storage (shared_access_key_enabled=false, no key available).
 resource "azurerm_log_analytics_storage_insights" "workload_storage" {
+  count                = var.enable_function_app ? 1 : 0
   provider             = azurerm.platform
   name                 = "insights-${var.environment}-${var.application}"
   resource_group_name  = local.management_outputs.resource_group_name
   workspace_id         = local.management_outputs.workspace_id
-  storage_account_id   = module.storage_account.account_id
-  storage_account_key  = module.storage_account.primary_access_key
-  blob_container_names = length(module.storage_account.container_names) > 0 ? module.storage_account.container_names : ["*"]
+  storage_account_id   = module.function_host_storage[0].account_id
+  storage_account_key  = module.function_host_storage[0].primary_access_key
+  blob_container_names = ["*"]
   table_names          = ["*"]
 }
 
@@ -212,15 +235,15 @@ module "sql_database" {
     login_username = var.sql_aad_admin_login
     object_id      = var.sql_aad_admin_object_id
   }
-  databases                                    = var.sql_databases
-  extended_auditing_policy_enabled             = true
-  extended_auditing_storage_endpoint           = module.storage_account.primary_blob_endpoint
-  extended_auditing_storage_account_access_key = module.storage_account.primary_access_key
-  security_alert_policy_enabled                = true
-  security_alert_storage_endpoint              = module.storage_account.primary_blob_endpoint
-  security_alert_storage_account_access_key    = module.storage_account.primary_access_key
-  security_alert_email_addresses               = compact([var.publisher_email])
-  tags                                         = module.tags.tags
+  databases = var.sql_databases
+  # Auditing uses Log Analytics (log_monitoring_enabled path) — no storage key in state.
+  # The legacy storage-key auditing resources in the sql-database module are inactive
+  # because extended_auditing_storage_account_access_key and
+  # security_alert_storage_account_access_key are intentionally omitted here.
+  extended_auditing_policy_enabled = true
+  security_alert_policy_enabled    = true
+  security_alert_email_addresses   = compact([var.publisher_email])
+  tags                             = module.tags.tags
 }
 
 module "container_registry" {
@@ -241,8 +264,8 @@ module "function_app" {
   resource_group_name                    = module.resource_group.name
   location                               = var.location
   app_service_plan_sku                   = var.service_plan_sku
-  storage_account_name                   = module.storage_account.name
-  storage_account_access_key             = module.storage_account.primary_access_key
+  storage_account_name                   = module.function_host_storage[0].name
+  storage_account_access_key             = module.function_host_storage[0].primary_access_key
   application_insights_connection_string = azurerm_application_insights.this.connection_string
   virtual_network_subnet_id              = module.spoke_network.subnet_ids["integration"]
   public_network_access_enabled          = var.function_public_network_access_enabled
@@ -269,6 +292,19 @@ module "storage_private_endpoints" {
   location             = var.location
   subnet_id            = module.spoke_network.subnet_ids["private-endpoints"]
   target_resource_id   = module.storage_account.account_id
+  subresource_names    = each.value.subresource_names
+  private_dns_zone_ids = [local.connectivity_outputs.private_dns_zone_ids[each.value.dns_key]]
+  tags                 = module.tags.tags
+}
+
+module "function_host_storage_private_endpoints" {
+  for_each             = local.function_host_storage_private_endpoint_targets
+  source               = "../../../../modules/private-endpoint"
+  name                 = "pe-fhst-${each.key}-${var.environment}-${var.application}"
+  resource_group_name  = module.resource_group.name
+  location             = var.location
+  subnet_id            = module.spoke_network.subnet_ids["private-endpoints"]
+  target_resource_id   = module.function_host_storage[0].account_id
   subresource_names    = each.value.subresource_names
   private_dns_zone_ids = [local.connectivity_outputs.private_dns_zone_ids[each.value.dns_key]]
   tags                 = module.tags.tags

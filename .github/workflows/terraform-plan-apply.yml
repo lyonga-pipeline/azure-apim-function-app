@@ -28,6 +28,11 @@ on:
         type: boolean
         required: false
         default: false
+      destroy:
+        description: "Destroy the stack after apply (requires apply=true). Use only for teardown of non-production stacks."
+        type: boolean
+        required: false
+        default: false
       environment_name:
         description: "GitHub Environment holding OIDC Azure configuration"
         required: false
@@ -44,6 +49,15 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    # GitHub Environment gate: when environment_name matches a GitHub Environment
+    # that has required reviewers configured, the job will pause for approval before
+    # running any steps — including plan, apply, and destroy.
+    # Required setup (done once per environment in GitHub → Settings → Environments):
+    #   - Create environments: "dev", "test", "prod"
+    #   - For "prod" (and optionally "test"): add required reviewers
+    #   - Set protection rules: prevent self-approval, require at least 1 reviewer
+    # Without this GitHub-side configuration, the boolean apply=true input is the
+    # only gate — which relies on human discipline, not enforcement.
     environment: ${{ inputs.environment_name }}
     env:
       ARM_USE_OIDC: true
@@ -204,8 +218,20 @@ jobs:
             terraform plan -lock-timeout="${TF_LOCK_TIMEOUT}" -out=tfplan
           fi
 
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.run_id }}
+          path: ${{ inputs.stack_path }}/tfplan
+          retention-days: 3
+
+      - name: Terraform Apply
+        if: ${{ inputs.apply == true }}
+        working-directory: ${{ inputs.stack_path }}
+        run: terraform apply -lock-timeout="${TF_LOCK_TIMEOUT}" tfplan
+
       - name: Terraform Destroy
-        #if: ${{ inputs.apply == true }}
+        if: ${{ inputs.apply == true && inputs.destroy == true }}
         shell: bash
         working-directory: ${{ inputs.stack_path }}
         run: |
@@ -225,14 +251,3 @@ jobs:
           else
             terraform destroy -lock-timeout="${TF_LOCK_TIMEOUT}" -auto-approve
           fi
-
-      # - name: Upload Plan Artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: tfplan-${{ github.run_id }}
-      #     path: ${{ inputs.stack_path }}/tfplan
-
-      # - name: Terraform Apply
-      #   if: ${{ inputs.apply == true }}
-      #   working-directory: ${{ inputs.stack_path }}
-      #   run: terraform apply -lock-timeout="${TF_LOCK_TIMEOUT}" -auto-approve tfplan

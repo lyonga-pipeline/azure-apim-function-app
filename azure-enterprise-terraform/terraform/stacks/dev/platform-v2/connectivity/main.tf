@@ -53,6 +53,13 @@ module "hub_network" {
   tags                                           = module.tags.tags
 }
 
+resource "azurerm_management_lock" "resource_group" {
+  name       = "lock-${var.resource_group_name}"
+  scope      = module.resource_group.id
+  lock_level = "CanNotDelete"
+  notes      = "Hub networking is a shared platform dependency. Accidental deletion would break all spoke peerings and private DNS. Remove this lock only during a planned decommission."
+}
+
 module "private_dns" {
   source              = "../../../../modules/private-dns"
   resource_group_name = module.resource_group.name

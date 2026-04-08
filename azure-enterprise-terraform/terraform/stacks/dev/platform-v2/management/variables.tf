@@ -116,6 +116,12 @@ variable "enable_diagnostics_storage_insights" {
   default     = false
 }
 
+variable "enable_defender" {
+  type        = bool
+  description = "Enable Microsoft Defender for Cloud Standard tier plans for AppServices, KeyVaults, SqlServers, SqlServerVirtualMachines, StorageAccounts, Containers, and Arm. Set false for personal testing to avoid Defender costs. Required for finserv production deployments."
+  default     = false
+}
+
 variable "business_owner" {
   type        = string
   description = "Business owner tag."

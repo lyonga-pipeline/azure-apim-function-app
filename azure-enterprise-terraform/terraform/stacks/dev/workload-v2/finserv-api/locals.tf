@@ -158,7 +158,20 @@ locals {
     } : {},
   )
 
+  # App data storage only needs blob private endpoint — it stores application data,
+  # not Function runtime content. File/queue/table endpoints are on the host storage.
   storage_private_endpoint_targets = {
+    blob = {
+      dns_key           = "blob"
+      subresource_names = ["blob"]
+    }
+  }
+
+  # Function host storage requires all four sub-resources for VNet-integrated
+  # Functions with WEBSITE_CONTENTOVERVNET=1. The runtime reads/writes blob for
+  # package content, queue for trigger state, table for lease metadata, and file
+  # for legacy deployment paths.
+  function_host_storage_private_endpoint_targets = var.enable_function_app ? {
     blob = {
       dns_key           = "blob"
       subresource_names = ["blob"]
@@ -175,7 +188,7 @@ locals {
       dns_key           = "table"
       subresource_names = ["table"]
     }
-  }
+  } : {}
 
   baseline_workload_role_assignments = merge(
     {

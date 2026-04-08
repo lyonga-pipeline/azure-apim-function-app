@@ -1,26 +1,30 @@
 name: Terraform Configuration Drift Detection
 
+# Matrix note: when test or prod environments are activated, add their stacks to
+# the matrix below under the appropriate environment_name. Each entry gets its own
+# concurrency group and drift issue so stacks can be monitored independently.
+
 on:
   workflow_dispatch:
     inputs:
       stack_path:
-        description: "Terraform stack path relative to repo root"
+        description: "Override: run drift on a single stack path instead of the full matrix"
         required: false
-        default: "azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api"
+        default: ""
       backend_config_path:
-        description: "Optional backend config file relative to repo root. Leave blank to auto-use <stack_path>/backend.hcl"
+        description: "Optional backend config file. Leave blank to auto-use <stack_path>/backend.hcl"
         required: false
         default: ""
       var_file:
-        description: "Optional tfvars filename/path inside the stack dir. Use dev.tfvars, not var_file=dev.tfvars"
+        description: "Optional tfvars filename inside the stack dir"
         required: false
-        default: "dev.tfvars"
+        default: ""
       environment_name:
         description: "GitHub Environment holding OIDC Azure configuration"
         required: false
         default: "dev"
       lock_timeout:
-        description: "Terraform state lock timeout for stateful commands"
+        description: "Terraform state lock timeout"
         required: false
         default: "5m"
   schedule:
@@ -32,12 +36,54 @@ permissions:
   issues: write
 
 jobs:
-  terraform-plan:
-    name: Terraform Drift Plan
+  drift-matrix:
+    name: Drift — ${{ matrix.stack.name }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment_name || 'dev' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          # ── dev active stacks ────────────────────────────────────────────────
+          - name: global-subscriptions
+            path: azure-enterprise-terraform/terraform/global/subscriptions
+            var_file: global.auto.tfvars
+            environment_name: dev
+          - name: global-management-groups
+            path: azure-enterprise-terraform/terraform/global/management-groups
+            var_file: global.auto.tfvars
+            environment_name: dev
+          - name: global-policy
+            path: azure-enterprise-terraform/terraform/global/policy
+            var_file: global.auto.tfvars
+            environment_name: dev
+          - name: global-role-assignments
+            path: azure-enterprise-terraform/terraform/global/role-assignments
+            var_file: global.auto.tfvars
+            environment_name: dev
+          - name: dev-connectivity
+            path: azure-enterprise-terraform/terraform/stacks/dev/platform-v2/connectivity
+            var_file: dev.tfvars
+            environment_name: dev
+          - name: dev-management
+            path: azure-enterprise-terraform/terraform/stacks/dev/platform-v2/management
+            var_file: dev.tfvars
+            environment_name: dev
+          - name: dev-identity
+            path: azure-enterprise-terraform/terraform/stacks/dev/platform-v2/identity
+            var_file: dev.tfvars
+            environment_name: dev
+          - name: dev-finserv-api
+            path: azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api
+            var_file: dev.tfvars
+            environment_name: dev
+          # ── Add test and prod stacks here when those environments are activated ─
+          # - name: test-connectivity
+          #   path: azure-enterprise-terraform/terraform/stacks/test/platform-v2/connectivity
+          #   var_file: test.tfvars
+          #   environment_name: test
+    environment: ${{ matrix.stack.environment_name }}
     concurrency:
-      group: terraform-${{ inputs.stack_path || 'azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api' }}
+      group: terraform-${{ matrix.stack.path }}
       cancel-in-progress: false
     env:
       ARM_USE_OIDC: true
@@ -45,9 +91,9 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID != '' && secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID != '' && vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID != '' && secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
       ARM_SKIP_PROVIDER_REGISTRATION: true
-      STACK_PATH: ${{ inputs.stack_path || 'azure-enterprise-terraform/terraform/stacks/dev/workload-v2/finserv-api' }}
+      STACK_PATH: ${{ inputs.stack_path != '' && inputs.stack_path || matrix.stack.path }}
       BACKEND_CONFIG_PATH: ${{ inputs.backend_config_path || '' }}
-      VAR_FILE: ${{ inputs.var_file || 'dev.tfvars' }}
+      VAR_FILE: ${{ inputs.var_file != '' && inputs.var_file || matrix.stack.var_file }}
       TF_LOCK_TIMEOUT: ${{ inputs.lock_timeout || '5m' }}
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}

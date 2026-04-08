@@ -246,6 +246,13 @@ module "key_vault_private_endpoint" {
   tags                 = module.tags.tags
 }
 
+resource "azurerm_management_lock" "resource_group" {
+  name       = "lock-${var.resource_group_name}"
+  scope      = module.resource_group.id
+  lock_level = "CanNotDelete"
+  notes      = "Identity stack contains shared managed identities and the platform CMK Key Vault. Accidental deletion would break encryption for all workloads consuming the shared CMK."
+}
+
 module "key_vault_diagnostics" {
   source                     = "../../../../modules/diagnostics-1"
   name                       = "diag-kv-${var.environment}-${var.application}"

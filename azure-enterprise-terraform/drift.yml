@@ -1,0 +1,504 @@
+# Azure DevOps Import Dispatch Pipeline (CORRECTED FINAL VERSION)
+# Architecture: ADO dispatch + HCP execution
+# Fixed: cross-stage variables, heredoc quoting, directory validation, PR auth
+
+trigger: none
+pr: none
+
+parameters:
+  - name: workspace
+    displayName: 'HCP Workspace Name'
+    type: string
+  
+  - name: workingDirectory
+    displayName: 'Working Directory (relative to repo root)'
+    type: string
+  
+  - name: terraformAddress
+    displayName: 'Terraform Address'
+    type: string
+  
+  - name: resourceId
+    displayName: 'Azure Resource ID'
+    type: string
+  
+  - name: justification
+    displayName: 'Justification / Ticket Reference'
+    type: string
+  
+  - name: ticketId
+    displayName: 'Change/Work Item ID'
+    type: string
+  
+  - name: resourceType
+    displayName: 'Resource Type (optional, for documentation)'
+    type: string
+    default: ''
+  
+  - name: resourceName
+    displayName: 'Azure Resource Name (optional, for documentation)'
+    type: string
+    default: ''
+
+variables:
+  python_version: '3.11'
+  git_config_name: 'terraform-bot'
+  git_config_email: 'terraform-bot@company.com'
+  branch_prefix: 'import-remediation'
+
+stages:
+  - stage: ValidateRequest
+    displayName: 'Stage 1: Validate Import Request'
+    jobs:
+      - job: ValidateParameters
+        displayName: 'Validate Parameters'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            persistCredentials: true
+
+          - script: |
+              echo "=== Import Request Parameters ==="
+              echo "Workspace: ${{ parameters.workspace }}"
+              echo "Working Directory: ${{ parameters.workingDirectory }}"
+              echo "Terraform Address: ${{ parameters.terraformAddress }}"
+              echo "Ticket ID: ${{ parameters.ticketId }}"
+              echo "Justification: ${{ parameters.justification }}"
+            displayName: 'Display Request Parameters'
+
+          - script: |
+              echo "=== Validating Parameter Format ==="
+              
+              # Validate workspace
+              WORKSPACE="${{ parameters.workspace }}"
+              if [ -z "$WORKSPACE" ]; then
+                echo "##vso[task.logissue type=error]Workspace is required"
+                exit 1
+              fi
+              echo "✓ Workspace: $WORKSPACE"
+              
+              # Validate working directory
+              WORK_DIR="${{ parameters.workingDirectory }}"
+              if [ -z "$WORK_DIR" ]; then
+                echo "##vso[task.logissue type=error]Working directory is required"
+                exit 1
+              fi
+              if [[ "$WORK_DIR" =~ ^/ ]] || [[ "$WORK_DIR" =~ [[:space:]] ]]; then
+                echo "##vso[task.logissue type=error]Working directory must be relative and not contain spaces"
+                exit 1
+              fi
+              echo "✓ Working directory: $WORK_DIR"
+              
+              # Validate terraform address
+              ADDRESS="${{ parameters.terraformAddress }}"
+              if [ -z "$ADDRESS" ]; then
+                echo "##vso[task.logissue type=error]Terraform address is required"
+                exit 1
+              fi
+              if ! [[ "$ADDRESS" =~ \. ]]; then
+                echo "##vso[task.logissue type=error]Invalid terraform address format: $ADDRESS"
+                exit 1
+              fi
+              # Check for dangerous characters
+              if [[ "$ADDRESS" =~ [[:space:]\;\'\"\$] ]]; then
+                echo "##vso[task.logissue type=error]Terraform address contains dangerous characters"
+                exit 1
+              fi
+              echo "✓ Terraform address: $ADDRESS"
+              
+              # Validate resource ID
+              RESOURCE_ID="${{ parameters.resourceId }}"
+              if [ -z "$RESOURCE_ID" ]; then
+                echo "##vso[task.logissue type=error]Azure resource ID is required"
+                exit 1
+              fi
+              if ! [[ "$RESOURCE_ID" =~ ^/subscriptions/ ]]; then
+                echo "##vso[task.logissue type=error]Invalid Azure resource ID format"
+                exit 1
+              fi
+              echo "✓ Resource ID format valid"
+              
+              # Validate ticket
+              TICKET="${{ parameters.ticketId }}"
+              if [ -z "$TICKET" ]; then
+                echo "##vso[task.logissue type=error]Ticket ID is required"
+                exit 1
+              fi
+              echo "✓ Ticket ID: $TICKET"
+              
+              # Validate justification
+              JUSTIFICATION="${{ parameters.justification }}"
+              if [ -z "$JUSTIFICATION" ]; then
+                echo "##vso[task.logissue type=error]Justification is required"
+                exit 1
+              fi
+              echo "✓ Justification provided"
+            displayName: 'Validate Parameter Format'
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'terraform-service-principal'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "=== Validating Azure Credentials ==="
+                az account show --output table
+                
+                if [ $? -ne 0 ]; then
+                  echo "##vso[task.logissue type=error]Azure authentication failed"
+                  exit 1
+                fi
+                echo "✓ Azure authentication successful"
+            displayName: 'Verify Azure Authentication'
+            env:
+              AZURE_SUBSCRIPTION_ID: $(Azure.SubscriptionId)
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'terraform-service-principal'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "=== Verifying Azure Resource Exists ==="
+                
+                RESOURCE_ID="${{ parameters.resourceId }}"
+                
+                echo "Looking up: $RESOURCE_ID"
+                RESULT=$(az resource show --ids "$RESOURCE_ID" --query 'id,type,name' -o tsv 2>&1)
+                
+                if [ $? -ne 0 ]; then
+                  echo "##vso[task.logissue type=error]Resource not found in Azure"
+                  echo "Resource ID: $RESOURCE_ID"
+                  exit 1
+                fi
+                
+                echo "✓ Resource found in Azure"
+                echo "Details:"
+                echo "$RESULT"
+            displayName: 'Verify Azure Resource Exists'
+            env:
+              AZURE_SUBSCRIPTION_ID: $(Azure.SubscriptionId)
+
+          - script: |
+              echo "=== Verifying Working Directory Exists ==="
+              
+              WORK_DIR="${{ parameters.workingDirectory }}"
+              
+              if [ ! -d "$WORK_DIR" ]; then
+                echo "##vso[task.logissue type=error]Working directory does not exist: $WORK_DIR"
+                echo "HCP cannot execute from a non-existent directory."
+                exit 1
+              fi
+              echo "✓ Working directory exists: $WORK_DIR"
+            displayName: 'Verify Working Directory Exists'
+
+  - stage: CreateAndMergePR
+    displayName: 'Stage 2: Create Remediation Branch & Open PR'
+    dependsOn: ValidateRequest
+    condition: succeeded()
+    jobs:
+      - job: CreateBranchAndPR
+        displayName: 'Create Branch, Import Block, and PR'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            persistCredentials: true
+
+          - script: |
+              echo "=== Setting Git Configuration ==="
+              git config --global user.name "$(git_config_name)"
+              git config --global user.email "$(git_config_email)"
+              
+              TIMESTAMP=$(date +%s)
+              TICKET_SLUG=$(echo "${{ parameters.ticketId }}" | tr '[:upper:]' '[:lower:]' | tr -d ' ' | cut -c1-20)
+              BRANCH_NAME="$(branch_prefix)/${TICKET_SLUG}-${TIMESTAMP}"
+              
+              echo "Creating branch: $BRANCH_NAME"
+              git checkout -b "$BRANCH_NAME"
+              echo "✓ Branch created: $BRANCH_NAME"
+            displayName: 'Create Feature Branch'
+
+          - script: |
+              echo "=== Generating Import Block ==="
+              
+              WORK_DIR="${{ parameters.workingDirectory }}"
+              TICKET_ID="${{ parameters.ticketId }}"
+              TERRAFORM_ADDRESS="${{ parameters.terraformAddress }}"
+              RESOURCE_ID="${{ parameters.resourceId }}"
+              WORKSPACE="${{ parameters.workspace }}"
+              JUSTIFICATION="${{ parameters.justification }}"
+              REQUESTED_BY="$(Build.RequestedFor)"
+              TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              BUILD_URI="$(Build.BuildUri)"
+              
+              IMPORT_FILE="${WORK_DIR}/imports-${TICKET_ID}.tf"
+              
+              echo "Creating: $IMPORT_FILE"
+              
+              cat > "${IMPORT_FILE}" << EOF
+/*
+ * Import Block - Drift Remediation
+ *
+ * Ticket: ${TICKET_ID}
+ * Workspace: ${WORKSPACE}
+ * Requested: ${TIMESTAMP}
+ * Requested by: ${REQUESTED_BY}
+ * Build: ${BUILD_URI}
+ *
+ * Justification: ${JUSTIFICATION}
+ *
+ * Note: Destination resource block must exist before import succeeds.
+ * Review the TODO section below.
+ */
+
+import {
+  to = ${TERRAFORM_ADDRESS}
+  id = "${RESOURCE_ID}"
+}
+
+/*
+ * TODO - Review Before Merge
+ *
+ * 1. Verify destination resource block exists at: ${TERRAFORM_ADDRESS}
+ * 2. If not, create it with basic structure
+ * 3. Run: terraform plan
+ * 4. Speculative plan should show one resource to import
+ * 5. Only merge if plan is correct
+ *
+ * After Merge (HCP will execute):
+ * - HCP detects merge
+ * - HCP runs terraform plan (real)
+ * - HCP runs terraform apply/import via agent pool
+ * - Resource added to state
+ *
+ * Post-Import (Developer action):
+ * - Review state: terraform state show ${TERRAFORM_ADDRESS}
+ * - Update resource block HCL to match Azure config
+ * - Verify: terraform plan (should be empty)
+ * - Commit final configuration
+ */
+EOF
+              
+              echo "✓ Import file created"
+            displayName: 'Generate Import Block'
+
+          - script: |
+              echo "=== Committing Changes ==="
+              
+              TICKET_ID="${{ parameters.ticketId }}"
+              TERRAFORM_ADDRESS="${{ parameters.terraformAddress }}"
+              
+              COMMIT_MSG="drift: add import block for $TERRAFORM_ADDRESS
+
+Ticket: $TICKET_ID
+Workspace: ${{ parameters.workspace }}
+Justification: ${{ parameters.justification }}
+
+Requested by: $(Build.RequestedFor)
+Build: $(Build.BuildId)
+Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+"
+              
+              git add .
+              
+              echo "Files staged:"
+              git diff --cached --name-only
+              
+              git commit -m "$COMMIT_MSG"
+              echo "✓ Commit created"
+            displayName: 'Commit Import Block'
+
+          - script: |
+              echo "=== Pushing Branch ==="
+              
+              BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+              
+              git push origin "$BRANCH_NAME"
+              
+              if [ $? -eq 0 ]; then
+                echo "✓ Branch pushed: $BRANCH_NAME"
+              else
+                echo "##vso[task.logissue type=error]Failed to push branch"
+                exit 1
+              fi
+            displayName: 'Push Branch'
+
+          - script: |
+              echo "=== Creating Pull Request ==="
+              
+              export AZURE_DEVOPS_EXT_PAT="$(System.AccessToken)"
+              az devops configure --defaults organization="$(System.CollectionUri)" project="$(System.TeamProject)"
+              
+              BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+              TERRAFORM_ADDRESS="${{ parameters.terraformAddress }}"
+              TICKET_ID="${{ parameters.ticketId }}"
+              WORKSPACE="${{ parameters.workspace }}"
+              JUSTIFICATION="${{ parameters.justification }}"
+              REQUESTED_BY="$(Build.RequestedFor)"
+              BUILD_ID="$(Build.BuildId)"
+              
+              PR_TITLE="drift: import ${TERRAFORM_ADDRESS}"
+              
+              PR_DESCRIPTION="## Drift Remediation - Import Request
+
+**Ticket:** ${TICKET_ID}
+**Workspace:** ${WORKSPACE}
+**Terraform Address:** \`${TERRAFORM_ADDRESS}\`
+
+### Justification
+${JUSTIFICATION}
+
+### What Happens Next
+
+1. **This PR (now)**
+   - Review import block
+   - Verify destination resource block exists
+   - Check Terraform address is correct
+   - Review TODO section
+
+2. **HCP Speculative Plan (automatic)**
+   - HCP detects this PR
+   - HCP runs: terraform plan -lock=false (speculative)
+   - Review plan in HCP UI
+   - Verify plan shows one resource to import
+
+3. **Merge (when plan is correct)**
+   - Merging triggers HCP real run
+   - HCP runs: terraform plan (real)
+   - HCP runs: terraform apply
+   - HCP agent pool executes the import workflow
+
+4. **Post-Import (after merge)**
+   - Review state: terraform state show
+   - Update HCL to match Azure resource
+   - Verify: terraform plan (should be empty)
+   - Commit final configuration
+
+### Important Notes
+
+- ⚠️ Only merge after HCP speculative plan is reviewed
+- ⚠️ Destination resource block must exist before merge
+- ⚠️ Resource blocks are not auto-generated
+- ✓ All state mutations occur in HCP
+- ✓ Agent pool handles actual terraform execution
+
+### Audit Trail
+- **Requested by:** ${REQUESTED_BY}
+- **Ticket:** ${TICKET_ID}
+- **Build:** [${BUILD_ID}]($(Build.BuildUri))
+"
+              
+              az repos pr create \
+                --source-branch "$BRANCH_NAME" \
+                --target-branch main \
+                --title "$PR_TITLE" \
+                --description "$PR_DESCRIPTION" \
+                --output table
+              
+              if [ $? -eq 0 ]; then
+                echo "✓ PR created successfully"
+              else
+                echo "##vso[task.logissue type=error]Failed to create PR"
+                exit 1
+              fi
+            displayName: 'Create PR'
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - stage: AuditAndRecord
+    displayName: 'Stage 3: Record Audit Trail'
+    dependsOn: CreateAndMergePR
+    condition: succeeded()
+    jobs:
+      - job: RecordAudit
+        displayName: 'Log Import Audit'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - script: |
+              echo "=== Recording Import Request Audit ==="
+              
+              mkdir -p ".audit/imports"
+              
+              TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+              AUDIT_FILE=".audit/imports/import-${{ parameters.ticketId }}-${TIMESTAMP}.json"
+              
+              REQUESTED_BY="$(Build.RequestedFor)"
+              REQUESTED_BY_EMAIL="$(Build.RequestedForEmail)"
+              BUILD_ID="$(Build.BuildId)"
+              BUILD_URI="$(Build.BuildUri)"
+              SOURCE_VERSION="$(Build.SourceVersion)"
+              TIMESTAMP_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+              
+              cat > "$AUDIT_FILE" << EOF
+{
+  "timestamp": "${TIMESTAMP_ISO}",
+  "ticketId": "${{ parameters.ticketId }}",
+  "workspace": "${{ parameters.workspace }}",
+  "workingDirectory": "${{ parameters.workingDirectory }}",
+  "terraformAddress": "${{ parameters.terraformAddress }}",
+  "resourceId": "${{ parameters.resourceId }}",
+  "resourceType": "${{ parameters.resourceType }}",
+  "resourceName": "${{ parameters.resourceName }}",
+  "justification": "${{ parameters.justification }}",
+  "requestedBy": "${REQUESTED_BY}",
+  "requestedByEmail": "${REQUESTED_BY_EMAIL}",
+  "buildId": "${BUILD_ID}",
+  "buildUri": "${BUILD_URI}",
+  "sourceVersion": "${SOURCE_VERSION}",
+  "status": "pr_created"
+}
+EOF
+              
+              echo "✓ Audit recorded: $AUDIT_FILE"
+            displayName: 'Create Audit Log'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '.audit'
+              ArtifactName: 'import-audit'
+            condition: always()
+            displayName: 'Publish Audit Artifacts'
+
+          - script: |
+              echo ""
+              echo "════════════════════════════════════════════════════════"
+              echo "   IMPORT REQUEST DISPATCHED"
+              echo "════════════════════════════════════════════════════════"
+              echo ""
+              echo "✓ Request validated"
+              echo "✓ Azure resource verified"
+              echo "✓ Working directory verified"
+              echo "✓ Import block created"
+              echo "✓ PR opened"
+              echo "✓ Audit recorded"
+              echo ""
+              echo "NEXT STEPS:"
+              echo ""
+              echo "1. Review PR in Azure DevOps"
+              echo "   - Check import block"
+              echo "   - Verify resource block exists"
+              echo "   - Review TODO section"
+              echo ""
+              echo "2. Wait for HCP Speculative Plan"
+              echo "   - HCP detects PR"
+              echo "   - Plan runs automatically"
+              echo "   - Review in HCP UI"
+              echo ""
+              echo "3. Merge PR (when plan is correct)"
+              echo "   - Triggers HCP real run"
+              echo "   - HCP executes import-block workflow"
+              echo "   - Agent pool runs execution"
+              echo ""
+              echo "4. Complete Post-Import Configuration"
+              echo "   - Review state"
+              echo "   - Update HCL to match Azure"
+              echo "   - Commit final configuration"
+              echo ""
+              echo "════════════════════════════════════════════════════════"
+              echo ""
+            displayName: 'Print Summary'
