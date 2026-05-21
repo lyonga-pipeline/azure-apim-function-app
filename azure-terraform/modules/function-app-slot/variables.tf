@@ -26,10 +26,29 @@ variable "storage" {
 
   validation {
     condition = (
-      try(var.storage.key_vault_secret_id, null) != null ||
-      try(var.storage.account_name, null) != null
+      (try(var.storage.key_vault_secret_id, null) != null) !=
+      (try(var.storage.account_name, null) != null)
     )
-    error_message = "Set either storage.account_name or storage.key_vault_secret_id for the slot storage contract."
+    error_message = "Set exactly one of storage.account_name or storage.key_vault_secret_id for the slot storage contract."
+  }
+
+  validation {
+    condition = (
+      try(var.storage.account_name, null) == null ||
+      (
+        try(var.storage.account_access_key, null) != null ||
+        try(var.storage.uses_managed_identity, false)
+      )
+    )
+    error_message = "When storage.account_name is set, also set storage.account_access_key or storage.uses_managed_identity=true."
+  }
+
+  validation {
+    condition = !(
+      try(var.storage.account_access_key, null) != null &&
+      try(var.storage.uses_managed_identity, false)
+    )
+    error_message = "storage.account_access_key conflicts with storage.uses_managed_identity=true."
   }
 }
 

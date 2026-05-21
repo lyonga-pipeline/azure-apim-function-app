@@ -1,6 +1,13 @@
 locals {
   is_windows = lower(var.os_type) == "windows"
   is_linux   = lower(var.os_type) == "linux"
+  site_config_defaults = {
+    ftps_state              = "Disabled"
+    http2_enabled           = true
+    minimum_tls_version     = "1.2"
+    scm_minimum_tls_version = "1.2"
+  }
+  effective_site_config = merge(local.site_config_defaults, var.site_config)
 }
 
 resource "azurerm_windows_web_app_slot" "this" {
@@ -27,19 +34,19 @@ resource "azurerm_windows_web_app_slot" "this" {
   }
 
   site_config {
-    always_on               = try(var.site_config.always_on, null)
-    ftps_state              = try(var.site_config.ftps_state, null)
-    health_check_path       = try(var.site_config.health_check_path, null)
-    http2_enabled           = try(var.site_config.http2_enabled, null)
-    minimum_tls_version     = try(var.site_config.minimum_tls_version, null)
-    scm_minimum_tls_version = try(var.site_config.scm_minimum_tls_version, null)
-    use_32_bit_worker       = try(var.site_config.use_32_bit_worker, null)
-    websockets_enabled      = try(var.site_config.websockets_enabled, null)
-    vnet_route_all_enabled  = try(var.site_config.vnet_route_all_enabled, null)
-    app_command_line        = try(var.site_config.app_command_line, null)
+    always_on               = try(local.effective_site_config.always_on, null)
+    ftps_state              = try(local.effective_site_config.ftps_state, null)
+    health_check_path       = try(local.effective_site_config.health_check_path, null)
+    http2_enabled           = try(local.effective_site_config.http2_enabled, null)
+    minimum_tls_version     = try(local.effective_site_config.minimum_tls_version, null)
+    scm_minimum_tls_version = try(local.effective_site_config.scm_minimum_tls_version, null)
+    use_32_bit_worker       = try(local.effective_site_config.use_32_bit_worker, null)
+    websockets_enabled      = try(local.effective_site_config.websockets_enabled, null)
+    vnet_route_all_enabled  = try(local.effective_site_config.vnet_route_all_enabled, null)
+    app_command_line        = try(local.effective_site_config.app_command_line, null)
 
     dynamic "application_stack" {
-      for_each = try(var.site_config.application_stack, null) == null ? [] : [var.site_config.application_stack]
+      for_each = try(local.effective_site_config.application_stack, null) == null ? [] : [local.effective_site_config.application_stack]
       content {
         current_stack                = try(application_stack.value.current_stack, null)
         docker_image_name            = try(application_stack.value.docker_image_name, null)
@@ -94,19 +101,19 @@ resource "azurerm_linux_web_app_slot" "this" {
   }
 
   site_config {
-    always_on               = try(var.site_config.always_on, null)
-    ftps_state              = try(var.site_config.ftps_state, null)
-    health_check_path       = try(var.site_config.health_check_path, null)
-    http2_enabled           = try(var.site_config.http2_enabled, null)
-    minimum_tls_version     = try(var.site_config.minimum_tls_version, null)
-    scm_minimum_tls_version = try(var.site_config.scm_minimum_tls_version, null)
-    use_32_bit_worker       = try(var.site_config.use_32_bit_worker, null)
-    websockets_enabled      = try(var.site_config.websockets_enabled, null)
-    vnet_route_all_enabled  = try(var.site_config.vnet_route_all_enabled, null)
-    app_command_line        = try(var.site_config.app_command_line, null)
+    always_on               = try(local.effective_site_config.always_on, null)
+    ftps_state              = try(local.effective_site_config.ftps_state, null)
+    health_check_path       = try(local.effective_site_config.health_check_path, null)
+    http2_enabled           = try(local.effective_site_config.http2_enabled, null)
+    minimum_tls_version     = try(local.effective_site_config.minimum_tls_version, null)
+    scm_minimum_tls_version = try(local.effective_site_config.scm_minimum_tls_version, null)
+    use_32_bit_worker       = try(local.effective_site_config.use_32_bit_worker, null)
+    websockets_enabled      = try(local.effective_site_config.websockets_enabled, null)
+    vnet_route_all_enabled  = try(local.effective_site_config.vnet_route_all_enabled, null)
+    app_command_line        = try(local.effective_site_config.app_command_line, null)
 
     dynamic "application_stack" {
-      for_each = try(var.site_config.application_stack, null) == null ? [] : [var.site_config.application_stack]
+      for_each = try(local.effective_site_config.application_stack, null) == null ? [] : [local.effective_site_config.application_stack]
       content {
         docker_image_name        = try(application_stack.value.docker_image_name, null)
         docker_registry_url      = try(application_stack.value.docker_registry_url, null)

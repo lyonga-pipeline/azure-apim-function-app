@@ -6,10 +6,24 @@ This catalog is the decoupled replacement for the mixed-lifecycle module estate 
 
 - One module owns one primary lifecycle boundary.
 - Base modules keep inseparable resource configuration only.
+- Base modules should carry resource-level enterprise standards such as secure defaults, validation, TLS posture, protocol posture, and standard tag contracts.
+- Base modules should not contain hidden environment or platform intelligence such as subscription lookup, subnet inference, DNS inference, shared workspace inference, or resiliency-tier inference.
 - RBAC, diagnostics, private connectivity, child objects, and workload-specific extensions are separate companion modules wherever Azure models them as separate resources or where ownership commonly differs.
 - Repeated children use `map(object(...))` instead of ordered lists.
 - Optional singleton blocks use `object(...)` plus `null`.
 - Modules are written so application teams compose capabilities by calling specific components rather than cloning per-app variants.
+
+## Enterprise Baseline Applied
+
+These modules are intended to be opinionated about the resource they manage, but not magical about the environment they run in.
+
+- Resource standards live in the base module.
+  Examples: `public_network_access_enabled = false`, `https_only = true`, `minimum_tls_version = "1.2"`, disabled FTP/legacy publishing auth, RBAC-first Key Vault posture, secure storage defaults, and APIM protocol hardening.
+- Environment standards live in the application root or pattern layer.
+  Examples: which subnet ID to use, which private DNS zone to use, which shared Log Analytics workspace to use, which subscription a workload targets, or which shared APIM instance an application should bind to.
+- Overrides are allowed, but they should be visible in the root contract rather than hidden inside module internals.
+
+An audit pass was also applied across `azure-terraform/modules` to keep hidden environment logic out of the catalog. The modules do not take `environment` or `app_code` as base-module control inputs, and they do not internally resolve shared infrastructure identifiers from environment names.
 
 ## Catalog Layout
 

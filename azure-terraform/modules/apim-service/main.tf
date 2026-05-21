@@ -1,3 +1,16 @@
+locals {
+  security_defaults = {
+    enable_backend_ssl30  = false
+    enable_backend_tls10  = false
+    enable_backend_tls11  = false
+    enable_frontend_ssl30 = false
+    enable_frontend_tls10 = false
+    enable_frontend_tls11 = false
+  }
+  effective_security  = merge(local.security_defaults, var.security == null ? {} : var.security)
+  effective_protocols = merge({ enable_http2 = true }, var.protocols == null ? {} : var.protocols)
+}
+
 resource "azurerm_api_management" "this" {
   name                          = var.name
   location                      = var.location
@@ -25,7 +38,7 @@ resource "azurerm_api_management" "this" {
   }
 
   dynamic "security" {
-    for_each = var.security == null ? [] : [var.security]
+    for_each = [local.effective_security]
     content {
       enable_backend_ssl30                                = try(security.value.enable_backend_ssl30, null)
       enable_backend_tls10                                = try(security.value.enable_backend_tls10, null)
@@ -38,7 +51,7 @@ resource "azurerm_api_management" "this" {
   }
 
   dynamic "protocols" {
-    for_each = var.protocols == null ? [] : [var.protocols]
+    for_each = [local.effective_protocols]
     content {
       enable_http2 = try(protocols.value.enable_http2, null)
     }
@@ -63,6 +76,17 @@ resource "azurerm_api_management" "this" {
           text             = try(terms_of_service.value.text, null)
         }
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        var.virtual_network_type == "None" ?
+        var.virtual_network_configuration == null :
+        var.virtual_network_configuration != null
+      )
+      error_message = "Set virtual_network_configuration when virtual_network_type is Internal or External, and omit it when virtual_network_type is None."
     }
   }
 }

@@ -14,6 +14,10 @@ variable "public_network_access_enabled" {
 variable "virtual_network_type" {
   type    = string
   default = "None"
+  validation {
+    condition     = contains(["External", "Internal", "None"], var.virtual_network_type)
+    error_message = "virtual_network_type must be External, Internal, or None."
+  }
 }
 variable "virtual_network_configuration" {
   type = object({

@@ -1,6 +1,29 @@
 locals {
   is_windows = lower(var.os_type) == "windows"
   is_linux   = lower(var.os_type) == "linux"
+  empty_site_config = {
+    always_on                              = null
+    api_definition_url                     = null
+    app_command_line                       = null
+    application_insights_connection_string = null
+    application_insights_key               = null
+    ftps_state                             = null
+    health_check_path                      = null
+    http2_enabled                          = null
+    minimum_tls_version                    = null
+    scm_minimum_tls_version                = null
+    use_32_bit_worker                      = null
+    websockets_enabled                     = null
+    vnet_route_all_enabled                 = null
+    application_stack                      = null
+  }
+  site_config_defaults = {
+    ftps_state              = "Disabled"
+    http2_enabled           = true
+    minimum_tls_version     = "1.2"
+    scm_minimum_tls_version = "1.2"
+  }
+  effective_site_config = coalesce(var.site_config, local.empty_site_config)
 }
 
 resource "azurerm_windows_function_app" "this" {
@@ -37,18 +60,18 @@ resource "azurerm_windows_function_app" "this" {
   }
 
   dynamic "site_config" {
-    for_each = var.site_config == null ? [] : [var.site_config]
+    for_each = [local.effective_site_config]
     content {
       always_on                              = try(site_config.value.always_on, null)
       api_definition_url                     = try(site_config.value.api_definition_url, null)
       app_command_line                       = try(site_config.value.app_command_line, null)
       application_insights_connection_string = try(site_config.value.application_insights_connection_string, null)
       application_insights_key               = try(site_config.value.application_insights_key, null)
-      ftps_state                             = try(site_config.value.ftps_state, null)
+      ftps_state                             = coalesce(try(site_config.value.ftps_state, null), local.site_config_defaults.ftps_state)
       health_check_path                      = try(site_config.value.health_check_path, null)
-      http2_enabled                          = try(site_config.value.http2_enabled, null)
-      minimum_tls_version                    = try(site_config.value.minimum_tls_version, null)
-      scm_minimum_tls_version                = try(site_config.value.scm_minimum_tls_version, null)
+      http2_enabled                          = coalesce(try(site_config.value.http2_enabled, null), local.site_config_defaults.http2_enabled)
+      minimum_tls_version                    = coalesce(try(site_config.value.minimum_tls_version, null), local.site_config_defaults.minimum_tls_version)
+      scm_minimum_tls_version                = coalesce(try(site_config.value.scm_minimum_tls_version, null), local.site_config_defaults.scm_minimum_tls_version)
       use_32_bit_worker                      = try(site_config.value.use_32_bit_worker, null)
       websockets_enabled                     = try(site_config.value.websockets_enabled, null)
       vnet_route_all_enabled                 = try(site_config.value.vnet_route_all_enabled, null)
@@ -289,18 +312,18 @@ resource "azurerm_linux_function_app" "this" {
   }
 
   dynamic "site_config" {
-    for_each = var.site_config == null ? [] : [var.site_config]
+    for_each = [local.effective_site_config]
     content {
       always_on                              = try(site_config.value.always_on, null)
       api_definition_url                     = try(site_config.value.api_definition_url, null)
       app_command_line                       = try(site_config.value.app_command_line, null)
       application_insights_connection_string = try(site_config.value.application_insights_connection_string, null)
       application_insights_key               = try(site_config.value.application_insights_key, null)
-      ftps_state                             = try(site_config.value.ftps_state, null)
+      ftps_state                             = coalesce(try(site_config.value.ftps_state, null), local.site_config_defaults.ftps_state)
       health_check_path                      = try(site_config.value.health_check_path, null)
-      http2_enabled                          = try(site_config.value.http2_enabled, null)
-      minimum_tls_version                    = try(site_config.value.minimum_tls_version, null)
-      scm_minimum_tls_version                = try(site_config.value.scm_minimum_tls_version, null)
+      http2_enabled                          = coalesce(try(site_config.value.http2_enabled, null), local.site_config_defaults.http2_enabled)
+      minimum_tls_version                    = coalesce(try(site_config.value.minimum_tls_version, null), local.site_config_defaults.minimum_tls_version)
+      scm_minimum_tls_version                = coalesce(try(site_config.value.scm_minimum_tls_version, null), local.site_config_defaults.scm_minimum_tls_version)
       use_32_bit_worker                      = try(site_config.value.use_32_bit_worker, null)
       websockets_enabled                     = try(site_config.value.websockets_enabled, null)
       vnet_route_all_enabled                 = try(site_config.value.vnet_route_all_enabled, null)

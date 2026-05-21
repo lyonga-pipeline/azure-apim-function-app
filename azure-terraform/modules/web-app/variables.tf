@@ -48,11 +48,11 @@ variable "virtual_network_backup_restore_enabled" {
 }
 variable "ftp_publish_basic_authentication_enabled" {
   type    = bool
-  default = true
+  default = false
 }
 variable "webdeploy_publish_basic_authentication_enabled" {
   type    = bool
-  default = true
+  default = false
 }
 variable "identity" {
   type = object({

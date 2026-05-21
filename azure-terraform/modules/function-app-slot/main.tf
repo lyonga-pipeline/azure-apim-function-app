@@ -1,6 +1,13 @@
 locals {
   is_windows = lower(var.os_type) == "windows"
   is_linux   = lower(var.os_type) == "linux"
+  site_config_defaults = {
+    ftps_state              = "Disabled"
+    http2_enabled           = true
+    minimum_tls_version     = "1.2"
+    scm_minimum_tls_version = "1.2"
+  }
+  effective_site_config = merge(local.site_config_defaults, var.site_config)
 }
 
 resource "azurerm_windows_function_app_slot" "this" {
@@ -30,22 +37,22 @@ resource "azurerm_windows_function_app_slot" "this" {
   }
 
   site_config {
-    always_on                              = try(var.site_config.always_on, null)
-    api_definition_url                     = try(var.site_config.api_definition_url, null)
-    app_command_line                       = try(var.site_config.app_command_line, null)
-    application_insights_connection_string = try(var.site_config.application_insights_connection_string, null)
-    application_insights_key               = try(var.site_config.application_insights_key, null)
-    ftps_state                             = try(var.site_config.ftps_state, null)
-    health_check_path                      = try(var.site_config.health_check_path, null)
-    http2_enabled                          = try(var.site_config.http2_enabled, null)
-    minimum_tls_version                    = try(var.site_config.minimum_tls_version, null)
-    scm_minimum_tls_version                = try(var.site_config.scm_minimum_tls_version, null)
-    use_32_bit_worker                      = try(var.site_config.use_32_bit_worker, null)
-    websockets_enabled                     = try(var.site_config.websockets_enabled, null)
-    vnet_route_all_enabled                 = try(var.site_config.vnet_route_all_enabled, null)
+    always_on                              = try(local.effective_site_config.always_on, null)
+    api_definition_url                     = try(local.effective_site_config.api_definition_url, null)
+    app_command_line                       = try(local.effective_site_config.app_command_line, null)
+    application_insights_connection_string = try(local.effective_site_config.application_insights_connection_string, null)
+    application_insights_key               = try(local.effective_site_config.application_insights_key, null)
+    ftps_state                             = try(local.effective_site_config.ftps_state, null)
+    health_check_path                      = try(local.effective_site_config.health_check_path, null)
+    http2_enabled                          = try(local.effective_site_config.http2_enabled, null)
+    minimum_tls_version                    = try(local.effective_site_config.minimum_tls_version, null)
+    scm_minimum_tls_version                = try(local.effective_site_config.scm_minimum_tls_version, null)
+    use_32_bit_worker                      = try(local.effective_site_config.use_32_bit_worker, null)
+    websockets_enabled                     = try(local.effective_site_config.websockets_enabled, null)
+    vnet_route_all_enabled                 = try(local.effective_site_config.vnet_route_all_enabled, null)
 
     dynamic "application_stack" {
-      for_each = try(var.site_config.application_stack, null) == null ? [] : [var.site_config.application_stack]
+      for_each = try(local.effective_site_config.application_stack, null) == null ? [] : [local.effective_site_config.application_stack]
       content {
         dotnet_version              = try(application_stack.value.dotnet_version, null)
         java_version                = try(application_stack.value.java_version, null)
@@ -94,22 +101,22 @@ resource "azurerm_linux_function_app_slot" "this" {
   }
 
   site_config {
-    always_on                              = try(var.site_config.always_on, null)
-    api_definition_url                     = try(var.site_config.api_definition_url, null)
-    app_command_line                       = try(var.site_config.app_command_line, null)
-    application_insights_connection_string = try(var.site_config.application_insights_connection_string, null)
-    application_insights_key               = try(var.site_config.application_insights_key, null)
-    ftps_state                             = try(var.site_config.ftps_state, null)
-    health_check_path                      = try(var.site_config.health_check_path, null)
-    http2_enabled                          = try(var.site_config.http2_enabled, null)
-    minimum_tls_version                    = try(var.site_config.minimum_tls_version, null)
-    scm_minimum_tls_version                = try(var.site_config.scm_minimum_tls_version, null)
-    use_32_bit_worker                      = try(var.site_config.use_32_bit_worker, null)
-    websockets_enabled                     = try(var.site_config.websockets_enabled, null)
-    vnet_route_all_enabled                 = try(var.site_config.vnet_route_all_enabled, null)
+    always_on                              = try(local.effective_site_config.always_on, null)
+    api_definition_url                     = try(local.effective_site_config.api_definition_url, null)
+    app_command_line                       = try(local.effective_site_config.app_command_line, null)
+    application_insights_connection_string = try(local.effective_site_config.application_insights_connection_string, null)
+    application_insights_key               = try(local.effective_site_config.application_insights_key, null)
+    ftps_state                             = try(local.effective_site_config.ftps_state, null)
+    health_check_path                      = try(local.effective_site_config.health_check_path, null)
+    http2_enabled                          = try(local.effective_site_config.http2_enabled, null)
+    minimum_tls_version                    = try(local.effective_site_config.minimum_tls_version, null)
+    scm_minimum_tls_version                = try(local.effective_site_config.scm_minimum_tls_version, null)
+    use_32_bit_worker                      = try(local.effective_site_config.use_32_bit_worker, null)
+    websockets_enabled                     = try(local.effective_site_config.websockets_enabled, null)
+    vnet_route_all_enabled                 = try(local.effective_site_config.vnet_route_all_enabled, null)
 
     dynamic "application_stack" {
-      for_each = try(var.site_config.application_stack, null) == null ? [] : [var.site_config.application_stack]
+      for_each = try(local.effective_site_config.application_stack, null) == null ? [] : [local.effective_site_config.application_stack]
       content {
         dotnet_version              = try(application_stack.value.dotnet_version, null)
         java_version                = try(application_stack.value.java_version, null)
