@@ -265,5 +265,21 @@ resource "azurerm_eventgrid_event_subscription" "this" {
       condition     = var.dead_letter_identity == null || var.dead_letter_destination != null
       error_message = "dead_letter_identity requires dead_letter_destination."
     }
+    precondition {
+      condition = (
+        var.delivery_identity == null ||
+        var.delivery_identity.type != "UserAssigned" ||
+        try(var.delivery_identity.user_assigned_identity, null) != null
+      )
+      error_message = "delivery_identity.user_assigned_identity is required when delivery_identity.type is UserAssigned."
+    }
+    precondition {
+      condition = (
+        var.dead_letter_identity == null ||
+        var.dead_letter_identity.type != "UserAssigned" ||
+        try(var.dead_letter_identity.user_assigned_identity, null) != null
+      )
+      error_message = "dead_letter_identity.user_assigned_identity is required when dead_letter_identity.type is UserAssigned."
+    }
   }
 }

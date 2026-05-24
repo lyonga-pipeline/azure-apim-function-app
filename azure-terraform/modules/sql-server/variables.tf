@@ -8,10 +8,20 @@ variable "server_version" {
 variable "minimum_tls_version" {
   type    = string
   default = "1.2"
+
+  validation {
+    condition     = contains(["1.2", "1.3"], var.minimum_tls_version)
+    error_message = "minimum_tls_version must be 1.2 or 1.3."
+  }
 }
 variable "connection_policy" {
   type    = string
   default = null
+
+  validation {
+    condition     = var.connection_policy == null || contains(["Default", "Proxy", "Redirect"], var.connection_policy)
+    error_message = "connection_policy must be Default, Proxy, or Redirect when set."
+  }
 }
 variable "public_network_access_enabled" {
   type    = bool

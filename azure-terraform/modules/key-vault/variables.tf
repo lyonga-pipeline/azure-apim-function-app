@@ -1,10 +1,22 @@
-variable "name" { type = string }
+variable "name" {
+  type = string
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$", var.name)) && !can(regex("--", var.name))
+    error_message = "Key Vault names must be 3-24 characters, start with a letter, end with a letter or number, and not contain consecutive hyphens."
+  }
+}
 variable "resource_group_name" { type = string }
 variable "location" { type = string }
 variable "tenant_id" { type = string }
 variable "sku_name" {
   type    = string
   default = "standard"
+
+  validation {
+    condition     = contains(["standard", "premium"], lower(var.sku_name))
+    error_message = "sku_name must be standard or premium."
+  }
 }
 variable "soft_delete_retention_days" {
   type    = number
@@ -34,6 +46,16 @@ variable "network_acls" {
     virtual_network_subnet_ids = optional(list(string), [])
   })
   default = {}
+
+  validation {
+    condition     = contains(["AzureServices", "None"], var.network_acls.bypass)
+    error_message = "network_acls.bypass must be AzureServices or None."
+  }
+
+  validation {
+    condition     = contains(["Allow", "Deny"], var.network_acls.default_action)
+    error_message = "network_acls.default_action must be Allow or Deny."
+  }
 }
 variable "contacts" {
   type = map(object({

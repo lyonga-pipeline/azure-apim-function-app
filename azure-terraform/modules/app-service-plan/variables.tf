@@ -5,7 +5,7 @@ variable "os_type" {
   type    = string
   default = "Windows"
   validation {
-    condition     = contains(["Linux", "Windows"], var.os_type)
+    condition     = contains(["linux", "windows"], lower(var.os_type))
     error_message = "os_type must be Linux or Windows."
   }
 }

@@ -80,6 +80,11 @@ variable "client_certificate_enabled" {
 variable "client_certificate_mode" {
   type    = string
   default = "Required"
+
+  validation {
+    condition     = contains(["Required", "Optional", "OptionalInteractiveUser"], var.client_certificate_mode)
+    error_message = "client_certificate_mode must be Required, Optional, or OptionalInteractiveUser."
+  }
 }
 
 variable "identity" {
@@ -88,6 +93,15 @@ variable "identity" {
     identity_ids = optional(list(string), [])
   })
   default = null
+
+  validation {
+    condition = var.identity == null || contains([
+      "SystemAssigned",
+      "UserAssigned",
+      "SystemAssigned, UserAssigned"
+    ], var.identity.type)
+    error_message = "identity.type must be SystemAssigned, UserAssigned, or 'SystemAssigned, UserAssigned'."
+  }
 }
 
 variable "site_config" {
@@ -116,6 +130,21 @@ variable "site_config" {
     }))
   })
   default = {}
+
+  validation {
+    condition     = try(var.site_config.ftps_state, null) == null || contains(["Disabled", "FtpsOnly"], var.site_config.ftps_state)
+    error_message = "site_config.ftps_state must be Disabled or FtpsOnly."
+  }
+
+  validation {
+    condition     = try(var.site_config.minimum_tls_version, null) == null || contains(["1.2", "1.3"], var.site_config.minimum_tls_version)
+    error_message = "site_config.minimum_tls_version must be 1.2 or 1.3."
+  }
+
+  validation {
+    condition     = try(var.site_config.scm_minimum_tls_version, null) == null || contains(["1.2", "1.3"], var.site_config.scm_minimum_tls_version)
+    error_message = "site_config.scm_minimum_tls_version must be 1.2 or 1.3."
+  }
 }
 
 variable "connection_strings" {

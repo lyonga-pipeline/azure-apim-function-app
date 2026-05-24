@@ -29,6 +29,14 @@ variable "private_service_connection" {
     )
     error_message = "private_service_connection must set exactly one of private_connection_resource_id or private_connection_resource_alias."
   }
+
+  validation {
+    condition = (
+      try(var.private_service_connection.private_connection_resource_alias, null) != null ||
+      try(length(var.private_service_connection.subresource_names), 0) > 0
+    )
+    error_message = "private_service_connection.subresource_names must be set when connecting to a private_connection_resource_id."
+  }
 }
 variable "private_dns_zone_group" {
   type = object({

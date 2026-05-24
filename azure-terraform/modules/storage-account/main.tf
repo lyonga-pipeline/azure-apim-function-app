@@ -2,21 +2,21 @@ resource "azurerm_storage_account" "this" {
   name                              = var.name
   resource_group_name               = var.resource_group_name
   location                          = var.location
-  account_tier                      = var.account_tier
-  account_replication_type          = var.account_replication_type
-  account_kind                      = var.account_kind
-  access_tier                       = var.access_tier
-  min_tls_version                   = var.min_tls_version
-  public_network_access_enabled     = var.public_network_access_enabled
-  allow_nested_items_to_be_public   = var.allow_nested_items_to_be_public
-  shared_access_key_enabled         = var.shared_access_key_enabled
-  infrastructure_encryption_enabled = var.infrastructure_encryption_enabled
-  is_hns_enabled                    = var.is_hns_enabled
-  sftp_enabled                      = var.sftp_enabled
-  nfsv3_enabled                     = var.nfsv3_enabled
-  large_file_share_enabled          = var.large_file_share_enabled
-  cross_tenant_replication_enabled  = var.cross_tenant_replication_enabled
-  default_to_oauth_authentication   = var.default_to_oauth_authentication
+  account_tier                      = coalesce(var.account_tier, "Standard")
+  account_replication_type          = coalesce(var.account_replication_type, "ZRS")
+  account_kind                      = coalesce(var.account_kind, "StorageV2")
+  access_tier                       = coalesce(var.access_tier, "Hot")
+  min_tls_version                   = coalesce(var.min_tls_version, "TLS1_2")
+  public_network_access_enabled     = coalesce(var.public_network_access_enabled, false)
+  allow_nested_items_to_be_public   = coalesce(var.allow_nested_items_to_be_public, false)
+  shared_access_key_enabled         = coalesce(var.shared_access_key_enabled, false)
+  infrastructure_encryption_enabled = coalesce(var.infrastructure_encryption_enabled, true)
+  is_hns_enabled                    = coalesce(var.is_hns_enabled, false)
+  sftp_enabled                      = coalesce(var.sftp_enabled, false)
+  nfsv3_enabled                     = coalesce(var.nfsv3_enabled, false)
+  large_file_share_enabled          = coalesce(var.large_file_share_enabled, false)
+  cross_tenant_replication_enabled  = coalesce(var.cross_tenant_replication_enabled, false)
+  default_to_oauth_authentication   = coalesce(var.default_to_oauth_authentication, true)
   tags                              = var.tags
 
   dynamic "identity" {

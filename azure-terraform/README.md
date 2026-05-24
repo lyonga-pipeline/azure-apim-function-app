@@ -33,6 +33,7 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 - `user-assigned-identity`
 - `public-ip`
 - `app-service-plan`
+- `role-definition`
 - `role-assignments`
 - `diagnostic-settings`
 - `private-endpoint`
@@ -51,6 +52,14 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 - `function-app-slot`
 - `web-app`
 - `web-app-slot`
+- `static-web-app`
+- `static-web-app-custom-domain`
+- `static-web-app-function-app-registration`
+- `app-service-custom-hostname-binding`
+- `app-service-slot-custom-hostname-binding`
+- `app-service-certificate`
+- `app-service-managed-certificate`
+- `app-service-certificate-binding`
 - `app-service-vnet-integration`
 - `container-agent`
 
@@ -87,11 +96,13 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 - `network-security-group`
 - `nsg-subnet-association`
 - `network-interface`
+- `network-interface-backend-address-pool-association`
 - `nsg-network-interface-association`
 - `network-interface-application-security-group-association`
 - `nat-gateway`
 - `nat-gateway-associations`
 - `nat-gateway-public-ip-association`
+- `nat-gateway-subnet-association`
 - `vnet-peering`
 - `load-balancer`
 - `application-gateway`
@@ -115,6 +126,7 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 - `log-analytics`
 - `application-insights`
 - `action-group`
+- `monitor-metric-alert`
 
 ## Recommended Composition Model
 
@@ -133,7 +145,8 @@ The remaining "stitches" in this catalog are deliberate lifecycle seams, not gap
 
 - `windows-vm` owns the VM, NIC reference, OS disk, identity, and availability decision.
 - `windows-vm-domain-join`, `windows-vm-data-disks`, and `windows-vm-extension` remain separate because domain membership, disk layout, and guest bootstrap are workload- and operations-driven lifecycles.
-- `web-app` and `function-app` own the site itself and inseparable app-service-native settings, while `web-app-slot`, `function-app-slot`, and `app-service-vnet-integration` remain separate because slot rollout and network attachment often change on a different cadence than the app.
+- `web-app` and `function-app` own the site itself and inseparable app-service-native settings, while `web-app-slot`, `function-app-slot`, custom hostname bindings, certificate bindings, and `app-service-vnet-integration` remain separate because rollout, DNS/TLS binding, and network attachment often change on a different cadence than the app.
+- `static-web-app` owns the Static Web App resource, while custom domain and Function App registration stay separate because DNS validation and backend registration are deployment-time relationships.
 
 ### Control Plane Vs Data Plane Or Child Objects
 
@@ -145,16 +158,17 @@ The remaining "stitches" in this catalog are deliberate lifecycle seams, not gap
 
 ### Base Resource Vs Security And Governance Attachments
 
-- `role-assignments` is kept generic and separate because access changes are frequent, often centrally owned, and should not force base resource changes.
+- `role-definition` and `role-assignments` are kept separate because custom role design and principal assignment are different governance lifecycles.
 - `diagnostic-settings` stays separate because telemetry routing commonly varies by environment, platform standard, or central observability ownership.
+- `monitor-metric-alert` stays separate because alert thresholds, action groups, and ownership frequently vary by workload and operations model.
 - `sql-server-extended-auditing-policy` and `sql-server-security-alert-policy` are separate because compliance controls evolve independently of the SQL server itself.
 - `storage-account-customer-managed-key`, `storage-management-policy`, and `storage-container-immutability-policy` remain separate because encryption, lifecycle retention, and immutability are governance controls that may be introduced or tightened after the base account exists.
 
 ### Base Network Objects Vs Attachments And Associations
 
 - `virtual-network`, `route-table`, and `network-security-group` remain independent base resources.
-- `subnet-route-table-association`, `nsg-subnet-association`, `nsg-network-interface-association`, and `network-interface-application-security-group-association` are deliberate stitches because subnet and NIC attachment ownership often differs from the base object owner.
-- `nat-gateway`, `nat-gateway-associations`, and `nat-gateway-public-ip-association` stay separate so egress strategy and public IP assignment can change without rebuilding the NAT gateway or subnet.
+- `subnet-route-table-association`, `nsg-subnet-association`, `nsg-network-interface-association`, `network-interface-application-security-group-association`, and `network-interface-backend-address-pool-association` are deliberate stitches because subnet, NIC, ASG, NSG, and load balancer attachment ownership often differs from the base object owner.
+- `nat-gateway`, `nat-gateway-public-ip-association`, and `nat-gateway-subnet-association` stay separate so egress strategy, public IP assignment, and subnet attachment can change without rebuilding the NAT gateway or subnet.
 - `private-endpoint`, `private-dns-zone`, `private-dns-vnet-link`, and `private-dns-a-record` remain composable because private connectivity and DNS are frequently owned by a shared networking team rather than by the application module owner.
 - `vnet-peering` stays separate because peering is a relationship lifecycle between two networks, not a property of one network alone.
 

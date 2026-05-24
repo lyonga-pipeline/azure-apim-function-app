@@ -7,6 +7,11 @@ variable "included_event_types" {
 variable "event_delivery_schema" {
   type    = string
   default = "EventGridSchema"
+
+  validation {
+    condition     = contains(["EventGridSchema", "CloudEventSchemaV1_0", "CustomInputSchema"], var.event_delivery_schema)
+    error_message = "event_delivery_schema must be EventGridSchema, CloudEventSchemaV1_0, or CustomInputSchema."
+  }
 }
 variable "labels" {
   type    = list(string)
@@ -162,6 +167,16 @@ variable "retry_policy" {
     max_delivery_attempts = number
   })
   default = null
+
+  validation {
+    condition = var.retry_policy == null || (
+      var.retry_policy.event_time_to_live >= 1 &&
+      var.retry_policy.event_time_to_live <= 1440 &&
+      var.retry_policy.max_delivery_attempts >= 1 &&
+      var.retry_policy.max_delivery_attempts <= 30
+    )
+    error_message = "retry_policy.event_time_to_live must be 1-1440 minutes and max_delivery_attempts must be 1-30."
+  }
 }
 variable "delivery_identity" {
   type = object({
@@ -169,6 +184,11 @@ variable "delivery_identity" {
     user_assigned_identity = optional(string)
   })
   default = null
+
+  validation {
+    condition     = var.delivery_identity == null || contains(["SystemAssigned", "UserAssigned"], var.delivery_identity.type)
+    error_message = "delivery_identity.type must be SystemAssigned or UserAssigned."
+  }
 }
 variable "dead_letter_identity" {
   type = object({
@@ -176,6 +196,11 @@ variable "dead_letter_identity" {
     user_assigned_identity = optional(string)
   })
   default = null
+
+  validation {
+    condition     = var.dead_letter_identity == null || contains(["SystemAssigned", "UserAssigned"], var.dead_letter_identity.type)
+    error_message = "dead_letter_identity.type must be SystemAssigned or UserAssigned."
+  }
 }
 variable "delivery_properties" {
   type = list(object({
@@ -186,4 +211,12 @@ variable "delivery_properties" {
     value        = optional(string)
   }))
   default = []
+
+  validation {
+    condition = alltrue([
+      for property in var.delivery_properties :
+      contains(["Dynamic", "Static"], property.type)
+    ])
+    error_message = "Each delivery_properties.type must be Dynamic or Static."
+  }
 }

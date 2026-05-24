@@ -8,6 +8,11 @@ variable "sku" {
 variable "retention_in_days" {
   type    = number
   default = 30
+
+  validation {
+    condition     = var.retention_in_days >= 30 && var.retention_in_days <= 730
+    error_message = "retention_in_days must be between 30 and 730."
+  }
 }
 variable "daily_quota_gb" {
   type    = number

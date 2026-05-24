@@ -18,6 +18,25 @@ variable "keys" {
     }))
   }))
   default = {}
+
+  validation {
+    condition = alltrue([
+      for key in values(var.keys) :
+      contains(["EC", "EC-HSM", "RSA", "RSA-HSM"], key.key_type)
+    ])
+    error_message = "Each key.key_type must be EC, EC-HSM, RSA, or RSA-HSM."
+  }
+
+  validation {
+    condition = alltrue([
+      for key in values(var.keys) :
+      alltrue([
+        for key_opt in key.key_opts :
+        contains(["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"], key_opt)
+      ])
+    ])
+    error_message = "Each key_opts value must be one of decrypt, encrypt, sign, unwrapKey, verify, or wrapKey."
+  }
 }
 variable "tags" {
   type    = map(string)

@@ -22,4 +22,16 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
       enabled  = try(metric.value.enabled, true)
     }
   }
+
+  lifecycle {
+    precondition {
+      condition = (
+        var.log_analytics_workspace_id != null ||
+        var.storage_account_id != null ||
+        var.eventhub_authorization_rule_id != null ||
+        var.partner_solution_id != null
+      )
+      error_message = "At least one diagnostic destination must be set."
+    }
+  }
 }

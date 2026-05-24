@@ -136,7 +136,7 @@ resource "azurerm_windows_function_app" "this" {
       forward_proxy_custom_scheme_header_name = try(auth_settings_v2.value.forward_proxy_custom_scheme_header_name, null)
       http_route_api_prefix                   = try(auth_settings_v2.value.http_route_api_prefix, null)
       require_authentication                  = try(auth_settings_v2.value.require_authentication, null)
-      require_https                           = try(auth_settings_v2.value.require_https, null)
+      require_https                           = coalesce(try(auth_settings_v2.value.require_https, null), true)
       runtime_version                         = try(auth_settings_v2.value.runtime_version, null)
       unauthenticated_action                  = try(auth_settings_v2.value.unauthenticated_action, null)
 
@@ -389,7 +389,7 @@ resource "azurerm_linux_function_app" "this" {
       forward_proxy_custom_scheme_header_name = try(auth_settings_v2.value.forward_proxy_custom_scheme_header_name, null)
       http_route_api_prefix                   = try(auth_settings_v2.value.http_route_api_prefix, null)
       require_authentication                  = try(auth_settings_v2.value.require_authentication, null)
-      require_https                           = try(auth_settings_v2.value.require_https, null)
+      require_https                           = coalesce(try(auth_settings_v2.value.require_https, null), true)
       runtime_version                         = try(auth_settings_v2.value.runtime_version, null)
       unauthenticated_action                  = try(auth_settings_v2.value.unauthenticated_action, null)
 
