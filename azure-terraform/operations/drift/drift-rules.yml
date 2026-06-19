@@ -1,0 +1,56 @@
+rules:
+  - name: security_policy_drift
+    description: Public exposure, weakened encryption, network control drift, or security posture variance.
+    match:
+      attributes:
+        - public_network_access_enabled
+        - min_tls_version
+        - minimum_tls_version
+        - scm_minimum_tls_version
+        - network_acls
+        - allow_blob_public_access
+        - allow_nested_items_to_be_public
+        - shared_access_key_enabled
+        - https_only
+        - ftps_state
+        - ip_restriction
+        - virtual_network_subnet_id
+    severity: critical
+    sla_days: 5
+    ado_priority: 1
+    action: Remediate through Terraform or create an approved time-bound exception.
+
+  - name: manual_change_drift
+    description: Default rule for unmanaged or manually changed infrastructure when no more specific rule matches.
+    match:
+      default: true
+    severity: high
+    sla_days: 7
+    ado_priority: 2
+    action: Reconcile through Terraform, revert the manual change, or document a break-glass exception.
+
+  - name: tag_drift
+    description: Required enterprise tag variance.
+    match:
+      attributes:
+        - tags
+    severity: medium
+    sla_days: 10
+    ado_priority: 3
+    action: Reconcile required tags through Terraform.
+
+  - name: provider_normalization
+    description: Provider/API-computed noise that does not represent a real desired-state change.
+    match:
+      attributes:
+        - id
+        - etag
+        - last_modified
+        - computed
+        - outbound_ip_addresses
+        - possible_outbound_ip_addresses
+    severity: low
+    sla_days: 30
+    ado_priority: 4
+    action: Document and suppress only when justified.
+

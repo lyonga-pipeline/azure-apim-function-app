@@ -4,6 +4,8 @@ This directory models an application-owned Terraform repo for `online-banking`. 
 
 The important design choice is that each environment is its own Terraform root. That gives `np1`, `np2`, `np3`, and `prod` separate state, separate plans, separate module pins, and separate promotion control.
 
+For the net-new landing-zone path, these roots consume explicit platform outputs from the shared HCP workspaces instead of discovering shared infrastructure internally. Subnet IDs, Private DNS zone IDs, Log Analytics IDs, and action group IDs are provided through approved HCP variable sets, workspace outputs, or an approved environment catalog.
+
 ## Environment Roots
 
 Each environment directory contains the full Terraform root needed to plan and apply that environment:
@@ -19,10 +21,9 @@ Each root includes:
 
 - `main.tf` with HCP registry module calls and static `version` pins.
 - `locals.tf` for environment-local naming, tag merge behavior, and resolved shared IDs.
-- `variables.tf` for the environment contract.
+- `variables.tf` for the typed environment contract.
 - `outputs.tf` for the app-facing resource outputs.
 - `providers.tf` and `versions.tf` for provider configuration.
-- `backend.hcl` for isolated state.
 - `terraform.tfvars` for environment-specific values.
 
 ## Why Not One Shared Root
@@ -66,13 +67,15 @@ module "function_app" {
 
 This keeps Compeer standards in the modules while keeping environment and platform intelligence visible at the root.
 
+The root contract is intentionally typed. The module catalog owns resource behavior; the app root owns application configuration and receives exact platform IDs from the landing-zone platform layer.
+
 ## Commands
 
 Run Terraform from the target environment directory:
 
 ```bash
 cd environments/np1
-terraform init -backend-config=backend.hcl
+terraform init
 terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
@@ -82,6 +85,20 @@ Use the same pattern for `np2`, `np3`, or `prod`.
 ## Secret Handling
 
 The `key_vault_secrets` input is included to show the lifecycle boundary, but committed tfvars should not contain real secret values. Populate secrets through a secure pipeline variable source, HCP variable set, or a separate secrets workflow.
+
+## Net-New Landing Zone Inputs
+
+For net-new landing-zone deployments, app roots should receive these values from approved platform outputs:
+
+| Input | Source |
+| --- | --- |
+| `shared.log_analytics_workspace_id` | `platform-management` workspace output |
+| `shared.action_group_id` | `platform-management` workspace output |
+| `shared.subnet_ids.app_integration` | workload spoke or platform connectivity output |
+| `shared.subnet_ids.private_endpoint` | workload spoke or platform connectivity output |
+| `shared.private_dns_zone_ids` | `platform-connectivity` workspace output |
+
+The app root passes these values into modules explicitly. Function App, Key Vault, Storage, and Private Endpoint modules should not infer subnet or DNS placement from environment names.
 
 ## Promotion Guidance
 

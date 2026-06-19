@@ -8,5 +8,11 @@ terraform {
     }
   }
 
-  backend "azurerm" {}
+  cloud {
+    organization = "compeer"
+
+    workspaces {
+      name = "lz-workload-online-banking-prod"
+    }
+  }
 }

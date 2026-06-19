@@ -1,6 +1,6 @@
 # Azure Terraform Catalog
 
-This catalog is the decoupled replacement for the mixed-lifecycle module estate reviewed from the screenshots, governance documents, and rationale write-ups.
+This catalog is the decoupled replacement for the mixed-lifecycle module estate identified through repo review, governance documents, and rationale write-ups.
 
 ## Design Rules
 
@@ -26,6 +26,15 @@ These modules are intended to be opinionated about the resource they manage, but
 An audit pass was also applied across `azure-terraform/modules` to keep hidden environment logic out of the catalog. The modules do not take `environment` or `app_code` as base-module control inputs, and they do not internally resolve shared infrastructure identifiers from environment names.
 
 ## Catalog Layout
+
+### Landing Zone Foundations
+
+- `landing-zones/net-new-hub-spoke` contains the reference roots for the new Azure landing-zone deployment path.
+- `hcp` contains workspace, project, variable-set, and policy attachment standards for HCP Terraform.
+- `policies` contains OPA and Azure Policy guardrails scoped first to net-new landing-zone workspaces.
+- `operations` contains drift classification, exception tracking, and scorecard templates.
+
+These folders sit above the reusable module catalog. They show how Cloud Enablement composes modules into governed platform and workload boundaries without adding hidden environment intelligence to the modules themselves.
 
 ### Shared Companions
 

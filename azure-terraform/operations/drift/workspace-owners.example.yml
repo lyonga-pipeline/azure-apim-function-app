@@ -1,0 +1,36 @@
+workspaces:
+  lz-platform-connectivity-np:
+    owner: cloud-enablement
+    ado_area_path: Cloud Enablement\\Platform
+    criticality: critical
+    environment: np
+    layer: shared-environment-platform
+
+  lz-platform-management-np:
+    owner: cloud-enablement
+    ado_area_path: Cloud Enablement\\Platform
+    criticality: high
+    environment: np
+    layer: shared-environment-platform
+
+  lz-platform-identity-np:
+    owner: cloud-enablement
+    ado_area_path: Cloud Enablement\\Platform
+    criticality: critical
+    environment: np
+    layer: shared-environment-platform
+
+  lz-workload-online-banking-np1:
+    owner: app-team-online-banking
+    ado_area_path: Cloud Enablement\\Online Banking
+    criticality: medium
+    environment: np1
+    layer: workload-landing-zone
+
+  lz-workload-online-banking-prod:
+    owner: app-team-online-banking
+    ado_area_path: Cloud Enablement\\Online Banking
+    criticality: critical
+    environment: prod
+    layer: workload-landing-zone
+

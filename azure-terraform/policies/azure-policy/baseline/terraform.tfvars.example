@@ -1,0 +1,23 @@
+subscription_id                = "00000000-0000-0000-0000-000000000000"
+definition_management_group_id = "compeer-landing-zones"
+
+assignment_management_group_ids = {
+  nonprod = "compeer-landing-zones-nonprod"
+}
+
+allowed_locations = [
+  "eastus",
+  "eastus2",
+  "centralus",
+]
+
+policy_effects = {
+  allowed_locations          = "Audit"
+  required_tag               = "Audit"
+  deny_public_ip             = "Audit"
+  storage_public_network     = "Audit"
+  key_vault_public_network   = "Audit"
+  sql_public_network         = "Audit"
+  app_service_public_network = "Audit"
+}
+

@@ -1,0 +1,39 @@
+subscription_id = "11111111-1111-1111-1111-111111111111"
+location        = "eastus2"
+environment     = "np"
+
+platform_tags = {
+  application         = "landing-zone-management"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/azure-cloud"
+  terraform_workspace = "lz-platform-management-np"
+  recovery_tier       = "standard"
+  cost_center         = "cloud-platform"
+  data_classification = "internal"
+  compliance_boundary = "finserv"
+  additional_tags = {
+    deployment_model = "net-new-lz"
+  }
+}
+
+resource_group = {
+  name = "rg-lz-platform-management-np"
+}
+
+log_analytics = {
+  name              = "law-lz-platform-np"
+  retention_in_days = 90
+}
+
+action_group = {
+  name       = "ag-lz-cloudops-np"
+  short_name = "lzopsnp"
+  receivers = {
+    email = {
+      cloudops = {
+        email_address = "cloudops@compeer.example"
+      }
+    }
+  }
+}
+

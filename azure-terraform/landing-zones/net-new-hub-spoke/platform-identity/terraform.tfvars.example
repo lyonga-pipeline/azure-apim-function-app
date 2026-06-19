@@ -1,0 +1,61 @@
+subscription_id = "11111111-1111-1111-1111-111111111111"
+tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+location        = "eastus2"
+environment     = "np"
+
+platform_tags = {
+  application         = "landing-zone-identity"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/azure-cloud"
+  terraform_workspace = "lz-platform-identity-np"
+  recovery_tier       = "standard"
+  cost_center         = "cloud-platform"
+  data_classification = "internal"
+  compliance_boundary = "finserv"
+  additional_tags = {
+    deployment_model = "net-new-lz"
+  }
+}
+
+resource_group = {
+  name = "rg-lz-platform-identity-np"
+}
+
+platform_identities = {
+  deployment = {
+    name = "id-lz-deployment-np"
+  }
+  diagnostics = {
+    name = "id-lz-diagnostics-np"
+  }
+}
+
+key_vault = {
+  name                       = "kv-lz-platform-np-001"
+  sku_name                   = "standard"
+  soft_delete_retention_days = 90
+  purge_protection_enabled   = true
+  contacts = {
+    cloudops = {
+      email = "cloudops@compeer.example"
+      name  = "Cloud Operations"
+    }
+  }
+}
+
+identity_role_assignments = {
+  diagnostics_secrets_user = {
+    identity_key         = "diagnostics"
+    role_definition_name = "Key Vault Secrets User"
+  }
+}
+
+key_vault_private_endpoint = {
+  name      = "pe-kv-lz-platform-np-001"
+  subnet_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/virtualNetworks/vnet-lz-hub-np/subnets/private_endpoints"
+  private_dns_zone_ids = [
+    "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+  ]
+}
+
+log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"

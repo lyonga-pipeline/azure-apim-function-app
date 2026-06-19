@@ -12,12 +12,12 @@ This module is the Terraform 2.0 replacement pattern for the reviewed Function A
 | Storage configuration | Allows storage account name, access key, managed identity, and Key Vault secret patterns without clear conflict rules. | Uses one `storage` object and preconditions to prevent invalid combinations, such as access key and managed identity at the same time. |
 | Authentication | Uses legacy `auth_settings`. | Supports `auth_settings_v2`, including Entra ID, Microsoft, GitHub, Google, Facebook, Apple, custom OIDC, and token/login options. |
 | Drift handling | Ignores important fields such as `app_settings`, `functions_extension_version`, `storage_account_access_key`, and `tags`, which can hide real drift. | Does not hide those fields by default. Changes remain visible in the Terraform plan unless a consuming root intentionally handles a specific exception. |
-| Lifecycle separation | Mixes many concerns directly into the app resource and encourages a large all-in-one module. | Keeps only the core Function App lifecycle here. Separate modules own private endpoints, diagnostics, slots, RBAC, storage child objects, custom domains, and monitoring. |
+| Lifecycle separation | Mixes many concerns directly into the app resource and encourages a large all-in-one module. | Keeps the Function App resource and first-class app configuration in one place, while separate modules own private endpoints, diagnostics, slots, RBAC, storage child objects, custom domains, and monitoring. |
 | Reusability | Requires teams to pass many raw provider attributes and often add custom stitching around the module. | Provides a broad but predictable core module that can be composed with companion modules for app-specific needs. |
 
 ## Design Intent
 
-The module owns the Function App itself:
+The module owns the Function App itself and the first-class configuration that belongs directly on that resource:
 
 - Windows or Linux Function App resource
 - Service plan attachment
@@ -31,7 +31,7 @@ The module owns the Function App itself:
 - Built-in App Service authentication v2
 - Secure resource-level defaults
 
-The module intentionally does not own every surrounding platform concern. Those concerns have separate lifecycles and should be composed by the application root or pattern module.
+The module intentionally does not own every surrounding platform concern. Those concerns have separate lifecycles, separate owners, or both, and should be composed by the application root or pattern module.
 
 Use companion modules for:
 
@@ -54,6 +54,8 @@ Use companion modules for:
 The goal is not to create a giant Function App module that magically creates every dependency. That would make lifecycle boundaries unclear and increase blast radius.
 
 The goal is to create a complete and secure core module that application teams can reuse across many use cases, while still allowing separate teams or separate release cycles to manage networking, diagnostics, access, slots, storage objects, and secrets independently.
+
+This is an important distinction from the reviewed shared Function App example. The reviewed configuration bundled a Windows-only app resource, loosely typed singleton blocks, many `lookup()`-driven settings, and broad surrounding concerns into one contract. The recommended pattern still supports rich app configuration, but it does so with a typed contract, secure defaults, and a cleaner boundary between the Function App resource and companion platform modules.
 
 ## Recommended Consumption Pattern
 
@@ -127,4 +129,4 @@ module "function_private_endpoint" {
 
 ## Summary
 
-This module improves on the reviewed configuration by making the Function App reusable, secure by default, easier to validate, and easier to compose. It reduces custom stitching without collapsing every surrounding resource into a single mixed-lifecycle module.
+This module improves on the reviewed configuration by making the Function App reusable, secure by default, easier to validate, and easier to compose. It keeps direct app configuration in the core module while moving surrounding network, access, monitoring, and storage-child concerns to companion modules. That reduces custom stitching without collapsing every surrounding resource into a single mixed-lifecycle module.

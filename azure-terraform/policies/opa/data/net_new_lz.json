@@ -1,0 +1,23 @@
+{
+  "allowed_locations": [
+    "eastus",
+    "eastus2",
+    "centralus"
+  ],
+  "required_tags": [
+    "env",
+    "application",
+    "bt_owner",
+    "source_repo",
+    "tf_workspace",
+    "recovery",
+    "cost_center",
+    "data_classification",
+    "compliance_boundary"
+  ],
+  "exempt_resource_types": [
+    "azurerm_role_assignment",
+    "azurerm_management_group_subscription_association"
+  ]
+}
+
