@@ -100,7 +100,7 @@ variable "identity" {
   default = null
 
   validation {
-    condition = var.identity == null || contains([
+    condition = var.identity == null ? true : contains([
       "SystemAssigned",
       "UserAssigned",
       "SystemAssigned, UserAssigned"
@@ -118,7 +118,7 @@ variable "network_rules" {
   default = null
 
   validation {
-    condition     = var.network_rules == null || contains(["Allow", "Deny"], var.network_rules.default_action)
+    condition     = var.network_rules == null ? true : contains(["Allow", "Deny"], var.network_rules.default_action)
     error_message = "network_rules.default_action must be Allow or Deny."
   }
 }

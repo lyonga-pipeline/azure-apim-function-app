@@ -1,0 +1,41 @@
+subscription_id = "55555555-5555-5555-5555-555555555555"
+tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+location        = "eastus2"
+environment     = "prod"
+
+names = {
+  resource_group       = "rg-clientsync-prod-app"
+  identity             = "id-clientsync-prod-app"
+  app_service_plan     = "asp-clientsync-prod-001"
+  storage_account      = "stclientsyncprod001"
+  key_vault            = "kv-clientsync-prod-01"
+  application_insights = "appi-clientsync-prod-001"
+  function_app         = "func-clientsync-prod-001"
+}
+
+shared = {
+  log_analytics_workspace_id = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-prod"
+  action_group_id            = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.Insights/actionGroups/ag-lz-cloudops-prod"
+  subnet_ids = {
+    app_integration  = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/app_integration"
+    private_endpoint = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/private_endpoints"
+  }
+  private_dns_zone_ids = {
+    app_service   = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
+    key_vault     = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+    storage_blob  = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    storage_queue = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
+    storage_file  = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
+  }
+}
+
+runtime_app_settings = {
+  CLIENTSYNC_MODE = "Production"
+}
+
+key_vault_secrets = {}
+
+additional_tags = {
+  environment_type = "production"
+  pattern_pilot    = "function-app"
+}

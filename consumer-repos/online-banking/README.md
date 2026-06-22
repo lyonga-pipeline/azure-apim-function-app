@@ -6,6 +6,8 @@ The important design choice is that each environment is its own Terraform root. 
 
 For the net-new landing-zone path, these roots consume explicit platform outputs from the shared HCP workspaces instead of discovering shared infrastructure internally. Subnet IDs, Private DNS zone IDs, Log Analytics IDs, and action group IDs are provided through approved HCP variable sets, workspace outputs, or an approved environment catalog.
 
+The `clientsync` folder is the first Function App composition pilot. It consumes the local Terraform 2.0 Function App pattern so the team can validate create/existing dependency modes, private networking, diagnostics, RBAC, and app-setting drift behavior with a representative application.
+
 ## Environment Roots
 
 Each environment directory contains the full Terraform root needed to plan and apply that environment:
@@ -16,6 +18,11 @@ Each environment directory contains the full Terraform root needed to plan and a
 | `np2` | `environments/np2` | `2.1.0` | Controlled non-prod validation after `np1`. |
 | `np3` | `environments/np3` | `2.0.1` | Production-like non-prod validation. |
 | `prod` | `environments/prod` | `2.0.0` | Stable production baseline. |
+| `clientsync sandbox` | `clientsync/environments/sandbox` | local pattern | Static sandbox for the Function App composition pilot. |
+| `clientsync np1` | `clientsync/environments/np1` | local pattern | First non-prod promotion root for the ClientSync pilot. |
+| `clientsync np2` | `clientsync/environments/np2` | local pattern | Controlled non-prod validation after `np1`. |
+| `clientsync np3` | `clientsync/environments/np3` | local pattern | Production-like non-prod validation. |
+| `clientsync prod` | `clientsync/environments/prod` | local pattern | Hardened production root for the ClientSync pilot. |
 
 Each root includes:
 

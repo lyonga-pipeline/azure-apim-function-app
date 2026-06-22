@@ -36,7 +36,7 @@ variable "sampling_percentage" {
   default = null
 
   validation {
-    condition     = var.sampling_percentage == null || (var.sampling_percentage >= 0 && var.sampling_percentage <= 100)
+    condition     = var.sampling_percentage == null ? true : (var.sampling_percentage >= 0 && var.sampling_percentage <= 100)
     error_message = "sampling_percentage must be between 0 and 100 when set."
   }
 }

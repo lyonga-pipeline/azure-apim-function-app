@@ -33,8 +33,13 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 - `hcp` contains workspace, project, variable-set, and policy attachment standards for HCP Terraform.
 - `policies` contains OPA and Azure Policy guardrails scoped first to net-new landing-zone workspaces.
 - `operations` contains drift classification, exception tracking, and scorecard templates.
+- `patterns` contains approved root-stack composition patterns built from the narrow module catalog.
 
 These folders sit above the reusable module catalog. They show how Cloud Enablement composes modules into governed platform and workload boundaries without adding hidden environment intelligence to the modules themselves.
+
+### Composition Patterns
+
+- `patterns/function-app` is the first Terraform 2.0 reference workload composition. It supports create/existing dependency modes for common Function App dependencies and composes identity, App Service Plan, Storage, Key Vault, Application Insights, private endpoints, diagnostics, RBAC, and alerting.
 
 ### Shared Companions
 
