@@ -76,6 +76,10 @@ variable "sftp_enabled" {
   type    = bool
   default = false
 }
+variable "local_user_enabled" {
+  type    = bool
+  default = false
+}
 variable "nfsv3_enabled" {
   type    = bool
   default = false

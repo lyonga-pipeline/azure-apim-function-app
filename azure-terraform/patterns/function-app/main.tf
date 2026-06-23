@@ -129,13 +129,19 @@ module "storage_account" {
   resource_group_name               = local.resource_group_name
   location                          = var.location
   account_replication_type          = try(var.storage_account.create.account_replication_type, "LRS")
+  min_tls_version                   = "TLS1_2"
   public_network_access_enabled     = false
   allow_nested_items_to_be_public   = false
   shared_access_key_enabled         = false
+  local_user_enabled                = false
   infrastructure_encryption_enabled = try(var.storage_account.create.infrastructure_encryption_enabled, true)
   default_to_oauth_authentication   = true
-  blob_properties                   = try(var.storage_account.create.blob_properties, null)
-  tags                              = module.tags.tags
+  network_rules = {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
+  blob_properties = try(var.storage_account.create.blob_properties, null)
+  tags            = module.tags.tags
 }
 
 locals {
