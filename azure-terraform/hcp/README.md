@@ -6,7 +6,7 @@ HCP Terraform is the control plane for the net-new landing-zone path. It owns st
 
 | HCP project | Workspaces | Policy posture |
 | --- | --- | --- |
-| `ce-lz-governance` | global governance, Azure Policy baseline | Advisory first, blocking after pilot |
+| `ce-lz-governance` | global governance, management-group guardrails, Azure Policy baseline | Advisory first, blocking after pilot |
 | `ce-lz-platform` | connectivity, management, identity | Advisory first, blocking after pilot |
 | `ce-lz-workloads` | approved pilot and future app workload workspaces | Advisory first, targeted blocking by environment |
 | `legacy-observe` | read-only observation or future migration workspaces | No blocking policy attachment by default |
@@ -18,7 +18,6 @@ Use names that identify ownership, platform layer, environment, and workload.
 Examples:
 
 - `lz-gov-global`
-- `lz-policy-baseline-global`
 - `lz-platform-connectivity-np`
 - `lz-platform-management-np`
 - `lz-platform-identity-np`
@@ -71,4 +70,3 @@ Use least-privilege HCP teams:
 - `security-governance-readers`: read access to plans, policy checks, and drift evidence.
 
 Human access changes should be approved through the identity/access process. Terraform should manage stable role assignments at Azure scope when the scope and principal are durable.
-

@@ -31,7 +31,7 @@ An audit pass was also applied across `azure-terraform/modules` to keep hidden e
 
 - `landing-zones/net-new-hub-spoke` contains the reference roots for the new Azure landing-zone deployment path.
 - `hcp` contains workspace, project, variable-set, and policy attachment standards for HCP Terraform.
-- `policies` contains OPA and Azure Policy guardrails scoped first to net-new landing-zone workspaces.
+- `policies` contains OPA plan guardrails for HCP Terraform. Azure Policy runtime guardrails are deployed from the global governance landing-zone root.
 - `operations` contains drift classification, exception tracking, and scorecard templates.
 - `patterns` contains approved root-stack composition patterns built from the narrow module catalog.
 

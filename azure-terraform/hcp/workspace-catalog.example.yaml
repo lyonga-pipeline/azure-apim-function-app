@@ -7,11 +7,6 @@ projects:
         environment: global
         drift_detection: true
         policy_stage: advisory
-      - name: lz-policy-baseline-global
-        terraform_root: azure-terraform/policies/azure-policy/baseline
-        environment: global
-        drift_detection: true
-        policy_stage: advisory
   ce-lz-platform:
     description: Shared platform services for hub/spoke landing zones.
     workspaces:
@@ -38,4 +33,3 @@ projects:
         environment: np1
         drift_detection: true
         policy_stage: advisory
-

@@ -34,7 +34,7 @@ Reusable modules stay narrow. Landing-zone roots compose modules into approved e
 ## Baseline Sequence
 
 1. Configure HCP projects, workspaces, teams, variable sets, and net-new policy sets.
-2. Deploy global governance and Azure Policy definitions with enforcement scoped to the net-new landing zone.
+2. Deploy global governance, including Azure Policy definitions and assignments scoped to the net-new landing zone.
 3. Deploy shared platform workspaces for connectivity, management, and identity.
 4. Deploy one pilot workload spoke using the new module catalog and explicit platform outputs.
 5. Turn drift detection, exception tracking, and policy reporting into recurring operational routines.
@@ -42,7 +42,7 @@ Reusable modules stay narrow. Landing-zone roots compose modules into approved e
 
 ## Policy Isolation
 
-Policy-as-code and Azure Policy should attach to net-new landing-zone workspaces first. Existing projects remain outside blocking policy scope until they have:
+OPA policy-as-code should attach to net-new HCP workspaces first, and Azure Policy should be assigned only to net-new landing-zone Azure scopes first. Existing projects remain outside blocking policy scope until they have:
 
 - an agreed remediation backlog,
 - known state ownership,
@@ -51,4 +51,3 @@ Policy-as-code and Azure Policy should attach to net-new landing-zone workspaces
 - and a validated promotion path into the new model.
 
 This protects current delivery while still giving the new landing zone the right enterprise guardrails from day one.
-

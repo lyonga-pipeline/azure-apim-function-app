@@ -6,7 +6,7 @@ This pattern is the first implementation path for Compeer's new Azure IaC founda
 
 | Order | Root | Purpose | Produces |
 | --- | --- | --- | --- |
-| 1 | `global-governance` | Management group and subscription placement scaffold | Management group IDs, subscription placement outputs |
+| 1 | `global-governance` | Management group, subscription placement, Azure Policy, RBAC, budget, and broad guardrail scaffold | Management group IDs, policy assignment IDs, role assignment IDs, budget IDs |
 | 2 | `platform-management` | Shared observability foundation | Log Analytics workspace ID, action group ID |
 | 3 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS | VNet IDs, subnet ID maps, private DNS zone IDs |
 | 4 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
@@ -30,5 +30,4 @@ Required shared outputs include:
 
 ## Enforcement Approach
 
-OPA and Azure Policy begin in advisory/reporting mode for early validation, then move to blocking enforcement for the net-new landing-zone project once the pilot has passed. Existing projects remain outside the blocking policy set until they are remediated.
-
+OPA begins in advisory mode through HCP plan checks. Azure Policy runtime guardrails are deployed from `global-governance` at management-group or subscription scope, starting with Audit/advisory impact review and then moving selected net-new controls to Deny after the pilot has passed. Existing projects remain outside the blocking policy set until they are remediated.
