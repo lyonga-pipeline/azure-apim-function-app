@@ -199,6 +199,24 @@ The remaining "stitches" in this catalog are deliberate lifecycle seams, not gap
 
 ## Validation Notes
 
+Validation helpers live in `scripts/`:
+
+```bash
+# Validate one reusable module.
+./scripts/validate-terraform-module.sh --path modules/storage-account
+
+# Validate all reusable modules with fast local Terraform checks.
+./scripts/validate-terraform-module.sh --path modules --discover --skip-checkov --skip-gitleaks --skip-docs --skip-tests --skip-examples
+
+# Validate one deployable root.
+./scripts/validate-terraform-root.sh --path landing-zones/net-new-hub-spoke/platform-management
+
+# Validate discovered deployable roots and run backend-disabled local plans where inputs are available.
+./scripts/validate-terraform-root.sh --path ../consumer-repos/online-banking/clientsync/environments --discover --safe-local-plan --skip-module-source-check
+```
+
+Root validation requires a local Terraform version compatible with each root's `required_version`. Current 2.0 landing-zone and ClientSync roots require Terraform `>= 1.6.0`.
+
 The modules are structured to be broad enough for varied application needs without needing separate web-app or function-app variants, while still keeping coupling low. Optional features that Azure exposes as nested properties remain in the owning resource module. Separate resources and ownership-sensitive concerns remain outside the base module.
 
 Notable breadth added to reduce downstream stitching:

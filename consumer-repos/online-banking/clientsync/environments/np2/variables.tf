@@ -24,42 +24,6 @@ variable "environment" {
   }
 }
 
-variable "names" {
-  type = object({
-    resource_group       = string
-    identity             = string
-    app_service_plan     = string
-    storage_account      = string
-    key_vault            = string
-    application_insights = string
-    function_app         = string
-  })
-}
-
-variable "shared" {
-  type = object({
-    log_analytics_workspace_id = string
-    action_group_id            = string
-    subnet_ids = object({
-      app_integration  = string
-      private_endpoint = string
-    })
-    private_dns_zone_ids = object({
-      app_service   = string
-      key_vault     = string
-      storage_blob  = string
-      storage_queue = string
-      storage_file  = string
-    })
-  })
-}
-
-variable "runtime_app_settings" {
-  type        = map(string)
-  description = "Deployment/runtime-owned app settings used for np2 validation. Keep infrastructure-owned settings in the pattern."
-  default     = {}
-}
-
 variable "key_vault_secrets" {
   type = map(object({
     value           = string
@@ -72,8 +36,77 @@ variable "key_vault_secrets" {
   sensitive = true
 }
 
-variable "additional_tags" {
-  type    = map(string)
-  default = {}
+variable "application" {
+  type = object({
+    code                = string
+    name                = string
+    business_owner      = string
+    cost_center         = string
+    data_classification = string
+    compliance_boundary = string
+    source_repo         = string
+    terraform_workspace = string
+    recovery_tier       = optional(string, "standard")
+    additional_tags     = optional(map(string), {})
+  })
 }
 
+variable "resource_group" {
+  type        = any
+  description = "Resource group pattern input for this ClientSync environment."
+}
+
+variable "identity" {
+  type        = any
+  description = "Managed identity pattern input for this ClientSync environment."
+}
+
+variable "app_service_plan" {
+  type        = any
+  description = "App Service plan pattern input for this ClientSync environment."
+}
+
+variable "storage_account" {
+  type        = any
+  description = "Storage account and child resource pattern input for this ClientSync environment."
+}
+
+variable "key_vault" {
+  type        = any
+  description = "Key Vault pattern input for this ClientSync environment. Secrets are passed separately through key_vault_secrets."
+}
+
+variable "application_insights" {
+  type        = any
+  description = "Application Insights pattern input for this ClientSync environment."
+}
+
+variable "function_app" {
+  type        = any
+  description = "Function App pattern input for this ClientSync environment."
+}
+
+variable "network" {
+  type        = any
+  description = "Network integration pattern input for this ClientSync environment."
+}
+
+variable "private_endpoints" {
+  type        = any
+  description = "Private endpoint pattern input for this ClientSync environment."
+}
+
+variable "diagnostics" {
+  type        = any
+  description = "Diagnostic settings pattern input for this ClientSync environment."
+}
+
+variable "role_assignments" {
+  type        = any
+  description = "Role assignment pattern input for this ClientSync environment."
+}
+
+variable "alerts" {
+  type        = any
+  description = "Monitor alert pattern input for this ClientSync environment."
+}

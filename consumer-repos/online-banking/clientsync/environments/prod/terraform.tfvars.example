@@ -3,22 +3,138 @@ tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 location        = "eastus2"
 environment     = "prod"
 
-names = {
-  resource_group       = "rg-clientsync-prod-app"
-  identity             = "id-clientsync-prod-app"
-  app_service_plan     = "asp-clientsync-prod-001"
-  storage_account      = "stclientsyncprod001"
-  key_vault            = "kv-clientsync-prod-01"
-  application_insights = "appi-clientsync-prod-001"
-  function_app         = "func-clientsync-prod-001"
+application = {
+  code                = "clientsync"
+  name                = "ClientSync"
+  business_owner      = "Digital Banking"
+  cost_center         = "CC-1001"
+  data_classification = "confidential"
+  compliance_boundary = "finserv"
+  source_repo         = "ado://Compeer/online-banking"
+  terraform_workspace = "lz-workload-clientsync-prod"
+  recovery_tier       = "mission-critical"
+  additional_tags = {
+    deployment_model = "function-app-composition-pattern"
+    environment_type = "production"
+    pattern_pilot    = "function-app"
+    pilot_workload   = "true"
+  }
 }
 
-shared = {
-  log_analytics_workspace_id = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-prod"
-  action_group_id            = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.Insights/actionGroups/ag-lz-cloudops-prod"
-  subnet_ids = {
-    app_integration  = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/app_integration"
-    private_endpoint = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/private_endpoints"
+resource_group = {
+  mode = "create"
+  create = {
+    name = "rg-clientsync-prod-app"
+  }
+}
+
+identity = {
+  mode = "create"
+  create = {
+    name = "id-clientsync-prod-app"
+  }
+}
+
+app_service_plan = {
+  mode = "create"
+  create = {
+    name                   = "asp-clientsync-prod-001"
+    os_type                = "Windows"
+    sku_name               = "P1v3"
+    worker_count           = 3
+    zone_balancing_enabled = true
+  }
+}
+
+storage_account = {
+  mode = "create"
+  create = {
+    name                     = "stclientsyncprod001"
+    account_replication_type = "ZRS"
+    blob_properties = {
+      versioning_enabled              = true
+      change_feed_enabled             = true
+      delete_retention_days           = 30
+      container_delete_retention_days = 30
+    }
+  }
+  containers = {
+    payloads = {
+      container_access_type = "private"
+    }
+    deadletter = {
+      container_access_type = "private"
+    }
+  }
+  queues = {
+    inbound = {}
+    poison  = {}
+  }
+  shares = {
+    appconfig = {
+      quota       = 100
+      access_tier = "TransactionOptimized"
+    }
+  }
+}
+
+key_vault = {
+  mode = "create"
+  create = {
+    name                       = "kv-clientsync-prod-01"
+    sku_name                   = "standard"
+    soft_delete_retention_days = 90
+    purge_protection_enabled   = true
+    contacts = {
+      cloudops = {
+        email = "cloudops@compeer.example"
+        name  = "Cloud Operations"
+      }
+    }
+  }
+}
+
+key_vault_secrets = {}
+
+application_insights = {
+  mode = "create"
+  create = {
+    name                          = "appi-clientsync-prod-001"
+    application_type              = "web"
+    local_authentication_disabled = true
+    retention_in_days             = 180
+  }
+}
+
+function_app = {
+  name                        = "func-clientsync-prod-001"
+  os_type                     = "Windows"
+  functions_extension_version = "~4"
+  always_on                   = true
+  health_check_path           = "/api/health"
+  infrastructure_app_settings = {}
+  runtime_app_settings = {
+    CLIENTSYNC_MODE = "Production"
+  }
+  application_stack = {
+    dotnet_version              = "v8.0"
+    use_dotnet_isolated_runtime = true
+  }
+}
+
+network = {
+  app_service_integration_subnet_id = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/app_integration"
+}
+
+private_endpoints = {
+  enabled   = true
+  subnet_id = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/rg-clientsync-prod-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-prod/subnets/private_endpoints"
+  targets = {
+    function_app  = true
+    key_vault     = true
+    storage_blob  = true
+    storage_queue = true
+    storage_file  = true
   }
   private_dns_zone_ids = {
     app_service   = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-connectivity-prod/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
@@ -29,13 +145,32 @@ shared = {
   }
 }
 
-runtime_app_settings = {
-  CLIENTSYNC_MODE = "Production"
+diagnostics = {
+  enabled                    = true
+  log_analytics_workspace_id = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-prod"
+  logs = {
+    all_logs = {
+      category_group = "allLogs"
+    }
+  }
+  metrics = {
+    all_metrics = {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  }
 }
 
-key_vault_secrets = {}
+role_assignments = {
+  enabled    = true
+  additional = {}
+}
 
-additional_tags = {
-  environment_type = "production"
-  pattern_pilot    = "function-app"
+alerts = {
+  enabled            = true
+  action_group_id    = "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/rg-lz-platform-management-prod/providers/Microsoft.Insights/actionGroups/ag-lz-cloudops-prod"
+  severity           = 2
+  frequency          = "PT5M"
+  window_size        = "PT5M"
+  http_5xx_threshold = 5
 }
