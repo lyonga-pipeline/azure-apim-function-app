@@ -123,3 +123,94 @@ variable "private_dns_zone_links" {
   default = {}
 }
 
+variable "additional_scopes" {
+  type        = map(string)
+  description = "Additional named scopes that can be referenced by locks, diagnostics, or role assignments."
+  default     = {}
+}
+
+variable "role_assignments" {
+  type = map(object({
+    scope_key                              = optional(string)
+    scope                                  = optional(string)
+    principal_id                           = string
+    role_definition_name                   = optional(string)
+    role_definition_id                     = optional(string)
+    principal_type                         = optional(string)
+    description                            = optional(string)
+    condition                              = optional(string)
+    condition_version                      = optional(string)
+    skip_service_principal_aad_check       = optional(bool)
+    delegated_managed_identity_resource_id = optional(string)
+  }))
+  description = "RBAC assignments for workload spoke resources."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for assignment in values(var.role_assignments) :
+      (
+        (try(assignment.scope, null) != null || try(assignment.scope_key, null) != null) &&
+        !(try(assignment.scope, null) != null && try(assignment.scope_key, null) != null)
+      )
+    ])
+    error_message = "Each role assignment must set exactly one of scope or scope_key."
+  }
+}
+
+variable "management_locks" {
+  type = map(object({
+    name       = string
+    scope_key  = optional(string)
+    scope      = optional(string)
+    lock_level = string
+    notes      = optional(string)
+  }))
+  description = "Locks for critical workload landing-zone resources."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for item in values(var.management_locks) :
+      (
+        (try(item.scope, null) != null || try(item.scope_key, null) != null) &&
+        !(try(item.scope, null) != null && try(item.scope_key, null) != null)
+      )
+    ])
+    error_message = "Each management lock must set exactly one of scope or scope_key."
+  }
+}
+
+variable "diagnostic_settings" {
+  type = map(object({
+    name                           = string
+    target_key                     = optional(string)
+    target_resource_id             = optional(string)
+    log_analytics_workspace_id     = optional(string)
+    storage_account_id             = optional(string)
+    eventhub_authorization_rule_id = optional(string)
+    eventhub_name                  = optional(string)
+    partner_solution_id            = optional(string)
+    logs = optional(map(object({
+      category       = optional(string)
+      category_group = optional(string)
+    })), {})
+    metrics = optional(map(object({
+      category = string
+      enabled  = optional(bool, true)
+    })), {})
+  }))
+  description = "Diagnostics for workload spoke resources that support Azure Monitor diagnostic settings."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for item in values(var.diagnostic_settings) :
+      (
+        (try(item.target_resource_id, null) != null || try(item.target_key, null) != null) &&
+        !(try(item.target_resource_id, null) != null && try(item.target_key, null) != null)
+      )
+    ])
+    error_message = "Each diagnostic setting must set exactly one of target_resource_id or target_key."
+  }
+}

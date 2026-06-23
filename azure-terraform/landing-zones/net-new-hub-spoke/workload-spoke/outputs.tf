@@ -26,3 +26,14 @@ output "route_table_ids" {
   value = { for key, value in module.route_tables : key => value.id }
 }
 
+output "role_assignment_ids" {
+  value = module.role_assignments.ids
+}
+
+output "management_lock_ids" {
+  value = { for key, value in azurerm_management_lock.this : key => value.id }
+}
+
+output "diagnostic_setting_ids" {
+  value = { for key, value in module.diagnostic_settings : key => value.id }
+}

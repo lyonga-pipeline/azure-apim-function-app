@@ -119,3 +119,32 @@ variable "diagnostics" {
   })
   default = {}
 }
+
+variable "additional_lock_scopes" {
+  type        = map(string)
+  description = "Additional named scopes that can be referenced by management_locks."
+  default     = {}
+}
+
+variable "management_locks" {
+  type = map(object({
+    name       = string
+    scope_key  = optional(string)
+    scope      = optional(string)
+    lock_level = string
+    notes      = optional(string)
+  }))
+  description = "Locks for critical platform identity resources."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for item in values(var.management_locks) :
+      (
+        (try(item.scope, null) != null || try(item.scope_key, null) != null) &&
+        !(try(item.scope, null) != null && try(item.scope_key, null) != null)
+      )
+    ])
+    error_message = "Each management lock must set exactly one of scope or scope_key."
+  }
+}

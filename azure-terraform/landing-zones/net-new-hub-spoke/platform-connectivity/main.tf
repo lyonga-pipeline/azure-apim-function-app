@@ -102,3 +102,63 @@ module "private_dns_hub_links" {
   tags = module.tags.tags
 }
 
+locals {
+  connectivity_scope_ids = merge(
+    {
+      resource_group = module.resource_group.id
+      hub_vnet       = module.hub_vnet.id
+    },
+    {
+      for key, value in module.network_security_groups : "nsg:${key}" => value.id
+    },
+    {
+      for key, value in module.route_tables : "route_table:${key}" => value.id
+    },
+    {
+      for key, value in module.private_dns_zones.ids : "private_dns_zone:${key}" => value
+    },
+    var.additional_scopes
+  )
+
+  role_assignment_inputs = {
+    for key, assignment in var.role_assignments : key => merge(assignment, {
+      scope = coalesce(
+        try(assignment.scope, null),
+        try(local.connectivity_scope_ids[assignment.scope_key], null)
+      )
+    })
+  }
+}
+
+module "role_assignments" {
+  source = "../../../modules/role-assignments"
+
+  assignments = local.role_assignment_inputs
+}
+
+resource "azurerm_management_lock" "this" {
+  for_each = var.management_locks
+
+  name       = each.value.name
+  scope      = coalesce(try(each.value.scope, null), try(local.connectivity_scope_ids[each.value.scope_key], null))
+  lock_level = each.value.lock_level
+  notes      = try(each.value.notes, null)
+}
+
+module "diagnostic_settings" {
+  source   = "../../../modules/diagnostic-settings"
+  for_each = var.diagnostic_settings
+
+  name                       = each.value.name
+  target_resource_id         = coalesce(try(each.value.target_resource_id, null), try(local.connectivity_scope_ids[each.value.target_key], null))
+  log_analytics_workspace_id = each.value.log_analytics_workspace_id
+  storage_account_id         = try(each.value.storage_account_id, null)
+  eventhub_authorization_rule_id = try(
+    each.value.eventhub_authorization_rule_id,
+    null
+  )
+  eventhub_name       = try(each.value.eventhub_name, null)
+  partner_solution_id = try(each.value.partner_solution_id, null)
+  logs                = each.value.logs
+  metrics             = each.value.metrics
+}

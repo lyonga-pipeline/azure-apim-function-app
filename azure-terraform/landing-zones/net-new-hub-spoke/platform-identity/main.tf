@@ -97,3 +97,25 @@ module "key_vault_diagnostics" {
   logs                       = var.diagnostics.logs
   metrics                    = var.diagnostics.metrics
 }
+
+locals {
+  identity_scope_ids = merge(
+    {
+      resource_group = module.resource_group.id
+      key_vault      = module.key_vault.id
+    },
+    {
+      for key, value in module.platform_identities : "identity:${key}" => value.id
+    },
+    var.additional_lock_scopes
+  )
+}
+
+resource "azurerm_management_lock" "this" {
+  for_each = var.management_locks
+
+  name       = each.value.name
+  scope      = coalesce(try(each.value.scope, null), try(local.identity_scope_ids[each.value.scope_key], null))
+  lock_level = each.value.lock_level
+  notes      = try(each.value.notes, null)
+}

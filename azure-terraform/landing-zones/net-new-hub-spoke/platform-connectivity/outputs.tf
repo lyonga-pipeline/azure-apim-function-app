@@ -30,3 +30,14 @@ output "private_dns_zone_names" {
   value = module.private_dns_zones.names
 }
 
+output "role_assignment_ids" {
+  value = module.role_assignments.ids
+}
+
+output "management_lock_ids" {
+  value = { for key, value in azurerm_management_lock.this : key => value.id }
+}
+
+output "diagnostic_setting_ids" {
+  value = { for key, value in module.diagnostic_settings : key => value.id }
+}

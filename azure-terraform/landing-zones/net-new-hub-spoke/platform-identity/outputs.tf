@@ -22,3 +22,10 @@ output "key_vault_uri" {
   value = module.key_vault.vault_uri
 }
 
+output "role_assignment_ids" {
+  value = module.role_assignments.ids
+}
+
+output "management_lock_ids" {
+  value = { for key, value in azurerm_management_lock.this : key => value.id }
+}

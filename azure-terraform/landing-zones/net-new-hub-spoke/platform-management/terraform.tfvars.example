@@ -37,3 +37,177 @@ action_group = {
   }
 }
 
+resource_provider_registrations = {
+  "Microsoft.Authorization"      = {}
+  "Microsoft.CostManagement"     = {}
+  "Microsoft.EventGrid"          = {}
+  "microsoft.insights"           = {}
+  "Microsoft.KeyVault"           = {}
+  "Microsoft.ManagedIdentity"    = {}
+  "Microsoft.Network"            = {}
+  "Microsoft.OperationalInsights" = {}
+  "Microsoft.PolicyInsights"     = {}
+  "Microsoft.Security"           = {}
+  "Microsoft.Storage"            = {}
+  "Microsoft.Web"                = {}
+}
+
+role_assignments = {
+  platform_readers_subscription = {
+    scope_key             = "subscription"
+    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    principal_type        = "Group"
+    role_definition_name  = "Reader"
+    description           = "Platform read access across the management subscription."
+  }
+  security_readers_subscription = {
+    scope_key             = "subscription"
+    principal_id          = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    principal_type        = "Group"
+    role_definition_name  = "Security Reader"
+    description           = "Security team visibility across the management subscription."
+  }
+  monitoring_contributors_workspace = {
+    scope_key             = "log_analytics"
+    principal_id          = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    principal_type        = "Group"
+    role_definition_name  = "Log Analytics Contributor"
+    description           = "Operations team management access to the central workspace."
+  }
+}
+
+subscription_activity_log_diagnostics = {
+  name = "diag-subscription-activity-to-law"
+  logs = {
+    administrative = {
+      category = "Administrative"
+    }
+    security = {
+      category = "Security"
+    }
+    service_health = {
+      category = "ServiceHealth"
+    }
+    alert = {
+      category = "Alert"
+    }
+    recommendation = {
+      category = "Recommendation"
+    }
+    policy = {
+      category = "Policy"
+    }
+    autoscale = {
+      category = "Autoscale"
+    }
+    resource_health = {
+      category = "ResourceHealth"
+    }
+  }
+}
+
+entra_diagnostic_settings = {
+  name = "diag-entra-to-law"
+  logs = {
+    audit_logs = {
+      category = "AuditLogs"
+    }
+    sign_in_logs = {
+      category = "SignInLogs"
+    }
+    non_interactive_sign_in_logs = {
+      category = "NonInteractiveUserSignInLogs"
+    }
+    service_principal_sign_in_logs = {
+      category = "ServicePrincipalSignInLogs"
+    }
+    managed_identity_sign_in_logs = {
+      category = "ManagedIdentitySignInLogs"
+    }
+    provisioning_logs = {
+      category = "ProvisioningLogs"
+    }
+  }
+}
+
+subscription_budgets = {
+  platform_management_monthly = {
+    amount     = 15000
+    time_grain = "Monthly"
+    time_period = {
+      start_date = "2026-07-01T00:00:00Z"
+    }
+    notifications = {
+      actual_80 = {
+        threshold      = 80
+        operator       = "GreaterThan"
+        threshold_type = "Actual"
+        contact_emails = ["cloudops@compeer.example"]
+      }
+      forecast_100 = {
+        threshold      = 100
+        operator       = "GreaterThan"
+        threshold_type = "Forecasted"
+        contact_emails = ["cloudops@compeer.example"]
+      }
+    }
+  }
+}
+
+management_locks = {
+  management_rg = {
+    name       = "lock-rg-lz-platform-management-np"
+    scope_key  = "resource_group"
+    lock_level = "CanNotDelete"
+    notes      = "Protects central monitoring and alerting resources from accidental deletion."
+  }
+  log_analytics = {
+    name       = "lock-law-lz-platform-np"
+    scope_key  = "log_analytics"
+    lock_level = "CanNotDelete"
+    notes      = "Protects centralized audit and operations logs."
+  }
+}
+
+defender_plans = {
+  servers = {
+    resource_type = "VirtualMachines"
+    tier          = "Standard"
+  }
+  app_services = {
+    resource_type = "AppServices"
+    tier          = "Standard"
+  }
+  storage = {
+    resource_type = "StorageAccounts"
+    tier          = "Standard"
+  }
+  key_vaults = {
+    resource_type = "KeyVaults"
+    tier          = "Standard"
+  }
+  sql_servers = {
+    resource_type = "SqlServers"
+    tier          = "Standard"
+  }
+  arm = {
+    resource_type = "Arm"
+    tier          = "Standard"
+  }
+}
+
+security_contact = {
+  email               = "cloudsecurity@compeer.example"
+  phone               = "+15555550100"
+  alert_notifications = true
+  alerts_to_admins    = true
+}
+
+security_center_settings = {
+  MCAS = {
+    enabled = true
+  }
+  WDATP = {
+    enabled = true
+  }
+}

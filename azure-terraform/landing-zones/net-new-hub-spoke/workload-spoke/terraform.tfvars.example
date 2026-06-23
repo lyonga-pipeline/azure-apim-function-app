@@ -106,3 +106,53 @@ private_dns_zone_links = {
   }
 }
 
+role_assignments = {
+  workload_network_contributors = {
+    scope_key             = "resource_group"
+    principal_id          = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+    principal_type        = "Group"
+    role_definition_name  = "Network Contributor"
+    description           = "Network operations access for workload spoke networking."
+  }
+  workload_readers = {
+    scope_key             = "resource_group"
+    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    principal_type        = "Group"
+    role_definition_name  = "Reader"
+    description           = "Platform read access for workload spoke resources."
+  }
+}
+
+management_locks = {
+  workload_network_rg = {
+    name       = "lock-rg-online-banking-np1-network"
+    scope_key  = "resource_group"
+    lock_level = "CanNotDelete"
+    notes      = "Protects workload network foundation from accidental deletion."
+  }
+  spoke_vnet = {
+    name       = "lock-vnet-online-banking-np1"
+    scope_key  = "spoke_vnet"
+    lock_level = "CanNotDelete"
+    notes      = "Protects workload spoke VNet from accidental deletion."
+  }
+}
+
+diagnostic_settings = {
+  spoke_vnet = {
+    name                       = "diag-vnet-online-banking-np1"
+    target_key                 = "spoke_vnet"
+    log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"
+    logs = {
+      vm_protection_alerts = {
+        category = "VMProtectionAlerts"
+      }
+    }
+    metrics = {
+      all_metrics = {
+        category = "AllMetrics"
+        enabled  = true
+      }
+    }
+  }
+}

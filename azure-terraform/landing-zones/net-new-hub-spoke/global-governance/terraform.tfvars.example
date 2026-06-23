@@ -28,3 +28,331 @@ subscription_placements = {
     management_group_key = "compeer-lz-nonprod"
   }
 }
+
+custom_policy_definitions = {
+  allowed_locations = {
+    display_name         = "Compeer - Allowed Azure regions"
+    management_group_key = "compeer-lz"
+    description          = "Restricts landing-zone deployments to approved Compeer regions."
+    metadata = {
+      category = "Compeer Landing Zone"
+      version  = "1.0.0"
+    }
+    parameters = {
+      allowedLocations = {
+        type = "Array"
+        metadata = {
+          displayName = "Allowed locations"
+        }
+      }
+      effect = {
+        type          = "String"
+        defaultValue  = "Deny"
+        allowedValues = ["Audit", "Deny", "Disabled"]
+      }
+    }
+    policy_rule = {
+      if = {
+        allOf = [
+          {
+            field = "location"
+            exists = "true"
+          },
+          {
+            field = "location"
+            notIn = "[parameters('allowedLocations')]"
+          },
+          {
+            field     = "location"
+            notEquals = "global"
+          }
+        ]
+      }
+      then = {
+        effect = "[parameters('effect')]"
+      }
+    }
+  }
+
+  required_tags = {
+    display_name         = "Compeer - Require standard resource tags"
+    management_group_key = "compeer-lz"
+    description          = "Requires standard ownership, cost, data, and recovery tags."
+    metadata = {
+      category = "Compeer Landing Zone"
+      version  = "1.0.0"
+    }
+    parameters = {
+      requiredTagNames = {
+        type = "Array"
+        metadata = {
+          displayName = "Required tag names"
+        }
+      }
+      effect = {
+        type          = "String"
+        defaultValue  = "Deny"
+        allowedValues = ["Audit", "Deny", "Disabled"]
+      }
+    }
+    policy_rule = {
+      if = {
+        count = {
+          value = "[parameters('requiredTagNames')]"
+          where = {
+            field  = "[concat('tags[', current(), ']')]"
+            exists = "false"
+          }
+        }
+        greater = 0
+      }
+      then = {
+        effect = "[parameters('effect')]"
+      }
+    }
+  }
+
+  deny_public_paas = {
+    display_name         = "Compeer - Deny public network access for sensitive PaaS"
+    management_group_key = "compeer-lz"
+    description          = "Denies public network exposure for common sensitive PaaS resources."
+    metadata = {
+      category = "Compeer Landing Zone"
+      version  = "1.0.0"
+    }
+    parameters = {
+      effect = {
+        type          = "String"
+        defaultValue  = "Deny"
+        allowedValues = ["Audit", "Deny", "Disabled"]
+      }
+    }
+    policy_rule = {
+      if = {
+        anyOf = [
+          {
+            allOf = [
+              {
+                field  = "type"
+                equals = "Microsoft.Storage/storageAccounts"
+              },
+              {
+                field     = "Microsoft.Storage/storageAccounts/publicNetworkAccess"
+                notEquals = "Disabled"
+              }
+            ]
+          },
+          {
+            allOf = [
+              {
+                field  = "type"
+                equals = "Microsoft.KeyVault/vaults"
+              },
+              {
+                field     = "Microsoft.KeyVault/vaults/publicNetworkAccess"
+                notEquals = "Disabled"
+              }
+            ]
+          },
+          {
+            allOf = [
+              {
+                field  = "type"
+                equals = "Microsoft.Web/sites"
+              },
+              {
+                field     = "Microsoft.Web/sites/publicNetworkAccess"
+                notEquals = "Disabled"
+              }
+            ]
+          }
+        ]
+      }
+      then = {
+        effect = "[parameters('effect')]"
+      }
+    }
+  }
+
+  secure_storage = {
+    display_name         = "Compeer - Enforce secure storage account baseline"
+    management_group_key = "compeer-lz"
+    description          = "Requires HTTPS-only storage and TLS 1.2 or higher."
+    metadata = {
+      category = "Compeer Landing Zone"
+      version  = "1.0.0"
+    }
+    parameters = {
+      effect = {
+        type          = "String"
+        defaultValue  = "Deny"
+        allowedValues = ["Audit", "Deny", "Disabled"]
+      }
+    }
+    policy_rule = {
+      if = {
+        allOf = [
+          {
+            field  = "type"
+            equals = "Microsoft.Storage/storageAccounts"
+          },
+          {
+            anyOf = [
+              {
+                field     = "Microsoft.Storage/storageAccounts/supportsHttpsTrafficOnly"
+                notEquals = true
+              },
+              {
+                field     = "Microsoft.Storage/storageAccounts/minimumTlsVersion"
+                notEquals = "TLS1_2"
+              },
+              {
+                field     = "Microsoft.Storage/storageAccounts/allowBlobPublicAccess"
+                notEquals = false
+              }
+            ]
+          }
+        ]
+      }
+      then = {
+        effect = "[parameters('effect')]"
+      }
+    }
+  }
+}
+
+management_group_policy_assignments = {
+  allowed_locations_nonprod = {
+    name                  = "cmp-allowloc-np"
+    management_group_key  = "compeer-lz-nonprod"
+    policy_definition_key = "allowed_locations"
+    display_name          = "Compeer allowed locations - NonProd"
+    parameters = {
+      allowedLocations = {
+        value = ["eastus2", "centralus"]
+      }
+      effect = {
+        value = "Deny"
+      }
+    }
+    non_compliance_messages = {
+      default = {
+        content = "Deploy resources only in Compeer-approved regions."
+      }
+    }
+  }
+
+  required_tags_nonprod = {
+    name                  = "cmp-reqtags-np"
+    management_group_key  = "compeer-lz-nonprod"
+    policy_definition_key = "required_tags"
+    display_name          = "Compeer required tags - NonProd"
+    parameters = {
+      requiredTagNames = {
+        value = [
+          "application",
+          "business_owner",
+          "cost_center",
+          "data_classification",
+          "environment",
+          "managed_by",
+          "recovery_tier"
+        ]
+      }
+      effect = {
+        value = "Deny"
+      }
+    }
+  }
+
+  deny_public_paas_nonprod = {
+    name                  = "cmp-denypaas-np"
+    management_group_key  = "compeer-lz-nonprod"
+    policy_definition_key = "deny_public_paas"
+    display_name          = "Compeer deny public PaaS - NonProd"
+    parameters = {
+      effect = {
+        value = "Deny"
+      }
+    }
+  }
+
+  secure_storage_nonprod = {
+    name                  = "cmp-secstorage-np"
+    management_group_key  = "compeer-lz-nonprod"
+    policy_definition_key = "secure_storage"
+    display_name          = "Compeer secure storage - NonProd"
+    parameters = {
+      effect = {
+        value = "Deny"
+      }
+    }
+  }
+}
+
+custom_role_definitions = {
+  policy_remediation_operator = {
+    name                 = "Compeer Policy Remediation Operator"
+    management_group_key = "compeer-lz"
+    description          = "Can read policy state and create policy remediation deployments without broad Owner access."
+    permissions = {
+      remediation = {
+        actions = [
+          "Microsoft.Authorization/policyAssignments/read",
+          "Microsoft.Authorization/policyDefinitions/read",
+          "Microsoft.Authorization/policySetDefinitions/read",
+          "Microsoft.PolicyInsights/*/read",
+          "Microsoft.PolicyInsights/remediations/*",
+          "Microsoft.Resources/deployments/*",
+          "Microsoft.Resources/subscriptions/resourceGroups/read"
+        ]
+        not_actions = [
+          "Microsoft.Authorization/*/delete",
+          "Microsoft.Authorization/*/write"
+        ]
+      }
+    }
+  }
+}
+
+role_assignments = {
+  cloud_security_reader_nonprod = {
+    management_group_key  = "compeer-lz-nonprod"
+    principal_id          = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    principal_type        = "Group"
+    role_definition_name  = "Security Reader"
+    description           = "Security team read access for non-production landing zones."
+  }
+  platform_reader_nonprod = {
+    management_group_key  = "compeer-lz-nonprod"
+    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    principal_type        = "Group"
+    role_definition_name  = "Reader"
+    description           = "Platform team read access for non-production landing zones."
+  }
+}
+
+management_group_budgets = {
+  nonprod_monthly = {
+    management_group_key = "compeer-lz-nonprod"
+    amount               = 25000
+    time_grain           = "Monthly"
+    time_period = {
+      start_date = "2026-07-01T00:00:00Z"
+    }
+    notifications = {
+      actual_80 = {
+        threshold      = 80
+        operator       = "GreaterThan"
+        threshold_type = "Actual"
+        contact_emails = ["cloudops@compeer.example"]
+      }
+      forecast_100 = {
+        threshold      = 100
+        operator       = "GreaterThan"
+        threshold_type = "Forecasted"
+        contact_emails = ["cloudops@compeer.example"]
+      }
+    }
+  }
+}
