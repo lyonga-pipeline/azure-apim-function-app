@@ -1,96 +1,250 @@
 package compeer.lz
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  is_create_or_update(resource.change.actions)
-  not exempt_resource_type(resource.type)
-  not has_required_tags(resource.change.after.tags)
-  msg := sprintf("%s is missing one or more required enterprise tags", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_create_or_update(resource.change.actions)
+	not exempt_resource_type(resource.type)
+	tags := object.get(resource.change.after, "tags", null)
+	tags != null
+	not has_required_tags(tags)
+	msg := sprintf("%s is missing one or more required enterprise tags", [resource.address])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  is_create_or_update(resource.change.actions)
-  location := lower(resource.change.after.location)
-  location != "global"
-  not allowed_location(location)
-  msg := sprintf("%s uses unapproved Azure location %s", [resource.address, location])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_create_or_update(resource.change.actions)
+	location := lower(resource.change.after.location)
+	location != "global"
+	not allowed_location(location)
+	msg := sprintf("%s uses unapproved Azure location %s", [resource.address, location])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  resource.type == "azurerm_public_ip"
-  resource.change.actions[_] == "create"
-  msg := sprintf("%s creates a public IP address; public exposure requires explicit platform approval", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_public_ip"
+	resource.change.actions[_] == "create"
+	msg := sprintf("%s creates a public IP address; public exposure requires explicit platform approval", [resource.address])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  resource.type == "azurerm_storage_account"
-  is_create_or_update(resource.change.actions)
-  resource.change.after.public_network_access_enabled
-  msg := sprintf("%s enables public network access on a storage account", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_storage_account"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "public_network_access_enabled", false)
+	msg := sprintf("%s enables public network access on a storage account", [resource.address])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  resource.type == "azurerm_key_vault"
-  is_create_or_update(resource.change.actions)
-  resource.change.after.public_network_access_enabled
-  msg := sprintf("%s enables public network access on a Key Vault", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_storage_account"
+	is_create_or_update(resource.change.actions)
+	tls_version := object.get(resource.change.after, "min_tls_version", "")
+	tls_version != ""
+	not approved_storage_tls_version(tls_version)
+	msg := sprintf("%s must use an approved storage minimum TLS version", [resource.address])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  is_app_service_type(resource.type)
-  is_create_or_update(resource.change.actions)
-  not resource.change.after.https_only
-  msg := sprintf("%s must enforce HTTPS-only traffic", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_storage_account"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "shared_access_key_enabled", false)
+	msg := sprintf("%s enables shared access keys; storage should prefer identity-based access", [resource.address])
 }
 
-deny[msg] {
-  resource := input.resource_changes[_]
-  is_app_service_type(resource.type)
-  is_create_or_update(resource.change.actions)
-  resource.change.after.public_network_access_enabled
-  msg := sprintf("%s enables public network access on an App Service resource", [resource.address])
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_storage_account"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "allow_nested_items_to_be_public", false)
+	msg := sprintf("%s allows nested blob items to be public", [resource.address])
 }
 
-is_create_or_update(actions) {
-  actions[_] == "create"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_storage_account"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "infrastructure_encryption_enabled", true) == false
+	msg := sprintf("%s must keep infrastructure encryption enabled", [resource.address])
 }
 
-is_create_or_update(actions) {
-  actions[_] == "update"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_key_vault"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "public_network_access_enabled", false)
+	msg := sprintf("%s enables public network access on a Key Vault", [resource.address])
 }
 
-allowed_location(location) {
-  data.net_new_lz.allowed_locations[_] == location
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_key_vault"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "enable_rbac_authorization", true) == false
+	msg := sprintf("%s must use RBAC authorization", [resource.address])
 }
 
-is_app_service_type(resource_type) {
-  resource_type == "azurerm_windows_function_app"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_key_vault"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "purge_protection_enabled", true) == false
+	msg := sprintf("%s must keep purge protection enabled", [resource.address])
 }
 
-is_app_service_type(resource_type) {
-  resource_type == "azurerm_linux_function_app"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_key_vault"
+	is_create_or_update(resource.change.actions)
+	retention_days := object.get(resource.change.after, "soft_delete_retention_days", 90)
+	retention_days < 90
+	msg := sprintf("%s must use 90-day soft delete retention", [resource.address])
 }
 
-is_app_service_type(resource_type) {
-  resource_type == "azurerm_windows_web_app"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_mssql_server"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "public_network_access_enabled", false)
+	msg := sprintf("%s enables public network access on SQL Server", [resource.address])
 }
 
-is_app_service_type(resource_type) {
-  resource_type == "azurerm_linux_web_app"
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_mssql_server"
+	is_create_or_update(resource.change.actions)
+	tls_version := object.get(resource.change.after, "minimum_tls_version", "")
+	tls_version != ""
+	not approved_app_tls_version(tls_version)
+	msg := sprintf("%s must use SQL minimum TLS 1.2 or higher", [resource.address])
 }
 
-has_required_tags(tags) {
-  required := {tag | tag := data.net_new_lz.required_tags[_]}
-  present := {lower(tag) | tags[tag]}
-  missing := required - present
-  count(missing) == 0
+deny contains msg if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_mssql_server"
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "azuread_authentication_only", true) == false
+	msg := sprintf("%s should use Microsoft Entra-only authentication", [resource.address])
 }
 
-exempt_resource_type(resource_type) {
-  resource_type == data.net_new_lz.exempt_resource_types[_]
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "https_only", true) == false
+	msg := sprintf("%s must enforce HTTPS-only traffic", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "public_network_access_enabled", false)
+	msg := sprintf("%s enables public network access on an App Service resource", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	site_config := app_site_config(resource)
+	tls_version := object.get(site_config, "minimum_tls_version", "")
+	tls_version != ""
+	not approved_app_tls_version(tls_version)
+	msg := sprintf("%s must use application minimum TLS 1.2 or higher", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	site_config := app_site_config(resource)
+	tls_version := object.get(site_config, "scm_minimum_tls_version", "")
+	tls_version != ""
+	not approved_app_tls_version(tls_version)
+	msg := sprintf("%s must use SCM minimum TLS 1.2 or higher", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "ftp_publish_basic_authentication_enabled", false)
+	msg := sprintf("%s enables FTP basic publishing authentication", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	is_app_service_type(resource.type)
+	is_create_or_update(resource.change.actions)
+	object.get(resource.change.after, "webdeploy_publish_basic_authentication_enabled", false)
+	msg := sprintf("%s enables WebDeploy basic publishing authentication", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
+	requires_diagnostics(resource.type)
+	is_create_or_update(resource.change.actions)
+	not diagnostic_setting_in_plan
+	msg := sprintf("%s creates or updates a resource type that requires diagnostic settings in the root composition", [resource.address])
+}
+
+is_create_or_update(actions) if {
+	actions[_] == "create"
+}
+
+is_create_or_update(actions) if {
+	actions[_] == "update"
+}
+
+is_delete(actions) if {
+	actions[_] == "delete"
+}
+
+allowed_location(location) if {
+	data.net_new_lz.allowed_locations[_] == location
+}
+
+is_app_service_type(resource_type) if {
+	data.net_new_lz.app_service_resource_types[_] == resource_type
+}
+
+has_required_tags(tags) if {
+	required := {lower(tag) | tag := data.net_new_lz.required_tags[_]}
+	present := {lower(tag) | tags[tag]}
+	missing := required - present
+	count(missing) == 0
+}
+
+exempt_resource_type(resource_type) if {
+	resource_type == data.net_new_lz.exempt_resource_types[_]
+}
+
+approved_app_tls_version(version) if {
+	data.net_new_lz.approved_app_tls_versions[_] == version
+}
+
+approved_storage_tls_version(version) if {
+	data.net_new_lz.approved_storage_tls_versions[_] == version
+}
+
+requires_diagnostics(resource_type) if {
+	data.net_new_lz.diagnostics_required_resource_types[_] == resource_type
+}
+
+diagnostic_setting_in_plan if {
+	resource := input.resource_changes[_]
+	resource.type == "azurerm_monitor_diagnostic_setting"
+	not is_delete(resource.change.actions)
+}
+
+app_site_config(resource) := site_config if {
+	site_configs := object.get(resource.change.after, "site_config", [])
+	count(site_configs) > 0
+	site_config := site_configs[0]
+}
+
+app_site_config(resource) := site_config if {
+	site_config := object.get(resource.change.after, "site_config", {})
+	not is_array(site_config)
 }
