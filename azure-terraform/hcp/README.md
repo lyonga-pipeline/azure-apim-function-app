@@ -60,6 +60,8 @@ Recommended stages:
 3. `blocking`: enforces approved controls for net-new production landing-zone workspaces.
 4. `legacy-extension`: applies selected controls to remediated existing projects.
 
+Policy-set creation, scoping, and future legacy extension should be driven from source-controlled catalog data. See `policy-automation.md` and `policy-scope-catalog.example.yaml` for the recommended automation model.
+
 ## Access Model
 
 Use least-privilege HCP teams:
