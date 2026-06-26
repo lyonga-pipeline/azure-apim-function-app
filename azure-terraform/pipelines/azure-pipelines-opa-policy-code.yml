@@ -1,0 +1,82 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - azure-terraform/policies/opa/**
+      - azure-terraform/hcp/policy-scope-catalog*.yaml
+      - azure-terraform/hcp/policy-automation.md
+      - azure-terraform/pipelines/azure-pipelines-opa-policy-code.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - azure-terraform/policies/opa/**
+      - azure-terraform/hcp/policy-scope-catalog*.yaml
+      - azure-terraform/hcp/policy-automation.md
+      - azure-terraform/pipelines/azure-pipelines-opa-policy-code.yml
+
+name: opa-policy-$(Date:yyyyMMdd)$(Rev:.r)
+
+pool:
+  vmImage: $(vmPoolImage)
+
+variables:
+  vmPoolImage: ubuntu-latest
+  terraformRepoRoot: azure-terraform
+  opaVersion: '1.4.2'
+
+stages:
+  - stage: OpaPolicyCodeValidation
+    displayName: OPA policy-code validation
+    jobs:
+      - job: ValidateOpaPolicyCode
+        displayName: Validate OPA policy code
+        pool:
+          vmImage: $(vmPoolImage)
+        steps:
+          - checkout: self
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/opa"
+
+              curl -fsSL \
+                "https://openpolicyagent.org/downloads/v$(opaVersion)/opa_linux_amd64_static" \
+                -o "$(Agent.TempDirectory)/opa"
+              chmod +x "$(Agent.TempDirectory)/opa"
+
+              set +e
+              "$(Agent.TempDirectory)/opa" fmt --diff \
+                "$(terraformRepoRoot)/policies/opa/policies" \
+                "$(terraformRepoRoot)/policies/opa/tests" \
+                > "$(Build.ArtifactStagingDirectory)/opa/opa-fmt.diff"
+              opa_fmt_rc=$?
+              set -e
+
+              cat "$(Build.ArtifactStagingDirectory)/opa/opa-fmt.diff"
+
+              if [[ "$opa_fmt_rc" -ne 0 || -s "$(Build.ArtifactStagingDirectory)/opa/opa-fmt.diff" ]]; then
+                echo "OPA formatting drift detected. Run opa fmt before merging." >&2
+                exit 1
+              fi
+
+              "$(Agent.TempDirectory)/opa" test \
+                "$(terraformRepoRoot)/policies/opa/policies" \
+                "$(terraformRepoRoot)/policies/opa/tests" \
+                "$(terraformRepoRoot)/policies/opa/data" \
+                | tee "$(Build.ArtifactStagingDirectory)/opa/opa-test.txt"
+            displayName: Run OPA format and unit tests
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish OPA policy-code validation evidence
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/opa'
+              artifact: opa-policy-code-validation

@@ -1,0 +1,150 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  vmPoolImage: ubuntu-latest
+  terraformRepoRoot: azure-terraform
+  hcpOrganization: compeer
+  hcpWorkspace: lz-workload-clientsync-sandbox
+  destructiveChangeEnforcementMode: enforce
+  destructiveChangeEnforceOnlyOnPr: 'true'
+  requireMediumDestructiveChangeAck: 'true'
+  requireHighDestructiveChangeAck: 'true'
+  requireHighDestructiveChangeWorkItem: 'true'
+  failOnDestroy: 'false'
+  failOnHcpPolicyFailure: 'true'
+  failOnHcpRunTaskFailure: 'true'
+
+resources:
+  repositories:
+    - repository: corePipelines
+      type: git
+      name: Core/Pipelines
+      ref: refs/heads/iac_scan_templates
+
+stages:
+  - stage: SecurityAndQuality
+    displayName: Security & Terraform checks
+    jobs:
+      - template: templates/terraform-iac-scan.yml@corePipelines
+        parameters:
+          targetRepo: self
+          workingDirectory: '.'
+          terraformVersion: '1.9.5'
+          tflintVersion: '0.53.0'
+          continueOnError: false
+          vmImage: $(vmPoolImage)
+
+      - job: CheckmarxOne
+        displayName: Checkmarx One scan
+        pool:
+          vmImage: $(vmPoolImage)
+        steps:
+          - checkout: self
+
+          - task: Checkmarx AST@3
+            displayName: Run Checkmarx One scan
+            inputs:
+              CheckmarxService: 'Checkmarx-One-Service-Connection'
+              projectName: '$(Build.Repository.Name)'
+              branchName: '$(Build.SourceBranchName)'
+              # tenantName: '$(CHECKMARX_TENANT)'
+              additionalParams: >
+                --scan-types sast,sca,iac-security
+                --threshold "sast-high=1;sca-high=1;iac-security-high=1"
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/checkmarx"
+              cat > "$(Build.ArtifactStagingDirectory)/checkmarx/scan-context.json" <<EOF
+              {
+                "repository": "$(Build.Repository.Name)",
+                "branch": "$(Build.SourceBranchName)",
+                "commit": "$(Build.SourceVersion)",
+                "scan_types": ["sast", "sca", "iac-security"]
+              }
+              EOF
+            displayName: Prepare Checkmarx evidence context
+            condition: succeededOrFailed()
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Checkmarx evidence
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/checkmarx'
+              artifact: checkmarx-evidence
+
+  - stage: HcpPlanAndPolicyEvidence
+    displayName: HCP Workspace plan and policy evidence
+    dependsOn: SecurityAndQuality
+    condition: succeeded()
+    jobs:
+      - job: CaptureHcpEvidence
+        displayName: Capture speculative plan and policy/run task evidence
+        pool:
+          vmImage: $(vmPoolImage)
+        steps:
+          - checkout: self
+
+          - bash: |
+              set -euo pipefail
+              if ! command -v jq >/dev/null 2>&1; then
+                sudo apt-get update
+                sudo apt-get install -y jq
+              fi
+            displayName: Ensure jq is available
+
+          - bash: |
+              set -euo pipefail
+              chmod +x "$(terraformRepoRoot)/scripts/capture-hcp-run-evidence.sh"
+              mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+
+              "$(terraformRepoRoot)/scripts/capture-hcp-run-evidence.sh" \
+                --organization "$(hcpOrganization)" \
+                --workspace "$(hcpWorkspace)" \
+                --vcs-revision "$(Build.SourceVersion)" \
+                --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
+                --fail-on-destroy "$(failOnDestroy)" \
+                --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \
+                --fail-on-run-task-failure "$(failOnHcpRunTaskFailure)"
+            displayName: Fetch HCP plan JSON, policy checks, and run task results
+            env:
+              HCP_TOKEN: $(HCP_TOKEN)
+
+          - bash: |
+              set -euo pipefail
+              chmod +x "$(terraformRepoRoot)/scripts/validate-destructive-change-approval.sh"
+
+              "$(terraformRepoRoot)/scripts/validate-destructive-change-approval.sh" \
+                --plan-json "$(Build.ArtifactStagingDirectory)/hcp/plan.json" \
+                --policy-config "$(terraformRepoRoot)/pipelines/destructive-change-policy.json" \
+                --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
+                --enforcement-mode "$(destructiveChangeEnforcementMode)" \
+                --enforce-only-on-pr "$(destructiveChangeEnforceOnlyOnPr)" \
+                --require-medium-ack "$(requireMediumDestructiveChangeAck)" \
+                --require-high-ack "$(requireHighDestructiveChangeAck)" \
+                --require-high-work-item "$(requireHighDestructiveChangeWorkItem)"
+            displayName: Validate destructive-change acknowledgement
+            env:
+              ADO_TOKEN: $(System.AccessToken)
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish HCP plan and policy evidence
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/hcp'
+              artifact: hcp-plan-policy-evidence

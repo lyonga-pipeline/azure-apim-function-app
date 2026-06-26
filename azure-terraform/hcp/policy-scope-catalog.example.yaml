@@ -1,3 +1,10 @@
+source_control:
+  provider: azure_devops
+  organization: compeer
+  project: cloud-enablement
+  repository: azure-landing-zone-iac
+  branch: main
+
 policy_sets:
   net_new_lz_opa:
     description: OPA plan guardrails for the Compeer net-new landing-zone path.
