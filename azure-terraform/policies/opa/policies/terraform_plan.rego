@@ -183,10 +183,24 @@ deny contains msg if {
 
 deny contains msg if {
 	resource := input.resource_changes[_]
+	requires_managed_identity(resource.type)
+	is_create_or_update(resource.change.actions)
+	not has_managed_identity(resource.change.after)
+	msg := sprintf("%s must use managed identity for the net-new landing-zone pattern", [resource.address])
+}
+
+deny contains msg if {
+	resource := input.resource_changes[_]
 	requires_diagnostics(resource.type)
 	is_create_or_update(resource.change.actions)
 	not diagnostic_setting_in_plan
 	msg := sprintf("%s creates or updates a resource type that requires diagnostic settings in the root composition", [resource.address])
+}
+
+deny contains msg if {
+	source := module_sources[_]
+	not approved_module_source(source)
+	msg := sprintf("module source %s is not approved for the net-new landing-zone path", [source])
 }
 
 is_create_or_update(actions) if {
@@ -232,10 +246,47 @@ requires_diagnostics(resource_type) if {
 	data.net_new_lz.diagnostics_required_resource_types[_] == resource_type
 }
 
+requires_managed_identity(resource_type) if {
+	data.net_new_lz.managed_identity_required_resource_types[_] == resource_type
+}
+
+has_managed_identity(resource) if {
+	identity := object.get(resource, "identity", null)
+	identity_type := lower(identity_type_value(identity))
+	identity_type != ""
+	identity_type != "none"
+}
+
+identity_type_value(identity) := identity_type if {
+	is_array(identity)
+	count(identity) > 0
+	identity_type := object.get(identity[0], "type", "")
+}
+
+identity_type_value(identity) := identity_type if {
+	is_object(identity)
+	identity_type := object.get(identity, "type", "")
+}
+
 diagnostic_setting_in_plan if {
 	resource := input.resource_changes[_]
 	resource.type == "azurerm_monitor_diagnostic_setting"
 	not is_delete(resource.change.actions)
+}
+
+module_sources contains source if {
+	some path, value
+	walk(input.configuration.root_module, [path, value])
+	is_object(value)
+	calls := object.get(value, "module_calls", {})
+	call := calls[_]
+	source := object.get(call, "source", "")
+	source != ""
+}
+
+approved_module_source(source) if {
+	prefix := data.net_new_lz.approved_module_source_prefixes[_]
+	startswith(source, prefix)
 }
 
 app_site_config(resource) := site_config if {

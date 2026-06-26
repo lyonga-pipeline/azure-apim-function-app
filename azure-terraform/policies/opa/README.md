@@ -23,7 +23,9 @@ The current policy set is appropriate for the first advisory pilot. It validates
 - Key Vault RBAC, purge protection, and 90-day soft delete posture,
 - SQL TLS and Microsoft Entra-only authentication posture,
 - Function App and Web App HTTPS-only, public network, TLS, SCM TLS, and basic publishing auth posture,
-- diagnostic-setting presence for selected platform and workload resource types.
+- managed identity on Function App and Web App resources,
+- diagnostic-setting presence for selected platform and workload resource types,
+- module source checks that keep Terraform usage on approved HCP registry, pattern, or local module paths during the pilot.
 
 The diagnostic rule intentionally checks for a diagnostic setting in the root composition, not exact one-to-one resource linkage. That keeps the first policy useful without creating false precision while the landing-zone pattern is still being piloted.
 
@@ -32,10 +34,10 @@ The diagnostic rule intentionally checks for a diagnostic setting in the root co
 Before promotion to mandatory enforcement, add or refine:
 
 - exact private endpoint requirement and target-resource matching,
-- module source/version checks for approved HCP registry usage,
+- stronger module version checks for approved HCP registry usage once the final registry namespace/versioning convention is confirmed,
 - workspace/environment naming alignment,
 - production-only SKU/resiliency checks,
-- managed identity requirement checks where the resource type supports it,
+- managed identity requirement checks for additional resource types where the Azure resource supports it,
 - CMK, backup, retention, and recovery-tier checks for regulated data services,
 - exception-aware rules once the exception register schema is finalized.
 

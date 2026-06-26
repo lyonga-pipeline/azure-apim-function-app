@@ -13,6 +13,10 @@ output "custom_policy_definition_ids" {
   value = { for key, value in azurerm_policy_definition.this : key => value.id }
 }
 
+output "custom_policy_set_definition_ids" {
+  value = { for key, value in azurerm_policy_set_definition.this : key => value.id }
+}
+
 output "management_group_policy_assignment_ids" {
   value = { for key, value in azurerm_management_group_policy_assignment.this : key => value.id }
 }

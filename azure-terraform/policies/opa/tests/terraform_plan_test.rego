@@ -117,6 +117,29 @@ test_function_app_public_network_fails if {
 	contains(msg, "public network access")
 }
 
+test_function_app_without_managed_identity_fails if {
+	msg := deny[_] with input as {"resource_changes": [{
+		"address": "azurerm_windows_function_app.example",
+		"type": "azurerm_windows_function_app",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"location": "eastus2",
+				"https_only": true,
+				"public_network_access_enabled": false,
+				"ftp_publish_basic_authentication_enabled": false,
+				"webdeploy_publish_basic_authentication_enabled": false,
+				"site_config": [{
+					"minimum_tls_version": "1.2",
+					"scm_minimum_tls_version": "1.2",
+				}],
+				"tags": standard_tags,
+			},
+		},
+	}]}
+	contains(msg, "managed identity")
+}
+
 test_missing_diagnostics_fails_for_required_resource_type if {
 	msg := deny[_] with input as {"resource_changes": [{
 		"address": "azurerm_virtual_network.example",
@@ -130,4 +153,12 @@ test_missing_diagnostics_fails_for_required_resource_type if {
 		},
 	}]}
 	contains(msg, "requires diagnostic settings")
+}
+
+test_unapproved_module_source_fails if {
+	msg := deny[_] with input as {
+		"resource_changes": [],
+		"configuration": {"root_module": {"module_calls": {"storage": {"source": "git::https://example.com/unapproved/storage.git"}}}},
+	}
+	contains(msg, "module source")
 }

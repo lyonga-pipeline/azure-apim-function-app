@@ -37,6 +37,12 @@ variable "custom_policy_definitions" {
   default     = {}
 }
 
+variable "custom_policy_set_definitions" {
+  type        = any
+  description = "Custom Azure Policy initiative definitions created at a management-group scope."
+  default     = {}
+}
+
 variable "management_group_policy_assignments" {
   type        = any
   description = "Management-group Azure Policy assignments for landing-zone guardrails."
@@ -45,12 +51,14 @@ variable "management_group_policy_assignments" {
   validation {
     condition = alltrue([
       for assignment in values(var.management_group_policy_assignments) :
-      (
-        (try(assignment.policy_definition_id, null) != null || try(assignment.policy_definition_key, null) != null) &&
-        !(try(assignment.policy_definition_id, null) != null && try(assignment.policy_definition_key, null) != null)
-      )
+      length(compact([
+        try(assignment.policy_definition_id, null),
+        try(assignment.policy_definition_key, null),
+        try(assignment.policy_set_definition_id, null),
+        try(assignment.policy_set_definition_key, null)
+      ])) == 1
     ])
-    error_message = "Each management group policy assignment must set exactly one of policy_definition_id or policy_definition_key."
+    error_message = "Each management group policy assignment must set exactly one of policy_definition_id, policy_definition_key, policy_set_definition_id, or policy_set_definition_key."
   }
 }
 
@@ -62,12 +70,14 @@ variable "subscription_policy_assignments" {
   validation {
     condition = alltrue([
       for assignment in values(var.subscription_policy_assignments) :
-      (
-        (try(assignment.policy_definition_id, null) != null || try(assignment.policy_definition_key, null) != null) &&
-        !(try(assignment.policy_definition_id, null) != null && try(assignment.policy_definition_key, null) != null)
-      )
+      length(compact([
+        try(assignment.policy_definition_id, null),
+        try(assignment.policy_definition_key, null),
+        try(assignment.policy_set_definition_id, null),
+        try(assignment.policy_set_definition_key, null)
+      ])) == 1
     ])
-    error_message = "Each subscription policy assignment must set exactly one of policy_definition_id or policy_definition_key."
+    error_message = "Each subscription policy assignment must set exactly one of policy_definition_id, policy_definition_key, policy_set_definition_id, or policy_set_definition_key."
   }
 }
 
