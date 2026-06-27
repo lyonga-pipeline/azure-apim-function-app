@@ -90,10 +90,48 @@ api_get() {
 
 find_run_id() {
   local runs_file="$OUTPUT_DIR/runs.json"
-  api_get "https://app.terraform.io/api/v2/organizations/${ORGANIZATION}/workspaces/${WORKSPACE}/runs?page%5Bsize%5D=20" > "$runs_file"
+  local runs_url="https://app.terraform.io/api/v2/organizations/${ORGANIZATION}/workspaces/${WORKSPACE}/runs?page%5Bsize%5D=20"
+  local status_file="$OUTPUT_DIR/runs-http-status.txt"
+  local err_file="$OUTPUT_DIR/runs-download.err"
+  local http_status
+
+  http_status="$(curl -sS \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/vnd.api+json" \
+    -o "$runs_file" \
+    -w "%{http_code}" \
+    "$runs_url" 2>"$err_file")"
+  printf '%s\n' "$http_status" > "$status_file"
+
+  if [[ "$http_status" -lt 200 || "$http_status" -ge 300 ]]; then
+    echo "Unable to list HCP Terraform runs." >&2
+    echo "Organization: ${ORGANIZATION}" >&2
+    echo "Workspace: ${WORKSPACE}" >&2
+    echo "HTTP status: ${http_status}" >&2
+    echo "Endpoint: ${runs_url}" >&2
+    echo "Check that the HCP organization/workspace names are exact and that HCP_TOKEN can read the workspace and runs." >&2
+    if [[ -s "$runs_file" ]]; then
+      echo "HCP API response body:" >&2
+      cat "$runs_file" >&2
+    fi
+    if [[ -s "$err_file" ]]; then
+      echo "curl diagnostics:" >&2
+      cat "$err_file" >&2
+    fi
+    return 1
+  fi
+
+  local run_count
+  run_count="$(jq '.data | length' "$runs_file")"
+  if [[ "$run_count" -eq 0 ]]; then
+    echo "HCP workspace ${WORKSPACE} was found, but it has no runs to capture yet." >&2
+    echo "Queue a speculative or normal HCP run first, then rerun this evidence pipeline." >&2
+    return 1
+  fi
 
   if [[ -n "$VCS_REVISION" ]]; then
-    jq -r --arg revision "$VCS_REVISION" '
+    local matched_run_id
+    matched_run_id="$(jq -r --arg revision "$VCS_REVISION" '
       .data[]
       | select(
           (.attributes["vcs-revision"] // "") == $revision
@@ -101,8 +139,14 @@ find_run_id() {
           or (.attributes.message // "" | contains($revision))
         )
       | .id
-    ' "$runs_file" | head -n 1
-    return
+    ' "$runs_file" | head -n 1)"
+
+    if [[ -n "$matched_run_id" ]]; then
+      printf '%s\n' "$matched_run_id"
+      return
+    fi
+
+    echo "No HCP run matched commit ${VCS_REVISION}; falling back to latest workspace run." >&2
   fi
 
   jq -r '.data[0].id // empty' "$runs_file"
