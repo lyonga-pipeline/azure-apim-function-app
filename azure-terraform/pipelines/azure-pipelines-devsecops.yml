@@ -19,7 +19,7 @@ variables:
   vmPoolImage: ubuntu-latest
   terraformScriptsRoot: azure-terraform
   hcpOrganization: lyonga-org
-  hcpWorkspace: lz-workload-clientsync-sandbox
+  hcpWorkspace: azure-cloud
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
