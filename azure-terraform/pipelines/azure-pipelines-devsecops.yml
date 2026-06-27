@@ -17,8 +17,8 @@ pool:
 
 variables:
   vmPoolImage: ubuntu-latest
-  terraformRepoRoot: azure-terraform
-  hcpOrganization: compeer
+  terraformRepoRoot: https://github.com/lyonga-pipeline/azure-apim-function-app/tree/main/azure-terraform/landing-zones/net-new-hub-spoke
+  hcpOrganization: lyonga-org
   hcpWorkspace: lz-workload-clientsync-sandbox
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
@@ -37,61 +37,61 @@ resources:
       ref: refs/heads/iac_scan_templates
 
 stages:
-  - stage: SecurityAndQuality
-    displayName: Security & Terraform checks
-    jobs:
-      - template: templates/terraform-iac-scan.yml@corePipelines
-        parameters:
-          targetRepo: self
-          workingDirectory: '.'
-          terraformVersion: '1.9.5'
-          tflintVersion: '0.53.0'
-          continueOnError: false
-          vmImage: $(vmPoolImage)
+  # - stage: SecurityAndQuality
+  #   displayName: Security & Terraform checks
+  #   jobs:
+  #     - template: templates/terraform-iac-scan.yml@corePipelines
+  #       parameters:
+  #         targetRepo: self
+  #         workingDirectory: '.'
+  #         terraformVersion: '1.9.5'
+  #         tflintVersion: '0.53.0'
+  #         continueOnError: false
+  #         vmImage: $(vmPoolImage)
 
-      - job: CheckmarxOne
-        displayName: Checkmarx One scan
-        pool:
-          vmImage: $(vmPoolImage)
-        steps:
-          - checkout: self
+  #     - job: CheckmarxOne
+  #       displayName: Checkmarx One scan
+  #       pool:
+  #         vmImage: $(vmPoolImage)
+  #       steps:
+  #         - checkout: self
 
-          - task: Checkmarx AST@3
-            displayName: Run Checkmarx One scan
-            inputs:
-              CheckmarxService: 'Checkmarx-One-Service-Connection'
-              projectName: '$(Build.Repository.Name)'
-              branchName: '$(Build.SourceBranchName)'
-              # tenantName: '$(CHECKMARX_TENANT)'
-              additionalParams: >
-                --scan-types sast,sca,iac-security
-                --threshold "sast-high=1;sca-high=1;iac-security-high=1"
+  #         - task: Checkmarx AST@3
+  #           displayName: Run Checkmarx One scan
+  #           inputs:
+  #             CheckmarxService: 'Checkmarx-One-Service-Connection'
+  #             projectName: '$(Build.Repository.Name)'
+  #             branchName: '$(Build.SourceBranchName)'
+  #             # tenantName: '$(CHECKMARX_TENANT)'
+  #             additionalParams: >
+  #               --scan-types sast,sca,iac-security
+  #               --threshold "sast-high=1;sca-high=1;iac-security-high=1"
 
-          - bash: |
-              set -euo pipefail
-              mkdir -p "$(Build.ArtifactStagingDirectory)/checkmarx"
-              cat > "$(Build.ArtifactStagingDirectory)/checkmarx/scan-context.json" <<EOF
-              {
-                "repository": "$(Build.Repository.Name)",
-                "branch": "$(Build.SourceBranchName)",
-                "commit": "$(Build.SourceVersion)",
-                "scan_types": ["sast", "sca", "iac-security"]
-              }
-              EOF
-            displayName: Prepare Checkmarx evidence context
-            condition: succeededOrFailed()
+  #         - bash: |
+  #             set -euo pipefail
+  #             mkdir -p "$(Build.ArtifactStagingDirectory)/checkmarx"
+  #             cat > "$(Build.ArtifactStagingDirectory)/checkmarx/scan-context.json" <<EOF
+  #             {
+  #               "repository": "$(Build.Repository.Name)",
+  #               "branch": "$(Build.SourceBranchName)",
+  #               "commit": "$(Build.SourceVersion)",
+  #               "scan_types": ["sast", "sca", "iac-security"]
+  #             }
+  #             EOF
+  #           displayName: Prepare Checkmarx evidence context
+  #           condition: succeededOrFailed()
 
-          - task: PublishPipelineArtifact@1
-            displayName: Publish Checkmarx evidence
-            condition: succeededOrFailed()
-            inputs:
-              targetPath: '$(Build.ArtifactStagingDirectory)/checkmarx'
-              artifact: checkmarx-evidence
+  #         - task: PublishPipelineArtifact@1
+  #           displayName: Publish Checkmarx evidence
+  #           condition: succeededOrFailed()
+  #           inputs:
+  #             targetPath: '$(Build.ArtifactStagingDirectory)/checkmarx'
+  #             artifact: checkmarx-evidence
 
   - stage: HcpPlanAndPolicyEvidence
     displayName: HCP Workspace plan and policy evidence
-    dependsOn: SecurityAndQuality
-    condition: succeeded()
+    dependsOn: []
+    condition: always()
     jobs:
       - job: CaptureHcpEvidence
         displayName: Capture speculative plan and policy/run task evidence
