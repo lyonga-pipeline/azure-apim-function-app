@@ -17,9 +17,9 @@ pool:
 
 variables:
   vmPoolImage: ubuntu-latest
-  terraformRepoRoot: azure-terraform
+  terraformRepoRoot: https://github.com/lyonga-pipeline/azure-apim-function-app/tree/main/azure-terraform/landing-zones/net-new-hub-spoke
   hcpOrganization: lyonga-org
-  hcpWorkspace: lz-workload-clientsync-sandbox
+  hcpWorkspace: azure-cloud
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
