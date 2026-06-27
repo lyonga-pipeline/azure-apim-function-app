@@ -17,9 +17,9 @@ pool:
 
 variables:
   vmPoolImage: ubuntu-latest
-  terraformRepoRoot: https://github.com/lyonga-pipeline/azure-apim-function-app/tree/main/azure-terraform/landing-zones/net-new-hub-spoke
+  terraformScriptsRoot: azure-terraform
   hcpOrganization: lyonga-org
-  hcpWorkspace: azure-cloud
+  hcpWorkspace: lz-workload-clientsync-sandbox
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
@@ -113,10 +113,10 @@ stages:
 
           - bash: |
               set -euo pipefail
-              chmod +x "$(terraformRepoRoot)/scripts/capture-hcp-run-evidence.sh"
               mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+              chmod +x "$(terraformScriptsRoot)/scripts/capture-hcp-run-evidence.sh"
 
-              "$(terraformRepoRoot)/scripts/capture-hcp-run-evidence.sh" \
+              "$(terraformScriptsRoot)/scripts/capture-hcp-run-evidence.sh" \
                 --organization "$(hcpOrganization)" \
                 --workspace "$(hcpWorkspace)" \
                 --vcs-revision "$(Build.SourceVersion)" \
@@ -130,11 +130,11 @@ stages:
 
           - bash: |
               set -euo pipefail
-              chmod +x "$(terraformRepoRoot)/scripts/validate-destructive-change-approval.sh"
+              chmod +x "$(terraformScriptsRoot)/scripts/validate-destructive-change-approval.sh"
 
-              "$(terraformRepoRoot)/scripts/validate-destructive-change-approval.sh" \
+              "$(terraformScriptsRoot)/scripts/validate-destructive-change-approval.sh" \
                 --plan-json "$(Build.ArtifactStagingDirectory)/hcp/plan.json" \
-                --policy-config "$(terraformRepoRoot)/pipelines/destructive-change-policy.json" \
+                --policy-config "$(terraformScriptsRoot)/pipelines/destructive-change-policy.json" \
                 --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
                 --enforcement-mode "$(destructiveChangeEnforcementMode)" \
                 --enforce-only-on-pr "$(destructiveChangeEnforceOnlyOnPr)" \
