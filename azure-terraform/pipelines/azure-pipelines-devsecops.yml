@@ -17,7 +17,7 @@ pool:
 
 variables:
   vmPoolImage: ubuntu-latest
-  terraformRepoRoot: https://github.com/lyonga-pipeline/azure-apim-function-app/tree/main/azure-terraform/landing-zones/net-new-hub-spoke
+  terraformRepoRoot: azure-terraform
   hcpOrganization: lyonga-org
   hcpWorkspace: lz-workload-clientsync-sandbox
   destructiveChangeEnforcementMode: enforce
@@ -29,12 +29,15 @@ variables:
   failOnHcpPolicyFailure: 'true'
   failOnHcpRunTaskFailure: 'true'
 
-resources:
-  repositories:
-    - repository: corePipelines
-      type: git
-      name: Core/Pipelines
-      ref: refs/heads/iac_scan_templates
+# Enable this external template repository when the SecurityAndQuality stage is active.
+# In Azure DevOps, name: Core/Pipelines means repo "Pipelines" in ADO project "Core".
+# If the template repo lives in a different project or repo, update this value before re-enabling.
+# resources:
+#   repositories:
+#     - repository: corePipelines
+#       type: git
+#       name: Core/Pipelines
+#       ref: refs/heads/iac_scan_templates
 
 stages:
   # - stage: SecurityAndQuality
