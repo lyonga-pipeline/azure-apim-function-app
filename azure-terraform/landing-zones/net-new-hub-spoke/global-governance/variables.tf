@@ -1,6 +1,6 @@
 variable "subscription_id" {
   type        = string
-  description = "Execution subscription for governance deployment."
+  description = "Execution subscription for governance deployment"
 }
 
 variable "root_management_group_id" {
@@ -13,7 +13,7 @@ variable "management_groups" {
     display_name = string
     parent_key   = optional(string, "root")
   }))
-  description = "Management groups keyed by stable purpose."
+  description = "Management groups keyed by stable purpose"
 }
 
 variable "subscription_placements" {
