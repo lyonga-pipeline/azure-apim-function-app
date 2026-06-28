@@ -20,6 +20,7 @@ variables:
   terraformScriptsRoot: azure-terraform
   hcpOrganization: lyonga-org
   hcpWorkspace: azure-cloud
+  allowLatestHcpRun: 'false'
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
@@ -120,6 +121,7 @@ stages:
                 --organization "$(hcpOrganization)" \
                 --workspace "$(hcpWorkspace)" \
                 --vcs-revision "$(Build.SourceVersion)" \
+                --allow-latest-run "$(allowLatestHcpRun)" \
                 --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
                 --fail-on-destroy "$(failOnDestroy)" \
                 --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \

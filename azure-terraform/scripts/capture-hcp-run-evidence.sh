@@ -14,6 +14,7 @@ WORKSPACE=""
 RUN_ID=""
 VCS_REVISION=""
 OUTPUT_DIR="hcp-evidence"
+ALLOW_LATEST_RUN=false
 FAIL_ON_DESTROY=false
 FAIL_ON_POLICY_FAILURE=false
 FAIL_ON_RUN_TASK_FAILURE=false
@@ -29,9 +30,11 @@ Required:
 
 Options:
   --run-id <id>               Capture a specific HCP run. If omitted, the script
-                              tries to match --vcs-revision, then falls back to
-                              the latest run in the workspace.
+                              tries to match --vcs-revision.
   --vcs-revision <sha>        Commit SHA to match against recent HCP runs.
+  --allow-latest-run <bool>   When true and no --vcs-revision match is found,
+                              fall back to the latest run in the workspace.
+                              Default: false.
   --output-dir <dir>          Evidence output directory. Default: hcp-evidence.
   --fail-on-destroy <bool>    Fail when plan includes delete/replace actions.
   --fail-on-policy-failure <bool>
@@ -51,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --workspace) WORKSPACE="${2:?Missing value for --workspace}"; shift 2 ;;
     --run-id) RUN_ID="${2:?Missing value for --run-id}"; shift 2 ;;
     --vcs-revision) VCS_REVISION="${2:?Missing value for --vcs-revision}"; shift 2 ;;
+    --allow-latest-run) ALLOW_LATEST_RUN="${2:?Missing value for --allow-latest-run}"; shift 2 ;;
     --output-dir) OUTPUT_DIR="${2:?Missing value for --output-dir}"; shift 2 ;;
     --fail-on-destroy) FAIL_ON_DESTROY="${2:?Missing value for --fail-on-destroy}"; shift 2 ;;
     --fail-on-policy-failure) FAIL_ON_POLICY_FAILURE="${2:?Missing value for --fail-on-policy-failure}"; shift 2 ;;
@@ -188,7 +192,13 @@ find_run_id() {
       return
     fi
 
-    echo "No HCP run matched commit ${VCS_REVISION}; falling back to latest workspace run." >&2
+    if [[ "$ALLOW_LATEST_RUN" != "true" ]]; then
+      echo "No HCP run matched commit ${VCS_REVISION}." >&2
+      echo "Queue an HCP run for the same Git commit, pass --run-id, or set --allow-latest-run true for manual testing only." >&2
+      return 1
+    fi
+
+    echo "No HCP run matched commit ${VCS_REVISION}; falling back to latest workspace run because --allow-latest-run is true." >&2
   fi
 
   jq -r '.data[0].id // empty' "$runs_file"
