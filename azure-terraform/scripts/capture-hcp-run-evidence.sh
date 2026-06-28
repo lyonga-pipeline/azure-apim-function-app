@@ -90,10 +90,51 @@ api_get() {
 
 find_run_id() {
   local runs_file="$OUTPUT_DIR/runs.json"
-  local runs_url="https://app.terraform.io/api/v2/organizations/${ORGANIZATION}/workspaces/${WORKSPACE}/runs?page%5Bsize%5D=20"
+  local workspace_file="$OUTPUT_DIR/workspace.json"
+  local workspace_url="https://app.terraform.io/api/v2/organizations/${ORGANIZATION}/workspaces/${WORKSPACE}"
+  local workspace_status_file="$OUTPUT_DIR/workspace-http-status.txt"
+  local workspace_err_file="$OUTPUT_DIR/workspace-download.err"
+  local workspace_http_status
+  local workspace_id
+  local runs_url
   local status_file="$OUTPUT_DIR/runs-http-status.txt"
   local err_file="$OUTPUT_DIR/runs-download.err"
   local http_status
+
+  workspace_http_status="$(curl -sS \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/vnd.api+json" \
+    -o "$workspace_file" \
+    -w "%{http_code}" \
+    "$workspace_url" 2>"$workspace_err_file")"
+  printf '%s\n' "$workspace_http_status" > "$workspace_status_file"
+
+  if [[ "$workspace_http_status" -lt 200 || "$workspace_http_status" -ge 300 ]]; then
+    echo "Unable to read HCP Terraform workspace." >&2
+    echo "Organization: ${ORGANIZATION}" >&2
+    echo "Workspace: ${WORKSPACE}" >&2
+    echo "HTTP status: ${workspace_http_status}" >&2
+    echo "Endpoint: ${workspace_url}" >&2
+    echo "Check that the HCP organization/workspace names are exact and that HCP_TOKEN can read the workspace." >&2
+    if [[ -s "$workspace_file" ]]; then
+      echo "HCP API response body:" >&2
+      cat "$workspace_file" >&2
+    fi
+    if [[ -s "$workspace_err_file" ]]; then
+      echo "curl diagnostics:" >&2
+      cat "$workspace_err_file" >&2
+    fi
+    return 1
+  fi
+
+  workspace_id="$(jq -r '.data.id // empty' "$workspace_file")"
+  if [[ -z "$workspace_id" ]]; then
+    echo "HCP workspace response did not include a workspace ID." >&2
+    cat "$workspace_file" >&2
+    return 1
+  fi
+
+  runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20"
 
   http_status="$(curl -sS \
     -H "Authorization: Bearer $TOKEN" \
@@ -107,6 +148,7 @@ find_run_id() {
     echo "Unable to list HCP Terraform runs." >&2
     echo "Organization: ${ORGANIZATION}" >&2
     echo "Workspace: ${WORKSPACE}" >&2
+    echo "Workspace ID: ${workspace_id}" >&2
     echo "HTTP status: ${http_status}" >&2
     echo "Endpoint: ${runs_url}" >&2
     echo "Check that the HCP organization/workspace names are exact and that HCP_TOKEN can read the workspace and runs." >&2
