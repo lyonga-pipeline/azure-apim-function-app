@@ -1,5 +1,5 @@
 subscription_id = "22222222-2222-2222-2222-222222222222"
-location        = "eastus2"
+location        = "eastus"
 environment     = "np1"
 
 workload_tags = {

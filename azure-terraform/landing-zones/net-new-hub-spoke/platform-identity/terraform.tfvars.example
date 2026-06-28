@@ -1,6 +1,6 @@
 subscription_id = "11111111-1111-1111-1111-111111111111"
 tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-location        = "eastus2"
+location        = "eastus"
 environment     = "np"
 
 platform_tags = {

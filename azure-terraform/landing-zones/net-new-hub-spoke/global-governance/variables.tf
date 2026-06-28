@@ -28,7 +28,7 @@ variable "subscription_placements" {
 variable "policy_assignment_location" {
   type        = string
   description = "Default location used by policy assignments that require a managed identity."
-  default     = "eastus2"
+  default     = "eastus"
 }
 
 variable "custom_policy_definitions" {
