@@ -101,6 +101,8 @@ find_run_id() {
   local workspace_http_status
   local workspace_id
   local runs_url
+  local commit_runs_url
+  local commit_runs_file="$OUTPUT_DIR/runs-by-commit.json"
   local status_file="$OUTPUT_DIR/runs-http-status.txt"
   local err_file="$OUTPUT_DIR/runs-download.err"
   local http_status
@@ -136,6 +138,26 @@ find_run_id() {
     echo "HCP workspace response did not include a workspace ID." >&2
     cat "$workspace_file" >&2
     return 1
+  fi
+
+  if [[ -n "$VCS_REVISION" ]]; then
+    commit_runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20&search%5Bcommit%5D=${VCS_REVISION}"
+
+    http_status="$(curl -sS \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/vnd.api+json" \
+      -o "$commit_runs_file" \
+      -w "%{http_code}" \
+      "$commit_runs_url" 2>"$err_file")"
+
+    if [[ "$http_status" -ge 200 && "$http_status" -lt 300 ]]; then
+      local commit_search_match
+      commit_search_match="$(jq -r '.data[0].id // empty' "$commit_runs_file")"
+      if [[ -n "$commit_search_match" ]]; then
+        printf '%s\n' "$commit_search_match"
+        return
+      fi
+    fi
   fi
 
   runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20"

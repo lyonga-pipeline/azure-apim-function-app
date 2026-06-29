@@ -43,7 +43,7 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | `HCP_TOKEN` | Secret variable | HCP Terraform API token used to read HCP run, plan, policy-check, and run-task evidence. |
 | `System.AccessToken` | Built-in OAuth token | Used to read the ADO PR description and linked work items for destructive-change acknowledgement. Enable "Allow scripts to access the OAuth token" if required by the ADO project settings. |
 
-Set `terraformRepoRoot` to the path where the Terraform folder is checked out. In this local repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformRepoRoot` to `.` and adjust the OPA pipeline path filters to remove the `azure-terraform/` prefix.
+Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
 
 ## HCP Evidence Prerequisites
 
