@@ -103,6 +103,7 @@ find_run_id() {
   local runs_url
   local commit_runs_url
   local commit_runs_file="$OUTPUT_DIR/runs-by-commit.json"
+  local run_operations="plan_only,plan_and_apply,save_plan,refresh_only,destroy,empty_apply,action_only"
   local status_file="$OUTPUT_DIR/runs-http-status.txt"
   local err_file="$OUTPUT_DIR/runs-download.err"
   local http_status
@@ -141,7 +142,7 @@ find_run_id() {
   fi
 
   if [[ -n "$VCS_REVISION" ]]; then
-    commit_runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20&search%5Bcommit%5D=${VCS_REVISION}"
+    commit_runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20&filter%5Boperation%5D=${run_operations}&search%5Bcommit%5D=${VCS_REVISION}"
 
     http_status="$(curl -sS \
       -H "Authorization: Bearer $TOKEN" \
@@ -160,7 +161,7 @@ find_run_id() {
     fi
   fi
 
-  runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20"
+  runs_url="https://app.terraform.io/api/v2/workspaces/${workspace_id}/runs?page%5Bsize%5D=20&filter%5Boperation%5D=${run_operations}"
 
   http_status="$(curl -sS \
     -H "Authorization: Bearer $TOKEN" \
