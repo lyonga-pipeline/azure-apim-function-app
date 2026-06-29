@@ -1,6 +1,5 @@
-subscription_id = "11111111-1111-1111-1111-111111111111"
-location        = "eastus"
-environment     = "np"
+location    = "eastus"
+environment = "np"
 
 platform_tags = {
   application         = "landing-zone-connectivity"
@@ -43,11 +42,11 @@ hub_vnet = {
 
 network_security_groups = {
   private_endpoints = {
-    name = "nsg-lz-hub-private-endpoints-np"
+    name  = "nsg-lz-hub-private-endpoints-np"
     rules = {}
   }
   shared_services = {
-    name = "nsg-lz-hub-shared-services-np"
+    name  = "nsg-lz-hub-shared-services-np"
     rules = {}
   }
 }
@@ -101,29 +100,7 @@ private_dns_zones = {
   }
 }
 
-role_assignments = {
-  network_operations_rg = {
-    scope_key             = "resource_group"
-    principal_id          = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
-    principal_type        = "Group"
-    role_definition_name  = "Network Contributor"
-    description           = "Network operations management access to platform connectivity resources."
-  }
-  private_dns_contributors = {
-    scope_key             = "private_dns_zone:app_service"
-    principal_id          = "ffffffff-ffff-ffff-ffff-ffffffffffff"
-    principal_type        = "Group"
-    role_definition_name  = "Private DNS Zone Contributor"
-    description           = "DNS operators can manage private DNS records without broad subscription access."
-  }
-  connectivity_readers = {
-    scope_key             = "resource_group"
-    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    principal_type        = "Group"
-    role_definition_name  = "Reader"
-    description           = "Read-only platform visibility for connectivity resources."
-  }
-}
+role_assignments = {}
 
 management_locks = {
   connectivity_rg = {
@@ -146,21 +123,4 @@ management_locks = {
   }
 }
 
-diagnostic_settings = {
-  hub_vnet = {
-    name                       = "diag-vnet-lz-hub-np"
-    target_key                 = "hub_vnet"
-    log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"
-    logs = {
-      vm_protection_alerts = {
-        category = "VMProtectionAlerts"
-      }
-    }
-    metrics = {
-      all_metrics = {
-        category = "AllMetrics"
-        enabled  = true
-      }
-    }
-  }
-}
+diagnostic_settings = {}

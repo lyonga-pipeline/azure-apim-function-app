@@ -1,4 +1,3 @@
-subscription_id           = "00000000-0000-0000-0000-000000000000"
 root_management_group_id = "/providers/Microsoft.Management/managementGroups/compeer-root"
 
 management_groups = {
@@ -18,16 +17,7 @@ management_groups = {
   }
 }
 
-subscription_placements = {
-  platform_np = {
-    subscription_id      = "/subscriptions/11111111-1111-1111-1111-111111111111"
-    management_group_key = "compeer-platform"
-  }
-  workloads_np = {
-    subscription_id      = "/subscriptions/22222222-2222-2222-2222-222222222222"
-    management_group_key = "compeer-lz-nonprod"
-  }
-}
+subscription_placements = {}
 
 custom_policy_definitions = {
   allowed_locations = {
@@ -55,7 +45,7 @@ custom_policy_definitions = {
       if = {
         allOf = [
           {
-            field = "location"
+            field  = "location"
             exists = "true"
           },
           {
@@ -399,22 +389,7 @@ custom_role_definitions = {
   }
 }
 
-role_assignments = {
-  cloud_security_reader_nonprod = {
-    management_group_key  = "compeer-lz-nonprod"
-    principal_id          = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-    principal_type        = "Group"
-    role_definition_name  = "Security Reader"
-    description           = "Security team read access for non-production landing zones."
-  }
-  platform_reader_nonprod = {
-    management_group_key  = "compeer-lz-nonprod"
-    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    principal_type        = "Group"
-    role_definition_name  = "Reader"
-    description           = "Platform team read access for non-production landing zones."
-  }
-}
+role_assignments = {}
 
 management_group_budgets = {
   nonprod_monthly = {

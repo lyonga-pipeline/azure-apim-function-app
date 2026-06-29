@@ -1,6 +1,5 @@
-subscription_id = "11111111-1111-1111-1111-111111111111"
-location        = "eastus"
-environment     = "np"
+location    = "eastus"
+environment = "np"
 
 platform_tags = {
   application         = "landing-zone-management"
@@ -38,43 +37,21 @@ action_group = {
 }
 
 resource_provider_registrations = {
-  "Microsoft.Authorization"      = {}
-  "Microsoft.CostManagement"     = {}
-  "Microsoft.EventGrid"          = {}
-  "microsoft.insights"           = {}
-  "Microsoft.KeyVault"           = {}
-  "Microsoft.ManagedIdentity"    = {}
-  "Microsoft.Network"            = {}
+  "Microsoft.Authorization"       = {}
+  "Microsoft.CostManagement"      = {}
+  "Microsoft.EventGrid"           = {}
+  "microsoft.insights"            = {}
+  "Microsoft.KeyVault"            = {}
+  "Microsoft.ManagedIdentity"     = {}
+  "Microsoft.Network"             = {}
   "Microsoft.OperationalInsights" = {}
-  "Microsoft.PolicyInsights"     = {}
-  "Microsoft.Security"           = {}
-  "Microsoft.Storage"            = {}
-  "Microsoft.Web"                = {}
+  "Microsoft.PolicyInsights"      = {}
+  "Microsoft.Security"            = {}
+  "Microsoft.Storage"             = {}
+  "Microsoft.Web"                 = {}
 }
 
-role_assignments = {
-  platform_readers_subscription = {
-    scope_key             = "subscription"
-    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    principal_type        = "Group"
-    role_definition_name  = "Reader"
-    description           = "Platform read access across the management subscription."
-  }
-  security_readers_subscription = {
-    scope_key             = "subscription"
-    principal_id          = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-    principal_type        = "Group"
-    role_definition_name  = "Security Reader"
-    description           = "Security team visibility across the management subscription."
-  }
-  monitoring_contributors_workspace = {
-    scope_key             = "log_analytics"
-    principal_id          = "dddddddd-dddd-dddd-dddd-dddddddddddd"
-    principal_type        = "Group"
-    role_definition_name  = "Log Analytics Contributor"
-    description           = "Operations team management access to the central workspace."
-  }
-}
+role_assignments = {}
 
 subscription_activity_log_diagnostics = {
   name = "diag-subscription-activity-to-law"

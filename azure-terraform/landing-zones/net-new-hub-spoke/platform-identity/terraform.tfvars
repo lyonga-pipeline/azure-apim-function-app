@@ -1,7 +1,5 @@
-subscription_id = "11111111-1111-1111-1111-111111111111"
-tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-location        = "eastus"
-environment     = "np"
+location    = "eastus"
+environment = "np"
 
 platform_tags = {
   application         = "landing-zone-identity"
@@ -50,15 +48,7 @@ identity_role_assignments = {
   }
 }
 
-key_vault_private_endpoint = {
-  name      = "pe-kv-lz-platform-np-001"
-  subnet_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/virtualNetworks/vnet-lz-hub-np/subnets/private_endpoints"
-  private_dns_zone_ids = [
-    "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
-  ]
-}
-
-log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"
+key_vault_private_endpoint = null
 
 management_locks = {
   identity_rg = {

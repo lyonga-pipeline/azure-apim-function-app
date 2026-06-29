@@ -1,6 +1,5 @@
-subscription_id = "22222222-2222-2222-2222-222222222222"
-location        = "eastus"
-environment     = "np1"
+location    = "eastus"
+environment = "np1"
 
 workload_tags = {
   application         = "online-banking"
@@ -86,42 +85,10 @@ subnet_route_table_associations = {
   }
 }
 
-hub_connection = {
-  hub_virtual_network_id  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/virtualNetworks/vnet-lz-hub-np"
-  allow_forwarded_traffic = true
-}
+hub_connection         = null
+private_dns_zone_links = {}
 
-private_dns_zone_links = {
-  app_service = {
-    resource_group_name   = "rg-lz-platform-connectivity-np"
-    private_dns_zone_name = "privatelink.azurewebsites.net"
-  }
-  key_vault = {
-    resource_group_name   = "rg-lz-platform-connectivity-np"
-    private_dns_zone_name = "privatelink.vaultcore.azure.net"
-  }
-  storage_blob = {
-    resource_group_name   = "rg-lz-platform-connectivity-np"
-    private_dns_zone_name = "privatelink.blob.core.windows.net"
-  }
-}
-
-role_assignments = {
-  workload_network_contributors = {
-    scope_key             = "resource_group"
-    principal_id          = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
-    principal_type        = "Group"
-    role_definition_name  = "Network Contributor"
-    description           = "Network operations access for workload spoke networking."
-  }
-  workload_readers = {
-    scope_key             = "resource_group"
-    principal_id          = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    principal_type        = "Group"
-    role_definition_name  = "Reader"
-    description           = "Platform read access for workload spoke resources."
-  }
-}
+role_assignments = {}
 
 management_locks = {
   workload_network_rg = {
@@ -138,21 +105,4 @@ management_locks = {
   }
 }
 
-diagnostic_settings = {
-  spoke_vnet = {
-    name                       = "diag-vnet-online-banking-np1"
-    target_key                 = "spoke_vnet"
-    log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"
-    logs = {
-      vm_protection_alerts = {
-        category = "VMProtectionAlerts"
-      }
-    }
-    metrics = {
-      all_metrics = {
-        category = "AllMetrics"
-        enabled  = true
-      }
-    }
-  }
-}
+diagnostic_settings = {}
