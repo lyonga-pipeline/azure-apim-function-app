@@ -6,6 +6,11 @@ variable "subscription_id" {
 variable "root_management_group_id" {
   type        = string
   description = "Tenant root management group id or approved Compeer root management group id."
+
+  validation {
+    condition     = can(regex("^/providers/Microsoft\\.Management/managementGroups/[^/]+$", var.root_management_group_id))
+    error_message = "root_management_group_id must be a full Azure management group resource ID, for example /providers/Microsoft.Management/managementGroups/compeer-root. Do not use the tenant ID."
+  }
 }
 
 variable "management_groups" {
