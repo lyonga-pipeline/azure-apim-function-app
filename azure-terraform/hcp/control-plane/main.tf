@@ -9,18 +9,19 @@ locals {
   excluded_workspaces = toset(var.excluded_workspaces)
 
   opa_policy_directory = abspath("${path.module}/${var.policy_source_root_path}/${local.policy_set.vcs_policy_directory}")
+  opa_policy_file      = startswith(var.opa_policy_file_path, "/") ? var.opa_policy_file_path : abspath("${path.module}/${var.policy_source_root_path}/${var.opa_policy_file_path}")
   enforcement_level    = try(local.policy_set.enforcement_level, "advisory")
-  policy_set_id        = var.manage_policy_set_content ? tfe_policy_set.opa[0].id : data.tfe_policy_set.opa[0].id
+  policy_set_id        = var.policy_content_mode == "none" ? data.tfe_policy_set.opa[0].id : tfe_policy_set.opa[0].id
 }
 
 data "tfe_slug" "opa_policy_directory" {
-  count = var.manage_policy_set_content ? 1 : 0
+  count = var.policy_content_mode == "slug" ? 1 : 0
 
   source_path = local.opa_policy_directory
 }
 
 data "tfe_policy_set" "opa" {
-  count = var.manage_policy_set_content ? 0 : 1
+  count = var.policy_content_mode == "none" ? 1 : 0
 
   organization = var.hcp_organization
   name         = var.policy_set_name
@@ -47,8 +48,20 @@ data "tfe_workspace" "policy_exclusion" {
   name         = each.value
 }
 
+resource "tfe_policy" "opa" {
+  count = var.policy_content_mode == "individual" ? 1 : 0
+
+  name         = var.opa_policy_name
+  description  = var.opa_policy_description
+  organization = var.hcp_organization
+  kind         = "opa"
+  query        = var.opa_policy_query
+  policy       = file(local.opa_policy_file)
+  enforce_mode = local.enforcement_level
+}
+
 resource "tfe_policy_set" "opa" {
-  count = var.manage_policy_set_content ? 1 : 0
+  count = var.policy_content_mode == "none" ? 0 : 1
 
   name                = var.policy_set_name
   description         = local.policy_set.description
@@ -57,7 +70,8 @@ resource "tfe_policy_set" "opa" {
   agent_enabled       = true
   policy_tool_version = var.opa_policy_tool_version
   overridable         = local.enforcement_level == "mandatory" ? var.mandatory_policy_overridable : false
-  slug                = data.tfe_slug.opa_policy_directory[0]
+  policy_ids          = var.policy_content_mode == "individual" ? [tfe_policy.opa[0].id] : null
+  slug                = var.policy_content_mode == "slug" ? data.tfe_slug.opa_policy_directory[0] : null
 }
 
 resource "tfe_project_policy_set" "opa" {

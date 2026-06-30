@@ -8,6 +8,11 @@ output "policy_set_name" {
   value       = var.policy_set_name
 }
 
+output "policy_content_mode" {
+  description = "How policy content was managed."
+  value       = var.policy_content_mode
+}
+
 output "policy_set_key" {
   description = "Catalog key used for the policy set."
   value       = var.policy_set_key

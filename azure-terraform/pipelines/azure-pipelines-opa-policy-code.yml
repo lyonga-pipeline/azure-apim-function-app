@@ -156,20 +156,74 @@ stages:
               project_scopes_json="$(csv_to_tf_list "${HCP_PROJECT_SCOPES:-}")"
               workspace_scopes_json="$(csv_to_tf_list "${HCP_WORKSPACE_SCOPES:-}")"
               excluded_workspaces_json="$(csv_to_tf_list "${HCP_EXCLUDED_WORKSPACES:-}")"
-              upload_policy_content="false"
+              policy_content_mode="individual"
 
-              if ! is_unset_value "${HCP_UPLOAD_POLICY_CONTENT:-}" && [[ "${HCP_UPLOAD_POLICY_CONTENT,,}" == "true" ]]; then
-                upload_policy_content="true"
+              if ! is_unset_value "${HCP_POLICY_CONTENT_MODE:-}"; then
+                policy_content_mode="${HCP_POLICY_CONTENT_MODE,,}"
               fi
 
               echo "Using project scopes: $project_scopes_json"
               echo "Using workspace scopes: $workspace_scopes_json"
               echo "Using excluded workspaces: $excluded_workspaces_json"
-              echo "Upload policy content: $upload_policy_content"
+              echo "Policy content mode: $policy_content_mode"
+
+              bundled_policy_dir="$(Agent.TempDirectory)/opa-policy-bundle"
+              bundled_policy_file="$bundled_policy_dir/terraform_plan_bundle.rego"
+              mkdir -p "$bundled_policy_dir"
+
+              {
+                echo "package compeer.lz"
+                echo
+                printf "net_new_lz := "
+                jq -c . "$(terraformRepoRoot)/policies/opa/data/net_new_lz.json"
+                echo
+                tail -n +2 "$(terraformRepoRoot)/policies/opa/policies/terraform_plan.rego" \
+                  | sed 's/data\.net_new_lz/net_new_lz/g'
+              } > "$bundled_policy_file"
 
               terraform -chdir="$(hcpControlPlaneRoot)" init -input=false
               terraform -chdir="$(hcpControlPlaneRoot)" fmt -check
               terraform -chdir="$(hcpControlPlaneRoot)" validate
+
+              if [[ "$policy_content_mode" == "individual" ]]; then
+                policy_set_id="$(
+                  curl -fsSL \
+                    --header "Authorization: Bearer $HCP_TOKEN" \
+                    "https://$(hcpHostname)/api/v2/organizations/$HCP_ORGANIZATION/policy-sets" \
+                    | jq -r --arg name "$(policySetName)" '.data[] | select(.attributes.name == $name) | .id' \
+                    | head -n 1
+                )"
+
+                if [[ -n "$policy_set_id" ]]; then
+                  terraform -chdir="$(hcpControlPlaneRoot)" import \
+                    -input=false \
+                    -var="hcp_organization=$HCP_ORGANIZATION" \
+                    -var="policy_content_mode=$policy_content_mode" \
+                    -var="opa_policy_file_path=$bundled_policy_file" \
+                    'tfe_policy_set.opa[0]' \
+                    "$policy_set_id" \
+                    || true
+                fi
+
+                policy_id="$(
+                  curl -fsSL \
+                    --header "Authorization: Bearer $HCP_TOKEN" \
+                    "https://$(hcpHostname)/api/v2/organizations/$HCP_ORGANIZATION/policies" \
+                    | jq -r --arg name "net-new-landing-zone-guardrails" '.data[] | select(.attributes.name == $name) | .id' \
+                    | head -n 1
+                )"
+
+                if [[ -n "$policy_id" ]]; then
+                  terraform -chdir="$(hcpControlPlaneRoot)" import \
+                    -input=false \
+                    -var="hcp_organization=$HCP_ORGANIZATION" \
+                    -var="policy_content_mode=$policy_content_mode" \
+                    -var="opa_policy_file_path=$bundled_policy_file" \
+                    'tfe_policy.opa[0]' \
+                    "$HCP_ORGANIZATION/$policy_id" \
+                    || true
+                fi
+              fi
 
               terraform -chdir="$(hcpControlPlaneRoot)" plan \
                 -input=false \
@@ -183,7 +237,8 @@ stages:
                 -var="project_scopes=$project_scopes_json" \
                 -var="workspace_scopes=$workspace_scopes_json" \
                 -var="excluded_workspaces=$excluded_workspaces_json" \
-                -var="manage_policy_set_content=$upload_policy_content"
+                -var="policy_content_mode=$policy_content_mode" \
+                -var="opa_policy_file_path=$bundled_policy_file"
 
               terraform -chdir="$(hcpControlPlaneRoot)" show -no-color \
                 "$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \
@@ -196,7 +251,7 @@ stages:
               HCP_PROJECT_SCOPES: $(HCP_PROJECT_SCOPES)
               HCP_WORKSPACE_SCOPES: $(HCP_WORKSPACE_SCOPES)
               HCP_EXCLUDED_WORKSPACES: $(HCP_EXCLUDED_WORKSPACES)
-              HCP_UPLOAD_POLICY_CONTENT: $(HCP_UPLOAD_POLICY_CONTENT)
+              HCP_POLICY_CONTENT_MODE: $(HCP_POLICY_CONTENT_MODE)
 
           - bash: |
               set -euo pipefail

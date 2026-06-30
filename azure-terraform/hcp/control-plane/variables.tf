@@ -56,10 +56,39 @@ variable "excluded_workspaces" {
   default     = []
 }
 
-variable "manage_policy_set_content" {
-  type        = bool
-  description = "When true, create/update the policy set and upload local policy content. When false, attach an existing policy set by policy_set_name."
-  default     = false
+variable "policy_content_mode" {
+  type        = string
+  description = "How to manage policy content. Use individual to create one OPA policy and attach it to the policy set, none to attach an existing policy set only, or slug to upload the full policy directory."
+  default     = "individual"
+
+  validation {
+    condition     = contains(["individual", "none", "slug"], var.policy_content_mode)
+    error_message = "policy_content_mode must be one of: individual, none, slug."
+  }
+}
+
+variable "opa_policy_name" {
+  type        = string
+  description = "Name of the individual OPA policy to create and attach when policy_content_mode is individual."
+  default     = "net-new-landing-zone-guardrails"
+}
+
+variable "opa_policy_description" {
+  type        = string
+  description = "Description of the individual OPA policy."
+  default     = "Plan-time guardrails for Compeer net-new landing-zone HCP workspaces."
+}
+
+variable "opa_policy_query" {
+  type        = string
+  description = "OPA query for the individual policy."
+  default     = "data.compeer.lz.deny"
+}
+
+variable "opa_policy_file_path" {
+  type        = string
+  description = "Path from the repository root to the bundled Rego file for the individual OPA policy."
+  default     = "azure-terraform/policies/opa/policies/terraform_plan.rego"
 }
 
 variable "opa_policy_tool_version" {

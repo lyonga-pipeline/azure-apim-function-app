@@ -134,9 +134,9 @@ Required variables/secrets for the deployment stage:
 | `HCP_PROJECT_SCOPES` | Optional pipeline variable | Comma-separated HCP project names to attach the policy set to. Leave unset to keep it unattached to projects. |
 | `HCP_WORKSPACE_SCOPES` | Optional pipeline variable | Comma-separated HCP workspace names to attach the policy set to. Leave unset to keep it unattached to workspaces. |
 | `HCP_EXCLUDED_WORKSPACES` | Optional pipeline variable | Comma-separated HCP workspace names to exclude from the policy set. |
-| `HCP_UPLOAD_POLICY_CONTENT` | Optional pipeline variable | Set to `true` only when the HCP organization supports uploaded/versioned policy sets. Defaults to `false`, which attaches an existing policy set by name. |
+| `HCP_POLICY_CONTENT_MODE` | Optional pipeline variable | Defaults to `individual`, which creates one OPA policy and attaches it to the policy set. Use `none` to only attach an existing policy set, or `slug` only when the HCP organization supports uploaded/versioned policy sets. |
 
-The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous, so this pipeline uploads the policy directory directly from the Azure DevOps checkout instead.
+The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous.
 
 Example runtime scope:
 
@@ -144,10 +144,10 @@ Example runtime scope:
 HCP_PROJECT_SCOPES=lyonga-project
 ```
 
-Leaving `HCP_PROJECT_SCOPES` and `HCP_WORKSPACE_SCOPES` empty is valid. The pipeline will create or look up the policy set and leave it unattached.
+Leaving `HCP_PROJECT_SCOPES` and `HCP_WORKSPACE_SCOPES` empty is valid. The pipeline will create or update the policy and policy set, then leave the policy set unattached.
 
 The local validation job still pins the downloaded OPA binary through `opaVersion`, but the HCP policy-set deployment does not pin `policy_tool_version`. HCP Terraform only accepts policy tool versions available in the target organization, so leaving it unset avoids apply failures when the local validation version is newer than HCP's supported runtime list.
 
-For test/free HCP organizations, keep `HCP_UPLOAD_POLICY_CONTENT` unset or `false`. Some plans allow a policy set object but have a limit of `0` uploaded/versioned policy sets. In that case, create or keep the single policy set and let this pipeline attach it to projects/workspaces by name.
+For test/free HCP organizations, keep `HCP_POLICY_CONTENT_MODE` unset so it defaults to `individual`. Some plans allow policy sets and individual policies but have a limit of `0` uploaded/versioned policy sets, so `slug` mode fails in those organizations.
 
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.
