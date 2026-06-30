@@ -86,10 +86,23 @@ mkdir -p "$OUTPUT_DIR"
 
 api_get() {
   local url="$1"
-  curl -fsS \
+  curl -LfsS \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/vnd.api+json" \
     "$url"
+}
+
+api_get_with_status() {
+  local url="$1"
+  local output_file="$2"
+  local err_file="$3"
+
+  curl -LsS \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/vnd.api+json" \
+    -o "$output_file" \
+    -w "%{http_code}" \
+    "$url" 2>"$err_file"
 }
 
 find_run_id() {
@@ -237,26 +250,64 @@ if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
 fi
 
 echo "Capturing evidence for HCP run: $RUN_ID"
-api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}" > "$OUTPUT_DIR/run.json"
+for attempt in $(seq 1 60); do
+  api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}" > "$OUTPUT_DIR/run.json"
+  RUN_STATUS="$(jq -r '.data.attributes.status // "unknown"' "$OUTPUT_DIR/run.json")"
+  PLAN_ID="$(jq -r '.data.relationships.plan.data.id // empty' "$OUTPUT_DIR/run.json")"
 
-PLAN_ID="$(jq -r '.data.relationships.plan.data.id // empty' "$OUTPUT_DIR/run.json")"
-if [[ -z "$PLAN_ID" ]]; then
-  echo "Run ${RUN_ID} does not have a plan relationship yet." >&2
-  exit 1
-fi
+  if [[ -n "$PLAN_ID" ]]; then
+    echo "HCP run ${RUN_ID} status=${RUN_STATUS}, plan=${PLAN_ID}"
+    break
+  fi
+
+  if [[ "$RUN_STATUS" == "errored" || "$RUN_STATUS" == "canceled" || "$RUN_STATUS" == "force_canceled" ]]; then
+    echo "Run ${RUN_ID} reached terminal status ${RUN_STATUS} before a plan relationship was available." >&2
+    exit 1
+  fi
+
+  if [[ "$attempt" -eq 60 ]]; then
+    echo "Run ${RUN_ID} did not expose a plan relationship after ${attempt} attempts. Last status: ${RUN_STATUS}" >&2
+    exit 1
+  fi
+
+  sleep 10
+done
 
 PLAN_JSON="$OUTPUT_DIR/plan.json"
-for attempt in $(seq 1 30); do
-  if api_get "https://app.terraform.io/api/v2/plans/${PLAN_ID}/json-output" > "$PLAN_JSON.tmp" 2>"$OUTPUT_DIR/plan-download.err"; then
-    if jq -e '.resource_changes? // empty' "$PLAN_JSON.tmp" >/dev/null 2>&1; then
+for attempt in $(seq 1 60); do
+  api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}" > "$OUTPUT_DIR/run.json"
+  RUN_STATUS="$(jq -r '.data.attributes.status // "unknown"' "$OUTPUT_DIR/run.json")"
+
+  http_status="$(api_get_with_status \
+    "https://app.terraform.io/api/v2/plans/${PLAN_ID}/json-output" \
+    "$PLAN_JSON.tmp" \
+    "$OUTPUT_DIR/plan-download.err")"
+  printf '%s\n' "$http_status" > "$OUTPUT_DIR/plan-json-http-status.txt"
+
+  if [[ "$http_status" -ge 200 && "$http_status" -lt 300 ]]; then
+    if jq -e '.format_version? // empty' "$PLAN_JSON.tmp" >/dev/null 2>&1; then
       mv "$PLAN_JSON.tmp" "$PLAN_JSON"
       break
     fi
+    cp "$PLAN_JSON.tmp" "$OUTPUT_DIR/plan-json-last-response.json" || true
   fi
 
-  if [[ "$attempt" -eq 30 ]]; then
+  if [[ "$RUN_STATUS" == "errored" || "$RUN_STATUS" == "canceled" || "$RUN_STATUS" == "force_canceled" ]]; then
+    echo "Run ${RUN_ID} reached terminal status ${RUN_STATUS} before plan JSON was available." >&2
+    cat "$OUTPUT_DIR/run.json" >&2 || true
+    exit 1
+  fi
+
+  echo "Waiting for plan JSON: attempt=${attempt}, run_status=${RUN_STATUS}, http_status=${http_status}"
+
+  if [[ "$attempt" -eq 60 ]]; then
     echo "Plan JSON was not available after ${attempt} attempts." >&2
+    echo "Last plan JSON HTTP status: ${http_status}" >&2
     cat "$OUTPUT_DIR/plan-download.err" >&2 || true
+    if [[ -s "$PLAN_JSON.tmp" ]]; then
+      echo "Last plan JSON response body:" >&2
+      cat "$PLAN_JSON.tmp" >&2
+    fi
     exit 1
   fi
 
