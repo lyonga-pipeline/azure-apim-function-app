@@ -143,4 +143,6 @@ Example runtime scope:
 HCP_PROJECT_SCOPES=lyonga-project
 ```
 
+The local validation job still pins the downloaded OPA binary through `opaVersion`, but the HCP policy-set deployment does not pin `policy_tool_version`. HCP Terraform only accepts policy tool versions available in the target organization, so leaving it unset avoids apply failures when the local validation version is newer than HCP's supported runtime list.
+
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.

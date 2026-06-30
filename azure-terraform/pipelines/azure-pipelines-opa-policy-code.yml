@@ -177,8 +177,7 @@ stages:
                 -var="policy_set_name=$(policySetName)" \
                 -var="project_scopes=$project_scopes_json" \
                 -var="workspace_scopes=$workspace_scopes_json" \
-                -var="excluded_workspaces=$excluded_workspaces_json" \
-                -var="opa_policy_tool_version=$(opaVersion)"
+                -var="excluded_workspaces=$excluded_workspaces_json"
 
               terraform -chdir="$(hcpControlPlaneRoot)" show -no-color \
                 "$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \

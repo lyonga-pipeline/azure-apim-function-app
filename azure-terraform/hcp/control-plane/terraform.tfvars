@@ -6,4 +6,3 @@ policy_set_name           = "compeer-net-new-lz-opa"
 project_scopes            = []
 workspace_scopes          = []
 excluded_workspaces       = []
-opa_policy_tool_version   = "1.4.2"
