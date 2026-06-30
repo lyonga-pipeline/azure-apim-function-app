@@ -1,11 +1,11 @@
 output "policy_set_id" {
   description = "HCP Terraform policy set ID."
-  value       = tfe_policy_set.opa.id
+  value       = local.policy_set_id
 }
 
 output "policy_set_name" {
   description = "HCP Terraform policy set name."
-  value       = tfe_policy_set.opa.name
+  value       = var.policy_set_name
 }
 
 output "policy_set_key" {

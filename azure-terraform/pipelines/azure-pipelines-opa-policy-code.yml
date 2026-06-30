@@ -156,11 +156,16 @@ stages:
               project_scopes_json="$(csv_to_tf_list "${HCP_PROJECT_SCOPES:-}")"
               workspace_scopes_json="$(csv_to_tf_list "${HCP_WORKSPACE_SCOPES:-}")"
               excluded_workspaces_json="$(csv_to_tf_list "${HCP_EXCLUDED_WORKSPACES:-}")"
+              upload_policy_content="false"
+
+              if ! is_unset_value "${HCP_UPLOAD_POLICY_CONTENT:-}" && [[ "${HCP_UPLOAD_POLICY_CONTENT,,}" == "true" ]]; then
+                upload_policy_content="true"
+              fi
 
               echo "Using project scopes: $project_scopes_json"
               echo "Using workspace scopes: $workspace_scopes_json"
               echo "Using excluded workspaces: $excluded_workspaces_json"
-              echo "Uploading OPA policy directory from the checked-out repository."
+              echo "Upload policy content: $upload_policy_content"
 
               terraform -chdir="$(hcpControlPlaneRoot)" init -input=false
               terraform -chdir="$(hcpControlPlaneRoot)" fmt -check
@@ -177,7 +182,8 @@ stages:
                 -var="policy_set_name=$(policySetName)" \
                 -var="project_scopes=$project_scopes_json" \
                 -var="workspace_scopes=$workspace_scopes_json" \
-                -var="excluded_workspaces=$excluded_workspaces_json"
+                -var="excluded_workspaces=$excluded_workspaces_json" \
+                -var="manage_policy_set_content=$upload_policy_content"
 
               terraform -chdir="$(hcpControlPlaneRoot)" show -no-color \
                 "$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \
@@ -190,6 +196,7 @@ stages:
               HCP_PROJECT_SCOPES: $(HCP_PROJECT_SCOPES)
               HCP_WORKSPACE_SCOPES: $(HCP_WORKSPACE_SCOPES)
               HCP_EXCLUDED_WORKSPACES: $(HCP_EXCLUDED_WORKSPACES)
+              HCP_UPLOAD_POLICY_CONTENT: $(HCP_UPLOAD_POLICY_CONTENT)
 
           - bash: |
               set -euo pipefail

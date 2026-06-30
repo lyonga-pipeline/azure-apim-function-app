@@ -134,6 +134,7 @@ Required variables/secrets for the deployment stage:
 | `HCP_PROJECT_SCOPES` | Optional pipeline variable | Comma-separated HCP project names to attach the policy set to. Overrides catalog project scopes when set. |
 | `HCP_WORKSPACE_SCOPES` | Optional pipeline variable | Comma-separated HCP workspace names to attach the policy set to. Overrides catalog workspace scopes when set. |
 | `HCP_EXCLUDED_WORKSPACES` | Optional pipeline variable | Comma-separated HCP workspace names to exclude from the policy set. Overrides catalog exclusions when set. |
+| `HCP_UPLOAD_POLICY_CONTENT` | Optional pipeline variable | Set to `true` only when the HCP organization supports uploaded/versioned policy sets. Defaults to `false`, which attaches an existing policy set by name. |
 
 The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous, so this pipeline uploads the policy directory directly from the Azure DevOps checkout instead.
 
@@ -144,5 +145,7 @@ HCP_PROJECT_SCOPES=lyonga-project
 ```
 
 The local validation job still pins the downloaded OPA binary through `opaVersion`, but the HCP policy-set deployment does not pin `policy_tool_version`. HCP Terraform only accepts policy tool versions available in the target organization, so leaving it unset avoids apply failures when the local validation version is newer than HCP's supported runtime list.
+
+For test/free HCP organizations, keep `HCP_UPLOAD_POLICY_CONTENT` unset or `false`. Some plans allow a policy set object but have a limit of `0` uploaded/versioned policy sets. In that case, create or keep the single policy set and let this pipeline attach it to projects/workspaces by name.
 
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.

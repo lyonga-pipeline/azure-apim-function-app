@@ -56,6 +56,12 @@ variable "excluded_workspaces" {
   default     = []
 }
 
+variable "manage_policy_set_content" {
+  type        = bool
+  description = "When true, create/update the policy set and upload local policy content. When false, attach an existing policy set by policy_set_name."
+  default     = false
+}
+
 variable "opa_policy_tool_version" {
   type        = string
   description = "OPA runtime version to pin for the HCP policy set. Leave null to let HCP choose the default on creation."
