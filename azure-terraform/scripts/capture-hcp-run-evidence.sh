@@ -393,6 +393,7 @@ cat > "$OUTPUT_DIR/summary.md" <<EOF
 | Organization | $ORGANIZATION |
 | Workspace | $WORKSPACE |
 | Run ID | $RUN_ID |
+| Run URL | https://app.terraform.io/app/$ORGANIZATION/workspaces/$WORKSPACE/runs/$RUN_ID |
 | Plan ID | $PLAN_ID |
 | Adds | $ADDS |
 | Updates | $UPDATES |

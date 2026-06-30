@@ -172,6 +172,19 @@ stages:
             env:
               ADO_TOKEN: $(System.AccessToken)
 
+          - bash: |
+              set -euo pipefail
+
+              if [[ -f "$(Build.ArtifactStagingDirectory)/hcp/summary.md" ]]; then
+                echo "##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/hcp/summary.md"
+              fi
+
+              if [[ -f "$(Build.ArtifactStagingDirectory)/hcp/destructive-change-approval.md" ]]; then
+                echo "##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/hcp/destructive-change-approval.md"
+              fi
+            displayName: Publish HCP evidence summaries to build
+            condition: succeededOrFailed()
+
           - task: PublishPipelineArtifact@1
             displayName: Publish HCP plan and policy evidence
             condition: succeededOrFailed()
