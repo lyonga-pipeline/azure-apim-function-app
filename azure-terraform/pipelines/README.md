@@ -6,9 +6,22 @@ The deployment pipeline intentionally stays close to the existing working pipeli
 
 - keep the `Core/Pipelines` Terraform IaC scan template for Terraform validation, linting, and existing quality checks,
 - keep the Checkmarx One job shape that already works,
-- add PIPE-06/07 HCP evidence capture as a second stage.
+- add PIPE-06/07 HCP plan and policy evidence capture as a second stage. The stage queues an HCP speculative plan for the current commit, waits for plan JSON, and publishes the resulting evidence back to ADO.
 
-OPA policy-code validation remains separate because policy rules change on a governance cadence, not on every Terraform deployment. Use `azure-pipelines-opa-policy-code.yml` for OPA policy file changes.
+OPA policy-code validation and OPA policy-set deployment remain separate because policy rules change on a governance cadence, not on every Terraform deployment. Use `azure-pipelines-opa-policy-code.yml` for OPA policy file changes.
+
+## Current Validated Flow
+
+The validated ADO flow is:
+
+1. Run the existing Terraform validation/linting and Checkmarx checks.
+2. Queue an HCP speculative plan for the configured workspace and current commit.
+3. Wait for HCP plan JSON, policy checks, and run-task results.
+4. Publish full HCP evidence as the `hcp-plan-policy-evidence` artifact.
+5. Publish readable HCP evidence summaries into the ADO build.
+6. Validate destructive-change acknowledgement from the HCP plan JSON.
+
+HCP remains the Terraform execution and policy evaluation engine. ADO is the review, evidence, and DevSecOps control plane; it does not apply infrastructure in this starter pipeline.
 
 ## Deployment Pipeline
 
@@ -27,8 +40,8 @@ Use `azure-pipelines-devsecops.yml` as the starting Terraform deployment pipelin
 | Item | Coverage | Notes |
 | --- | --- | --- |
 | `PIPE-03` Checkmarx scan | Yes | Preserves the existing `Checkmarx AST@3` job with `sast`, `sca`, and `iac-security`. Adds a small evidence artifact. |
-| `PIPE-06` Speculative plan | Yes, retrieve mode | Retrieves the HCP run/plan for the configured workspace and commit. This assumes HCP VCS integration creates the speculative run from the ADO PR/branch. |
-| `PIPE-07` Policy/run task capture | Yes | Captures HCP `policy-checks` plus task-stage evidence, including run task results and policy evaluations when present. |
+| `PIPE-06` Speculative plan | Yes, queue + capture mode | Queues an HCP speculative plan through the HCP API for the configured workspace and current commit, waits for plan JSON, and publishes plan evidence. This avoids relying on HCP VCS trigger timing. |
+| `PIPE-07` Policy/run task capture | Yes | Captures HCP `policy-checks` plus task-stage evidence, including run task results and policy evaluations when present. The summary includes policy and run-task failure counts. |
 | Destructive-change review | Yes | Classifies delete/replace actions into low, medium, and high impact. Low impact is warning-only. Medium requires PR acknowledgement. High requires PR acknowledgement plus linked work item or change reference. |
 
 PIPE-08 promotion gates and PIPE-09 retention are intentionally not part of the starter pipeline. Promotion control should come first from HCP policy/run-task rules and branch/environment controls.
@@ -40,8 +53,11 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | Name | Type | Purpose |
 | --- | --- | --- |
 | `Checkmarx-One-Service-Connection` | Service connection | Existing Checkmarx AST service connection. |
-| `HCP_TOKEN` | Secret variable | HCP Terraform API token used to read HCP run, plan, policy-check, and run-task evidence. |
+| `HCP_TOKEN` | Secret variable | HCP Terraform API token used to queue/read HCP runs, plans, policy checks, and run-task evidence. |
 | `System.AccessToken` | Built-in OAuth token | Used to read the ADO PR description and linked work items for destructive-change acknowledgement. Enable "Allow scripts to access the OAuth token" if required by the ADO project settings. |
+| `terraformScriptsRoot` | Pipeline variable | Path to the checked-out Terraform automation folder. In this repository it is `azure-terraform`. |
+| `hcpOrganization` | Pipeline variable | HCP Terraform organization name. |
+| `hcpWorkspace` | Pipeline variable | HCP Terraform workspace that should receive the speculative plan. |
 
 Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
 
@@ -49,10 +65,12 @@ Set `terraformScriptsRoot` to the path where the Terraform automation folder is 
 
 The HCP evidence stage requires:
 
-- the target root has a mapped HCP workspace,
-- HCP VCS integration is creating runs for the same ADO branch/commit,
+- the target root has a mapped HCP workspace with the correct Terraform working directory,
+- the HCP workspace has the required Terraform variables, environment variables, and Azure federated credentials,
 - policy sets and run tasks have already been attached to the target HCP workspace or project,
-- `HCP_TOKEN` is available to the pipeline.
+- `HCP_TOKEN` is available to the pipeline and can queue/read runs, plans, policy checks, and task stages.
+
+HCP VCS automatic run triggers are optional for this ADO evidence flow. The pipeline queues its own plan by API so ADO can capture evidence for the exact build commit.
 
 ADO does not run `terraform apply` and does not deploy policy sets. It retrieves plan JSON, policy-check output, and run-task output from HCP and publishes those files as pipeline artifacts. By default, raw destroy detection is warning/evidence only because deletes and replacements can be legitimate Terraform outcomes. Failed HCP policy checks and failed HCP run tasks fail the ADO pipeline.
 
@@ -98,3 +116,22 @@ By default, `destructiveChangeEnforceOnlyOnPr` is `true`, so PR-template acknowl
 ## OPA Policy-Code Pipeline
 
 Use `azure-pipelines-opa-policy-code.yml` as the separate OPA policy-code validation pipeline. It runs only when OPA policy files or HCP policy-scope catalog files change and validates Rego with `opa fmt` and `opa test`.
+
+The same pipeline now has a second protected branch stage, `HcpOpaPolicySetDeployment`, that plans and deploys the VCS-backed HCP OPA policy set from `azure-terraform/hcp/control-plane`.
+
+Deployment behavior:
+
+- PR builds run validation only.
+- `develop` branch builds run Terraform init/validate/plan and publish deployment evidence.
+- `main` branch builds run Terraform init/validate/plan/apply and publish deployment evidence.
+
+Required variables/secrets for the deployment stage:
+
+| Name | Type | Purpose |
+| --- | --- | --- |
+| `HCP_TOKEN` | Secret variable | HCP Terraform token used by the `tfe` provider. |
+| `hcpOrganization` | Pipeline variable | HCP Terraform organization that owns the policy set. |
+| `hcpOauthTokenId` | Secret variable | HCP VCS OAuth token ID for the Azure DevOps repo connection. |
+| `policyRepoIdentifier` | Pipeline variable | Repository identifier expected by the HCP VCS provider for the ADO repo containing `azure-terraform/policies/opa`. |
+
+The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.

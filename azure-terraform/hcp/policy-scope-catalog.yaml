@@ -1,0 +1,55 @@
+source_control:
+  provider: azure_devops
+  organization: compeer
+  project: cloud-enablement
+  repository: azure-landing-zone-iac
+  branch: main
+
+policy_sets:
+  net_new_lz_opa:
+    description: OPA plan guardrails for the Compeer net-new landing-zone path.
+    vcs_policy_directory: azure-terraform/policies/opa
+    enforcement_level: advisory
+    project_scopes:
+      - ce-lz-governance
+      - ce-lz-platform
+      - ce-lz-workloads
+    workspace_scopes: []
+    excluded_workspaces: []
+
+  legacy_lz_advisory:
+    description: Advisory-only OPA assessment for remediated current/legacy landing-zone workspaces.
+    vcs_policy_directory: azure-terraform/policies/opa
+    enforcement_level: advisory
+    project_scopes:
+      - legacy-observe
+    workspace_scopes: []
+    excluded_workspaces: []
+    onboarding_gate:
+      required_before_attachment:
+        - workspace_owner_confirmed
+        - state_owner_confirmed
+        - remediation_backlog_created
+        - exception_register_created
+        - policy_impact_review_completed
+
+legacy_policy_waves:
+  wave_0_observe:
+    enforcement_level: advisory
+    description: Read-only policy visibility for current projects. No blocking.
+    projects:
+      - legacy-observe
+    workspaces: []
+
+  wave_1_ready_nonprod:
+    enforcement_level: advisory
+    description: Non-prod legacy workspaces that passed state, owner, and exception readiness.
+    projects: []
+    workspaces:
+      - legacy-np1-example
+
+  wave_2_selected_mandatory:
+    enforcement_level: mandatory
+    description: Selected remediated workspaces with approved exception path and clean advisory history.
+    projects: []
+    workspaces: []

@@ -30,7 +30,13 @@ pool:
 variables:
   vmPoolImage: ubuntu-latest
   terraformRepoRoot: azure-terraform
+  hcpControlPlaneRoot: azure-terraform/hcp/control-plane
+  hcpHostname: app.terraform.io
+  policyScopeCatalogPath: ../policy-scope-catalog.yaml
+  policySetKey: net_new_lz_opa
+  policySetName: compeer-net-new-lz-opa
   opaVersion: '1.4.2'
+  terraformVersion: '1.5.7'
 
 stages:
   - stage: OpaPolicyCodeValidation
@@ -80,3 +86,101 @@ stages:
             inputs:
               targetPath: '$(Build.ArtifactStagingDirectory)/opa'
               artifact: opa-policy-code-validation
+
+  - stage: HcpOpaPolicySetDeployment
+    displayName: HCP OPA policy-set deployment
+    dependsOn: OpaPolicyCodeValidation
+    condition: |
+      and(
+        succeeded(),
+        ne(variables['Build.Reason'], 'PullRequest'),
+        in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop')
+      )
+    jobs:
+      - job: PlanAndDeployHcpOpaPolicySet
+        displayName: Plan and deploy HCP OPA policy set
+        pool:
+          vmImage: $(vmPoolImage)
+        steps:
+          - checkout: self
+
+          - bash: |
+              set -euo pipefail
+
+              terraform_zip="$(Agent.TempDirectory)/terraform.zip"
+              terraform_bin="$(Agent.TempDirectory)/terraform-bin"
+              mkdir -p "$terraform_bin"
+
+              curl -fsSL \
+                "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip" \
+                -o "$terraform_zip"
+              unzip -q -o "$terraform_zip" -d "$terraform_bin"
+
+              echo "##vso[task.prependpath]$terraform_bin"
+              "$terraform_bin/terraform" version
+            displayName: Install Terraform
+
+          - bash: |
+              set -euo pipefail
+
+              missing=0
+              for var_name in HCP_TOKEN HCP_ORGANIZATION HCP_OAUTH_TOKEN_ID POLICY_REPO_IDENTIFIER; do
+                var_value="${!var_name:-}"
+                if [[ -z "$var_value" || "$var_value" == \$\(*\) ]]; then
+                  echo "Missing required pipeline variable or secret: $var_name" >&2
+                  missing=1
+                fi
+              done
+
+              if [[ "$missing" -ne 0 ]]; then
+                exit 1
+              fi
+
+              terraform -chdir="$(hcpControlPlaneRoot)" init -input=false
+              terraform -chdir="$(hcpControlPlaneRoot)" fmt -check
+              terraform -chdir="$(hcpControlPlaneRoot)" validate
+
+              terraform -chdir="$(hcpControlPlaneRoot)" plan \
+                -input=false \
+                -out="$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \
+                -var="hcp_hostname=$(hcpHostname)" \
+                -var="hcp_organization=$HCP_ORGANIZATION" \
+                -var="hcp_oauth_token_id=$HCP_OAUTH_TOKEN_ID" \
+                -var="policy_repo_identifier=$POLICY_REPO_IDENTIFIER" \
+                -var="policy_scope_catalog_path=$(policyScopeCatalogPath)" \
+                -var="policy_set_key=$(policySetKey)" \
+                -var="policy_set_name=$(policySetName)" \
+                -var="opa_policy_tool_version=$(opaVersion)"
+
+              terraform -chdir="$(hcpControlPlaneRoot)" show -no-color \
+                "$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \
+                > "$(Build.ArtifactStagingDirectory)/hcp-opa-policy-set-plan.txt"
+            displayName: Terraform plan HCP OPA policy set
+            env:
+              TFE_TOKEN: $(HCP_TOKEN)
+              HCP_TOKEN: $(HCP_TOKEN)
+              HCP_ORGANIZATION: $(hcpOrganization)
+              HCP_OAUTH_TOKEN_ID: $(hcpOauthTokenId)
+              POLICY_REPO_IDENTIFIER: $(policyRepoIdentifier)
+
+          - bash: |
+              set -euo pipefail
+
+              terraform -chdir="$(hcpControlPlaneRoot)" apply \
+                -input=false \
+                -auto-approve \
+                "$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan"
+
+              terraform -chdir="$(hcpControlPlaneRoot)" output -json \
+                > "$(Build.ArtifactStagingDirectory)/hcp-opa-policy-set-outputs.json"
+            displayName: Terraform apply HCP OPA policy set
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            env:
+              TFE_TOKEN: $(HCP_TOKEN)
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish HCP OPA policy-set deployment evidence
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: hcp-opa-policy-set-deployment
