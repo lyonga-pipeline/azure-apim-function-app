@@ -117,7 +117,7 @@ By default, `destructiveChangeEnforceOnlyOnPr` is `true`, so PR-template acknowl
 
 Use `azure-pipelines-opa-policy-code.yml` as the separate OPA policy-code validation pipeline. It runs only when OPA policy files or HCP policy-scope catalog files change and validates Rego with `opa fmt` and `opa test`.
 
-The same pipeline now has a second protected branch stage, `HcpOpaPolicySetDeployment`, that plans and deploys the HCP OPA policy set from `azure-terraform/hcp/control-plane`. The policy files are uploaded from the checked-out repository with a Terraform slug, so the stage does not need a VCS OAuth token ID.
+The same pipeline now has a second protected branch stage, `HcpOpaPolicySetDeployment`, that plans and deploys the HCP OPA policy set from `azure-terraform/hcp/control-plane`. By default, it bundles the Rego policy plus required JSON data into one individual HCP OPA policy and attaches that policy to the policy set, so the stage does not need a VCS OAuth token ID or versioned policy-set entitlement.
 
 Deployment behavior:
 
@@ -137,6 +137,8 @@ Required variables/secrets for the deployment stage:
 | `HCP_POLICY_CONTENT_MODE` | Optional pipeline variable | Defaults to `individual`, which creates one OPA policy and attaches it to the policy set. Use `none` to only attach an existing policy set, or `slug` only when the HCP organization supports uploaded/versioned policy sets. |
 
 The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous.
+
+If an HCP run shows `OPA policies errored`, that means the policy failed to compile or evaluate, not that a normal guardrail failed. Normal guardrail results should appear as mandatory failures or advisory warnings with the policy messages. The deployment stage runs `opa check` and a small `opa eval` against the bundled policy before Terraform plan/apply so bundle shape errors are caught in ADO first.
 
 Example runtime scope:
 
