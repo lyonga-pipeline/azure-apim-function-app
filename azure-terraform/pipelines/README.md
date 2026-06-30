@@ -117,7 +117,7 @@ By default, `destructiveChangeEnforceOnlyOnPr` is `true`, so PR-template acknowl
 
 Use `azure-pipelines-opa-policy-code.yml` as the separate OPA policy-code validation pipeline. It runs only when OPA policy files or HCP policy-scope catalog files change and validates Rego with `opa fmt` and `opa test`.
 
-The same pipeline now has a second protected branch stage, `HcpOpaPolicySetDeployment`, that plans and deploys the VCS-backed HCP OPA policy set from `azure-terraform/hcp/control-plane`.
+The same pipeline now has a second protected branch stage, `HcpOpaPolicySetDeployment`, that plans and deploys the HCP OPA policy set from `azure-terraform/hcp/control-plane`. The policy files are uploaded from the checked-out repository with a Terraform slug, so the stage does not need a VCS OAuth token ID.
 
 Deployment behavior:
 
@@ -131,9 +131,7 @@ Required variables/secrets for the deployment stage:
 | --- | --- | --- |
 | `HCP_TOKEN` | Secret variable | HCP Terraform token used by the `tfe` provider. |
 | `HCP_ORGANIZATION` | Pipeline variable | HCP Terraform organization that owns the policy set. |
-| `HCP_OAUTH_TOKEN_ID` | Optional secret variable | Override for the HCP VCS OAuth token ID. Usually not needed when the HCP organization has one Azure DevOps VCS connection. |
-| `POLICY_REPO_IDENTIFIER` | Optional pipeline variable | Override for the repository identifier expected by the HCP VCS provider. Usually derived from Azure DevOps build variables as `org/project/_git/repo`. |
 
-`HCP_OAUTH_TOKEN_ID` is not the same value as `HCP_TOKEN`. `HCP_TOKEN` is the API token used to call HCP Terraform. `HCP_OAUTH_TOKEN_ID` is the HCP VCS connection token ID, usually an `ot-...` value. The pipeline discovers it from the HCP organization when there is exactly one Azure DevOps VCS connection. If multiple Azure DevOps VCS connections exist, set `HCP_OAUTH_TOKEN_ID` explicitly.
+The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous, so this pipeline uploads the policy directory directly from the Azure DevOps checkout instead.
 
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.

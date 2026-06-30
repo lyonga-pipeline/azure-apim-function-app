@@ -14,31 +14,10 @@ variable "hcp_organization" {
   }
 }
 
-variable "hcp_oauth_token_id" {
+variable "policy_source_root_path" {
   type        = string
-  description = "HCP Terraform VCS OAuth token ID for the Azure DevOps connection."
-  sensitive   = true
-
-  validation {
-    condition     = length(trimspace(var.hcp_oauth_token_id)) > 0
-    error_message = "hcp_oauth_token_id must be provided."
-  }
-}
-
-variable "policy_repo_identifier" {
-  type        = string
-  description = "HCP VCS repository identifier for the Azure DevOps repo that contains the OPA policy directory."
-
-  validation {
-    condition     = length(trimspace(var.policy_repo_identifier)) > 0
-    error_message = "policy_repo_identifier must be provided in the format expected by the configured HCP VCS provider."
-  }
-}
-
-variable "policy_repo_branch" {
-  type        = string
-  description = "Fallback VCS branch for the policy set when the catalog source_control branch is absent."
-  default     = "main"
+  description = "Path from this Terraform root to the checked-out repository root that contains the catalog's policy directory."
+  default     = "../../.."
 }
 
 variable "policy_scope_catalog_path" {

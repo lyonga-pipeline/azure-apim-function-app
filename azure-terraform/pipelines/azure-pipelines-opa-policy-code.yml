@@ -141,57 +141,8 @@ stages:
                 exit 1
               fi
 
-              if is_unset_value "${POLICY_REPO_IDENTIFIER:-}"; then
-                ado_org=""
-                collection_uri="${SYSTEM_COLLECTIONURI%/}"
-
-                if [[ "$collection_uri" == https://dev.azure.com/* ]]; then
-                  ado_org="${collection_uri#https://dev.azure.com/}"
-                  ado_org="${ado_org%%/*}"
-                elif [[ "$collection_uri" == https://*.visualstudio.com ]]; then
-                  ado_org="${collection_uri#https://}"
-                  ado_org="${ado_org%%.visualstudio.com}"
-                fi
-
-                if [[ -z "$ado_org" || -z "${SYSTEM_TEAMPROJECT:-}" || -z "${BUILD_REPOSITORY_NAME:-}" ]]; then
-                  echo "Unable to derive POLICY_REPO_IDENTIFIER from Azure DevOps build variables." >&2
-                  echo "Set POLICY_REPO_IDENTIFIER explicitly, for example: org/project/_git/repo." >&2
-                  exit 1
-                fi
-
-                POLICY_REPO_IDENTIFIER="${ado_org}/${SYSTEM_TEAMPROJECT}/_git/${BUILD_REPOSITORY_NAME}"
-              fi
-
-              if is_unset_value "${HCP_OAUTH_TOKEN_ID:-}"; then
-                echo "Discovering Azure DevOps HCP VCS OAuth token ID from HCP organization..."
-
-                mapfile -t discovered_token_ids < <(
-                  curl -fsSL \
-                    --header "Authorization: Bearer $HCP_TOKEN" \
-                    "https://$(hcpHostname)/api/v2/organizations/$HCP_ORGANIZATION/oauth-clients?include=oauth_tokens" \
-                    | jq -r '
-                        .data[]
-                        | select(.attributes."service-provider" == "ado_services" or .attributes."service-provider" == "ado_server")
-                        | .relationships."oauth-tokens".data[]?.id
-                      '
-                )
-
-                if [[ "${#discovered_token_ids[@]}" -eq 1 ]]; then
-                  HCP_OAUTH_TOKEN_ID="${discovered_token_ids[0]}"
-                elif [[ "${#discovered_token_ids[@]}" -eq 0 ]]; then
-                  echo "No Azure DevOps VCS OAuth token ID found in HCP organization $HCP_ORGANIZATION." >&2
-                  echo "Connect Azure DevOps under HCP Terraform organization settings, then rerun." >&2
-                  exit 1
-                else
-                  echo "Found multiple Azure DevOps VCS OAuth token IDs in HCP organization $HCP_ORGANIZATION." >&2
-                  echo "Set HCP_OAUTH_TOKEN_ID explicitly to the desired ot-... value." >&2
-                  exit 1
-                fi
-              fi
-
               echo "Using HCP organization: $HCP_ORGANIZATION"
-              echo "Using policy repo identifier: $POLICY_REPO_IDENTIFIER"
-              echo "Using discovered/provided HCP VCS OAuth token ID."
+              echo "Uploading OPA policy directory from the checked-out repository."
 
               terraform -chdir="$(hcpControlPlaneRoot)" init -input=false
               terraform -chdir="$(hcpControlPlaneRoot)" fmt -check
@@ -202,8 +153,7 @@ stages:
                 -out="$(Agent.TempDirectory)/hcp-opa-policy-set.tfplan" \
                 -var="hcp_hostname=$(hcpHostname)" \
                 -var="hcp_organization=$HCP_ORGANIZATION" \
-                -var="hcp_oauth_token_id=$HCP_OAUTH_TOKEN_ID" \
-                -var="policy_repo_identifier=$POLICY_REPO_IDENTIFIER" \
+                -var="policy_source_root_path=../../.." \
                 -var="policy_scope_catalog_path=$(policyScopeCatalogPath)" \
                 -var="policy_set_key=$(policySetKey)" \
                 -var="policy_set_name=$(policySetName)" \
@@ -217,8 +167,6 @@ stages:
               TFE_TOKEN: $(HCP_TOKEN)
               HCP_TOKEN: $(HCP_TOKEN)
               HCP_ORGANIZATION: $(HCP_ORGANIZATION)
-              HCP_OAUTH_TOKEN_ID: $(HCP_OAUTH_TOKEN_ID)
-              POLICY_REPO_IDENTIFIER: $(POLICY_REPO_IDENTIFIER)
 
           - bash: |
               set -euo pipefail

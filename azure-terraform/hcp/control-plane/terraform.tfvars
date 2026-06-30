@@ -1,6 +1,5 @@
 hcp_organization          = "compeer"
-hcp_oauth_token_id        = "ot-xxxxxxxxxxxxxxxx"
-policy_repo_identifier    = "compeer/cloud-enablement/_git/azure-landing-zone-iac"
+policy_source_root_path   = "../../.."
 policy_scope_catalog_path = "../policy-scope-catalog.yaml"
 policy_set_key            = "net_new_lz_opa"
 policy_set_name           = "compeer-net-new-lz-opa"

@@ -8,9 +8,12 @@ locals {
   workspace_scopes    = toset(try(local.policy_set.workspace_scopes, []))
   excluded_workspaces = toset(try(local.policy_set.excluded_workspaces, []))
 
-  policy_repo_branch   = try(local.source_control.branch, var.policy_repo_branch)
-  opa_policy_directory = local.policy_set.vcs_policy_directory
+  opa_policy_directory = abspath("${path.module}/${var.policy_source_root_path}/${local.policy_set.vcs_policy_directory}")
   enforcement_level    = try(local.policy_set.enforcement_level, "advisory")
+}
+
+data "tfe_slug" "opa_policy_directory" {
+  source_path = local.opa_policy_directory
 }
 
 data "tfe_project" "policy_scope" {
@@ -42,17 +45,7 @@ resource "tfe_policy_set" "opa" {
   agent_enabled       = true
   policy_tool_version = var.opa_policy_tool_version
   overridable         = local.enforcement_level == "mandatory" ? var.mandatory_policy_overridable : false
-  policies_path       = local.opa_policy_directory
-  policy_update_patterns = [
-    "${local.opa_policy_directory}/**",
-  ]
-
-  vcs_repo {
-    identifier         = var.policy_repo_identifier
-    branch             = local.policy_repo_branch
-    ingress_submodules = false
-    oauth_token_id     = var.hcp_oauth_token_id
-  }
+  slug                = data.tfe_slug.opa_policy_directory
 }
 
 resource "tfe_project_policy_set" "opa" {

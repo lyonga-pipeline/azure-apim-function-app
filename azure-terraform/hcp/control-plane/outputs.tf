@@ -14,8 +14,8 @@ output "policy_set_key" {
 }
 
 output "policies_path" {
-  description = "VCS path HCP Terraform loads policy files from."
-  value       = tfe_policy_set.opa.policies_path
+  description = "Local path uploaded to HCP Terraform as the policy set slug."
+  value       = local.opa_policy_directory
 }
 
 output "project_scopes" {
