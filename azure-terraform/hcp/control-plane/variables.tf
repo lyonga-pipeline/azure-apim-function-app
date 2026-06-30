@@ -40,19 +40,19 @@ variable "policy_set_name" {
 
 variable "project_scopes" {
   type        = list(string)
-  description = "Optional HCP project names to attach the policy set to. Overrides project_scopes from the catalog when non-empty."
+  description = "Optional HCP project names to attach the policy set to. Leave empty to keep the policy set unattached to projects."
   default     = []
 }
 
 variable "workspace_scopes" {
   type        = list(string)
-  description = "Optional HCP workspace names to attach the policy set to. Overrides workspace_scopes from the catalog when non-empty."
+  description = "Optional HCP workspace names to attach the policy set to. Leave empty to keep the policy set unattached to workspaces."
   default     = []
 }
 
 variable "excluded_workspaces" {
   type        = list(string)
-  description = "Optional HCP workspace names to exclude from the policy set. Overrides excluded_workspaces from the catalog when non-empty."
+  description = "Optional HCP workspace names to exclude from the policy set."
   default     = []
 }
 

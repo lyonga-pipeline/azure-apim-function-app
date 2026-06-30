@@ -131,9 +131,9 @@ Required variables/secrets for the deployment stage:
 | --- | --- | --- |
 | `HCP_TOKEN` | Secret variable | HCP Terraform token used by the `tfe` provider. |
 | `HCP_ORGANIZATION` | Pipeline variable | HCP Terraform organization that owns the policy set. |
-| `HCP_PROJECT_SCOPES` | Optional pipeline variable | Comma-separated HCP project names to attach the policy set to. Overrides catalog project scopes when set. |
-| `HCP_WORKSPACE_SCOPES` | Optional pipeline variable | Comma-separated HCP workspace names to attach the policy set to. Overrides catalog workspace scopes when set. |
-| `HCP_EXCLUDED_WORKSPACES` | Optional pipeline variable | Comma-separated HCP workspace names to exclude from the policy set. Overrides catalog exclusions when set. |
+| `HCP_PROJECT_SCOPES` | Optional pipeline variable | Comma-separated HCP project names to attach the policy set to. Leave unset to keep it unattached to projects. |
+| `HCP_WORKSPACE_SCOPES` | Optional pipeline variable | Comma-separated HCP workspace names to attach the policy set to. Leave unset to keep it unattached to workspaces. |
+| `HCP_EXCLUDED_WORKSPACES` | Optional pipeline variable | Comma-separated HCP workspace names to exclude from the policy set. |
 | `HCP_UPLOAD_POLICY_CONTENT` | Optional pipeline variable | Set to `true` only when the HCP organization supports uploaded/versioned policy sets. Defaults to `false`, which attaches an existing policy set by name. |
 
 The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous, so this pipeline uploads the policy directory directly from the Azure DevOps checkout instead.
@@ -143,6 +143,8 @@ Example runtime scope:
 ```text
 HCP_PROJECT_SCOPES=lyonga-project
 ```
+
+Leaving `HCP_PROJECT_SCOPES` and `HCP_WORKSPACE_SCOPES` empty is valid. The pipeline will create or look up the policy set and leave it unattached.
 
 The local validation job still pins the downloaded OPA binary through `opaVersion`, but the HCP policy-set deployment does not pin `policy_tool_version`. HCP Terraform only accepts policy tool versions available in the target organization, so leaving it unset avoids apply failures when the local validation version is newer than HCP's supported runtime list.
 
