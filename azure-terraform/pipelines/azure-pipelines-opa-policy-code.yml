@@ -128,6 +128,17 @@ stages:
                 [[ -z "$value" || "$value" == \$\(*\) ]]
               }
 
+              csv_to_tf_list() {
+                local csv_value="${1:-}"
+
+                if is_unset_value "$csv_value"; then
+                  printf '[]'
+                  return
+                fi
+
+                jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))' <<< "$csv_value"
+              }
+
               missing=0
               for var_name in HCP_TOKEN HCP_ORGANIZATION; do
                 var_value="${!var_name:-}"
@@ -142,6 +153,13 @@ stages:
               fi
 
               echo "Using HCP organization: $HCP_ORGANIZATION"
+              project_scopes_json="$(csv_to_tf_list "${HCP_PROJECT_SCOPES:-}")"
+              workspace_scopes_json="$(csv_to_tf_list "${HCP_WORKSPACE_SCOPES:-}")"
+              excluded_workspaces_json="$(csv_to_tf_list "${HCP_EXCLUDED_WORKSPACES:-}")"
+
+              echo "Using project scopes: $project_scopes_json"
+              echo "Using workspace scopes: $workspace_scopes_json"
+              echo "Using excluded workspaces: $excluded_workspaces_json"
               echo "Uploading OPA policy directory from the checked-out repository."
 
               terraform -chdir="$(hcpControlPlaneRoot)" init -input=false
@@ -157,6 +175,9 @@ stages:
                 -var="policy_scope_catalog_path=$(policyScopeCatalogPath)" \
                 -var="policy_set_key=$(policySetKey)" \
                 -var="policy_set_name=$(policySetName)" \
+                -var="project_scopes=$project_scopes_json" \
+                -var="workspace_scopes=$workspace_scopes_json" \
+                -var="excluded_workspaces=$excluded_workspaces_json" \
                 -var="opa_policy_tool_version=$(opaVersion)"
 
               terraform -chdir="$(hcpControlPlaneRoot)" show -no-color \
@@ -167,6 +188,9 @@ stages:
               TFE_TOKEN: $(HCP_TOKEN)
               HCP_TOKEN: $(HCP_TOKEN)
               HCP_ORGANIZATION: $(HCP_ORGANIZATION)
+              HCP_PROJECT_SCOPES: $(HCP_PROJECT_SCOPES)
+              HCP_WORKSPACE_SCOPES: $(HCP_WORKSPACE_SCOPES)
+              HCP_EXCLUDED_WORKSPACES: $(HCP_EXCLUDED_WORKSPACES)
 
           - bash: |
               set -euo pipefail

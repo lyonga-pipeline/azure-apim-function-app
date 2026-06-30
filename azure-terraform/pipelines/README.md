@@ -131,7 +131,16 @@ Required variables/secrets for the deployment stage:
 | --- | --- | --- |
 | `HCP_TOKEN` | Secret variable | HCP Terraform token used by the `tfe` provider. |
 | `HCP_ORGANIZATION` | Pipeline variable | HCP Terraform organization that owns the policy set. |
+| `HCP_PROJECT_SCOPES` | Optional pipeline variable | Comma-separated HCP project names to attach the policy set to. Overrides catalog project scopes when set. |
+| `HCP_WORKSPACE_SCOPES` | Optional pipeline variable | Comma-separated HCP workspace names to attach the policy set to. Overrides catalog workspace scopes when set. |
+| `HCP_EXCLUDED_WORKSPACES` | Optional pipeline variable | Comma-separated HCP workspace names to exclude from the policy set. Overrides catalog exclusions when set. |
 
 The stage intentionally avoids `HCP_OAUTH_TOKEN_ID` and `POLICY_REPO_IDENTIFIER`. Those are only needed for VCS-backed HCP policy sets. In organizations with many VCS connections, discovering the right `ot-...` value is ambiguous, so this pipeline uploads the policy directory directly from the Azure DevOps checkout instead.
+
+Example runtime scope:
+
+```text
+HCP_PROJECT_SCOPES=lyonga-project
+```
 
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.

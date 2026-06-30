@@ -3,4 +3,7 @@ policy_source_root_path   = "../../.."
 policy_scope_catalog_path = "../policy-scope-catalog.yaml"
 policy_set_key            = "net_new_lz_opa"
 policy_set_name           = "compeer-net-new-lz-opa"
+project_scopes            = []
+workspace_scopes          = []
+excluded_workspaces       = []
 opa_policy_tool_version   = "1.4.2"

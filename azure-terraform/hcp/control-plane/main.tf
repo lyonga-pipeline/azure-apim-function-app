@@ -4,9 +4,19 @@ locals {
   policy_sets    = local.policy_catalog.policy_sets
   policy_set     = local.policy_sets[var.policy_set_key]
 
-  project_scopes      = toset(try(local.policy_set.project_scopes, []))
-  workspace_scopes    = toset(try(local.policy_set.workspace_scopes, []))
-  excluded_workspaces = toset(try(local.policy_set.excluded_workspaces, []))
+  catalog_project_scopes      = try(local.policy_set.project_scopes, [])
+  catalog_workspace_scopes    = try(local.policy_set.workspace_scopes, [])
+  catalog_excluded_workspaces = try(local.policy_set.excluded_workspaces, [])
+
+  project_scopes = toset(
+    length(var.project_scopes) > 0 ? var.project_scopes : local.catalog_project_scopes
+  )
+  workspace_scopes = toset(
+    length(var.workspace_scopes) > 0 ? var.workspace_scopes : local.catalog_workspace_scopes
+  )
+  excluded_workspaces = toset(
+    length(var.excluded_workspaces) > 0 ? var.excluded_workspaces : local.catalog_excluded_workspaces
+  )
 
   opa_policy_directory = abspath("${path.module}/${var.policy_source_root_path}/${local.policy_set.vcs_policy_directory}")
   enforcement_level    = try(local.policy_set.enforcement_level, "advisory")

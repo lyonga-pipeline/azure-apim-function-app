@@ -38,6 +38,24 @@ variable "policy_set_name" {
   default     = "compeer-net-new-lz-opa"
 }
 
+variable "project_scopes" {
+  type        = list(string)
+  description = "Optional HCP project names to attach the policy set to. Overrides project_scopes from the catalog when non-empty."
+  default     = []
+}
+
+variable "workspace_scopes" {
+  type        = list(string)
+  description = "Optional HCP workspace names to attach the policy set to. Overrides workspace_scopes from the catalog when non-empty."
+  default     = []
+}
+
+variable "excluded_workspaces" {
+  type        = list(string)
+  description = "Optional HCP workspace names to exclude from the policy set. Overrides excluded_workspaces from the catalog when non-empty."
+  default     = []
+}
+
 variable "opa_policy_tool_version" {
   type        = string
   description = "OPA runtime version to pin for the HCP policy set. Leave null to let HCP choose the default on creation."
