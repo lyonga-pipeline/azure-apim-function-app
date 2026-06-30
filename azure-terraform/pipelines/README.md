@@ -130,8 +130,10 @@ Required variables/secrets for the deployment stage:
 | Name | Type | Purpose |
 | --- | --- | --- |
 | `HCP_TOKEN` | Secret variable | HCP Terraform token used by the `tfe` provider. |
-| `hcpOrganization` | Pipeline variable | HCP Terraform organization that owns the policy set. |
-| `hcpOauthTokenId` | Secret variable | HCP VCS OAuth token ID for the Azure DevOps repo connection. |
-| `policyRepoIdentifier` | Pipeline variable | Repository identifier expected by the HCP VCS provider for the ADO repo containing `azure-terraform/policies/opa`. |
+| `HCP_ORGANIZATION` | Pipeline variable | HCP Terraform organization that owns the policy set. |
+| `HCP_OAUTH_TOKEN_ID` | Optional secret variable | Override for the HCP VCS OAuth token ID. Usually not needed when the HCP organization has one Azure DevOps VCS connection. |
+| `POLICY_REPO_IDENTIFIER` | Optional pipeline variable | Override for the repository identifier expected by the HCP VCS provider. Usually derived from Azure DevOps build variables as `org/project/_git/repo`. |
+
+`HCP_OAUTH_TOKEN_ID` is not the same value as `HCP_TOKEN`. `HCP_TOKEN` is the API token used to call HCP Terraform. `HCP_OAUTH_TOKEN_ID` is the HCP VCS connection token ID, usually an `ot-...` value. The pipeline discovers it from the HCP organization when there is exactly one Azure DevOps VCS connection. If multiple Azure DevOps VCS connections exist, set `HCP_OAUTH_TOKEN_ID` explicitly.
 
 The deployable catalog is `azure-terraform/hcp/policy-scope-catalog.yaml`. Update its `source_control`, `project_scopes`, `workspace_scopes`, and `excluded_workspaces` values before enabling the `main` apply path. The `policy-scope-catalog.example.yaml` file remains as a safe reference model.
