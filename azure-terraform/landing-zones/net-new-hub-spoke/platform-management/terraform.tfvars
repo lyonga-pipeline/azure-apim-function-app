@@ -146,32 +146,37 @@ management_locks = {
   }
 }
 
-defender_plans = {
-  servers = {
-    resource_type = "VirtualMachines"
-    tier          = "Standard"
-  }
-  app_services = {
-    resource_type = "AppServices"
-    tier          = "Standard"
-  }
-  storage = {
-    resource_type = "StorageAccounts"
-    tier          = "Standard"
-  }
-  key_vaults = {
-    resource_type = "KeyVaults"
-    tier          = "Standard"
-  }
-  sql_servers = {
-    resource_type = "SqlServers"
-    tier          = "Standard"
-  }
-  arm = {
-    resource_type = "Arm"
-    tier          = "Standard"
-  }
-}
+# Keep Defender for Cloud paid plans disabled for short landing-zone smoke tests.
+# To test or promote the enterprise security baseline, uncomment the Standard
+# plan map below and rerun this workspace after cost approval.
+defender_plans = {}
+
+# defender_plans = {
+#   servers = {
+#     resource_type = "VirtualMachines"
+#     tier          = "Standard"
+#   }
+#   app_services = {
+#     resource_type = "AppServices"
+#     tier          = "Standard"
+#   }
+#   storage = {
+#     resource_type = "StorageAccounts"
+#     tier          = "Standard"
+#   }
+#   key_vaults = {
+#     resource_type = "KeyVaults"
+#     tier          = "Standard"
+#   }
+#   sql_servers = {
+#     resource_type = "SqlServers"
+#     tier          = "Standard"
+#   }
+#   arm = {
+#     resource_type = "Arm"
+#     tier          = "Standard"
+#   }
+# }
 
 security_contact = {
   email               = "cloudsecurity@compeer.example"

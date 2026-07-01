@@ -6,6 +6,14 @@ variable "dns_servers" {
   type    = list(string)
   default = null
 }
+variable "ddos_protection_plan_id" {
+  type    = string
+  default = null
+}
+variable "enable_ddos_protection_plan" {
+  type    = bool
+  default = true
+}
 variable "subnets" {
   type = map(object({
     address_prefixes                              = list(string)

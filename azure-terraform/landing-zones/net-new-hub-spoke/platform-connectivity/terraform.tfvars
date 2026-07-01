@@ -24,8 +24,11 @@ hub_vnet = {
   address_space = ["10.40.0.0/20"]
   dns_servers   = ["10.10.10.10", "10.10.10.11"]
   subnets = {
-    firewall = {
+    AzureFirewallSubnet = {
       address_prefixes = ["10.40.0.0/26"]
+    }
+    GatewaySubnet = {
+      address_prefixes = ["10.40.0.64/27"]
     }
     private_endpoints = {
       address_prefixes                  = ["10.40.1.0/24"]

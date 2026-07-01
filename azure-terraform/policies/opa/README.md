@@ -53,7 +53,7 @@ opa test azure-terraform/policies/opa/policies azure-terraform/policies/opa/test
 Expected result:
 
 ```text
-PASS: 6/6
+PASS: 8/8
 ```
 
 ## HCP Enforcement Plan
@@ -80,12 +80,16 @@ Rollout stages:
 
 ## HCP Creation Steps
 
-1. Connect HCP Terraform to the VCS repository that contains this folder.
-2. Create an OPA policy set using `azure-terraform/policies/opa` as the policy set directory.
-3. Use `policies.hcl` as the policy configuration file.
-4. Attach the policy set to the net-new landing-zone HCP projects or explicit workspace list.
-5. Keep `enforcement_level = "advisory"` during the pilot.
-6. Promote selected rules to `mandatory` only after impact review and exception handling are operating.
+The current automated path uses `azure-terraform/pipelines/azure-pipelines-opa-policy-code.yml`.
+
+1. The validation stage runs `opa fmt` and `opa test`.
+2. The deployment stage bundles `terraform_plan.rego` with `data/net_new_lz.json` into one individual HCP OPA policy.
+3. The stage creates or updates one HCP OPA policy set and attaches the individual policy to it.
+4. Optional `HCP_PROJECT_SCOPES` or `HCP_WORKSPACE_SCOPES` variables attach the policy set to net-new landing-zone targets.
+5. Keep enforcement advisory during the pilot.
+6. Promote selected rules to mandatory only after impact review and exception handling are operating.
+
+This individual-policy mode avoids the VCS OAuth token ID and uploaded/versioned policy-set limits that can block test/free HCP organizations. VCS-backed policy sets remain valid for enterprise HCP plans that support them.
 
 HCP Terraform supports policy sets scoped globally, by project, or by workspace. Use project/workspace scoping for the landing zone so current projects are isolated from new blocking controls.
 
