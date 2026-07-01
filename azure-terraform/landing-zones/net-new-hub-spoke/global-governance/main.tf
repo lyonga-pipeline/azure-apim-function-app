@@ -1,5 +1,10 @@
 locals {
-  root_parent_management_group_id = trimspace(coalesce(var.root_management_group_id, "")) == "" ? null : var.root_management_group_id
+  root_parent_management_group_value = trimspace(coalesce(var.root_management_group_id, ""))
+  root_parent_management_group_id = (
+    local.root_parent_management_group_value == "" ? null :
+    startswith(local.root_parent_management_group_value, "/providers/Microsoft.Management/managementGroups/") ? local.root_parent_management_group_value :
+    "/providers/Microsoft.Management/managementGroups/${local.root_parent_management_group_value}"
+  )
 
   root_management_groups = {
     for key, value in var.management_groups : key => value
