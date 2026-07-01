@@ -1,5 +1,3 @@
-root_management_group_id = "/providers/Microsoft.Management/managementGroups/compeer-root"
-
 management_groups = {
   "compeer-lz" = {
     display_name = "Compeer Landing Zones"

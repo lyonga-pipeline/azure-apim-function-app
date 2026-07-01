@@ -1,4 +1,6 @@
 locals {
+  root_parent_management_group_id = trimspace(coalesce(var.root_management_group_id, "")) == "" ? null : var.root_management_group_id
+
   root_management_groups = {
     for key, value in var.management_groups : key => value
     if try(value.parent_key, "root") == "root"
@@ -15,7 +17,7 @@ resource "azurerm_management_group" "root" {
 
   name                       = each.key
   display_name               = each.value.display_name
-  parent_management_group_id = var.root_management_group_id
+  parent_management_group_id = local.root_parent_management_group_id
 }
 
 resource "azurerm_management_group" "child" {
@@ -36,7 +38,7 @@ resource "azurerm_management_group_subscription_association" "this" {
 locals {
   management_group_scope_ids = merge(
     {
-      root = var.root_management_group_id
+      root = local.root_parent_management_group_id
     },
     {
       for key, value in azurerm_management_group.root : key => value.id

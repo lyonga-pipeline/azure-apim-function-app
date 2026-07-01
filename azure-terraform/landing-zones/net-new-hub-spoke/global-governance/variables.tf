@@ -5,11 +5,12 @@ variable "subscription_id" {
 
 variable "root_management_group_id" {
   type        = string
-  description = "Tenant root management group id or approved Compeer root management group id."
+  description = "Optional existing parent management group ID for top-level landing-zone management groups. Leave unset or blank to create them directly under the tenant root."
+  default     = null
 
   validation {
-    condition     = can(regex("^/providers/Microsoft\\.Management/managementGroups/[^/]+$", var.root_management_group_id))
-    error_message = "root_management_group_id must be a full Azure management group resource ID, for example /providers/Microsoft.Management/managementGroups/compeer-root. Do not use the tenant ID."
+    condition     = try(trimspace(var.root_management_group_id), "") == "" || can(regex("^/providers/Microsoft\\.Management/managementGroups/[^/]+$", var.root_management_group_id))
+    error_message = "root_management_group_id must be unset, blank, or a full Azure management group resource ID, for example /providers/Microsoft.Management/managementGroups/compeer-root. Do not use the tenant ID."
   }
 }
 
