@@ -178,18 +178,27 @@ defender_plans = {}
 #   }
 # }
 
-security_contact = {
-  email               = "cloudsecurity@compeer.example"
-  phone               = "+15555550100"
-  alert_notifications = true
-  alerts_to_admins    = true
-}
+# Keep Defender for Cloud contact and subscription-wide security settings
+# unmanaged during short smoke tests. These settings often already exist in a
+# subscription and must be imported before Terraform can manage them.
+security_contact         = null
+security_center_settings = {}
 
-security_center_settings = {
-  MCAS = {
-    enabled = true
-  }
-  WDATP = {
-    enabled = true
-  }
-}
+# To promote the enterprise security baseline, import any pre-existing settings
+# first, then uncomment and manage these values.
+#
+# security_contact = {
+#   email               = "cloudsecurity@compeer.example"
+#   phone               = "+15555550100"
+#   alert_notifications = true
+#   alerts_to_admins    = true
+# }
+#
+# security_center_settings = {
+#   MCAS = {
+#     enabled = true
+#   }
+#   WDATP = {
+#     enabled = true
+#   }
+# }
