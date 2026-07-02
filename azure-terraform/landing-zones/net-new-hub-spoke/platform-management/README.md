@@ -10,6 +10,8 @@ The smoke-test tfvars also leave `security_contact = null` and `security_center_
 
 Resource provider registrations are also left unmanaged in the smoke-test tfvars. Common providers are usually already registered in personal or shared subscriptions; import existing registrations before managing them with Terraform in an enterprise subscription.
 
+Entra diagnostic settings are left unmanaged in the smoke-test tfvars because they are tenant-level `Microsoft.AADIAM` resources, not subscription resources. Enable them only when the HCP run identity has tenant-level permission to read and write Entra diagnostic settings.
+
 Use this root for central monitoring, activity-log diagnostics, Entra diagnostics, action groups, subscription budgets, security contact configuration, and Defender plan enablement. Add Sentinel onboarding and data-collection rules here when the SOC/SIEM design is approved.
 
 ## HCP Azure Dynamic Credentials

@@ -91,29 +91,37 @@ subscription_activity_log_diagnostics = {
   }
 }
 
-entra_diagnostic_settings = {
-  name = "diag-entra-to-law"
-  logs = {
-    audit_logs = {
-      category = "AuditLogs"
-    }
-    sign_in_logs = {
-      category = "SignInLogs"
-    }
-    non_interactive_sign_in_logs = {
-      category = "NonInteractiveUserSignInLogs"
-    }
-    service_principal_sign_in_logs = {
-      category = "ServicePrincipalSignInLogs"
-    }
-    managed_identity_sign_in_logs = {
-      category = "ManagedIdentitySignInLogs"
-    }
-    provisioning_logs = {
-      category = "ProvisioningLogs"
-    }
-  }
-}
+# Keep Entra tenant diagnostics unmanaged during short smoke tests. This is a
+# tenant-level Microsoft.AADIAM setting and requires Entra/tenant permissions in
+# addition to subscription RBAC.
+entra_diagnostic_settings = null
+
+# To promote the enterprise observability baseline, grant the run identity
+# tenant-level permission to manage Entra diagnostics, then uncomment this.
+#
+# entra_diagnostic_settings = {
+#   name = "diag-entra-to-law"
+#   logs = {
+#     audit_logs = {
+#       category = "AuditLogs"
+#     }
+#     sign_in_logs = {
+#       category = "SignInLogs"
+#     }
+#     non_interactive_sign_in_logs = {
+#       category = "NonInteractiveUserSignInLogs"
+#     }
+#     service_principal_sign_in_logs = {
+#       category = "ServicePrincipalSignInLogs"
+#     }
+#     managed_identity_sign_in_logs = {
+#       category = "ManagedIdentitySignInLogs"
+#     }
+#     provisioning_logs = {
+#       category = "ProvisioningLogs"
+#     }
+#   }
+# }
 
 subscription_budgets = {
   platform_management_monthly = {
