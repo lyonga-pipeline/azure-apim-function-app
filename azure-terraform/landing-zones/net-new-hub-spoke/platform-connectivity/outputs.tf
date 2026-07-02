@@ -2,6 +2,10 @@ output "resource_group_name" {
   value = module.resource_group.name
 }
 
+output "hub_resource_group_name" {
+  value = module.resource_group.name
+}
+
 output "hub_virtual_network_id" {
   value = module.hub_vnet.id
 }
@@ -28,6 +32,12 @@ output "private_dns_zone_ids" {
 
 output "private_dns_zone_names" {
   value = module.private_dns_zones.names
+}
+
+output "private_dns_zone_resource_group_names" {
+  value = {
+    for key, zone in var.private_dns_zones : key => coalesce(try(zone.resource_group_name, null), module.resource_group.name)
+  }
 }
 
 output "role_assignment_ids" {

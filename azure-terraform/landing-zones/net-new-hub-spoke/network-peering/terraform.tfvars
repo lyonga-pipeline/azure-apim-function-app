@@ -1,0 +1,52 @@
+tenant_id             = "00000000-0000-0000-0000-000000000000"
+hub_subscription_id   = "11111111-1111-1111-1111-111111111111"
+spoke_subscription_id = "22222222-2222-2222-2222-222222222222"
+
+hub_resource_group_name  = "rg-lz-platform-connectivity-np"
+hub_virtual_network_name = "vnet-lz-hub-np"
+hub_virtual_network_id   = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/virtualNetworks/vnet-lz-hub-np"
+
+spoke_resource_group_name  = "rg-online-banking-np1-network"
+spoke_virtual_network_name = "vnet-online-banking-np1"
+spoke_virtual_network_id   = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-online-banking-np1-network/providers/Microsoft.Network/virtualNetworks/vnet-online-banking-np1"
+
+peering_name_prefix = "online-banking-np1"
+
+hub_to_spoke = {
+  allow_forwarded_traffic = true
+  allow_gateway_transit   = false
+  use_remote_gateways     = false
+}
+
+spoke_to_hub = {
+  allow_forwarded_traffic = true
+  allow_gateway_transit   = false
+  use_remote_gateways     = false
+}
+
+private_dns_zone_resource_group_name = "rg-lz-platform-connectivity-np"
+
+private_dns_zones = {
+  app_service = {
+    name = "privatelink.azurewebsites.net"
+  }
+  key_vault = {
+    name = "privatelink.vaultcore.azure.net"
+  }
+  storage_blob = {
+    name = "privatelink.blob.core.windows.net"
+  }
+  storage_queue = {
+    name = "privatelink.queue.core.windows.net"
+  }
+  storage_file = {
+    name = "privatelink.file.core.windows.net"
+  }
+}
+
+tags = {
+  application         = "online-banking"
+  environment         = "np1"
+  deployment_model    = "net-new-lz"
+  terraform_workspace = "network-peering-online-banking-np1"
+}

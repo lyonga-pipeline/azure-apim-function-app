@@ -11,7 +11,9 @@ This pattern is the first implementation path for Compeer's new Azure IaC founda
 | 3 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS | VNet IDs, subnet ID maps, private DNS zone IDs |
 | 4 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute circuit, gateway, and connection IDs |
 | 5 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
-| 6 | `workload-spoke` | Pilot workload landing zone composition | App resource outputs and evidence for the pattern |
+| 6 | `workload-spoke` | Pilot workload network spoke composition | Spoke VNet ID/name, spoke subnet ID map |
+| 7 | `network-peering` | Cross-subscription hub/spoke attachment | Peering IDs, spoke Private DNS link IDs |
+| 8 | Consumer workload roots, such as `consumer-repos/online-banking/clientsync/environments/np1` | Application resources in the workload spoke | App resource IDs and endpoint evidence |
 
 Use separate HCP workspaces and state files for these roots in enterprise use. Governance, management, connectivity, hybrid connectivity, identity, and workload spokes have different owners, permissions, blast radius, and change windows. Combining them is acceptable only for short-lived local proof-of-concept work.
 
@@ -29,8 +31,9 @@ Required shared outputs include:
 
 - `log_analytics_workspace_id`
 - `action_group_id`
-- `subnet_ids`, keyed by purpose such as `app_integration`, `private_endpoints`, `apim`
-- `private_dns_zone_ids`, keyed by service such as `app_service`, `key_vault`, `storage_blob`
+- `hub_virtual_network_id`, `hub_virtual_network_name`, and `hub_resource_group_name`
+- `spoke_virtual_network_id`, `spoke_virtual_network_name`, `spoke_resource_group_name`, and `subnet_ids`, keyed by purpose such as `app_integration`, `private_endpoints`, `apim`
+- `private_dns_zone_ids`, `private_dns_zone_names`, and `private_dns_zone_resource_group_names`, keyed by service such as `app_service`, `key_vault`, `storage_blob`
 - platform identity or Key Vault IDs where workloads are approved to consume them
 
 ## Cost-Safe Test Posture

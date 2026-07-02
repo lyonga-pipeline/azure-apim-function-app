@@ -2,6 +2,10 @@ output "resource_group_name" {
   value = module.resource_group.name
 }
 
+output "spoke_resource_group_name" {
+  value = module.resource_group.name
+}
+
 output "spoke_virtual_network_id" {
   value = module.spoke_vnet.id
 }
