@@ -87,9 +87,10 @@ custom_policy_definitions = {
       if = {
         count = {
           value = "[parameters('requiredTagNames')]"
+          name  = "requiredTagName"
           where = {
-            field  = "[concat('tags[', current(), ']')]"
-            exists = "false"
+            value  = "[contains(field('tags'), current('requiredTagName'))]"
+            equals = false
           }
         }
         greater = 0
