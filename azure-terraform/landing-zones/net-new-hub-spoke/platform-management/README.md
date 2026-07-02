@@ -8,6 +8,8 @@ For short smoke tests, `terraform.tfvars` leaves `defender_plans = {}` so Micros
 
 The smoke-test tfvars also leave `security_contact = null` and `security_center_settings = {}`. Defender settings such as `MCAS` and `WDATP` commonly already exist in Azure subscriptions, so Terraform must import them before it can manage them. Leave them unmanaged for quick platform validation; import and enable them when promoting the enterprise security baseline.
 
+Resource provider registrations are also left unmanaged in the smoke-test tfvars. Common providers are usually already registered in personal or shared subscriptions; import existing registrations before managing them with Terraform in an enterprise subscription.
+
 Use this root for central monitoring, activity-log diagnostics, Entra diagnostics, action groups, subscription budgets, security contact configuration, and Defender plan enablement. Add Sentinel onboarding and data-collection rules here when the SOC/SIEM design is approved.
 
 ## HCP Azure Dynamic Credentials

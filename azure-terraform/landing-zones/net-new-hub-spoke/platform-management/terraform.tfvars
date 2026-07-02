@@ -36,20 +36,28 @@ action_group = {
   }
 }
 
-resource_provider_registrations = {
-  "Microsoft.Authorization"       = {}
-  "Microsoft.CostManagement"      = {}
-  "Microsoft.EventGrid"           = {}
-  "microsoft.insights"            = {}
-  "Microsoft.KeyVault"            = {}
-  "Microsoft.ManagedIdentity"     = {}
-  "Microsoft.Network"             = {}
-  "Microsoft.OperationalInsights" = {}
-  "Microsoft.PolicyInsights"      = {}
-  "Microsoft.Security"            = {}
-  "Microsoft.Storage"             = {}
-  "Microsoft.Web"                 = {}
-}
+# Keep resource provider registrations unmanaged during short smoke tests.
+# Most test subscriptions already have common providers registered, and
+# pre-existing registrations must be imported before Terraform can manage them.
+resource_provider_registrations = {}
+
+# To promote the enterprise baseline, import any pre-existing registrations
+# first, then uncomment and manage the approved provider list.
+#
+# resource_provider_registrations = {
+#   "Microsoft.Authorization"       = {}
+#   "Microsoft.CostManagement"      = {}
+#   "Microsoft.EventGrid"           = {}
+#   "microsoft.insights"            = {}
+#   "Microsoft.KeyVault"            = {}
+#   "Microsoft.ManagedIdentity"     = {}
+#   "Microsoft.Network"             = {}
+#   "Microsoft.OperationalInsights" = {}
+#   "Microsoft.PolicyInsights"      = {}
+#   "Microsoft.Security"            = {}
+#   "Microsoft.Storage"             = {}
+#   "Microsoft.Web"                 = {}
+# }
 
 role_assignments = {}
 
