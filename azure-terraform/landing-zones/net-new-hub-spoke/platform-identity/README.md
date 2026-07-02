@@ -8,4 +8,6 @@ For smoke tests, `key_vault_private_endpoint` is left `null` so this root can va
 
 `tenant_id` is optional and defaults to the tenant from the active Azure/HCP run credentials. `log_analytics_workspace_id` is also optional; set it to the `platform-management` output with the same name when you want Key Vault diagnostics enabled.
 
+Certificate contacts are intentionally empty in the smoke-test tfvars. AzureRM 4.x deprecated the inline Key Vault `contact` field, and new private/RBAC vaults should use certificate-contact management only after the vault is reachable and the deployment identity has confirmed data-plane access.
+
 Keep live secret values, certificate private keys, break-glass credentials, and one-time operational recovery material outside Terraform state. Terraform should manage vaults, RBAC, private endpoints, diagnostics, and policy; controlled secret injection should use approved secret-management or CI/CD release processes.

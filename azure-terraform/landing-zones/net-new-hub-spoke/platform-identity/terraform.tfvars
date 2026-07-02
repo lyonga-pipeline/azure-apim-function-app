@@ -33,12 +33,11 @@ key_vault = {
   sku_name                   = "standard"
   soft_delete_retention_days = 90
   purge_protection_enabled   = true
-  contacts = {
-    cloudops = {
-      email = "cloudops@compeer.example"
-      name  = "Cloud Operations"
-    }
-  }
+  # Certificate contacts are not set during initial smoke tests because Azure
+  # no longer supports the inline Key Vault contact field for new vaults.
+  # Configure certificate contacts after the vault is reachable and RBAC/data
+  # plane access for the deployment identity is confirmed.
+  contacts = {}
 }
 
 identity_role_assignments = {
