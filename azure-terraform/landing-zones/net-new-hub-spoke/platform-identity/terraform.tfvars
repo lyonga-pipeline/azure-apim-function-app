@@ -50,6 +50,11 @@ identity_role_assignments = {
 
 key_vault_private_endpoint = null
 
+# Optional: set this to the platform-management output
+# `log_analytics_workspace_id` to enable Key Vault diagnostics. Leaving it unset
+# lets this stack run before the shared monitoring workspace is wired in HCP.
+# log_analytics_workspace_id = "/subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.OperationalInsights/workspaces/<workspace-name>"
+
 management_locks = {
   identity_rg = {
     name       = "lock-rg-lz-platform-identity-np"

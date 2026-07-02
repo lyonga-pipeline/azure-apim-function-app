@@ -5,7 +5,8 @@ variable "subscription_id" {
 
 variable "tenant_id" {
   type        = string
-  description = "Azure tenant id."
+  description = "Azure tenant id. Leave null to use the tenant from the active Azure credentials."
+  default     = null
 }
 
 variable "location" {
@@ -94,7 +95,8 @@ variable "key_vault_private_endpoint" {
 
 variable "log_analytics_workspace_id" {
   type        = string
-  description = "Shared Log Analytics workspace ID for diagnostics."
+  description = "Shared Log Analytics workspace ID for diagnostics. Leave null to skip Key Vault diagnostics until platform-management is available."
+  default     = null
 }
 
 variable "diagnostics" {

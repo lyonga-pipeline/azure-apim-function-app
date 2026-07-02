@@ -6,4 +6,6 @@ Key Vault is RBAC-first and private-by-default. Access assignments, diagnostics,
 
 For smoke tests, `key_vault_private_endpoint` is left `null` so this root can validate the identity/vault baseline without requiring hub private DNS outputs. For enterprise testing, attach the private endpoint to the approved private endpoint subnet and pass the Key Vault private DNS zone ID from `platform-connectivity`.
 
+`tenant_id` is optional and defaults to the tenant from the active Azure/HCP run credentials. `log_analytics_workspace_id` is also optional; set it to the `platform-management` output with the same name when you want Key Vault diagnostics enabled.
+
 Keep live secret values, certificate private keys, break-glass credentials, and one-time operational recovery material outside Terraform state. Terraform should manage vaults, RBAC, private endpoints, diagnostics, and policy; controlled secret injection should use approved secret-management or CI/CD release processes.

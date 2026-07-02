@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 module "tags" {
   source = "../../../modules/platform-tags"
 
@@ -37,7 +39,7 @@ module "key_vault" {
   name                          = var.key_vault.name
   resource_group_name           = module.resource_group.name
   location                      = module.resource_group.location
-  tenant_id                     = var.tenant_id
+  tenant_id                     = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
   sku_name                      = var.key_vault.sku_name
   soft_delete_retention_days    = var.key_vault.soft_delete_retention_days
   purge_protection_enabled      = var.key_vault.purge_protection_enabled
@@ -90,6 +92,7 @@ module "key_vault_private_endpoint" {
 
 module "key_vault_diagnostics" {
   source = "../../../modules/diagnostic-settings"
+  count  = var.log_analytics_workspace_id == null ? 0 : 1
 
   name                       = "${var.key_vault.name}-diag"
   target_resource_id         = module.key_vault.id
