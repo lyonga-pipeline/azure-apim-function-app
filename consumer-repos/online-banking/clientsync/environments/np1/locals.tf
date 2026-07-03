@@ -41,13 +41,43 @@ locals {
     shares     = merge(local.storage_account_smoke_defaults.shares, try(var.storage_account.shares, {}))
   })
 
-  function_app = merge(var.function_app, {
+  function_app_smoke_defaults = {
+    name                        = "func-clientsync-np1-001"
+    os_type                     = "Windows"
+    functions_extension_version = "~4"
+    always_on                   = false
+    health_check_path           = "/api/health"
+    infrastructure_app_settings = {}
+    runtime_app_settings = {
+      CLIENTSYNC_MODE = "NP1"
+    }
+    application_stack = {
+      dotnet_version              = "v8.0"
+      use_dotnet_isolated_runtime = true
+    }
+  }
+
+  # HCP workspace object variables replace the full object. Preserve the
+  # health_check_path whenever only a subset of Function App settings is set.
+  function_app = merge(local.function_app_smoke_defaults, var.function_app, {
+    health_check_path = coalesce(
+      try(var.function_app.health_check_path, null),
+      local.function_app_smoke_defaults.health_check_path,
+    )
+    application_stack = merge(
+      local.function_app_smoke_defaults.application_stack,
+      try(var.function_app.application_stack, {}),
+    )
     infrastructure_app_settings = merge(
       {
         COMPEER_APPLICATION = var.application.code
         COMPEER_ENVIRONMENT = var.environment
       },
       try(var.function_app.infrastructure_app_settings, {}),
+    )
+    runtime_app_settings = merge(
+      local.function_app_smoke_defaults.runtime_app_settings,
+      try(var.function_app.runtime_app_settings, {}),
     )
   })
 
