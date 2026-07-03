@@ -53,7 +53,7 @@ locals {
   private_dns_zone_links = {
     for key, zone in var.private_dns_zones : key => {
       name                  = coalesce(try(zone.link_name, null), "lnk-${key}-${var.peering_name_prefix}-spoke")
-      resource_group_name   = coalesce(try(zone.resource_group_name, null), local.private_dns_zone_resource_group_name)
+      resource_group_name   = try([for value in [try(zone.resource_group_name, null), local.private_dns_zone_resource_group_name] : value if value != null && value != ""][0], null)
       private_dns_zone_name = zone.name
       virtual_network_id    = local.spoke_virtual_network_id
       registration_enabled  = try(zone.registration_enabled, false)
