@@ -101,9 +101,9 @@ variable "app_service_plan" {
     create = {
       name                   = "asp-clientsync-np1-001"
       os_type                = "Windows"
-      sku_name               = "B1"
-      worker_count           = 1
-      zone_balancing_enabled = false
+      sku_name               = "Y1"
+      worker_count           = null
+      zone_balancing_enabled = null
     }
   }
 }
@@ -114,8 +114,14 @@ variable "storage_account" {
   default = {
     mode = "create"
     create = {
-      name                     = "stclientsyncnp1001"
-      account_replication_type = "LRS"
+      name                          = "stclientsyncnp1001"
+      account_replication_type      = "LRS"
+      shared_access_key_enabled     = true
+      public_network_access_enabled = true
+      network_rules = {
+        default_action = "Allow"
+        bypass         = ["AzureServices"]
+      }
       blob_properties = {
         versioning_enabled              = true
         change_feed_enabled             = true
@@ -175,7 +181,7 @@ variable "function_app" {
     name                        = "func-clientsync-np1-001"
     os_type                     = "Windows"
     functions_extension_version = "~4"
-    always_on                   = true
+    always_on                   = false
     health_check_path           = "/api/health"
     infrastructure_app_settings = {}
     runtime_app_settings = {

@@ -66,16 +66,16 @@ module "storage_account" {
   location                          = var.location
   account_replication_type          = try(var.storage_account.create.account_replication_type, "LRS")
   min_tls_version                   = "TLS1_2"
-  public_network_access_enabled     = false
+  public_network_access_enabled     = try(var.storage_account.create.public_network_access_enabled, false)
   allow_nested_items_to_be_public   = false
-  shared_access_key_enabled         = false
+  shared_access_key_enabled         = try(var.storage_account.create.shared_access_key_enabled, false)
   local_user_enabled                = false
   infrastructure_encryption_enabled = try(var.storage_account.create.infrastructure_encryption_enabled, true)
   default_to_oauth_authentication   = true
-  network_rules = {
+  network_rules = try(var.storage_account.create.network_rules, {
     default_action = "Deny"
     bypass         = ["AzureServices"]
-  }
+  })
   blob_properties = try(var.storage_account.create.blob_properties, null)
   tags            = module.tags.tags
 }
@@ -83,22 +83,22 @@ module "storage_account" {
 module "storage_containers" {
   source = "../../modules/storage-container"
 
-  storage_account_name = local.storage_account_name
-  containers           = var.storage_account.containers
+  storage_account_id = local.storage_account_id
+  containers         = var.storage_account.containers
 }
 
 module "storage_queues" {
   source = "../../modules/storage-queue"
 
-  storage_account_name = local.storage_account_name
-  queues               = var.storage_account.queues
+  storage_account_id = local.storage_account_id
+  queues             = var.storage_account.queues
 }
 
 module "storage_shares" {
   source = "../../modules/storage-share"
 
-  storage_account_name = local.storage_account_name
-  shares               = var.storage_account.shares
+  storage_account_id = local.storage_account_id
+  shares             = var.storage_account.shares
 }
 
 module "key_vault" {

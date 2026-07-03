@@ -1,7 +1,7 @@
 resource "azurerm_storage_blob" "this" {
   for_each               = var.blobs
   name                   = each.key
-  storage_account_name   = var.storage_account_name
+  storage_account_id     = var.storage_account_id
   storage_container_name = each.value.container_name
   type                   = try(each.value.type, "Block")
   source                 = try(each.value.source, null)

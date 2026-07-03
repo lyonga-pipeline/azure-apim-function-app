@@ -80,7 +80,15 @@ variable "storage_account" {
     create = optional(object({
       name                              = string
       account_replication_type          = optional(string, "LRS")
+      shared_access_key_enabled         = optional(bool, false)
+      public_network_access_enabled     = optional(bool, false)
       infrastructure_encryption_enabled = optional(bool, true)
+      network_rules = optional(object({
+        default_action             = string
+        bypass                     = optional(list(string), ["AzureServices"])
+        ip_rules                   = optional(list(string), [])
+        virtual_network_subnet_ids = optional(list(string), [])
+      }))
       blob_properties = optional(object({
         versioning_enabled              = optional(bool, true)
         change_feed_enabled             = optional(bool, true)
@@ -253,4 +261,3 @@ variable "alerts" {
   })
   default = {}
 }
-
