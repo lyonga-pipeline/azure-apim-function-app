@@ -33,7 +33,13 @@ The `workload-spoke` workspace must publish:
 
 This pattern is preferred over duplicating IDs manually in every consumer workspace. It keeps the platform and workload states isolated while exposing only declared outputs through the HCP Terraform API.
 
-For `tfe_outputs` to work, the peering workspace needs an HCP Terraform token with read access to the producer workspace outputs. Set a sensitive environment variable named `TFE_TOKEN` if your HCP run environment does not already provide one. Use a team token or service account token with the narrowest practical read access to `platform-connectivity` and `workload-spoke`.
+## Why `TFE_TOKEN` is used
+
+The peering workspace uses the `tfe_outputs` data source to read declared outputs from the `platform-connectivity` and `workload-spoke` workspaces. HCP Terraform can run the Azure providers with dynamic Azure credentials, but the TFE provider still needs an HCP Terraform API credential when it reads outputs from other workspaces.
+
+Set a sensitive environment variable named `TFE_TOKEN` in the peering workspace when the run environment does not already provide a token with enough HCP Terraform permissions. Use a team token or service account token with the narrowest practical read access to the producer workspaces.
+
+This token is not an Azure credential and does not grant access to Azure resources. It is only used by the TFE provider to read HCP Terraform metadata, specifically the declared outputs that the peering root needs.
 
 Do not enable broad remote state sharing for this pattern. Remote state sharing is mainly for `terraform_remote_state`, which reads from state snapshots. `tfe_outputs` is preferred because it reads declared outputs through the HCP Terraform API instead of granting backend-level state access.
 

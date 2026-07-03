@@ -1,9 +1,11 @@
+data "azurerm_client_config" "current" {}
+
 module "clientsync_function_app" {
   source = "../../../../../azure-terraform/patterns/function-app"
 
   environment = var.environment
   location    = var.location
-  tenant_id   = var.tenant_id
+  tenant_id   = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
 
   application          = var.application
   resource_group       = var.resource_group

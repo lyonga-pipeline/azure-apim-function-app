@@ -33,3 +33,14 @@ terraform plan -var-file=terraform.tfvars.example
 ```
 
 Use `terraform.tfvars.example` as the starting point for HCP workspace variables or a local validation variable file. Replace the placeholder subscription IDs, subnet IDs, Private DNS zone IDs, Log Analytics ID, and Action Group ID with approved platform outputs for the target environment.
+
+The `np1` root also includes smoke-test defaults so the HCP workspace can plan with only `subscription_id` plus the Azure dynamic credential variables. Those defaults create the app resource group, managed identity, B1 App Service Plan, Storage Account, Key Vault, Application Insights, and Function App, while leaving VNet integration, private endpoints, diagnostics, and metric alerts disabled until the platform outputs are available.
+
+For an enterprise-style deployment, override these defaults in HCP Terraform with values from the platform workspaces:
+
+- Set `network.app_service_integration_subnet_id` to the workload spoke integration subnet ID.
+- Set `private_endpoints.enabled = true`, `private_endpoints.subnet_id`, and the required `private_dns_zone_ids`.
+- Set `diagnostics.enabled = true` and `diagnostics.log_analytics_workspace_id`.
+- Set `alerts.enabled = true` and `alerts.action_group_id`.
+
+If you override `location` in HCP Terraform, set it as a Terraform variable or as `TF_VAR_location`. A plain environment variable named `location` is not read as `var.location`.
