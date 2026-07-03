@@ -11,9 +11,11 @@ output "private_dns_spoke_link_ids" {
 }
 
 output "resolved_hub_virtual_network_id" {
-  value = local.hub_virtual_network_id
+  value     = local.hub_virtual_network_id
+  sensitive = true
 }
 
 output "resolved_spoke_virtual_network_id" {
-  value = local.spoke_virtual_network_id
+  value     = local.spoke_virtual_network_id
+  sensitive = true
 }
