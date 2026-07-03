@@ -40,6 +40,8 @@ The `np1` smoke-test plan intentionally uses a Consumption plan and `always_on =
 
 The `np1` smoke-test storage account also sets `shared_access_key_enabled = true`, `public_network_access_enabled = true`, and permissive storage network rules so the AzureRM provider can complete storage data-plane readiness checks and child resource creation from hosted HCP Terraform workers. The shared function-app pattern keeps shared keys disabled and storage networking denied by default; set these smoke-test overrides back to the enterprise defaults once private networking, private DNS, and identity-based storage access are fully wired and validated.
 
+If an earlier partial apply already created the storage account with key-based authentication disabled, Terraform can fail during refresh before it can update the account. For this `np1` smoke test, temporarily enable storage account key access and public network access on the existing account, rerun the plan/apply, then remove the smoke-test exceptions after identity-based storage data-plane access is configured.
+
 For an enterprise-style deployment, override these defaults in HCP Terraform with values from the platform workspaces:
 
 - Set `network.app_service_integration_subnet_id` to the workload spoke integration subnet ID.

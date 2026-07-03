@@ -11,7 +11,7 @@ module "clientsync_function_app" {
   resource_group       = var.resource_group
   identity             = var.identity
   app_service_plan     = var.app_service_plan
-  storage_account      = var.storage_account
+  storage_account      = local.storage_account
   key_vault            = local.key_vault
   application_insights = var.application_insights
   function_app         = local.function_app
