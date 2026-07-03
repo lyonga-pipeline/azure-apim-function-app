@@ -1,10 +1,35 @@
+data "tfe_outputs" "platform_connectivity" {
+  count        = var.use_tfe_outputs ? 1 : 0
+  organization = var.tfe_organization
+  workspace    = var.platform_connectivity_workspace_name
+}
+
+data "tfe_outputs" "workload_spoke" {
+  count        = var.use_tfe_outputs ? 1 : 0
+  organization = var.tfe_organization
+  workspace    = var.workload_spoke_workspace_name
+}
+
 locals {
+  platform_outputs = try(data.tfe_outputs.platform_connectivity[0].values, {})
+  spoke_outputs    = try(data.tfe_outputs.workload_spoke[0].values, {})
+
+  hub_resource_group_name  = coalesce(var.hub_resource_group_name, try(local.platform_outputs.hub_resource_group_name, null), try(local.platform_outputs.resource_group_name, null))
+  hub_virtual_network_name = coalesce(var.hub_virtual_network_name, try(local.platform_outputs.hub_virtual_network_name, null))
+  hub_virtual_network_id   = coalesce(var.hub_virtual_network_id, try(local.platform_outputs.hub_virtual_network_id, null))
+
+  spoke_resource_group_name  = coalesce(var.spoke_resource_group_name, try(local.spoke_outputs.spoke_resource_group_name, null), try(local.spoke_outputs.resource_group_name, null))
+  spoke_virtual_network_name = coalesce(var.spoke_virtual_network_name, try(local.spoke_outputs.spoke_virtual_network_name, null))
+  spoke_virtual_network_id   = coalesce(var.spoke_virtual_network_id, try(local.spoke_outputs.spoke_virtual_network_id, null))
+
+  private_dns_zone_resource_group_name = coalesce(var.private_dns_zone_resource_group_name, try(local.platform_outputs.resource_group_name, null), try(local.platform_outputs.hub_resource_group_name, null))
+
   private_dns_zone_links = {
     for key, zone in var.private_dns_zones : key => {
       name                  = coalesce(try(zone.link_name, null), "lnk-${key}-${var.peering_name_prefix}-spoke")
-      resource_group_name   = coalesce(try(zone.resource_group_name, null), var.private_dns_zone_resource_group_name)
+      resource_group_name   = coalesce(try(zone.resource_group_name, null), local.private_dns_zone_resource_group_name)
       private_dns_zone_name = zone.name
-      virtual_network_id    = var.spoke_virtual_network_id
+      virtual_network_id    = local.spoke_virtual_network_id
       registration_enabled  = try(zone.registration_enabled, false)
       tags                  = var.tags
     }
@@ -20,9 +45,9 @@ module "hub_to_spoke_peering" {
   }
 
   name                         = "peer-${var.peering_name_prefix}-hub-to-spoke"
-  resource_group_name          = var.hub_resource_group_name
-  virtual_network_name         = var.hub_virtual_network_name
-  remote_virtual_network_id    = var.spoke_virtual_network_id
+  resource_group_name          = local.hub_resource_group_name
+  virtual_network_name         = local.hub_virtual_network_name
+  remote_virtual_network_id    = local.spoke_virtual_network_id
   allow_virtual_network_access = var.hub_to_spoke.allow_virtual_network_access
   allow_forwarded_traffic      = var.hub_to_spoke.allow_forwarded_traffic
   allow_gateway_transit        = var.hub_to_spoke.allow_gateway_transit
@@ -37,9 +62,9 @@ module "spoke_to_hub_peering" {
   }
 
   name                         = "peer-${var.peering_name_prefix}-spoke-to-hub"
-  resource_group_name          = var.spoke_resource_group_name
-  virtual_network_name         = var.spoke_virtual_network_name
-  remote_virtual_network_id    = var.hub_virtual_network_id
+  resource_group_name          = local.spoke_resource_group_name
+  virtual_network_name         = local.spoke_virtual_network_name
+  remote_virtual_network_id    = local.hub_virtual_network_id
   allow_virtual_network_access = var.spoke_to_hub.allow_virtual_network_access
   allow_forwarded_traffic      = var.spoke_to_hub.allow_forwarded_traffic
   allow_gateway_transit        = var.spoke_to_hub.allow_gateway_transit
