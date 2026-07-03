@@ -11,18 +11,44 @@ data "tfe_outputs" "workload_spoke" {
 }
 
 locals {
-  platform_outputs = try(data.tfe_outputs.platform_connectivity[0].values, {})
-  spoke_outputs    = try(data.tfe_outputs.workload_spoke[0].values, {})
+  platform_outputs = merge(
+    try(data.tfe_outputs.platform_connectivity[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.platform_connectivity[0].values, {})
+  )
+  spoke_outputs = merge(
+    try(data.tfe_outputs.workload_spoke[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.workload_spoke[0].values, {})
+  )
 
-  hub_resource_group_name  = coalesce(var.hub_resource_group_name, try(local.platform_outputs.hub_resource_group_name, null), try(local.platform_outputs.resource_group_name, null))
-  hub_virtual_network_name = coalesce(var.hub_virtual_network_name, try(local.platform_outputs.hub_virtual_network_name, null))
-  hub_virtual_network_id   = coalesce(var.hub_virtual_network_id, try(local.platform_outputs.hub_virtual_network_id, null))
+  hub_resource_group_name_candidates  = compact([var.hub_resource_group_name, try(local.platform_outputs.hub_resource_group_name, ""), try(local.platform_outputs.resource_group_name, "")])
+  hub_virtual_network_name_candidates = compact([var.hub_virtual_network_name, try(local.platform_outputs.hub_virtual_network_name, "")])
+  hub_virtual_network_id_candidates   = compact([var.hub_virtual_network_id, try(local.platform_outputs.hub_virtual_network_id, "")])
 
-  spoke_resource_group_name  = coalesce(var.spoke_resource_group_name, try(local.spoke_outputs.spoke_resource_group_name, null), try(local.spoke_outputs.resource_group_name, null))
-  spoke_virtual_network_name = coalesce(var.spoke_virtual_network_name, try(local.spoke_outputs.spoke_virtual_network_name, null))
-  spoke_virtual_network_id   = coalesce(var.spoke_virtual_network_id, try(local.spoke_outputs.spoke_virtual_network_id, null))
+  spoke_resource_group_name_candidates  = compact([var.spoke_resource_group_name, try(local.spoke_outputs.spoke_resource_group_name, ""), try(local.spoke_outputs.resource_group_name, "")])
+  spoke_virtual_network_name_candidates = compact([var.spoke_virtual_network_name, try(local.spoke_outputs.spoke_virtual_network_name, "")])
+  spoke_virtual_network_id_candidates   = compact([var.spoke_virtual_network_id, try(local.spoke_outputs.spoke_virtual_network_id, "")])
 
-  private_dns_zone_resource_group_name = coalesce(var.private_dns_zone_resource_group_name, try(local.platform_outputs.resource_group_name, null), try(local.platform_outputs.hub_resource_group_name, null))
+  private_dns_zone_resource_group_name_candidates = compact([var.private_dns_zone_resource_group_name, try(local.platform_outputs.resource_group_name, ""), try(local.platform_outputs.hub_resource_group_name, "")])
+
+  hub_resource_group_name  = try(local.hub_resource_group_name_candidates[0], null)
+  hub_virtual_network_name = try(local.hub_virtual_network_name_candidates[0], null)
+  hub_virtual_network_id   = try(local.hub_virtual_network_id_candidates[0], null)
+
+  spoke_resource_group_name  = try(local.spoke_resource_group_name_candidates[0], null)
+  spoke_virtual_network_name = try(local.spoke_virtual_network_name_candidates[0], null)
+  spoke_virtual_network_id   = try(local.spoke_virtual_network_id_candidates[0], null)
+
+  private_dns_zone_resource_group_name = try(local.private_dns_zone_resource_group_name_candidates[0], null)
+
+  resolved_required_values = {
+    hub_resource_group_name              = local.hub_resource_group_name
+    hub_virtual_network_name             = local.hub_virtual_network_name
+    hub_virtual_network_id               = local.hub_virtual_network_id
+    spoke_resource_group_name            = local.spoke_resource_group_name
+    spoke_virtual_network_name           = local.spoke_virtual_network_name
+    spoke_virtual_network_id             = local.spoke_virtual_network_id
+    private_dns_zone_resource_group_name = local.private_dns_zone_resource_group_name
+  }
 
   private_dns_zone_links = {
     for key, zone in var.private_dns_zones : key => {
@@ -34,6 +60,17 @@ locals {
       tags                  = var.tags
     }
     if try(zone.link_to_spoke_enabled, true)
+  }
+}
+
+resource "terraform_data" "resolved_input_validation" {
+  input = local.resolved_required_values
+
+  lifecycle {
+    precondition {
+      condition     = alltrue([for value in values(local.resolved_required_values) : value != null && value != ""])
+      error_message = "network-peering could not resolve all hub/spoke inputs. Confirm TFE_TOKEN can read outputs from '${var.platform_connectivity_workspace_name}' and '${var.workload_spoke_workspace_name}', those workspaces have successful applies after outputs were added, or set use_tfe_outputs=false and provide the values manually."
+    }
   }
 }
 
@@ -52,6 +89,8 @@ module "hub_to_spoke_peering" {
   allow_forwarded_traffic      = var.hub_to_spoke.allow_forwarded_traffic
   allow_gateway_transit        = var.hub_to_spoke.allow_gateway_transit
   use_remote_gateways          = var.hub_to_spoke.use_remote_gateways
+
+  depends_on = [terraform_data.resolved_input_validation]
 }
 
 module "spoke_to_hub_peering" {
@@ -69,6 +108,8 @@ module "spoke_to_hub_peering" {
   allow_forwarded_traffic      = var.spoke_to_hub.allow_forwarded_traffic
   allow_gateway_transit        = var.spoke_to_hub.allow_gateway_transit
   use_remote_gateways          = var.spoke_to_hub.use_remote_gateways
+
+  depends_on = [terraform_data.resolved_input_validation]
 }
 
 module "private_dns_spoke_links" {
