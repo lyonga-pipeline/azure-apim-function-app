@@ -162,13 +162,14 @@ variable "application_insights" {
 
 variable "function_app" {
   type = object({
-    name                        = string
-    os_type                     = optional(string, "Windows")
-    functions_extension_version = optional(string, "~4")
-    always_on                   = optional(bool, true)
-    health_check_path           = optional(string)
-    infrastructure_app_settings = optional(map(string), {})
-    runtime_app_settings        = optional(map(string), {})
+    name                              = string
+    os_type                           = optional(string, "Windows")
+    functions_extension_version       = optional(string, "~4")
+    always_on                         = optional(bool, true)
+    health_check_eviction_time_in_min = optional(number)
+    health_check_path                 = optional(string)
+    infrastructure_app_settings       = optional(map(string), {})
+    runtime_app_settings              = optional(map(string), {})
     application_stack = object({
       dotnet_version              = optional(string)
       java_version                = optional(string)

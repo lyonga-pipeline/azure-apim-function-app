@@ -8,6 +8,7 @@ locals {
     application_insights_connection_string = null
     application_insights_key               = null
     ftps_state                             = null
+    health_check_eviction_time_in_min      = null
     health_check_path                      = null
     http2_enabled                          = null
     minimum_tls_version                    = null
@@ -68,6 +69,7 @@ resource "azurerm_windows_function_app" "this" {
       application_insights_connection_string = try(site_config.value.application_insights_connection_string, null)
       application_insights_key               = try(site_config.value.application_insights_key, null)
       ftps_state                             = coalesce(try(site_config.value.ftps_state, null), local.site_config_defaults.ftps_state)
+      health_check_eviction_time_in_min      = try(site_config.value.health_check_eviction_time_in_min, null)
       health_check_path                      = try(site_config.value.health_check_path, null)
       http2_enabled                          = coalesce(try(site_config.value.http2_enabled, null), local.site_config_defaults.http2_enabled)
       minimum_tls_version                    = coalesce(try(site_config.value.minimum_tls_version, null), local.site_config_defaults.minimum_tls_version)
@@ -320,6 +322,7 @@ resource "azurerm_linux_function_app" "this" {
       application_insights_connection_string = try(site_config.value.application_insights_connection_string, null)
       application_insights_key               = try(site_config.value.application_insights_key, null)
       ftps_state                             = coalesce(try(site_config.value.ftps_state, null), local.site_config_defaults.ftps_state)
+      health_check_eviction_time_in_min      = try(site_config.value.health_check_eviction_time_in_min, null)
       health_check_path                      = try(site_config.value.health_check_path, null)
       http2_enabled                          = coalesce(try(site_config.value.http2_enabled, null), local.site_config_defaults.http2_enabled)
       minimum_tls_version                    = coalesce(try(site_config.value.minimum_tls_version, null), local.site_config_defaults.minimum_tls_version)

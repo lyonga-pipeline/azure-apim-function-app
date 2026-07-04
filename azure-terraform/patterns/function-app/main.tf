@@ -194,6 +194,7 @@ module "function_app" {
   https_only                      = true
   site_config = {
     always_on                              = var.function_app.always_on
+    health_check_eviction_time_in_min      = try(var.function_app.health_check_path, null) == null ? null : coalesce(try(var.function_app.health_check_eviction_time_in_min, null), 10)
     health_check_path                      = try(var.function_app.health_check_path, null)
     application_insights_connection_string = local.application_insights_connection_string
     http2_enabled                          = true

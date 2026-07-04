@@ -91,6 +91,7 @@ variable "site_config" {
     application_insights_connection_string = optional(string)
     application_insights_key               = optional(string)
     ftps_state                             = optional(string)
+    health_check_eviction_time_in_min      = optional(number)
     health_check_path                      = optional(string)
     http2_enabled                          = optional(bool)
     minimum_tls_version                    = optional(string)

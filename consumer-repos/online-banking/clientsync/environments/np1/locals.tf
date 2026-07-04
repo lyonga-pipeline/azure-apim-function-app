@@ -42,12 +42,13 @@ locals {
   })
 
   function_app_smoke_defaults = {
-    name                        = "func-clientsync-np1-001"
-    os_type                     = "Windows"
-    functions_extension_version = "~4"
-    always_on                   = false
-    health_check_path           = "/api/health"
-    infrastructure_app_settings = {}
+    name                              = "func-clientsync-np1-001"
+    os_type                           = "Windows"
+    functions_extension_version       = "~4"
+    always_on                         = false
+    health_check_eviction_time_in_min = 10
+    health_check_path                 = "/api/health"
+    infrastructure_app_settings       = {}
     runtime_app_settings = {
       CLIENTSYNC_MODE = "NP1"
     }
@@ -57,9 +58,13 @@ locals {
     }
   }
 
-  # HCP workspace object variables replace the full object. Preserve the
-  # health_check_path whenever only a subset of Function App settings is set.
+  # HCP workspace object variables replace the full object. Preserve the health
+  # check pair whenever only a subset of Function App settings is set.
   function_app = merge(local.function_app_smoke_defaults, var.function_app, {
+    health_check_eviction_time_in_min = coalesce(
+      try(var.function_app.health_check_eviction_time_in_min, null),
+      local.function_app_smoke_defaults.health_check_eviction_time_in_min,
+    )
     health_check_path = coalesce(
       try(var.function_app.health_check_path, null),
       local.function_app_smoke_defaults.health_check_path,
