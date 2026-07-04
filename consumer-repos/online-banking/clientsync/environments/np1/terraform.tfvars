@@ -1,4 +1,4 @@
-location    = "eastus2"
+location    = "eastus"
 environment = "np1"
 
 allow_dedicated_app_service_plan = false
