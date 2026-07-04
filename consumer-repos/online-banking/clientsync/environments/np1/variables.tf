@@ -27,6 +27,12 @@ variable "environment" {
   }
 }
 
+variable "allow_dedicated_app_service_plan" {
+  type        = bool
+  description = "Allow np1 to use a dedicated App Service Plan SKU from app_service_plan.create.sku_name. Keep false for smoke tests in subscriptions with App Service Total VMs quota of 0."
+  default     = false
+}
+
 variable "key_vault_secrets" {
   type = map(object({
     value           = string

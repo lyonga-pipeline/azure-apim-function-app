@@ -1,4 +1,27 @@
 locals {
+  app_service_plan_smoke_defaults = {
+    mode = "create"
+    create = {
+      name                   = "asp-clientsync-np1-001"
+      os_type                = "Windows"
+      sku_name               = "Y1"
+      worker_count           = null
+      zone_balancing_enabled = null
+    }
+  }
+
+  app_service_plan_requested = merge(local.app_service_plan_smoke_defaults, var.app_service_plan, {
+    create = merge(local.app_service_plan_smoke_defaults.create, try(var.app_service_plan.create, {}))
+  })
+
+  app_service_plan = var.allow_dedicated_app_service_plan ? local.app_service_plan_requested : merge(local.app_service_plan_requested, {
+    create = merge(local.app_service_plan_requested.create, {
+      sku_name               = "Y1"
+      worker_count           = null
+      zone_balancing_enabled = null
+    })
+  })
+
   storage_account_smoke_defaults = {
     mode = "create"
     create = {
@@ -60,7 +83,7 @@ locals {
 
   # HCP workspace object variables replace the full object. Preserve the health
   # check pair whenever only a subset of Function App settings is set.
-  function_app = merge(local.function_app_smoke_defaults, var.function_app, {
+  function_app_requested = merge(local.function_app_smoke_defaults, var.function_app, {
     health_check_eviction_time_in_min = coalesce(
       try(var.function_app.health_check_eviction_time_in_min, null),
       local.function_app_smoke_defaults.health_check_eviction_time_in_min,
@@ -84,6 +107,10 @@ locals {
       local.function_app_smoke_defaults.runtime_app_settings,
       try(var.function_app.runtime_app_settings, {}),
     )
+  })
+
+  function_app = var.allow_dedicated_app_service_plan ? local.function_app_requested : merge(local.function_app_requested, {
+    always_on = false
   })
 
   key_vault = merge(var.key_vault, {

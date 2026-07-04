@@ -3,6 +3,8 @@ tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 location        = "eastus2"
 environment     = "np1"
 
+allow_dedicated_app_service_plan = false
+
 application = {
   code                = "clientsync"
   name                = "ClientSync"
@@ -49,9 +51,9 @@ app_service_plan = {
 storage_account = {
   mode = "create"
   create = {
-    name                      = "stclientsyncnp1001"
-    account_replication_type  = "LRS"
-    shared_access_key_enabled = true
+    name                          = "stclientsyncnp1001"
+    account_replication_type      = "LRS"
+    shared_access_key_enabled     = true
     public_network_access_enabled = true
     network_rules = {
       default_action = "Allow"
@@ -113,13 +115,13 @@ application_insights = {
 }
 
 function_app = {
-  name                        = "func-clientsync-np1-001"
-  os_type                     = "Windows"
-  functions_extension_version = "~4"
-  always_on                   = false
+  name                              = "func-clientsync-np1-001"
+  os_type                           = "Windows"
+  functions_extension_version       = "~4"
+  always_on                         = false
   health_check_eviction_time_in_min = 10
   health_check_path                 = "/api/health"
-  infrastructure_app_settings = {}
+  infrastructure_app_settings       = {}
   runtime_app_settings = {
     CLIENTSYNC_MODE = "NP1"
   }

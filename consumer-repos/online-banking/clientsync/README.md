@@ -29,14 +29,14 @@ Use the environment-specific HCP workspace for the target root:
 ```bash
 cd clientsync/environments/np1
 terraform init
-terraform plan -var-file=terraform.tfvars.example
+terraform plan
 ```
 
-Use `terraform.tfvars.example` as the starting point for HCP workspace variables or a local validation variable file. Replace the placeholder subscription IDs, subnet IDs, Private DNS zone IDs, Log Analytics ID, and Action Group ID with approved platform outputs for the target environment.
+Use `terraform.tfvars` as the starting point for HCP workspace variables or a local validation variable file. Replace the placeholder subscription IDs, subnet IDs, Private DNS zone IDs, Log Analytics ID, and Action Group ID with approved platform outputs for the target environment.
 
 The `np1` root also includes smoke-test defaults so the HCP workspace can plan with only `subscription_id` plus the Azure dynamic credential variables. Those defaults create the app resource group, managed identity, Consumption App Service Plan (`Y1`), Storage Account, Key Vault, Application Insights, and Function App, while leaving VNet integration, private endpoints, diagnostics, and metric alerts disabled until the platform outputs are available.
 
-The `np1` smoke-test plan intentionally uses a Consumption plan and `always_on = false` because personal/test Azure subscriptions can have a regional App Service Plan quota of `0` for dedicated SKUs such as `B1`. For enterprise testing, request the needed App Service quota in the target subscription and region, then override `app_service_plan.create.sku_name` with the approved Dedicated or Premium SKU and set `function_app.always_on = true` where supported.
+The `np1` smoke-test plan intentionally forces create-mode deployments to a Consumption plan (`Y1`) and `always_on = false` because personal/test Azure subscriptions can have a regional App Service Plan quota of `0` for dedicated SKUs such as `B1`. This guard also prevents stale HCP object-variable overrides from accidentally selecting a dedicated SKU. For enterprise testing, request the needed App Service quota in the target subscription and region, set `allow_dedicated_app_service_plan = true`, then override `app_service_plan.create.sku_name` with the approved Dedicated or Premium SKU and set `function_app.always_on = true` where supported.
 
 The `np1` smoke-test storage account also sets `shared_access_key_enabled = true`, `public_network_access_enabled = true`, and permissive storage network rules so the AzureRM provider can complete storage data-plane readiness checks and child resource creation from hosted HCP Terraform workers. The shared function-app pattern keeps shared keys disabled and storage networking denied by default; set these smoke-test overrides back to the enterprise defaults once private networking, private DNS, and identity-based storage access are fully wired and validated.
 
