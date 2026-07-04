@@ -1,7 +1,5 @@
-subscription_id = "22222222-2222-2222-2222-222222222222"
-tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-location        = "eastus2"
-environment     = "np1"
+location    = "eastus2"
+environment = "np1"
 
 allow_dedicated_app_service_plan = false
 
@@ -131,43 +129,14 @@ function_app = {
   }
 }
 
-network = {
-  app_service_integration_subnet_id = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-clientsync-np1-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-np1/subnets/app_integration"
-}
+network = {}
 
 private_endpoints = {
-  enabled   = true
-  subnet_id = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-clientsync-np1-network/providers/Microsoft.Network/virtualNetworks/vnet-clientsync-np1/subnets/private_endpoints"
-  targets = {
-    function_app  = true
-    key_vault     = true
-    storage_blob  = true
-    storage_queue = true
-    storage_file  = true
-  }
-  private_dns_zone_ids = {
-    app_service   = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
-    key_vault     = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
-    storage_blob  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
-    storage_queue = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
-    storage_file  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-connectivity-np/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
-  }
+  enabled = false
 }
 
 diagnostics = {
-  enabled                    = true
-  log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.OperationalInsights/workspaces/law-lz-platform-np"
-  logs = {
-    all_logs = {
-      category_group = "allLogs"
-    }
-  }
-  metrics = {
-    all_metrics = {
-      category = "AllMetrics"
-      enabled  = true
-    }
-  }
+  enabled = false
 }
 
 role_assignments = {
@@ -176,10 +145,5 @@ role_assignments = {
 }
 
 alerts = {
-  enabled            = true
-  action_group_id    = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-lz-platform-management-np/providers/Microsoft.Insights/actionGroups/ag-lz-cloudops-np"
-  severity           = 3
-  frequency          = "PT5M"
-  window_size        = "PT5M"
-  http_5xx_threshold = 10
+  enabled = false
 }

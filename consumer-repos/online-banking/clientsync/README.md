@@ -32,7 +32,7 @@ terraform init
 terraform plan
 ```
 
-Use `terraform.tfvars` as the starting point for HCP workspace variables or a local validation variable file. Replace the placeholder subscription IDs, subnet IDs, Private DNS zone IDs, Log Analytics ID, and Action Group ID with approved platform outputs for the target environment.
+The committed `terraform.tfvars` is an autoloaded np1 smoke-test file. It intentionally does not contain tenant IDs, subscription IDs, subnet IDs, Private DNS zone IDs, Log Analytics IDs, or Action Group IDs. Let HCP Terraform Azure dynamic credentials provide tenant/subscription context, or set `subscription_id` and `tenant_id` as real HCP workspace variables when dynamic credentials are not available.
 
 The `np1` root also includes smoke-test defaults so the HCP workspace can plan with only `subscription_id` plus the Azure dynamic credential variables. Those defaults create the app resource group, managed identity, Consumption App Service Plan (`Y1`), Storage Account, Key Vault, Application Insights, and Function App, while leaving VNet integration, private endpoints, diagnostics, and metric alerts disabled until the platform outputs are available.
 

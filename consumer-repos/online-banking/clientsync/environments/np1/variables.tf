@@ -1,6 +1,8 @@
 variable "subscription_id" {
   type        = string
-  description = "NP1 workload subscription ID."
+  description = "NP1 workload subscription ID. Leave null when HCP Terraform Azure dynamic credentials provide the subscription."
+  default     = null
+  nullable    = true
 }
 
 variable "tenant_id" {
