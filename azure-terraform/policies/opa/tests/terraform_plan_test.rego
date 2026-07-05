@@ -57,6 +57,22 @@ test_public_storage_fails if {
 	contains(msg, "public network access")
 }
 
+test_hcp_wrapped_public_storage_fails if {
+	msg := deny[_] with input as {"plan": {"resource_changes": [{
+		"address": "azurerm_storage_account.example",
+		"type": "azurerm_storage_account",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"location": "eastus2",
+				"public_network_access_enabled": true,
+				"tags": standard_tags,
+			},
+		},
+	}]}}
+	contains(msg, "public network access")
+}
+
 test_sql_public_network_fails if {
 	msg := deny[_] with input as {"resource_changes": [{
 		"address": "azurerm_mssql_server.example",
@@ -160,5 +176,13 @@ test_unapproved_module_source_fails if {
 		"resource_changes": [],
 		"configuration": {"root_module": {"module_calls": {"storage": {"source": "git::https://example.com/unapproved/storage.git"}}}},
 	}
+	contains(msg, "module source")
+}
+
+test_hcp_wrapped_unapproved_module_source_fails if {
+	msg := deny[_] with input as {"plan": {
+		"resource_changes": [],
+		"configuration": {"root_module": {"module_calls": {"storage": {"source": "git::https://example.com/unapproved/storage.git"}}}},
+	}}
 	contains(msg, "module source")
 }

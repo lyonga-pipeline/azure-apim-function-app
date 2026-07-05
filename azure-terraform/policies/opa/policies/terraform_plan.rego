@@ -1,7 +1,7 @@
 package compeer.lz
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_create_or_update(resource.change.actions)
 	not exempt_resource_type(resource.type)
 	tags := object.get(resource.change.after, "tags", null)
@@ -11,7 +11,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_create_or_update(resource.change.actions)
 	location := lower(resource.change.after.location)
 	location != "global"
@@ -20,14 +20,14 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_public_ip"
 	resource.change.actions[_] == "create"
 	msg := sprintf("%s creates a public IP address; public exposure requires explicit platform approval", [resource.address])
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_storage_account"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "public_network_access_enabled", false)
@@ -35,7 +35,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_storage_account"
 	is_create_or_update(resource.change.actions)
 	tls_version := object.get(resource.change.after, "min_tls_version", "")
@@ -45,7 +45,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_storage_account"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "shared_access_key_enabled", false)
@@ -53,7 +53,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_storage_account"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "allow_nested_items_to_be_public", false)
@@ -61,7 +61,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_storage_account"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "infrastructure_encryption_enabled", true) == false
@@ -69,7 +69,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_key_vault"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "public_network_access_enabled", false)
@@ -77,7 +77,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_key_vault"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "enable_rbac_authorization", true) == false
@@ -85,7 +85,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_key_vault"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "purge_protection_enabled", true) == false
@@ -93,7 +93,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_key_vault"
 	is_create_or_update(resource.change.actions)
 	retention_days := object.get(resource.change.after, "soft_delete_retention_days", 90)
@@ -102,7 +102,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_mssql_server"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "public_network_access_enabled", false)
@@ -110,7 +110,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_mssql_server"
 	is_create_or_update(resource.change.actions)
 	tls_version := object.get(resource.change.after, "minimum_tls_version", "")
@@ -120,7 +120,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_mssql_server"
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "azuread_authentication_only", true) == false
@@ -128,7 +128,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "https_only", true) == false
@@ -136,7 +136,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "public_network_access_enabled", false)
@@ -144,7 +144,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	site_config := app_site_config(resource)
@@ -155,7 +155,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	site_config := app_site_config(resource)
@@ -166,7 +166,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "ftp_publish_basic_authentication_enabled", false)
@@ -174,7 +174,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	is_app_service_type(resource.type)
 	is_create_or_update(resource.change.actions)
 	object.get(resource.change.after, "webdeploy_publish_basic_authentication_enabled", false)
@@ -182,7 +182,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	requires_managed_identity(resource.type)
 	is_create_or_update(resource.change.actions)
 	not has_managed_identity(resource.change.after)
@@ -190,7 +190,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	requires_diagnostics(resource.type)
 	is_create_or_update(resource.change.actions)
 	not diagnostic_setting_in_plan
@@ -213,6 +213,12 @@ is_create_or_update(actions) if {
 
 is_delete(actions) if {
 	actions[_] == "delete"
+}
+
+tfplan := object.get(input, "plan", input)
+
+plan_resource_changes contains resource if {
+	resource := object.get(tfplan, "resource_changes", [])[_]
 }
 
 allowed_location(location) if {
@@ -269,14 +275,16 @@ identity_type_value(identity) := identity_type if {
 }
 
 diagnostic_setting_in_plan if {
-	resource := input.resource_changes[_]
+	resource := plan_resource_changes[_]
 	resource.type == "azurerm_monitor_diagnostic_setting"
 	not is_delete(resource.change.actions)
 }
 
 module_sources contains source if {
 	some path, value
-	walk(input.configuration.root_module, [path, value])
+	configuration := object.get(tfplan, "configuration", {})
+	root_module := object.get(configuration, "root_module", {})
+	walk(root_module, [path, value])
 	is_object(value)
 	calls := object.get(value, "module_calls", {})
 	call := calls[_]
