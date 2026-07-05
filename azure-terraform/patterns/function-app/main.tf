@@ -267,10 +267,10 @@ module "diagnostic_settings" {
   for_each = try(var.diagnostics.enabled, true) ? local.diagnostic_targets : {}
 
   name                       = "${each.key}-diag"
-  target_resource_id         = each.value
+  target_resource_id         = each.value.target_resource_id
   log_analytics_workspace_id = local.diagnostic_log_analytics_workspace_id
-  logs                       = var.diagnostics.logs
-  metrics                    = var.diagnostics.metrics
+  logs                       = each.value.logs
+  metrics                    = each.value.metrics
 
   depends_on = [terraform_data.contract]
 }

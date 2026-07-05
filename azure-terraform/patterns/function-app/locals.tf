@@ -130,10 +130,60 @@ locals {
     if endpoint.enabled
   } : {}
 
-  diagnostic_targets = {
-    key_vault            = local.key_vault_id
-    storage_account      = local.storage_account_id
-    function_app         = module.function_app.id
-    application_insights = local.application_insights_id
+  diagnostic_default_logs    = try(var.diagnostics.logs, {})
+  diagnostic_default_metrics = try(var.diagnostics.metrics, {})
+  diagnostic_storage_logs = {
+    storage_read = {
+      category = "StorageRead"
+    }
+    storage_write = {
+      category = "StorageWrite"
+    }
+    storage_delete = {
+      category = "StorageDelete"
+    }
   }
+  diagnostic_storage_metrics = {
+    transaction = {
+      category = "Transaction"
+      enabled  = true
+    }
+  }
+
+  diagnostic_targets = merge(
+    {
+      key_vault = {
+        target_resource_id = local.key_vault_id
+        logs               = local.diagnostic_default_logs
+        metrics            = local.diagnostic_default_metrics
+      }
+      storage_blob = {
+        target_resource_id = "${local.storage_account_id}/blobServices/default"
+        logs               = local.diagnostic_storage_logs
+        metrics            = local.diagnostic_storage_metrics
+      }
+      storage_queue = {
+        target_resource_id = "${local.storage_account_id}/queueServices/default"
+        logs               = local.diagnostic_storage_logs
+        metrics            = local.diagnostic_storage_metrics
+      }
+      function_app = {
+        target_resource_id = module.function_app.id
+        logs               = local.diagnostic_default_logs
+        metrics            = local.diagnostic_default_metrics
+      }
+      application_insights = {
+        target_resource_id = local.application_insights_id
+        logs               = local.diagnostic_default_logs
+        metrics            = local.diagnostic_default_metrics
+      }
+    },
+    length(var.storage_account.shares) > 0 ? {
+      storage_file = {
+        target_resource_id = "${local.storage_account_id}/fileServices/default"
+        logs               = local.diagnostic_storage_logs
+        metrics            = local.diagnostic_storage_metrics
+      }
+    } : {},
+  )
 }

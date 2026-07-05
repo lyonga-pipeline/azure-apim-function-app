@@ -29,6 +29,8 @@ Most dependencies support:
 
 The pattern validates that required create/existing inputs are present. It does not infer subnets, DNS zones, subscriptions, or shared observability from environment names. Diagnostics should normally point to the platform Log Analytics workspace through `diagnostics.log_analytics_workspace_id`; isolated pilots can set `diagnostics.workspace.create` to create a workload-local workspace without hardcoding subscription IDs.
 
+Storage diagnostics are attached to service scopes such as `blobServices/default`, `queueServices/default`, and `fileServices/default` because the parent Storage Account scope does not support the `allLogs` category group used by many other Azure resources.
+
 ## App Settings Ownership
 
 Infrastructure-owned app settings stay in Terraform. Runtime/deployment-owned settings may be passed into the pattern for sandbox validation, but broad app setting drift suppression is not used. If a setting must be ignored later, it should be documented in an exception register with owner, reason, and review cadence.
