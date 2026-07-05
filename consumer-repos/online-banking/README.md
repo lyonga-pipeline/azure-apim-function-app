@@ -8,6 +8,8 @@ For the net-new landing-zone path, these roots consume explicit platform outputs
 
 The `clientsync` folder is the first Function App composition pilot. It consumes the local Terraform 2.0 Function App pattern so the team can validate create/existing dependency modes, private networking, diagnostics, RBAC, and app-setting drift behavior with a representative application.
 
+The `legacy-app` folder is a training contrast. It intentionally uses one large all-in-one Function App module and intentionally violates selected OPA guardrails so teams can compare advisory policy findings against the cleaner ClientSync composition model.
+
 ## Environment Roots
 
 Each environment directory contains the full Terraform root needed to plan and apply that environment:
@@ -23,6 +25,7 @@ Each environment directory contains the full Terraform root needed to plan and a
 | `clientsync np2` | `clientsync/environments/np2` | local pattern | Controlled non-prod validation after `np1`. |
 | `clientsync np3` | `clientsync/environments/np3` | local pattern | Production-like non-prod validation. |
 | `clientsync prod` | `clientsync/environments/prod` | local pattern | Hardened production root for the ClientSync pilot. |
+| `legacy-app np1` | `legacy-app/environments/np1` | local legacy module | Training root that demonstrates tight lifecycle coupling and intentional OPA advisory findings. |
 
 Each root includes:
 
