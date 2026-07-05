@@ -78,7 +78,7 @@ resource "azurerm_key_vault" "this" {
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   sku_name                      = try(var.settings.key_vault.sku_name, "standard")
   public_network_access_enabled = try(var.settings.key_vault.public_network_access_enabled, true)
-  enable_rbac_authorization     = try(var.settings.key_vault.enable_rbac_authorization, false)
+  rbac_authorization_enabled    = try(var.settings.key_vault.rbac_authorization_enabled, false)
   purge_protection_enabled      = try(var.settings.key_vault.purge_protection_enabled, false)
   soft_delete_retention_days    = try(var.settings.key_vault.soft_delete_retention_days, 7)
   tags                          = local.tags

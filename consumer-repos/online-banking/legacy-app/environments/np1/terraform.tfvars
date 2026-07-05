@@ -44,7 +44,7 @@ legacy_app = {
   key_vault = {
     sku_name                      = "standard"
     public_network_access_enabled = true
-    enable_rbac_authorization     = false
+    rbac_authorization_enabled    = false
     purge_protection_enabled      = false
     soft_delete_retention_days    = 7
   }

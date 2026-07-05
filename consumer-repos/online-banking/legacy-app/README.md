@@ -57,3 +57,13 @@ Use `legacy-app` and `clientsync` together:
 
 - `legacy-app`: intentionally broad, tightly coupled, policy-noisy module.
 - `clientsync`: separated composition pattern with clearer dependency contracts and independently governed lifecycles.
+
+## What to Demo
+
+The high-level HCP plan summary can look similar for both approaches because Terraform ultimately shows resources to create, update, or destroy. The value of composition is easier to see in the plan details and in the remediation workflow:
+
+- Compare resource addresses. Legacy resources are all under `module.legacy_app.*`, while ClientSync resources are grouped under resource-specific boundaries such as storage, Key Vault, Function App, diagnostics, private endpoints, and role assignments.
+- Compare policy findings. Legacy produces broad findings across tags, public access, Storage, Key Vault, Function App posture, and diagnostics. ClientSync lets a team remediate those concerns in the specific contract that owns them.
+- Change one concern at a time. A diagnostic, tag, private endpoint, or Storage posture change should be owned by that concern's module/input in ClientSync. In the legacy module, the same change goes through one oversized contract that also owns app runtime, secrets, networking, and dependencies.
+- Discuss lifecycle ownership. In ClientSync, platform-owned resources can become `existing` inputs while workload-owned resources remain `create` inputs. In the legacy module, every dependency tends to travel together unless the module grows a large set of special cases.
+- Show policy tightening. Advisory warnings can later become mandatory without rewriting the application contract when the controls are already separated by concern.

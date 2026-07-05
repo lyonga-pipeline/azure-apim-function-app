@@ -100,6 +100,25 @@ test_key_vault_without_rbac_fails if {
 			"after": {
 				"location": "eastus2",
 				"public_network_access_enabled": false,
+				"rbac_authorization_enabled": false,
+				"purge_protection_enabled": true,
+				"soft_delete_retention_days": 90,
+				"tags": standard_tags,
+			},
+		},
+	}]}
+	contains(msg, "RBAC authorization")
+}
+
+test_key_vault_without_rbac_fails_with_legacy_provider_field if {
+	msg := deny[_] with input as {"resource_changes": [{
+		"address": "azurerm_key_vault.example",
+		"type": "azurerm_key_vault",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"location": "eastus2",
+				"public_network_access_enabled": false,
 				"enable_rbac_authorization": false,
 				"purge_protection_enabled": true,
 				"soft_delete_retention_days": 90,

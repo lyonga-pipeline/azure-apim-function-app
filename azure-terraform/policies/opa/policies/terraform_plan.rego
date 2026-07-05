@@ -80,7 +80,7 @@ deny contains msg if {
 	resource := plan_resource_changes[_]
 	resource.type == "azurerm_key_vault"
 	is_create_or_update(resource.change.actions)
-	object.get(resource.change.after, "enable_rbac_authorization", true) == false
+	key_vault_rbac_enabled(resource.change.after) == false
 	msg := sprintf("%s must use RBAC authorization", [resource.address])
 }
 
@@ -254,6 +254,10 @@ requires_diagnostics(resource_type) if {
 
 requires_managed_identity(resource_type) if {
 	data.net_new_lz.managed_identity_required_resource_types[_] == resource_type
+}
+
+key_vault_rbac_enabled(resource) := enabled if {
+	enabled := object.get(resource, "rbac_authorization_enabled", object.get(resource, "enable_rbac_authorization", true))
 }
 
 has_managed_identity(resource) if {

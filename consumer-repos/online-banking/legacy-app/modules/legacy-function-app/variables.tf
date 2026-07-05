@@ -43,7 +43,7 @@ variable "settings" {
     key_vault = object({
       sku_name                      = optional(string, "standard")
       public_network_access_enabled = optional(bool, true)
-      enable_rbac_authorization     = optional(bool, false)
+      rbac_authorization_enabled    = optional(bool, false)
       purge_protection_enabled      = optional(bool, false)
       soft_delete_retention_days    = optional(number, 7)
     })
