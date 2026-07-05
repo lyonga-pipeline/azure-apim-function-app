@@ -29,6 +29,70 @@ The current policy set is appropriate for the first advisory pilot. It validates
 
 The diagnostic rule intentionally checks for a diagnostic setting in the root composition, not exact one-to-one resource linkage. That keeps the first policy useful without creating false precision while the landing-zone pattern is still being piloted.
 
+## Policy Input Contract
+
+HCP Terraform evaluates OPA policies with Terraform plan data under `input.plan`. Local validation with `terraform show -json` usually passes the plan object directly. The policy supports both input shapes:
+
+| Runtime | Resource changes path | Configuration path |
+| --- | --- | --- |
+| HCP Terraform OPA policy checks | `input.plan.resource_changes` | `input.plan.configuration.root_module` |
+| Local raw Terraform plan JSON | `input.resource_changes` | `input.configuration.root_module` |
+
+The Rego normalizes both shapes before evaluating resources and module sources. This is required for HCP advisory or mandatory findings to appear; reading only `input.resource_changes` makes HCP policy checks inspect an empty plan and can incorrectly show a clean pass.
+
+## Pass and Advisory Conditions
+
+The policy query is `data.compeer.lz.deny`. A clean result is an empty list. Any returned message is a policy finding.
+
+Current pilot enforcement is `advisory`, so HCP Terraform allows the run to continue but displays findings under `Advisory warnings`. That is the expected enterprise pilot behavior: the control is visible, auditable, and reviewable without blocking early adoption.
+
+Set `enforcement_level = "mandatory"` only after the findings have been remediated or approved through an exception workflow. In mandatory mode, any non-empty `data.compeer.lz.deny` result blocks the run.
+
+Expected pass conditions:
+
+- all tagged resources include the required enterprise tags: `env`, `application`, `bt_owner`, `source_repo`, `tf_workspace`, `recovery`, `cost_center`, `data_classification`, and `compliance_boundary`,
+- resource locations are `eastus`, `eastus2`, `centralus`, or `global`,
+- no public IP addresses are created without an approved exception,
+- Storage Accounts do not enable public network access, shared access keys, public nested blob items, unsupported TLS, or disabled infrastructure encryption,
+- Key Vaults do not enable public network access and keep RBAC authorization, purge protection, and 90-day soft delete retention enabled,
+- SQL Servers do not enable public network access, keep TLS 1.2 or higher, and use Microsoft Entra-only authentication,
+- Function Apps and Web Apps enforce HTTPS, approved TLS and SCM TLS, managed identity, disabled basic publishing authentication, and no public network access,
+- required platform and workload resource types have a diagnostic setting created or updated in the root composition,
+- module sources use approved HCP registry, pattern, or local module path prefixes.
+
+Expected findings for the earlier ClientSync `np1` smoke posture included Storage Account public network access, Storage Account shared access keys, and missing diagnostic settings for required resource types. Those findings are acceptable during advisory pilot runs, but they should be remediated or formally excepted before mandatory enforcement or production use.
+
+## Promoting Advisory Findings To Failures
+
+The pilot policy is currently advisory in `policies.hcl`:
+
+```hcl
+policy "net-new-landing-zone-guardrails" {
+  query             = "data.compeer.lz.deny"
+  enforcement_level = "advisory"
+}
+```
+
+When teams are familiar with the findings and remediation path, change only the enforcement level to make every non-empty `data.compeer.lz.deny` result fail the run:
+
+```hcl
+policy "net-new-landing-zone-guardrails" {
+  query             = "data.compeer.lz.deny"
+  enforcement_level = "mandatory"
+}
+```
+
+Promotion checklist:
+
+- update `azure-terraform/policies/opa/policies.hcl` from `advisory` to `mandatory`,
+- keep the query as `data.compeer.lz.deny` unless the rules are intentionally split,
+- run `opa test azure-terraform/policies/opa/policies azure-terraform/policies/opa/tests azure-terraform/policies/opa/data`,
+- deploy the updated HCP policy set,
+- rerun the target workspace plan and confirm there are zero mandatory failures,
+- record any approved exceptions before widening scope.
+
+If only some rules should become blocking first, split those rules into a separate mandatory policy query or a separate HCP policy set. With the current single-query structure, changing `enforcement_level` to `mandatory` promotes all findings in `data.compeer.lz.deny` at once.
+
 ## Policy Backlog
 
 Before promotion to mandatory enforcement, add or refine:
@@ -53,7 +117,7 @@ opa test azure-terraform/policies/opa/policies azure-terraform/policies/opa/test
 Expected result:
 
 ```text
-PASS: 8/8
+PASS: 10/10
 ```
 
 ## HCP Enforcement Plan

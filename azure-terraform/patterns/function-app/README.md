@@ -14,6 +14,7 @@ This pattern is the first Terraform 2.0 reference workload composition. It demon
 - Regional VNet integration.
 - Private endpoints for Function App, Key Vault, and Storage subresources.
 - Diagnostic settings.
+- Optional workload-local Log Analytics workspace when a platform workspace ID is not supplied.
 - RBAC assignments.
 - HTTP 5xx metric alert.
 
@@ -26,7 +27,7 @@ Most dependencies support:
 | `create` | The pattern creates the dependency through approved base/companion modules. |
 | `existing` | The pattern consumes an approved dependency by explicit ID/name. |
 
-The pattern validates that required create/existing inputs are present. It does not infer subnets, DNS zones, subscriptions, or shared observability from environment names.
+The pattern validates that required create/existing inputs are present. It does not infer subnets, DNS zones, subscriptions, or shared observability from environment names. Diagnostics should normally point to the platform Log Analytics workspace through `diagnostics.log_analytics_workspace_id`; isolated pilots can set `diagnostics.workspace.create` to create a workload-local workspace without hardcoding subscription IDs.
 
 ## App Settings Ownership
 
@@ -40,6 +41,5 @@ For `prod`, the pattern requires:
 - private endpoints enabled,
 - VNet integration subnet ID provided,
 - alerting enabled,
-- Log Analytics workspace ID,
+- Log Analytics workspace ID or an explicit diagnostics workspace create block,
 - Action Group ID.
-

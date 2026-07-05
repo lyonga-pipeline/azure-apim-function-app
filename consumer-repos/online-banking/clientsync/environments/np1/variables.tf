@@ -124,10 +124,10 @@ variable "storage_account" {
     create = {
       name                          = "stclientsyncnp1001"
       account_replication_type      = "LRS"
-      shared_access_key_enabled     = true
-      public_network_access_enabled = true
+      shared_access_key_enabled     = false
+      public_network_access_enabled = false
       network_rules = {
-        default_action = "Allow"
+        default_action = "Deny"
         bypass         = ["AzureServices"]
       }
       blob_properties = {
@@ -221,7 +221,25 @@ variable "diagnostics" {
   type        = any
   description = "Diagnostic settings pattern input for this ClientSync environment."
   default = {
-    enabled = false
+    enabled = true
+    workspace = {
+      create = {
+        name              = "law-clientsync-np1-001"
+        retention_in_days = 30
+        daily_quota_gb    = 1
+      }
+    }
+    logs = {
+      all_logs = {
+        category_group = "allLogs"
+      }
+    }
+    metrics = {
+      all_metrics = {
+        category = "AllMetrics"
+        enabled  = true
+      }
+    }
   }
 }
 

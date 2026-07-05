@@ -22,15 +22,15 @@ locals {
     })
   })
 
-  storage_account_smoke_defaults = {
+  storage_account_defaults = {
     mode = "create"
     create = {
       name                          = "stclientsyncnp1001"
       account_replication_type      = "LRS"
-      shared_access_key_enabled     = true
-      public_network_access_enabled = true
+      shared_access_key_enabled     = false
+      public_network_access_enabled = false
       network_rules = {
-        default_action = "Allow"
+        default_action = "Deny"
         bypass         = ["AzureServices"]
       }
       blob_properties = {
@@ -55,13 +55,13 @@ locals {
     shares = {}
   }
 
-  # HCP workspace variables replace whole objects. Merge smoke defaults back in
-  # so partial overrides do not accidentally disable provider data-plane access.
-  storage_account = merge(local.storage_account_smoke_defaults, var.storage_account, {
-    create     = merge(local.storage_account_smoke_defaults.create, try(var.storage_account.create, {}))
-    containers = merge(local.storage_account_smoke_defaults.containers, try(var.storage_account.containers, {}))
-    queues     = merge(local.storage_account_smoke_defaults.queues, try(var.storage_account.queues, {}))
-    shares     = merge(local.storage_account_smoke_defaults.shares, try(var.storage_account.shares, {}))
+  # HCP workspace variables replace whole objects. Merge np1 defaults back in
+  # so partial overrides preserve the enterprise storage posture.
+  storage_account = merge(local.storage_account_defaults, var.storage_account, {
+    create     = merge(local.storage_account_defaults.create, try(var.storage_account.create, {}))
+    containers = merge(local.storage_account_defaults.containers, try(var.storage_account.containers, {}))
+    queues     = merge(local.storage_account_defaults.queues, try(var.storage_account.queues, {}))
+    shares     = merge(local.storage_account_defaults.shares, try(var.storage_account.shares, {}))
   })
 
   function_app_smoke_defaults = {

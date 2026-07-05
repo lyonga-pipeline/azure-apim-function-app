@@ -101,6 +101,23 @@ module "storage_shares" {
   shares             = var.storage_account.shares
 }
 
+module "diagnostics_log_analytics" {
+  source = "../../modules/log-analytics"
+  count  = local.create_diagnostics_workspace ? 1 : 0
+
+  name                               = var.diagnostics.workspace.create.name
+  resource_group_name                = local.resource_group_name
+  location                           = var.location
+  sku                                = try(var.diagnostics.workspace.create.sku, "PerGB2018")
+  retention_in_days                  = try(var.diagnostics.workspace.create.retention_in_days, 30)
+  daily_quota_gb                     = try(var.diagnostics.workspace.create.daily_quota_gb, null)
+  internet_ingestion_enabled         = try(var.diagnostics.workspace.create.internet_ingestion_enabled, true)
+  internet_query_enabled             = try(var.diagnostics.workspace.create.internet_query_enabled, true)
+  reservation_capacity_in_gb_per_day = try(var.diagnostics.workspace.create.reservation_capacity_in_gb_per_day, null)
+  cmk_for_query_forced               = try(var.diagnostics.workspace.create.cmk_for_query_forced, false)
+  tags                               = module.tags.tags
+}
+
 module "key_vault" {
   source = "../../modules/key-vault"
   count  = local.create_key_vault ? 1 : 0
@@ -138,7 +155,7 @@ module "application_insights" {
   resource_group_name           = local.resource_group_name
   location                      = var.location
   application_type              = try(var.application_insights.create.application_type, "web")
-  workspace_id                  = var.diagnostics.log_analytics_workspace_id
+  workspace_id                  = local.diagnostic_log_analytics_workspace_id
   retention_in_days             = try(var.application_insights.create.retention_in_days, 90)
   local_authentication_disabled = try(var.application_insights.create.local_authentication_disabled, true)
   tags                          = module.tags.tags
@@ -251,7 +268,7 @@ module "diagnostic_settings" {
 
   name                       = "${each.key}-diag"
   target_resource_id         = each.value
-  log_analytics_workspace_id = var.diagnostics.log_analytics_workspace_id
+  log_analytics_workspace_id = local.diagnostic_log_analytics_workspace_id
   logs                       = var.diagnostics.logs
   metrics                    = var.diagnostics.metrics
 

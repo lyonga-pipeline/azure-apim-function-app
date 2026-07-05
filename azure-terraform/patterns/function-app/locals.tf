@@ -31,7 +31,7 @@ locals {
     try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.storage_queue, true) && try(var.private_endpoints.private_dns_zone_ids.storage_queue, null) == null ? "private_endpoints.private_dns_zone_ids.storage_queue is required when the Storage queue private endpoint is enabled." : null,
     try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.storage_file, false) && try(var.private_endpoints.private_dns_zone_ids.storage_file, null) == null ? "private_endpoints.private_dns_zone_ids.storage_file is required when the Storage file private endpoint is enabled." : null,
 
-    try(var.diagnostics.enabled, true) && try(var.diagnostics.log_analytics_workspace_id, null) == null ? "diagnostics.log_analytics_workspace_id is required when diagnostics.enabled is true." : null,
+    try(var.diagnostics.enabled, true) && try(var.diagnostics.log_analytics_workspace_id, null) == null && try(var.diagnostics.workspace.create, null) == null ? "diagnostics.log_analytics_workspace_id or diagnostics.workspace.create is required when diagnostics.enabled is true." : null,
     try(var.alerts.enabled, true) && try(var.alerts.action_group_id, null) == null ? "alerts.action_group_id is required when alerts.enabled is true." : null,
     lower(var.environment) == "prod" && !try(var.private_endpoints.enabled, true) ? "Production Function App pattern deployments require private_endpoints.enabled=true unless an approved exception is modeled outside this pattern." : null,
     lower(var.environment) == "prod" && !try(var.diagnostics.enabled, true) ? "Production Function App pattern deployments require diagnostics.enabled=true unless an approved exception is modeled outside this pattern." : null,
@@ -45,6 +45,11 @@ locals {
   create_storage_account      = lower(var.storage_account.mode) == "create"
   create_key_vault            = lower(var.key_vault.mode) == "create"
   create_application_insights = lower(var.application_insights.mode) == "create"
+  create_diagnostics_workspace = (
+    try(var.diagnostics.enabled, true) &&
+    try(var.diagnostics.log_analytics_workspace_id, null) == null &&
+    try(var.diagnostics.workspace.create, null) != null
+  )
 
   resource_group_name = local.create_resource_group ? module.resource_group[0].name : var.resource_group.existing.name
   resource_group_id   = local.create_resource_group ? module.resource_group[0].id : try(var.resource_group.existing.id, null)
@@ -63,6 +68,7 @@ locals {
 
   application_insights_id                = local.create_application_insights ? module.application_insights[0].id : var.application_insights.existing.id
   application_insights_connection_string = local.create_application_insights ? module.application_insights[0].connection_string : var.application_insights.existing.connection_string
+  diagnostic_log_analytics_workspace_id  = local.create_diagnostics_workspace ? module.diagnostics_log_analytics[0].id : try(var.diagnostics.log_analytics_workspace_id, null)
 
   platform_app_settings = {
     APPLICATIONINSIGHTS_CONNECTION_STRING = local.application_insights_connection_string

@@ -215,6 +215,18 @@ variable "diagnostics" {
   type = object({
     enabled                    = optional(bool, true)
     log_analytics_workspace_id = optional(string)
+    workspace = optional(object({
+      create = optional(object({
+        name                               = string
+        sku                                = optional(string, "PerGB2018")
+        retention_in_days                  = optional(number, 30)
+        daily_quota_gb                     = optional(number)
+        internet_ingestion_enabled         = optional(bool, true)
+        internet_query_enabled             = optional(bool, true)
+        reservation_capacity_in_gb_per_day = optional(number)
+        cmk_for_query_forced               = optional(bool, false)
+      }))
+    }), {})
     logs = optional(map(object({
       category       = optional(string)
       category_group = optional(string)
