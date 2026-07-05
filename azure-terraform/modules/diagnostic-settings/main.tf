@@ -15,11 +15,13 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
     }
   }
 
-  dynamic "metric" {
-    for_each = var.metrics
+  dynamic "enabled_metric" {
+    for_each = {
+      for key, metric in var.metrics : key => metric
+      if try(metric.enabled, true)
+    }
     content {
-      category = metric.value.category
-      enabled  = try(metric.value.enabled, true)
+      category = enabled_metric.value.category
     }
   }
 
