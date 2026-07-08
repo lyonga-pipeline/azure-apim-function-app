@@ -7,7 +7,7 @@ workload_tags = {
   source_repo         = "ado://Compeer/online-banking"
   terraform_workspace = "lz-workload-online-banking-np1"
   recovery_tier       = "standard"
-  cost_center         = "CC-1001"
+  cost_center         = "CC-100145"
   data_classification = "confidential"
   compliance_boundary = "finserv"
   additional_tags = {
@@ -45,7 +45,7 @@ spoke_vnet = {
 
 network_security_groups = {
   app = {
-    name  = "nsg-online-banking-np1-app"
+    name  = "nsg-online-banking-np1"
     rules = {}
   }
   private_endpoints = {
