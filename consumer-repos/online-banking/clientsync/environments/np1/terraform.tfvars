@@ -1,7 +1,7 @@
 location    = "eastus"
 environment = "np1"
 
-allow_dedicated_app_service_plan = false
+allow_dedicated_app_service_plan = true
 
 application = {
   code                = "clientsync"
@@ -40,8 +40,8 @@ app_service_plan = {
   create = {
     name                   = "asp-clientsync-np1-001"
     os_type                = "Windows"
-    sku_name               = "Y1"
-    worker_count           = null
+    sku_name               = "EP1"
+    worker_count           = 1
     zone_balancing_enabled = null
   }
 }
@@ -116,7 +116,7 @@ function_app = {
   name                              = "func-clientsync-np1-001"
   os_type                           = "Windows"
   functions_extension_version       = "~4"
-  always_on                         = false
+  always_on                         = true
   health_check_eviction_time_in_min = 10
   health_check_path                 = "/api/health"
   infrastructure_app_settings       = {}
@@ -129,10 +129,36 @@ function_app = {
   }
 }
 
+platform_outputs = {
+  enabled                         = true
+  hcp_organization                = "compeer"
+  platform_management_workspace   = "lz-platform-management-np"
+  platform_connectivity_workspace = "lz-platform-connectivity-np"
+  workload_spoke_workspace        = "lz-workload-online-banking-np1"
+  app_integration_subnet_key      = "app_integration"
+  private_endpoint_subnet_key     = "private_endpoints"
+  private_dns_zone_keys = {
+    app_service   = "app_service"
+    key_vault     = "key_vault"
+    storage_blob  = "storage_blob"
+    storage_queue = "storage_queue"
+    storage_file  = "storage_file"
+  }
+  use_platform_log_analytics = true
+  use_platform_action_group  = false
+}
+
 network = {}
 
 private_endpoints = {
-  enabled = false
+  enabled = true
+  targets = {
+    function_app  = true
+    key_vault     = true
+    storage_blob  = true
+    storage_queue = true
+    storage_file  = true
+  }
 }
 
 diagnostics = {

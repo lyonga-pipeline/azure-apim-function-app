@@ -30,6 +30,26 @@ output "private_dns_zone_ids" {
   value = module.private_dns_zones.ids
 }
 
+output "app_service_private_dns_zone_id" {
+  value = try(module.private_dns_zones.ids["app_service"], null)
+}
+
+output "key_vault_private_dns_zone_id" {
+  value = try(module.private_dns_zones.ids["key_vault"], null)
+}
+
+output "storage_blob_private_dns_zone_id" {
+  value = try(module.private_dns_zones.ids["storage_blob"], null)
+}
+
+output "storage_queue_private_dns_zone_id" {
+  value = try(module.private_dns_zones.ids["storage_queue"], null)
+}
+
+output "storage_file_private_dns_zone_id" {
+  value = try(module.private_dns_zones.ids["storage_file"], null)
+}
+
 output "private_dns_zone_names" {
   value = module.private_dns_zones.names
 }

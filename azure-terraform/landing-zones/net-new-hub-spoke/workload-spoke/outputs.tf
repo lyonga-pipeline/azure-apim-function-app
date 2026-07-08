@@ -18,6 +18,14 @@ output "subnet_ids" {
   value = module.spoke_vnet.subnet_ids
 }
 
+output "app_service_integration_subnet_id" {
+  value = try(module.spoke_vnet.subnet_ids["app_integration"], null)
+}
+
+output "private_endpoint_subnet_id" {
+  value = try(module.spoke_vnet.subnet_ids["private_endpoints"], null)
+}
+
 output "spoke_to_hub_peering_id" {
   value = try(module.spoke_to_hub_peering[0].id, null)
 }

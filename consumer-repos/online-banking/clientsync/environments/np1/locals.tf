@@ -116,4 +116,146 @@ locals {
   key_vault = merge(var.key_vault, {
     secrets = var.key_vault_secrets
   })
+
+  platform_outputs_enabled = try(var.platform_outputs.enabled, false)
+
+  platform_management_outputs = merge(
+    try(data.tfe_outputs.platform_management[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.platform_management[0].values, {}),
+  )
+  platform_connectivity_outputs = merge(
+    try(data.tfe_outputs.platform_connectivity[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.platform_connectivity[0].values, {}),
+  )
+  workload_spoke_outputs = merge(
+    try(data.tfe_outputs.workload_spoke[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.workload_spoke[0].values, {}),
+  )
+
+  platform_private_dns_zone_keys = {
+    app_service   = coalesce(try(var.platform_outputs.private_dns_zone_keys.app_service, null), "app_service")
+    key_vault     = coalesce(try(var.platform_outputs.private_dns_zone_keys.key_vault, null), "key_vault")
+    storage_blob  = coalesce(try(var.platform_outputs.private_dns_zone_keys.storage_blob, null), "storage_blob")
+    storage_queue = coalesce(try(var.platform_outputs.private_dns_zone_keys.storage_queue, null), "storage_queue")
+    storage_file  = coalesce(try(var.platform_outputs.private_dns_zone_keys.storage_file, null), "storage_file")
+  }
+
+  app_service_integration_subnet_candidates = [
+    for value in [
+      try(var.network.app_service_integration_subnet_id, null),
+      try(local.workload_spoke_outputs.app_service_integration_subnet_id, null),
+      try(local.workload_spoke_outputs.subnet_ids[var.platform_outputs.app_integration_subnet_key], null),
+    ] : value if value != null && value != ""
+  ]
+  private_endpoint_subnet_candidates = [
+    for value in [
+      try(var.private_endpoints.subnet_id, null),
+      try(local.workload_spoke_outputs.private_endpoint_subnet_id, null),
+      try(local.workload_spoke_outputs.subnet_ids[var.platform_outputs.private_endpoint_subnet_key], null),
+    ] : value if value != null && value != ""
+  ]
+
+  app_service_integration_subnet_id = try(local.app_service_integration_subnet_candidates[0], null)
+  private_endpoint_subnet_id        = try(local.private_endpoint_subnet_candidates[0], null)
+
+  private_dns_zone_id_sources = {
+    app_service = [
+      try(var.private_endpoints.private_dns_zone_ids.app_service, null),
+      try(local.platform_connectivity_outputs.app_service_private_dns_zone_id, null),
+      try(local.platform_connectivity_outputs.private_dns_zone_ids[local.platform_private_dns_zone_keys.app_service], null),
+    ]
+    key_vault = [
+      try(var.private_endpoints.private_dns_zone_ids.key_vault, null),
+      try(local.platform_connectivity_outputs.key_vault_private_dns_zone_id, null),
+      try(local.platform_connectivity_outputs.private_dns_zone_ids[local.platform_private_dns_zone_keys.key_vault], null),
+    ]
+    storage_blob = [
+      try(var.private_endpoints.private_dns_zone_ids.storage_blob, null),
+      try(local.platform_connectivity_outputs.storage_blob_private_dns_zone_id, null),
+      try(local.platform_connectivity_outputs.private_dns_zone_ids[local.platform_private_dns_zone_keys.storage_blob], null),
+    ]
+    storage_queue = [
+      try(var.private_endpoints.private_dns_zone_ids.storage_queue, null),
+      try(local.platform_connectivity_outputs.storage_queue_private_dns_zone_id, null),
+      try(local.platform_connectivity_outputs.private_dns_zone_ids[local.platform_private_dns_zone_keys.storage_queue], null),
+    ]
+    storage_file = [
+      try(var.private_endpoints.private_dns_zone_ids.storage_file, null),
+      try(local.platform_connectivity_outputs.storage_file_private_dns_zone_id, null),
+      try(local.platform_connectivity_outputs.private_dns_zone_ids[local.platform_private_dns_zone_keys.storage_file], null),
+    ]
+  }
+
+  private_dns_zone_id_candidates = {
+    for key, values in local.private_dns_zone_id_sources : key => [
+      for value in values : value if value != null && value != ""
+    ]
+  }
+  resolved_private_dns_zone_ids = {
+    for key, values in local.private_dns_zone_id_candidates : key => try(values[0], null)
+  }
+  private_dns_zone_ids_for_merge = {
+    for key, value in local.resolved_private_dns_zone_ids : key => value
+    if value != null && value != ""
+  }
+
+  log_analytics_workspace_id_candidates = [
+    for value in [
+      try(var.diagnostics.log_analytics_workspace_id, null),
+      try(local.platform_management_outputs.log_analytics_workspace_id, null),
+    ] : value if value != null && value != ""
+  ]
+  action_group_id_candidates = [
+    for value in [
+      try(var.alerts.action_group_id, null),
+      try(local.platform_management_outputs.action_group_id, null),
+    ] : value if value != null && value != ""
+  ]
+
+  log_analytics_workspace_id = try(local.log_analytics_workspace_id_candidates[0], null)
+  action_group_id            = try(local.action_group_id_candidates[0], null)
+
+  network = merge(
+    var.network,
+    local.platform_outputs_enabled && local.app_service_integration_subnet_id != null ? {
+      app_service_integration_subnet_id = local.app_service_integration_subnet_id
+    } : {},
+  )
+
+  private_endpoints = merge(
+    var.private_endpoints,
+    local.platform_outputs_enabled ? {
+      subnet_id = local.private_endpoint_subnet_id
+      private_dns_zone_ids = merge(
+        try(var.private_endpoints.private_dns_zone_ids, {}),
+        local.private_dns_zone_ids_for_merge,
+      )
+    } : {},
+  )
+
+  diagnostics = merge(
+    var.diagnostics,
+    local.platform_outputs_enabled && try(var.platform_outputs.use_platform_log_analytics, true) && local.log_analytics_workspace_id != null ? {
+      log_analytics_workspace_id = local.log_analytics_workspace_id
+    } : {},
+  )
+
+  alerts = merge(
+    var.alerts,
+    local.platform_outputs_enabled && local.action_group_id != null ? {
+      action_group_id = local.action_group_id
+    } : {},
+  )
+
+  platform_output_errors = compact([
+    local.platform_outputs_enabled && local.app_service_integration_subnet_id == null ? "platform_outputs could not resolve the app service integration subnet. Apply '${var.platform_outputs.workload_spoke_workspace}' after it exposes app_service_integration_subnet_id/subnet_ids, confirm TFE_TOKEN can read it, or set network.app_service_integration_subnet_id explicitly." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && local.private_endpoint_subnet_id == null ? "platform_outputs could not resolve the private endpoint subnet. Apply '${var.platform_outputs.workload_spoke_workspace}' after it exposes private_endpoint_subnet_id/subnet_ids, confirm TFE_TOKEN can read it, or set private_endpoints.subnet_id explicitly." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.function_app, true) && local.resolved_private_dns_zone_ids.app_service == null ? "platform_outputs could not resolve the App Service private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.key_vault, true) && local.resolved_private_dns_zone_ids.key_vault == null ? "platform_outputs could not resolve the Key Vault private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.storage_blob, true) && local.resolved_private_dns_zone_ids.storage_blob == null ? "platform_outputs could not resolve the Storage Blob private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.storage_queue, true) && local.resolved_private_dns_zone_ids.storage_queue == null ? "platform_outputs could not resolve the Storage Queue private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
+    local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.storage_file, false) && local.resolved_private_dns_zone_ids.storage_file == null ? "platform_outputs could not resolve the Storage File private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
+    local.platform_outputs_enabled && try(var.platform_outputs.use_platform_log_analytics, true) && local.log_analytics_workspace_id == null ? "platform_outputs could not resolve log_analytics_workspace_id from '${var.platform_outputs.platform_management_workspace}'." : null,
+    local.platform_outputs_enabled && (try(var.platform_outputs.use_platform_action_group, false) || try(var.alerts.enabled, false)) && local.action_group_id == null ? "platform_outputs could not resolve action_group_id from '${var.platform_outputs.platform_management_workspace}'." : null,
+  ])
 }

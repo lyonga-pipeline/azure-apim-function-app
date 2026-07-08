@@ -217,6 +217,29 @@ variable "private_endpoints" {
   }
 }
 
+variable "platform_outputs" {
+  type = object({
+    enabled                         = optional(bool, false)
+    hcp_organization                = optional(string, "compeer")
+    platform_management_workspace   = optional(string, "lz-platform-management-np")
+    platform_connectivity_workspace = optional(string, "lz-platform-connectivity-np")
+    workload_spoke_workspace        = optional(string, "lz-workload-online-banking-np1")
+    app_integration_subnet_key      = optional(string, "app_integration")
+    private_endpoint_subnet_key     = optional(string, "private_endpoints")
+    private_dns_zone_keys = optional(object({
+      app_service   = optional(string, "app_service")
+      key_vault     = optional(string, "key_vault")
+      storage_blob  = optional(string, "storage_blob")
+      storage_queue = optional(string, "storage_queue")
+      storage_file  = optional(string, "storage_file")
+    }), {})
+    use_platform_log_analytics = optional(bool, true)
+    use_platform_action_group  = optional(bool, false)
+  })
+  description = "HCP Terraform output contract for the shared platform and workload-spoke workspaces. When enabled, this root reads producer workspace outputs instead of hardcoding subnet, Private DNS, Log Analytics, or Action Group IDs."
+  default     = {}
+}
+
 variable "diagnostics" {
   type        = any
   description = "Diagnostic settings pattern input for this ClientSync environment."
