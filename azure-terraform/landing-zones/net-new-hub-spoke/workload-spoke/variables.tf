@@ -125,7 +125,7 @@ variable "private_dns_zone_links" {
 
 variable "additional_scopes" {
   type        = map(string)
-  description = "Additional named scopes that can be referenced by locks, diagnostics, or role assignments."
+  description = "Any Additional named scopes that can be referenced by locks, diagnostics, or role assignments."
   default     = {}
 }
 
