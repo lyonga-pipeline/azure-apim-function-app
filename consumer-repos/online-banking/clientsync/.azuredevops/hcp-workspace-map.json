@@ -1,0 +1,7 @@
+{
+  "environments/sandbox": "lz-workload-clientsync-sandbox",
+  "environments/np1": "lz-workload-clientsync-np1",
+  "environments/np2": "lz-workload-clientsync-np2",
+  "environments/np3": "lz-workload-clientsync-np3",
+  "environments/prod": "lz-workload-clientsync-prod"
+}

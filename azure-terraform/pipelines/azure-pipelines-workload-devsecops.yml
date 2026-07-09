@@ -1,0 +1,168 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - .azuredevops/hcp-workspace-map.json
+      - consumer-repos/online-banking/clientsync/**
+      - azure-terraform/scripts/**
+      - azure-terraform/pipelines/azure-pipelines-workload-devsecops.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - .azuredevops/hcp-workspace-map.json
+      - consumer-repos/online-banking/clientsync/**
+      - azure-terraform/scripts/**
+      - azure-terraform/pipelines/azure-pipelines-workload-devsecops.yml
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  vmPoolImage: ubuntu-latest
+  terraformScriptsRoot: azure-terraform
+  hcpOrganization: compeer
+  terraformWorkingDirectory: ''
+  workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
+  hcpWorkspaceMapFile: .azuredevops/hcp-workspace-map.json
+  hcpWorkspaceMap: '{}'
+  hcpWorkspacePrefix: ''
+  hcpWorkspace: ''
+  queueHcpRunFromAdo: 'true'
+  allowLatestHcpRun: 'false'
+  destructiveChangeEnforcementMode: enforce
+  destructiveChangeEnforceOnlyOnPr: 'true'
+  requireMediumDestructiveChangeAck: 'true'
+  requireHighDestructiveChangeAck: 'true'
+  requireHighDestructiveChangeWorkItem: 'true'
+  failOnDestroy: 'false'
+  failOnHcpPolicyFailure: 'true'
+  failOnHcpRunTaskFailure: 'true'
+
+stages:
+  - stage: HcpPlanAndPolicyEvidence
+    displayName: ClientSync HCP plan and policy evidence
+    dependsOn: []
+    condition: always()
+    jobs:
+      - job: CaptureHcpEvidence
+        displayName: Capture ClientSync speculative plan and policy/run task evidence
+        pool:
+          vmImage: $(vmPoolImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - bash: |
+              set -euo pipefail
+              if ! command -v jq >/dev/null 2>&1; then
+                sudo apt-get update
+                sudo apt-get install -y jq
+              fi
+            displayName: Ensure jq is available
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+              chmod +x "$(terraformScriptsRoot)/scripts/resolve-hcp-workspace.sh"
+
+              "$(terraformScriptsRoot)/scripts/resolve-hcp-workspace.sh" \
+                --source-dir "$(Build.SourcesDirectory)" \
+                --terraform-working-directory "$(terraformWorkingDirectory)" \
+                --environment-root-prefix "$(workloadEnvironmentRootPrefix)" \
+                --workspace-map-file "$(hcpWorkspaceMapFile)" \
+                --workspace-prefix "$(hcpWorkspacePrefix)" \
+                --fallback-workspace "$(hcpWorkspace)" \
+                --hcp-organization "$(hcpOrganization)" \
+                --output-dir "$(Build.ArtifactStagingDirectory)/hcp"
+            displayName: Resolve ClientSync HCP workspace
+            env:
+              HCP_WORKSPACE_MAP: '$(hcpWorkspaceMap)'
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+
+              if [[ "$(queueHcpRunFromAdo)" == "true" ]]; then
+                chmod +x "$(terraformScriptsRoot)/scripts/queue-hcp-speculative-plan.sh"
+
+                "$(terraformScriptsRoot)/scripts/queue-hcp-speculative-plan.sh" \
+                  --organization "$(hcpOrganization)" \
+                  --workspace "$(resolvedHcpWorkspace)" \
+                  --source-dir "$(Build.SourcesDirectory)" \
+                  --vcs-revision "$(Build.SourceVersion)" \
+                  --output-dir "$(Build.ArtifactStagingDirectory)/hcp"
+              fi
+            displayName: Queue ClientSync HCP speculative plan for this commit
+            env:
+              HCP_TOKEN: $(HCP_TOKEN)
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+              chmod +x "$(terraformScriptsRoot)/scripts/capture-hcp-run-evidence.sh"
+
+              run_id_args=()
+              if [[ -s "$(Build.ArtifactStagingDirectory)/hcp/run-id.txt" ]]; then
+                run_id_args=(--run-id "$(cat "$(Build.ArtifactStagingDirectory)/hcp/run-id.txt")")
+              fi
+
+              "$(terraformScriptsRoot)/scripts/capture-hcp-run-evidence.sh" \
+                --organization "$(hcpOrganization)" \
+                --workspace "$(resolvedHcpWorkspace)" \
+                "${run_id_args[@]}" \
+                --vcs-revision "$(Build.SourceVersion)" \
+                --allow-latest-run "$(allowLatestHcpRun)" \
+                --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
+                --fail-on-destroy "$(failOnDestroy)" \
+                --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \
+                --fail-on-run-task-failure "$(failOnHcpRunTaskFailure)"
+            displayName: Fetch HCP plan JSON, policy checks, and run task results
+            env:
+              HCP_TOKEN: $(HCP_TOKEN)
+
+          - bash: |
+              set -euo pipefail
+              chmod +x "$(terraformScriptsRoot)/scripts/validate-destructive-change-approval.sh"
+
+              "$(terraformScriptsRoot)/scripts/validate-destructive-change-approval.sh" \
+                --plan-json "$(Build.ArtifactStagingDirectory)/hcp/plan.json" \
+                --policy-config "$(terraformScriptsRoot)/pipelines/destructive-change-policy.json" \
+                --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
+                --enforcement-mode "$(destructiveChangeEnforcementMode)" \
+                --enforce-only-on-pr "$(destructiveChangeEnforceOnlyOnPr)" \
+                --require-medium-ack "$(requireMediumDestructiveChangeAck)" \
+                --require-high-ack "$(requireHighDestructiveChangeAck)" \
+                --require-high-work-item "$(requireHighDestructiveChangeWorkItem)"
+            displayName: Validate destructive-change acknowledgement
+            env:
+              ADO_TOKEN: $(System.AccessToken)
+
+          - bash: |
+              set -euo pipefail
+
+              if [[ -f "$(Build.ArtifactStagingDirectory)/hcp/summary.md" ]]; then
+                echo "##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/hcp/summary.md"
+              fi
+
+              if [[ -f "$(Build.ArtifactStagingDirectory)/hcp/destructive-change-approval.md" ]]; then
+                echo "##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/hcp/destructive-change-approval.md"
+              fi
+            displayName: Publish HCP evidence summaries to build
+            condition: succeededOrFailed()
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish HCP plan and policy evidence
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/hcp'
+              artifact: hcp-plan-policy-evidence

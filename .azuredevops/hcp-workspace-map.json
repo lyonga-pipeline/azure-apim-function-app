@@ -1,0 +1,7 @@
+{
+  "consumer-repos/online-banking/clientsync/environments/sandbox": "lz-workload-clientsync-sandbox",
+  "consumer-repos/online-banking/clientsync/environments/np1": "lz-workload-clientsync-np1",
+  "consumer-repos/online-banking/clientsync/environments/np2": "lz-workload-clientsync-np2",
+  "consumer-repos/online-banking/clientsync/environments/np3": "lz-workload-clientsync-np3",
+  "consumer-repos/online-banking/clientsync/environments/prod": "lz-workload-clientsync-prod"
+}

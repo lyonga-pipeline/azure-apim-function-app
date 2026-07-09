@@ -2,6 +2,11 @@
 
 This folder contains the Azure DevOps pipeline additions for Terraform 2.0 delivery.
 
+Two pipeline entry points are provided:
+
+- `azure-pipelines-devsecops.yml` is the platform or single-workspace pipeline. It keeps a fixed `hcpWorkspace` value and is useful for platform testing.
+- `azure-pipelines-workload-devsecops.yml` is the workload pipeline. It resolves the changed Terraform environment root, maps it to the correct HCP workspace, and then runs the same HCP evidence capture.
+
 The deployment pipeline intentionally stays close to the existing working pipeline:
 
 - keep the `Core/Pipelines` Terraform IaC scan template for Terraform validation, linting, and existing quality checks,
@@ -12,20 +17,23 @@ OPA policy-code validation and OPA policy-set deployment remain separate because
 
 ## Current Validated Flow
 
-The validated ADO flow is:
+The validated workload ADO flow is:
 
 1. Run the existing Terraform validation/linting and Checkmarx checks.
-2. Queue an HCP speculative plan for the configured workspace and current commit.
-3. Wait for HCP plan JSON, policy checks, and run-task results.
-4. Publish full HCP evidence as the `hcp-plan-policy-evidence` artifact.
-5. Publish readable HCP evidence summaries into the ADO build.
-6. Validate destructive-change acknowledgement from the HCP plan JSON.
+2. Resolve the Terraform working directory to the correct HCP workspace.
+3. Queue an HCP speculative plan for the resolved workspace and current commit.
+4. Wait for HCP plan JSON, policy checks, and run-task results.
+5. Publish full HCP evidence as the `hcp-plan-policy-evidence` artifact.
+6. Publish readable HCP evidence summaries into the ADO build.
+7. Validate destructive-change acknowledgement from the HCP plan JSON.
 
 HCP remains the Terraform execution and policy evaluation engine. ADO is the review, evidence, and DevSecOps control plane; it does not apply infrastructure in this starter pipeline.
 
+For the platform pipeline, the workspace-resolution step is intentionally skipped and the fixed `hcpWorkspace` variable is used.
+
 ## Deployment Pipeline
 
-Use `azure-pipelines-devsecops.yml` as the starting Terraform deployment pipeline in the ADO implementation repo.
+Use `azure-pipelines-devsecops.yml` for platform stacks or any single-workspace test. Use `azure-pipelines-workload-devsecops.yml` for ClientSync-style workload repositories that have separate roots and workspaces for `sandbox`, `np1`, `np2`, `np3`, and `prod`.
 
 | Stage/job | Purpose |
 | --- | --- |
@@ -56,10 +64,138 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | `HCP_TOKEN` | Secret variable | HCP Terraform API token used to queue/read HCP runs, plans, policy checks, and run-task evidence. |
 | `System.AccessToken` | Built-in OAuth token | Used to read the ADO PR description and linked work items for destructive-change acknowledgement. Enable "Allow scripts to access the OAuth token" if required by the ADO project settings. |
 | `terraformScriptsRoot` | Pipeline variable | Path to the checked-out Terraform automation folder. In this repository it is `azure-terraform`. |
-| `hcpOrganization` | Pipeline variable | HCP Terraform organization name. |
-| `hcpWorkspace` | Pipeline variable | HCP Terraform workspace that should receive the speculative plan. |
+| `hcpOrganization` | Pipeline variable | HCP Terraform organization name. It must match the organization configured in the Terraform `cloud` block for the selected workspace. |
+| `hcpWorkspace` | Platform pipeline variable | Fixed HCP Terraform workspace for the platform or any single-workspace test. |
+| `terraformWorkingDirectory` | Workload pipeline optional variable | Explicit Terraform root for manual runs, for example `consumer-repos/online-banking/clientsync/environments/np1`. Leave empty for commit-driven inference. |
+| `workloadEnvironmentRootPrefix` | Workload pipeline variable | Parent folder used to infer the environment root from changed files when `terraformWorkingDirectory` is empty. |
+| `hcpWorkspaceMapFile` | Workload pipeline variable | Source-controlled JSON map file, relative to the repository root. The ClientSync pipeline uses `.azuredevops/hcp-workspace-map.json`. |
+| `hcpWorkspaceMap` | Workload pipeline optional variable | Inline JSON map override. Prefer the source-controlled map for committed workload changes. |
+| `hcpWorkspacePrefix` | Workload pipeline optional variable | Fallback naming pattern. If set, the resolver builds `<hcpWorkspacePrefix>-<environment>`. Use only when workspace names follow a reliable convention. |
 
 Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
+
+## Workload Workspace Resolution
+
+Workload repositories commonly have one Terraform root per environment and one HCP workspace per root:
+
+| Terraform root | HCP workspace |
+| --- | --- |
+| `environments/np1` | `lz-workload-<app>-np1` |
+| `environments/np2` | `lz-workload-<app>-np2` |
+| `environments/np3` | `lz-workload-<app>-np3` |
+| `environments/prod` | `lz-workload-<app>-prod` |
+
+The pipeline resolves the workspace in this order:
+
+1. Use `terraformWorkingDirectory` when it is set.
+2. Otherwise infer one environment root from changed files under `workloadEnvironmentRootPrefix`.
+3. Load `.azuredevops/hcp-workspace-map.json` when it exists, or the file named by `hcpWorkspaceMapFile`.
+4. Match the root or environment key in the source-controlled map file or inline `hcpWorkspaceMap`.
+5. If no map entry exists, use `hcpWorkspacePrefix` and append the environment key.
+6. If no prefix is set, fall back to `hcpWorkspace` for legacy single-workspace pipelines.
+
+Recommended enterprise approach: keep the map in the workload repository at:
+
+```text
+.azuredevops/hcp-workspace-map.json
+```
+
+This keeps the mapping versioned with the workload code and avoids relying on manual runtime input. The shared scripts stay generic; workspace names remain workload metadata.
+
+Example file:
+
+```json
+{
+  "environments/np1": "online-banking-client-sync-devtest",
+  "environments/np2": "client-sync-qa-workspace",
+  "environments/np3": "ob-clientsync-preprod",
+  "environments/prod": "prod-onlinebanking-clientsync"
+}
+```
+
+The resolver also accepts short environment keys, which is useful when every root follows the same `environments/<env>` shape:
+
+```json
+{
+  "np1": "online-banking-client-sync-devtest",
+  "np2": "client-sync-qa-workspace",
+  "np3": "ob-clientsync-preprod",
+  "prod": "prod-onlinebanking-clientsync"
+}
+```
+
+For a ClientSync-style workload repo, set either an exact map:
+
+```yaml
+variables:
+  workloadEnvironmentRootPrefix: environments
+  hcpWorkspaceMap: |
+    {
+      "environments/np1": "lz-workload-clientsync-np1",
+      "environments/np2": "lz-workload-clientsync-np2",
+      "environments/np3": "lz-workload-clientsync-np3",
+      "environments/prod": "lz-workload-clientsync-prod"
+    }
+```
+
+or use a naming prefix when workspace names follow the convention exactly:
+
+```yaml
+variables:
+  workloadEnvironmentRootPrefix: environments
+  hcpWorkspacePrefix: lz-workload-clientsync
+```
+
+For a monorepo, set `workloadEnvironmentRootPrefix` to the path that contains environment folders, for example:
+
+```yaml
+variables:
+  workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
+  hcpWorkspacePrefix: lz-workload-clientsync
+```
+
+When using the default `workloadEnvironmentRootPrefix: environments`, the resolver also supports nested monorepo paths like `consumer-repos/online-banking/clientsync/environments/np1`. In that case, keep the root-level `.azuredevops/hcp-workspace-map.json` keyed by the full path:
+
+```json
+{
+  "consumer-repos/online-banking/clientsync/environments/np1": "lz-workload-clientsync-np1"
+}
+```
+
+For the ClientSync pilot in this repository, both map styles are provided:
+
+- root checkout: `.azuredevops/hcp-workspace-map.json`
+- standalone ClientSync checkout: `consumer-repos/online-banking/clientsync/.azuredevops/hcp-workspace-map.json`
+
+The checked-in workload pipeline is configured for the root checkout map:
+
+```yaml
+variables:
+  workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
+  hcpWorkspaceMapFile: .azuredevops/hcp-workspace-map.json
+```
+
+The starter pipeline intentionally captures one HCP workspace per run. If one pull request changes multiple environment roots, the resolver fails with a clear message. Split the change, set `terraformWorkingDirectory` for a targeted manual run, or extend the stage into a matrix when multi-environment speculative plans are required.
+
+The HCP workspace must still have its Terraform working directory configured to the same root. The resolver selects the workspace; it does not modify workspace settings. For this repository root, the ClientSync `np1` workspace should use `consumer-repos/online-banking/clientsync/environments/np1`.
+
+For a manual smoke test that only changes pipeline files or the workspace map, set `terraformWorkingDirectory` to `consumer-repos/online-banking/clientsync/environments/np1`. Regular workload commits under an environment folder do not need that runtime input.
+
+For platform stacks that intentionally use one workspace, either keep the legacy fallback:
+
+```yaml
+variables:
+  terraformWorkingDirectory: .
+  hcpWorkspace: lz-platform-shared-root
+```
+
+or use a map entry for the root:
+
+```json
+{
+  ".": "lz-platform-shared-root"
+}
+```
 
 ## HCP Evidence Prerequisites
 
