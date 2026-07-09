@@ -62,15 +62,18 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | --- | --- | --- |
 | `Checkmarx-One-Service-Connection` | Service connection | Existing Checkmarx AST service connection. |
 | `HCP_TOKEN` | Secret variable | HCP Terraform API token used to queue/read HCP runs, plans, policy checks, and run-task evidence. |
+| `HCP_OUTPUTS_TOKEN` | Secret variable, optional | Preferred token value to sync into workload workspaces as sensitive `TFE_TOKEN` so Terraform can read upstream `tfe_outputs`. If omitted, the workload pipeline falls back to `HCP_TOKEN`. |
 | `System.AccessToken` | Built-in OAuth token | Used to read the ADO PR description and linked work items for destructive-change acknowledgement. Enable "Allow scripts to access the OAuth token" if required by the ADO project settings. |
 | `terraformScriptsRoot` | Pipeline variable | Path to the checked-out Terraform automation folder. In this repository it is `azure-terraform`. |
 | `hcpOrganization` | Pipeline variable | HCP Terraform organization name. It must match the organization configured in the Terraform `cloud` block for the selected workspace. |
 | `hcpWorkspace` | Platform pipeline variable | Fixed HCP Terraform workspace for the platform or any single-workspace test. |
 | `terraformWorkingDirectory` | Workload pipeline optional variable | Explicit Terraform root for manual runs, for example `consumer-repos/online-banking/clientsync/environments/np1`. Leave empty for commit-driven inference. |
+| `defaultTerraformWorkingDirectory` | Workload pipeline optional variable | Default Terraform root used for broad/shared changes that do not identify exactly one environment root. The ClientSync pilot defaults this to `np1`. |
 | `workloadEnvironmentRootPrefix` | Workload pipeline variable | Parent folder used to infer the environment root from changed files when `terraformWorkingDirectory` is empty. |
 | `hcpWorkspaceMapFile` | Workload pipeline variable | Source-controlled JSON map file, relative to the repository root. The ClientSync pipeline uses `azure-terraform/pipelines/workspace-maps/clientsync.json`. |
 | `hcpWorkspaceMap` | Workload pipeline optional variable | Inline JSON map override. Prefer the source-controlled map for committed workload changes. |
 | `hcpWorkspacePrefix` | Workload pipeline optional variable | Fallback naming pattern. If set, the resolver builds `<hcpWorkspacePrefix>-<environment>`. Use only when workspace names follow a reliable convention. |
+| `syncTfeOutputReadToken` | Workload pipeline variable | When `true`, syncs a sensitive `TFE_TOKEN` into the resolved HCP workspace before queueing the speculative plan. |
 
 Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
 
@@ -89,10 +92,11 @@ The pipeline resolves the workspace in this order:
 
 1. Use `terraformWorkingDirectory` when it is set.
 2. Otherwise infer one environment root from changed files under `workloadEnvironmentRootPrefix`.
-3. Load the file named by `hcpWorkspaceMapFile`, or use the inline `hcpWorkspaceMap` JSON when no map file is present.
-4. Match the root or environment key in the source-controlled map file or inline `hcpWorkspaceMap`.
-5. If no map entry exists, use `hcpWorkspacePrefix` and append the environment key.
-6. If no prefix is set, fall back to `hcpWorkspace` for legacy single-workspace pipelines.
+3. If changed files do not identify exactly one root and `defaultTerraformWorkingDirectory` is set, use that default root.
+4. Load the file named by `hcpWorkspaceMapFile`, or use the inline `hcpWorkspaceMap` JSON when no map file is present.
+5. Match the root or environment key in the source-controlled map file or inline `hcpWorkspaceMap`.
+6. If no map entry exists, use `hcpWorkspacePrefix` and append the environment key.
+7. If no prefix is set, fall back to `hcpWorkspace` for legacy single-workspace pipelines.
 
 Recommended enterprise approach: keep the map with the pipeline assets at:
 
@@ -170,11 +174,12 @@ The checked-in workload pipeline is configured for the root checkout map:
 
 ```yaml
 variables:
+  defaultTerraformWorkingDirectory: consumer-repos/online-banking/clientsync/environments/np1
   workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
   hcpWorkspaceMapFile: azure-terraform/pipelines/workspace-maps/clientsync.json
 ```
 
-The starter pipeline intentionally captures one HCP workspace per run. If one pull request changes multiple environment roots, the resolver fails with a clear message. Split the change, set `terraformWorkingDirectory` for a targeted manual run, or extend the stage into a matrix when multi-environment speculative plans are required.
+The starter pipeline captures one HCP workspace per run. For ClientSync training runs, broad pipeline/module changes fall back to `np1` through `defaultTerraformWorkingDirectory`. For release-grade multi-environment validation, split the change, set `terraformWorkingDirectory` for a targeted run, or extend the stage into a matrix.
 
 The HCP workspace must still have its Terraform working directory configured to the same root. The resolver selects the workspace; it does not modify workspace settings. For this repository root, the ClientSync `np1` workspace should use `consumer-repos/online-banking/clientsync/environments/np1`.
 
@@ -204,6 +209,15 @@ The HCP evidence stage requires:
 - the HCP workspace has the required Terraform variables, environment variables, and Azure federated credentials,
 - policy sets and run tasks have already been attached to the target HCP workspace or project,
 - `HCP_TOKEN` is available to the pipeline and can queue/read runs, plans, policy checks, and task stages.
+- the token synced as workspace `TFE_TOKEN` can read any upstream workspaces used by `tfe_outputs`.
+
+The ClientSync workload pipeline syncs `TFE_TOKEN` into the resolved HCP workspace before it queues the plan. Prefer setting `HCP_OUTPUTS_TOKEN` to a service/team token with read access to the platform-output producer workspaces. If `HCP_OUTPUTS_TOKEN` is not set, the sync step uses `HCP_TOKEN`. The API token used by ADO must also be allowed to manage variables in the target workspace. If that is not available, manually set a sensitive environment variable named `TFE_TOKEN` in the HCP workspace.
+
+For ClientSync `np1`, the producer workspaces referenced by `platform_outputs` must exist in the same HCP organization and have successful applies with the expected outputs:
+
+- `lz-platform-management-np`
+- `lz-platform-connectivity-np`
+- `lz-workload-online-banking-np1`
 
 HCP VCS automatic run triggers are optional for this ADO evidence flow. The pipeline queues its own plan by API so ADO can capture evidence for the exact build commit.
 

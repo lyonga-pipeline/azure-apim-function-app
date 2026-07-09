@@ -11,6 +11,7 @@ set -Eeuo pipefail
 
 SOURCE_DIR="."
 TERRAFORM_WORKING_DIRECTORY=""
+DEFAULT_TERRAFORM_WORKING_DIRECTORY=""
 ENVIRONMENT_ROOT_PREFIX="environments"
 WORKSPACE_MAP_FILE="azure-terraform/pipelines/workspace-maps/hcp-workspace-map.json"
 WORKSPACE_PREFIX=""
@@ -29,6 +30,11 @@ Options:
   --terraform-working-directory <dir>   Explicit Terraform root. If omitted,
                                         the script infers one root from changed
                                         files.
+  --default-terraform-working-directory <dir>
+                                        Default root used when changed files do
+                                        not point to exactly one environment.
+                                        An explicit --terraform-working-directory
+                                        still wins.
   --environment-root-prefix <dir>       Parent folder containing environment
                                         roots. Default: environments.
   --workspace-map-file <file>           JSON map file relative to source dir.
@@ -58,6 +64,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --source-dir) SOURCE_DIR="${2:?Missing value for --source-dir}"; shift 2 ;;
     --terraform-working-directory) TERRAFORM_WORKING_DIRECTORY="${2:-}"; shift 2 ;;
+    --default-terraform-working-directory) DEFAULT_TERRAFORM_WORKING_DIRECTORY="${2:-}"; shift 2 ;;
     --environment-root-prefix) ENVIRONMENT_ROOT_PREFIX="${2:?Missing value for --environment-root-prefix}"; shift 2 ;;
     --workspace-map-file) WORKSPACE_MAP_FILE="${2:-}"; shift 2 ;;
     --workspace-prefix) WORKSPACE_PREFIX="${2:-}"; shift 2 ;;
@@ -77,6 +84,7 @@ fi
 
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 TERRAFORM_WORKING_DIRECTORY="$(normalize_path "$TERRAFORM_WORKING_DIRECTORY")"
+DEFAULT_TERRAFORM_WORKING_DIRECTORY="$(normalize_path "$DEFAULT_TERRAFORM_WORKING_DIRECTORY")"
 ENVIRONMENT_ROOT_PREFIX="$(normalize_path "$ENVIRONMENT_ROOT_PREFIX")"
 WORKSPACE_MAP_FILE="$(normalize_path "$WORKSPACE_MAP_FILE")"
 
@@ -157,20 +165,35 @@ if [[ -z "$resolved_root" ]]; then
   fi
 
   if [[ "${#roots[@]}" -eq 0 ]]; then
-    echo "No Terraform environment root was inferred from changed files." >&2
-    echo "Checked '${ENVIRONMENT_ROOT_PREFIX}/<env>' and, when using the default prefix, any nested '*/environments/<env>' path." >&2
-    echo "Set --terraform-working-directory for manual runs or adjust --environment-root-prefix." >&2
-    exit 1
+    if [[ -n "$DEFAULT_TERRAFORM_WORKING_DIRECTORY" ]]; then
+      echo "No Terraform environment root was inferred from changed files; using default root: ${DEFAULT_TERRAFORM_WORKING_DIRECTORY}" >&2
+      resolved_root="$DEFAULT_TERRAFORM_WORKING_DIRECTORY"
+    else
+      echo "No Terraform environment root was inferred from changed files." >&2
+      echo "Checked '${ENVIRONMENT_ROOT_PREFIX}/<env>' and, when using the default prefix, any nested '*/environments/<env>' path." >&2
+      echo "Set --terraform-working-directory, set --default-terraform-working-directory, or adjust --environment-root-prefix." >&2
+      exit 1
+    fi
   fi
 
-  if [[ "${#roots[@]}" -gt 1 ]]; then
-    echo "Multiple Terraform environment roots changed in this run:" >&2
-    printf ' - %s\n' "${roots[@]}" >&2
-    echo "This resolver supports one HCP workspace per run. Split the change, set --terraform-working-directory, or run a matrix." >&2
-    exit 1
+  if [[ -z "$resolved_root" && "${#roots[@]}" -gt 1 ]]; then
+    if [[ -n "$DEFAULT_TERRAFORM_WORKING_DIRECTORY" ]]; then
+      echo "Multiple Terraform environment roots changed in this run:" >&2
+      printf ' - %s\n' "${roots[@]}" >&2
+      echo "Using default root for this single-workspace run: ${DEFAULT_TERRAFORM_WORKING_DIRECTORY}" >&2
+      echo "For release-grade multi-environment validation, split the change, set --terraform-working-directory, or run a matrix." >&2
+      resolved_root="$DEFAULT_TERRAFORM_WORKING_DIRECTORY"
+    else
+      echo "Multiple Terraform environment roots changed in this run:" >&2
+      printf ' - %s\n' "${roots[@]}" >&2
+      echo "This resolver supports one HCP workspace per run. Split the change, set --terraform-working-directory, or run a matrix." >&2
+      exit 1
+    fi
   fi
 
-  resolved_root="${roots[0]}"
+  if [[ -z "$resolved_root" ]]; then
+    resolved_root="${roots[0]}"
+  fi
 fi
 
 if [[ ! -d "${SOURCE_DIR}/${resolved_root}" ]]; then

@@ -32,11 +32,13 @@ variables:
   terraformScriptsRoot: azure-terraform
   hcpOrganization: lyonga-org
   terraformWorkingDirectory: ''
+  defaultTerraformWorkingDirectory: consumer-repos/online-banking/clientsync/environments/np1
   workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
   hcpWorkspaceMapFile: azure-terraform/pipelines/workspace-maps/clientsync.json
   hcpWorkspaceMap: '{}'
   hcpWorkspacePrefix: ''
   hcpWorkspace: ''
+  syncTfeOutputReadToken: 'true'
   queueHcpRunFromAdo: 'true'
   allowLatestHcpRun: 'false'
   destructiveChangeEnforcementMode: enforce
@@ -78,6 +80,7 @@ stages:
               "$(terraformScriptsRoot)/scripts/resolve-hcp-workspace.sh" \
                 --source-dir "$(Build.SourcesDirectory)" \
                 --terraform-working-directory "$(terraformWorkingDirectory)" \
+                --default-terraform-working-directory "$(defaultTerraformWorkingDirectory)" \
                 --environment-root-prefix "$(workloadEnvironmentRootPrefix)" \
                 --workspace-map-file "$(hcpWorkspaceMapFile)" \
                 --workspace-prefix "$(hcpWorkspacePrefix)" \
@@ -87,6 +90,28 @@ stages:
             displayName: Resolve ClientSync HCP workspace
             env:
               HCP_WORKSPACE_MAP: '$(hcpWorkspaceMap)'
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/hcp"
+
+              if [[ "$(syncTfeOutputReadToken)" == "true" ]]; then
+                chmod +x "$(terraformScriptsRoot)/scripts/upsert-hcp-workspace-env-var.sh"
+
+                "$(terraformScriptsRoot)/scripts/upsert-hcp-workspace-env-var.sh" \
+                  --organization "$(hcpOrganization)" \
+                  --workspace "$(resolvedHcpWorkspace)" \
+                  --key TFE_TOKEN \
+                  --value-env HCP_OUTPUTS_TOKEN \
+                  --fallback-value-env HCP_TOKEN \
+                  --output-dir "$(Build.ArtifactStagingDirectory)/hcp"
+              else
+                echo "TFE_TOKEN workspace sync is disabled."
+              fi
+            displayName: Sync ClientSync TFE output-read token
+            env:
+              HCP_TOKEN: $(HCP_TOKEN)
+              HCP_OUTPUTS_TOKEN: $(HCP_OUTPUTS_TOKEN)
 
           - bash: |
               set -euo pipefail
