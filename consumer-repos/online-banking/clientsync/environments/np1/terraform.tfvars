@@ -131,7 +131,7 @@ function_app = {
 
 platform_outputs = {
   enabled                         = true
-  hcp_organization                = "compeer"
+  hcp_organization                = "lyonga-org"
   platform_management_workspace   = "lz-platform-management-np"
   platform_connectivity_workspace = "lz-platform-connectivity-np"
   workload_spoke_workspace        = "lz-workload-online-banking-np1"

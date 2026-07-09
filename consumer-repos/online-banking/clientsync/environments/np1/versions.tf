@@ -13,7 +13,7 @@ terraform {
   }
 
   cloud {
-    organization = "compeer"
+    organization = "lyonga-org"
 
     workspaces {
       name = "lz-workload-clientsync-np1"

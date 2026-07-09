@@ -5,10 +5,10 @@ trigger:
       - develop
   paths:
     include:
-      - .azuredevops/hcp-workspace-map.json
       - consumer-repos/online-banking/clientsync/**
       - azure-terraform/scripts/**
       - azure-terraform/pipelines/azure-pipelines-workload-devsecops.yml
+      - azure-terraform/pipelines/workspace-maps/clientsync.json
 
 pr:
   branches:
@@ -17,10 +17,10 @@ pr:
       - develop
   paths:
     include:
-      - .azuredevops/hcp-workspace-map.json
       - consumer-repos/online-banking/clientsync/**
       - azure-terraform/scripts/**
       - azure-terraform/pipelines/azure-pipelines-workload-devsecops.yml
+      - azure-terraform/pipelines/workspace-maps/clientsync.json
 
 name: $(Date:yyyyMMdd)$(Rev:.r)
 
@@ -30,10 +30,10 @@ pool:
 variables:
   vmPoolImage: ubuntu-latest
   terraformScriptsRoot: azure-terraform
-  hcpOrganization: compeer
+  hcpOrganization: lyonga-org
   terraformWorkingDirectory: ''
   workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
-  hcpWorkspaceMapFile: .azuredevops/hcp-workspace-map.json
+  hcpWorkspaceMapFile: azure-terraform/pipelines/workspace-maps/clientsync.json
   hcpWorkspaceMap: '{}'
   hcpWorkspacePrefix: ''
   hcpWorkspace: ''

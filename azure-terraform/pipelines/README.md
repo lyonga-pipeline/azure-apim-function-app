@@ -68,7 +68,7 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | `hcpWorkspace` | Platform pipeline variable | Fixed HCP Terraform workspace for the platform or any single-workspace test. |
 | `terraformWorkingDirectory` | Workload pipeline optional variable | Explicit Terraform root for manual runs, for example `consumer-repos/online-banking/clientsync/environments/np1`. Leave empty for commit-driven inference. |
 | `workloadEnvironmentRootPrefix` | Workload pipeline variable | Parent folder used to infer the environment root from changed files when `terraformWorkingDirectory` is empty. |
-| `hcpWorkspaceMapFile` | Workload pipeline variable | Source-controlled JSON map file, relative to the repository root. The ClientSync pipeline uses `.azuredevops/hcp-workspace-map.json`. |
+| `hcpWorkspaceMapFile` | Workload pipeline variable | Source-controlled JSON map file, relative to the repository root. The ClientSync pipeline uses `azure-terraform/pipelines/workspace-maps/clientsync.json`. |
 | `hcpWorkspaceMap` | Workload pipeline optional variable | Inline JSON map override. Prefer the source-controlled map for committed workload changes. |
 | `hcpWorkspacePrefix` | Workload pipeline optional variable | Fallback naming pattern. If set, the resolver builds `<hcpWorkspacePrefix>-<environment>`. Use only when workspace names follow a reliable convention. |
 
@@ -89,18 +89,18 @@ The pipeline resolves the workspace in this order:
 
 1. Use `terraformWorkingDirectory` when it is set.
 2. Otherwise infer one environment root from changed files under `workloadEnvironmentRootPrefix`.
-3. Load `.azuredevops/hcp-workspace-map.json` when it exists, or the file named by `hcpWorkspaceMapFile`.
+3. Load the file named by `hcpWorkspaceMapFile`, or use the inline `hcpWorkspaceMap` JSON when no map file is present.
 4. Match the root or environment key in the source-controlled map file or inline `hcpWorkspaceMap`.
 5. If no map entry exists, use `hcpWorkspacePrefix` and append the environment key.
 6. If no prefix is set, fall back to `hcpWorkspace` for legacy single-workspace pipelines.
 
-Recommended enterprise approach: keep the map in the workload repository at:
+Recommended enterprise approach: keep the map with the pipeline assets at:
 
 ```text
-.azuredevops/hcp-workspace-map.json
+azure-terraform/pipelines/workspace-maps/<workload>.json
 ```
 
-This keeps the mapping versioned with the workload code and avoids relying on manual runtime input. The shared scripts stay generic; workspace names remain workload metadata.
+This keeps the mapping versioned with the pipeline code and avoids relying on manual runtime input. The shared scripts stay generic; workspace names remain workload metadata.
 
 Example file:
 
@@ -154,7 +154,7 @@ variables:
   hcpWorkspacePrefix: lz-workload-clientsync
 ```
 
-When using the default `workloadEnvironmentRootPrefix: environments`, the resolver also supports nested monorepo paths like `consumer-repos/online-banking/clientsync/environments/np1`. In that case, keep the root-level `.azuredevops/hcp-workspace-map.json` keyed by the full path:
+When using the default `workloadEnvironmentRootPrefix: environments`, the resolver also supports nested monorepo paths like `consumer-repos/online-banking/clientsync/environments/np1`. In that case, keep the pipeline map keyed by the full path:
 
 ```json
 {
@@ -162,17 +162,16 @@ When using the default `workloadEnvironmentRootPrefix: environments`, the resolv
 }
 ```
 
-For the ClientSync pilot in this repository, both map styles are provided:
+For the ClientSync pilot in this repository, the map is:
 
-- root checkout: `.azuredevops/hcp-workspace-map.json`
-- standalone ClientSync checkout: `consumer-repos/online-banking/clientsync/.azuredevops/hcp-workspace-map.json`
+- `azure-terraform/pipelines/workspace-maps/clientsync.json`
 
 The checked-in workload pipeline is configured for the root checkout map:
 
 ```yaml
 variables:
   workloadEnvironmentRootPrefix: consumer-repos/online-banking/clientsync/environments
-  hcpWorkspaceMapFile: .azuredevops/hcp-workspace-map.json
+  hcpWorkspaceMapFile: azure-terraform/pipelines/workspace-maps/clientsync.json
 ```
 
 The starter pipeline intentionally captures one HCP workspace per run. If one pull request changes multiple environment roots, the resolver fails with a clear message. Split the change, set `terraformWorkingDirectory` for a targeted manual run, or extend the stage into a matrix when multi-environment speculative plans are required.

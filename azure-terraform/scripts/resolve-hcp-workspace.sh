@@ -12,7 +12,7 @@ set -Eeuo pipefail
 SOURCE_DIR="."
 TERRAFORM_WORKING_DIRECTORY=""
 ENVIRONMENT_ROOT_PREFIX="environments"
-WORKSPACE_MAP_FILE=".azuredevops/hcp-workspace-map.json"
+WORKSPACE_MAP_FILE="azure-terraform/pipelines/workspace-maps/hcp-workspace-map.json"
 WORKSPACE_PREFIX=""
 FALLBACK_WORKSPACE=""
 HCP_ORGANIZATION=""
@@ -32,7 +32,7 @@ Options:
   --environment-root-prefix <dir>       Parent folder containing environment
                                         roots. Default: environments.
   --workspace-map-file <file>           JSON map file relative to source dir.
-                                        Default: .azuredevops/hcp-workspace-map.json.
+                                        Default: azure-terraform/pipelines/workspace-maps/hcp-workspace-map.json.
   --workspace-prefix <prefix>           Optional fallback; builds
                                         <prefix>-<environment>.
   --fallback-workspace <workspace>      Optional single-workspace fallback.
