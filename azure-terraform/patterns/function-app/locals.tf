@@ -1,5 +1,33 @@
 locals {
-  dependency_errors = compact([
+  network_app_service_integration_subnet_id = nonsensitive(try(var.network.app_service_integration_subnet_id, null))
+
+  private_endpoints_enabled  = nonsensitive(try(var.private_endpoints.enabled, true))
+  private_endpoint_subnet_id = nonsensitive(try(var.private_endpoints.subnet_id, null))
+  private_endpoint_targets_enabled = {
+    function_app  = nonsensitive(try(var.private_endpoints.targets.function_app, true))
+    key_vault     = nonsensitive(try(var.private_endpoints.targets.key_vault, true))
+    storage_blob  = nonsensitive(try(var.private_endpoints.targets.storage_blob, true))
+    storage_queue = nonsensitive(try(var.private_endpoints.targets.storage_queue, true))
+    storage_file  = nonsensitive(try(var.private_endpoints.targets.storage_file, false))
+  }
+  private_endpoint_dns_zone_ids = {
+    app_service   = nonsensitive(try(var.private_endpoints.private_dns_zone_ids.app_service, null))
+    key_vault     = nonsensitive(try(var.private_endpoints.private_dns_zone_ids.key_vault, null))
+    storage_blob  = nonsensitive(try(var.private_endpoints.private_dns_zone_ids.storage_blob, null))
+    storage_queue = nonsensitive(try(var.private_endpoints.private_dns_zone_ids.storage_queue, null))
+    storage_file  = nonsensitive(try(var.private_endpoints.private_dns_zone_ids.storage_file, null))
+  }
+
+  diagnostics_enabled                          = nonsensitive(try(var.diagnostics.enabled, true))
+  diagnostics_log_analytics_workspace_id_input = nonsensitive(try(var.diagnostics.log_analytics_workspace_id, null))
+  diagnostics_workspace_create                 = nonsensitive(try(var.diagnostics.workspace.create, null))
+  diagnostic_default_logs                      = nonsensitive(try(var.diagnostics.logs, {}))
+  diagnostic_default_metrics                   = nonsensitive(try(var.diagnostics.metrics, {}))
+
+  alerts_enabled         = nonsensitive(try(var.alerts.enabled, true))
+  alerts_action_group_id = nonsensitive(try(var.alerts.action_group_id, null))
+
+  dependency_errors = nonsensitive(compact([
     contains(["create", "existing"], lower(var.resource_group.mode)) ? null : "resource_group.mode must be create or existing.",
     lower(var.resource_group.mode) == "create" && try(var.resource_group.create.name, null) == null ? "resource_group.create.name is required when resource_group.mode is create." : null,
     lower(var.resource_group.mode) == "existing" && try(var.resource_group.existing.name, null) == null ? "resource_group.existing.name is required when resource_group.mode is existing." : null,
@@ -24,20 +52,20 @@ locals {
     lower(var.application_insights.mode) == "create" && try(var.application_insights.create.name, null) == null ? "application_insights.create.name is required when application_insights.mode is create." : null,
     lower(var.application_insights.mode) == "existing" && (try(var.application_insights.existing.id, null) == null || try(var.application_insights.existing.connection_string, null) == null) ? "application_insights.existing.id and application_insights.existing.connection_string are required when application_insights.mode is existing." : null,
 
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.subnet_id, null) == null ? "private_endpoints.subnet_id is required when private_endpoints.enabled is true." : null,
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.function_app, true) && try(var.private_endpoints.private_dns_zone_ids.app_service, null) == null ? "private_endpoints.private_dns_zone_ids.app_service is required when the Function App private endpoint is enabled." : null,
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.key_vault, true) && try(var.private_endpoints.private_dns_zone_ids.key_vault, null) == null ? "private_endpoints.private_dns_zone_ids.key_vault is required when the Key Vault private endpoint is enabled." : null,
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.storage_blob, true) && try(var.private_endpoints.private_dns_zone_ids.storage_blob, null) == null ? "private_endpoints.private_dns_zone_ids.storage_blob is required when the Storage blob private endpoint is enabled." : null,
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.storage_queue, true) && try(var.private_endpoints.private_dns_zone_ids.storage_queue, null) == null ? "private_endpoints.private_dns_zone_ids.storage_queue is required when the Storage queue private endpoint is enabled." : null,
-    try(var.private_endpoints.enabled, true) && try(var.private_endpoints.targets.storage_file, false) && try(var.private_endpoints.private_dns_zone_ids.storage_file, null) == null ? "private_endpoints.private_dns_zone_ids.storage_file is required when the Storage file private endpoint is enabled." : null,
+    local.private_endpoints_enabled && local.private_endpoint_subnet_id == null ? "private_endpoints.subnet_id is required when private_endpoints.enabled is true." : null,
+    local.private_endpoints_enabled && local.private_endpoint_targets_enabled.function_app && local.private_endpoint_dns_zone_ids.app_service == null ? "private_endpoints.private_dns_zone_ids.app_service is required when the Function App private endpoint is enabled." : null,
+    local.private_endpoints_enabled && local.private_endpoint_targets_enabled.key_vault && local.private_endpoint_dns_zone_ids.key_vault == null ? "private_endpoints.private_dns_zone_ids.key_vault is required when the Key Vault private endpoint is enabled." : null,
+    local.private_endpoints_enabled && local.private_endpoint_targets_enabled.storage_blob && local.private_endpoint_dns_zone_ids.storage_blob == null ? "private_endpoints.private_dns_zone_ids.storage_blob is required when the Storage blob private endpoint is enabled." : null,
+    local.private_endpoints_enabled && local.private_endpoint_targets_enabled.storage_queue && local.private_endpoint_dns_zone_ids.storage_queue == null ? "private_endpoints.private_dns_zone_ids.storage_queue is required when the Storage queue private endpoint is enabled." : null,
+    local.private_endpoints_enabled && local.private_endpoint_targets_enabled.storage_file && local.private_endpoint_dns_zone_ids.storage_file == null ? "private_endpoints.private_dns_zone_ids.storage_file is required when the Storage file private endpoint is enabled." : null,
 
-    try(var.diagnostics.enabled, true) && try(var.diagnostics.log_analytics_workspace_id, null) == null && try(var.diagnostics.workspace.create, null) == null ? "diagnostics.log_analytics_workspace_id or diagnostics.workspace.create is required when diagnostics.enabled is true." : null,
-    try(var.alerts.enabled, true) && try(var.alerts.action_group_id, null) == null ? "alerts.action_group_id is required when alerts.enabled is true." : null,
-    lower(var.environment) == "prod" && !try(var.private_endpoints.enabled, true) ? "Production Function App pattern deployments require private_endpoints.enabled=true unless an approved exception is modeled outside this pattern." : null,
-    lower(var.environment) == "prod" && !try(var.diagnostics.enabled, true) ? "Production Function App pattern deployments require diagnostics.enabled=true unless an approved exception is modeled outside this pattern." : null,
-    lower(var.environment) == "prod" && !try(var.alerts.enabled, true) ? "Production Function App pattern deployments require alerts.enabled=true unless an approved exception is modeled outside this pattern." : null,
-    lower(var.environment) == "prod" && try(var.network.app_service_integration_subnet_id, null) == null ? "Production Function App pattern deployments require network.app_service_integration_subnet_id." : null,
-  ])
+    local.diagnostics_enabled && local.diagnostics_log_analytics_workspace_id_input == null && local.diagnostics_workspace_create == null ? "diagnostics.log_analytics_workspace_id or diagnostics.workspace.create is required when diagnostics.enabled is true." : null,
+    local.alerts_enabled && local.alerts_action_group_id == null ? "alerts.action_group_id is required when alerts.enabled is true." : null,
+    lower(var.environment) == "prod" && !local.private_endpoints_enabled ? "Production Function App pattern deployments require private_endpoints.enabled=true unless an approved exception is modeled outside this pattern." : null,
+    lower(var.environment) == "prod" && !local.diagnostics_enabled ? "Production Function App pattern deployments require diagnostics.enabled=true unless an approved exception is modeled outside this pattern." : null,
+    lower(var.environment) == "prod" && !local.alerts_enabled ? "Production Function App pattern deployments require alerts.enabled=true unless an approved exception is modeled outside this pattern." : null,
+    lower(var.environment) == "prod" && local.network_app_service_integration_subnet_id == null ? "Production Function App pattern deployments require network.app_service_integration_subnet_id." : null,
+  ]))
 
   create_resource_group       = lower(var.resource_group.mode) == "create"
   create_identity             = lower(var.identity.mode) == "create"
@@ -46,9 +74,9 @@ locals {
   create_key_vault            = lower(var.key_vault.mode) == "create"
   create_application_insights = lower(var.application_insights.mode) == "create"
   create_diagnostics_workspace = (
-    try(var.diagnostics.enabled, true) &&
-    try(var.diagnostics.log_analytics_workspace_id, null) == null &&
-    try(var.diagnostics.workspace.create, null) != null
+    local.diagnostics_enabled &&
+    local.diagnostics_log_analytics_workspace_id_input == null &&
+    local.diagnostics_workspace_create != null
   )
 
   resource_group_name = local.create_resource_group ? module.resource_group[0].name : var.resource_group.existing.name
@@ -68,7 +96,7 @@ locals {
 
   application_insights_id                = local.create_application_insights ? module.application_insights[0].id : var.application_insights.existing.id
   application_insights_connection_string = local.create_application_insights ? module.application_insights[0].connection_string : var.application_insights.existing.connection_string
-  diagnostic_log_analytics_workspace_id  = local.create_diagnostics_workspace ? module.diagnostics_log_analytics[0].id : try(var.diagnostics.log_analytics_workspace_id, null)
+  diagnostic_log_analytics_workspace_id  = local.create_diagnostics_workspace ? module.diagnostics_log_analytics[0].id : local.diagnostics_log_analytics_workspace_id_input
 
   platform_app_settings = {
     APPLICATIONINSIGHTS_CONNECTION_STRING = local.application_insights_connection_string
@@ -79,59 +107,57 @@ locals {
 
   private_endpoint_candidates = {
     function_app = {
-      enabled           = try(var.private_endpoints.targets.function_app, true)
+      enabled           = local.private_endpoint_targets_enabled.function_app
       name              = "${var.function_app.name}-pe"
       target_id         = module.function_app.id
       subresource_names = ["sites"]
       private_dns_zone_ids = compact([
-        try(var.private_endpoints.private_dns_zone_ids.app_service, null)
+        local.private_endpoint_dns_zone_ids.app_service
       ])
     }
     key_vault = {
-      enabled           = try(var.private_endpoints.targets.key_vault, true)
+      enabled           = local.private_endpoint_targets_enabled.key_vault
       name              = "${var.application.code}-${var.environment}-kv-pe"
       target_id         = local.key_vault_id
       subresource_names = ["vault"]
       private_dns_zone_ids = compact([
-        try(var.private_endpoints.private_dns_zone_ids.key_vault, null)
+        local.private_endpoint_dns_zone_ids.key_vault
       ])
     }
     storage_blob = {
-      enabled           = try(var.private_endpoints.targets.storage_blob, true)
+      enabled           = local.private_endpoint_targets_enabled.storage_blob
       name              = "${var.application.code}-${var.environment}-st-blob-pe"
       target_id         = local.storage_account_id
       subresource_names = ["blob"]
       private_dns_zone_ids = compact([
-        try(var.private_endpoints.private_dns_zone_ids.storage_blob, null)
+        local.private_endpoint_dns_zone_ids.storage_blob
       ])
     }
     storage_queue = {
-      enabled           = try(var.private_endpoints.targets.storage_queue, true)
+      enabled           = local.private_endpoint_targets_enabled.storage_queue
       name              = "${var.application.code}-${var.environment}-st-queue-pe"
       target_id         = local.storage_account_id
       subresource_names = ["queue"]
       private_dns_zone_ids = compact([
-        try(var.private_endpoints.private_dns_zone_ids.storage_queue, null)
+        local.private_endpoint_dns_zone_ids.storage_queue
       ])
     }
     storage_file = {
-      enabled           = try(var.private_endpoints.targets.storage_file, false)
+      enabled           = local.private_endpoint_targets_enabled.storage_file
       name              = "${var.application.code}-${var.environment}-st-file-pe"
       target_id         = local.storage_account_id
       subresource_names = ["file"]
       private_dns_zone_ids = compact([
-        try(var.private_endpoints.private_dns_zone_ids.storage_file, null)
+        local.private_endpoint_dns_zone_ids.storage_file
       ])
     }
   }
 
-  private_endpoint_targets = try(var.private_endpoints.enabled, true) ? {
+  private_endpoint_targets = local.private_endpoints_enabled ? {
     for key, endpoint in local.private_endpoint_candidates : key => endpoint
     if endpoint.enabled
   } : {}
 
-  diagnostic_default_logs    = try(var.diagnostics.logs, {})
-  diagnostic_default_metrics = try(var.diagnostics.metrics, {})
   diagnostic_storage_logs = {
     storage_read = {
       category = "StorageRead"

@@ -236,20 +236,20 @@ module "function_app" {
 
 module "function_vnet_integration" {
   source = "../../modules/app-service-vnet-integration"
-  count  = try(var.network.app_service_integration_subnet_id, null) == null ? 0 : 1
+  count  = local.network_app_service_integration_subnet_id == null ? 0 : 1
 
   app_service_id = module.function_app.id
-  subnet_id      = var.network.app_service_integration_subnet_id
+  subnet_id      = local.network_app_service_integration_subnet_id
 }
 
 module "private_endpoints" {
   source   = "../../modules/private-endpoint"
-  for_each = local.private_endpoint_targets
+  for_each = nonsensitive(local.private_endpoint_targets)
 
   name                = each.value.name
   resource_group_name = local.resource_group_name
   location            = var.location
-  subnet_id           = var.private_endpoints.subnet_id
+  subnet_id           = local.private_endpoint_subnet_id
   private_service_connection = {
     private_connection_resource_id = each.value.target_id
     subresource_names              = each.value.subresource_names
@@ -264,7 +264,7 @@ module "private_endpoints" {
 
 module "diagnostic_settings" {
   source   = "../../modules/diagnostic-settings"
-  for_each = try(var.diagnostics.enabled, true) ? local.diagnostic_targets : {}
+  for_each = local.diagnostics_enabled ? nonsensitive(local.diagnostic_targets) : {}
 
   name                       = "${each.key}-diag"
   target_resource_id         = each.value.target_resource_id
@@ -277,7 +277,7 @@ module "diagnostic_settings" {
 
 module "function_http_5xx_alert" {
   source = "../../modules/monitor-metric-alert"
-  count  = try(var.alerts.enabled, true) ? 1 : 0
+  count  = local.alerts_enabled ? 1 : 0
 
   name                = "${var.function_app.name}-http5xx-alert"
   resource_group_name = local.resource_group_name
@@ -296,7 +296,7 @@ module "function_http_5xx_alert" {
   }
   actions = {
     primary = {
-      action_group_id = var.alerts.action_group_id
+      action_group_id = local.alerts_action_group_id
     }
   }
   tags = module.tags.tags
