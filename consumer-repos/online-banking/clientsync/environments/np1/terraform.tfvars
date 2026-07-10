@@ -5,7 +5,7 @@ allow_dedicated_app_service_plan = true
 
 application = {
   code                = "clientsync"
-  name                = "ClientSync-pilott"
+  name                = "ClientSync-pilot"
   business_owner      = "Digital Banking"
   cost_center         = "CC-1001"
   data_classification = "confidential"
