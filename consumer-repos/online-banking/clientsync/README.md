@@ -44,9 +44,9 @@ If an earlier partial apply already created Storage child resources while public
 
 For an enterprise-style deployment, keep `platform_outputs.enabled = true`. The root reads declared outputs from:
 
-- `lz-workload-online-banking-np1` for `app_service_integration_subnet_id`, `private_endpoint_subnet_id`, or the `subnet_ids` map.
-- `lz-platform-connectivity-np` for App Service, Key Vault, Storage Blob, Storage Queue, and Storage File private DNS zone IDs.
-- `lz-platform-management-np` for `log_analytics_workspace_id` and, later, `action_group_id`.
+- `workload-spoke` for `app_service_integration_subnet_id`, `private_endpoint_subnet_id`, or the `subnet_ids` map.
+- `platform-connectivity` for App Service, Key Vault, Storage Blob, Storage Queue, and Storage File private DNS zone IDs.
+- `platform-management` for `log_analytics_workspace_id` and, later, `action_group_id`.
 
 The app root converts those outputs into `network.app_service_integration_subnet_id`, `private_endpoints.subnet_id`, `private_endpoints.private_dns_zone_ids`, and `diagnostics.log_analytics_workspace_id`. If the producer workspaces have not applied since outputs were added, if the workspace names point to non-existent producer workspaces, or if the HCP run cannot read those workspaces, the plan fails before the workload resources can plan. The workload ADO pipeline can sync a sensitive `TFE_TOKEN` environment variable into the ClientSync workspace from `HCP_OUTPUTS_TOKEN` or `HCP_TOKEN`; otherwise set `TFE_TOKEN` manually in HCP with read access to the producer workspace outputs.
 

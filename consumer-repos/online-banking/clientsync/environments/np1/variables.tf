@@ -221,9 +221,9 @@ variable "platform_outputs" {
   type = object({
     enabled                         = optional(bool, false)
     hcp_organization                = optional(string, "lyonga-org")
-    platform_management_workspace   = optional(string, "lz-platform-management-np")
-    platform_connectivity_workspace = optional(string, "lz-platform-connectivity-np")
-    workload_spoke_workspace        = optional(string, "lz-workload-online-banking-np1")
+    platform_management_workspace   = optional(string, "platform-management")
+    platform_connectivity_workspace = optional(string, "platform-connectivity")
+    workload_spoke_workspace        = optional(string, "workload-spoke")
     app_integration_subnet_key      = optional(string, "app_integration")
     private_endpoint_subnet_key     = optional(string, "private_endpoints")
     private_dns_zone_keys = optional(object({

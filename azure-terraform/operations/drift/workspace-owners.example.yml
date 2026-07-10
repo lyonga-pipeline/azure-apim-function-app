@@ -1,12 +1,12 @@
 workspaces:
-  lz-platform-connectivity-np:
+  platform-connectivity:
     owner: cloud-enablement
     ado_area_path: Cloud Enablement\\Platform
     criticality: critical
     environment: np
     layer: shared-environment-platform
 
-  lz-platform-management-np:
+  platform-management:
     owner: cloud-enablement
     ado_area_path: Cloud Enablement\\Platform
     criticality: high
@@ -20,7 +20,7 @@ workspaces:
     environment: np
     layer: shared-environment-platform
 
-  lz-workload-online-banking-np1:
+  workload-spoke:
     owner: app-team-online-banking
     ado_area_path: Cloud Enablement\\Online Banking
     criticality: medium
@@ -33,4 +33,3 @@ workspaces:
     criticality: critical
     environment: prod
     layer: workload-landing-zone
-

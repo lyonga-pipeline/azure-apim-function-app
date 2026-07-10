@@ -1,3 +1,2 @@
 exception_id,opened_date,expires_date,workspace,environment,resource_id,control,reason,risk_acceptor,owner,compensating_control,status
-EX-0001,2026-06-19,2026-07-19,lz-workload-online-banking-np1,np1,/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.Web/sites/example,Public network disabled,Temporary migration validation,Security Governance,App Team,Private endpoint cutover scheduled,Open
-
+EX-0001,2026-06-19,2026-07-19,workload-spoke,np1,/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.Web/sites/example,Public network disabled,Temporary migration validation,Security Governance,App Team,Private endpoint cutover scheduled,Open

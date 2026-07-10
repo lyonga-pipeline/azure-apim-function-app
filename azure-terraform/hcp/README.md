@@ -18,10 +18,10 @@ Use names that identify ownership, platform layer, environment, and workload.
 Examples:
 
 - `lz-gov-global`
-- `lz-platform-connectivity-np`
-- `lz-platform-management-np`
-- `lz-platform-identity-np`
-- `lz-workload-online-banking-np1`
+- `platform-connectivity`
+- `platform-management`
+- `platform-identity`
+- `workload-spoke`
 
 ## Workspace Standards
 

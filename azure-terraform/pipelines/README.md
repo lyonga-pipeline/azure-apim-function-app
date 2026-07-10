@@ -215,9 +215,9 @@ The ClientSync workload pipeline syncs `TFE_TOKEN` into the resolved HCP workspa
 
 For ClientSync `np1`, the producer workspaces referenced by `platform_outputs` must exist in the same HCP organization and have successful applies with the expected outputs:
 
-- `lz-platform-management-np`
-- `lz-platform-connectivity-np`
-- `lz-workload-online-banking-np1`
+- `platform-management`
+- `platform-connectivity`
+- `workload-spoke`
 
 HCP VCS automatic run triggers are optional for this ADO evidence flow. The pipeline queues its own plan by API so ADO can capture evidence for the exact build commit.
 

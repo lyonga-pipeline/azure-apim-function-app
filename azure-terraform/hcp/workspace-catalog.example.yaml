@@ -10,17 +10,17 @@ projects:
   ce-lz-platform:
     description: Shared platform services for hub/spoke landing zones.
     workspaces:
-      - name: lz-platform-management-np
+      - name: platform-management
         terraform_root: azure-terraform/landing-zones/net-new-hub-spoke/platform-management
         environment: np
         drift_detection: true
         policy_stage: advisory
-      - name: lz-platform-connectivity-np
+      - name: platform-connectivity
         terraform_root: azure-terraform/landing-zones/net-new-hub-spoke/platform-connectivity
         environment: np
         drift_detection: true
         policy_stage: advisory
-      - name: lz-platform-identity-np
+      - name: platform-identity
         terraform_root: azure-terraform/landing-zones/net-new-hub-spoke/platform-identity
         environment: np
         drift_detection: true
@@ -28,7 +28,7 @@ projects:
   ce-lz-workloads:
     description: Application landing-zone workspaces using the new platform outputs.
     workspaces:
-      - name: lz-workload-online-banking-np1
+      - name: workload-spoke
         terraform_root: consumer-repos/online-banking/environments/np1
         environment: np1
         drift_detection: true
