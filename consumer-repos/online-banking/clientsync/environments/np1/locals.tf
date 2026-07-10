@@ -198,6 +198,11 @@ locals {
     for key, value in local.resolved_private_dns_zone_ids : key => value
     if value != null && value != ""
   }
+  private_endpoint_effective_subnet_id = local.platform_outputs_enabled ? local.private_endpoint_subnet_id : try(var.private_endpoints.subnet_id, null)
+  private_endpoint_effective_dns_zone_ids = local.platform_outputs_enabled ? tomap(merge(
+    try(var.private_endpoints.private_dns_zone_ids, {}),
+    local.private_dns_zone_ids_for_merge,
+  )) : tomap(try(var.private_endpoints.private_dns_zone_ids, {}))
 
   log_analytics_workspace_id_candidates = [
     for value in [
@@ -224,13 +229,10 @@ locals {
 
   private_endpoints = merge(
     var.private_endpoints,
-    local.platform_outputs_enabled ? {
-      subnet_id = local.private_endpoint_subnet_id
-      private_dns_zone_ids = merge(
-        try(var.private_endpoints.private_dns_zone_ids, {}),
-        local.private_dns_zone_ids_for_merge,
-      )
-    } : {},
+    {
+      subnet_id            = local.private_endpoint_effective_subnet_id
+      private_dns_zone_ids = local.private_endpoint_effective_dns_zone_ids
+    },
   )
 
   diagnostics = merge(
@@ -247,7 +249,7 @@ locals {
     } : {},
   )
 
-  platform_output_errors = compact([
+  platform_output_errors = nonsensitive(compact([
     local.platform_outputs_enabled && local.app_service_integration_subnet_id == null ? "platform_outputs could not resolve the app service integration subnet. Apply '${var.platform_outputs.workload_spoke_workspace}' after it exposes app_service_integration_subnet_id/subnet_ids, confirm TFE_TOKEN can read it, or set network.app_service_integration_subnet_id explicitly." : null,
     local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && local.private_endpoint_subnet_id == null ? "platform_outputs could not resolve the private endpoint subnet. Apply '${var.platform_outputs.workload_spoke_workspace}' after it exposes private_endpoint_subnet_id/subnet_ids, confirm TFE_TOKEN can read it, or set private_endpoints.subnet_id explicitly." : null,
     local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.function_app, true) && local.resolved_private_dns_zone_ids.app_service == null ? "platform_outputs could not resolve the App Service private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
@@ -257,5 +259,5 @@ locals {
     local.platform_outputs_enabled && try(var.private_endpoints.enabled, false) && try(var.private_endpoints.targets.storage_file, false) && local.resolved_private_dns_zone_ids.storage_file == null ? "platform_outputs could not resolve the Storage File private DNS zone ID from '${var.platform_outputs.platform_connectivity_workspace}'." : null,
     local.platform_outputs_enabled && try(var.platform_outputs.use_platform_log_analytics, true) && local.log_analytics_workspace_id == null ? "platform_outputs could not resolve log_analytics_workspace_id from '${var.platform_outputs.platform_management_workspace}'." : null,
     local.platform_outputs_enabled && (try(var.platform_outputs.use_platform_action_group, false) || try(var.alerts.enabled, false)) && local.action_group_id == null ? "platform_outputs could not resolve action_group_id from '${var.platform_outputs.platform_management_workspace}'." : null,
-  ])
+  ]))
 }
