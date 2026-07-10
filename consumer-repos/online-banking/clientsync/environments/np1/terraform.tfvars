@@ -17,7 +17,7 @@ application = {
     deployment_model = "function-app-composition-pattern"
     environment_type = "nonprod"
     pattern_pilot    = "function-app"
-    pilot_workload   = "true"
+    # pilot_workload   = "true"
   }
 }
 
