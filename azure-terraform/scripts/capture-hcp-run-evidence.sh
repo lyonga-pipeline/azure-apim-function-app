@@ -18,6 +18,8 @@ ALLOW_LATEST_RUN=false
 FAIL_ON_DESTROY=false
 FAIL_ON_POLICY_FAILURE=false
 FAIL_ON_RUN_TASK_FAILURE=false
+RUN_DISCOVERY_ATTEMPTS=30
+RUN_DISCOVERY_SLEEP_SECONDS=10
 
 usage() {
   cat <<'EOF'
@@ -35,6 +37,12 @@ Options:
   --allow-latest-run <bool>   When true and no --vcs-revision match is found,
                               fall back to the latest run in the workspace.
                               Default: false.
+  --run-discovery-attempts <n>
+                              Attempts to find a matching run before failing.
+                              Default: 30.
+  --run-discovery-sleep-seconds <n>
+                              Seconds to wait between run discovery attempts.
+                              Default: 10.
   --output-dir <dir>          Evidence output directory. Default: hcp-evidence.
   --fail-on-destroy <bool>    Fail when plan includes delete/replace actions.
   --fail-on-policy-failure <bool>
@@ -55,6 +63,8 @@ while [[ $# -gt 0 ]]; do
     --run-id) RUN_ID="${2:?Missing value for --run-id}"; shift 2 ;;
     --vcs-revision) VCS_REVISION="${2:?Missing value for --vcs-revision}"; shift 2 ;;
     --allow-latest-run) ALLOW_LATEST_RUN="${2:?Missing value for --allow-latest-run}"; shift 2 ;;
+    --run-discovery-attempts) RUN_DISCOVERY_ATTEMPTS="${2:?Missing value for --run-discovery-attempts}"; shift 2 ;;
+    --run-discovery-sleep-seconds) RUN_DISCOVERY_SLEEP_SECONDS="${2:?Missing value for --run-discovery-sleep-seconds}"; shift 2 ;;
     --output-dir) OUTPUT_DIR="${2:?Missing value for --output-dir}"; shift 2 ;;
     --fail-on-destroy) FAIL_ON_DESTROY="${2:?Missing value for --fail-on-destroy}"; shift 2 ;;
     --fail-on-policy-failure) FAIL_ON_POLICY_FAILURE="${2:?Missing value for --fail-on-policy-failure}"; shift 2 ;;
@@ -208,7 +218,7 @@ find_run_id() {
   if [[ "$run_count" -eq 0 ]]; then
     echo "HCP workspace ${WORKSPACE} was found, but it has no runs to capture yet." >&2
     echo "Queue a speculative or normal HCP run first, then rerun this evidence pipeline." >&2
-    return 1
+    return 2
   fi
 
   if [[ -n "$VCS_REVISION" ]]; then
@@ -231,7 +241,7 @@ find_run_id() {
     if [[ "$ALLOW_LATEST_RUN" != "true" ]]; then
       echo "No HCP run matched commit ${VCS_REVISION}." >&2
       echo "Queue an HCP run for the same Git commit, pass --run-id, or set --allow-latest-run true for manual testing only." >&2
-      return 1
+      return 2
     fi
 
     echo "No HCP run matched commit ${VCS_REVISION}; falling back to latest workspace run because --allow-latest-run is true." >&2
@@ -241,10 +251,31 @@ find_run_id() {
 }
 
 if [[ -z "$RUN_ID" ]]; then
-  RUN_ID="$(find_run_id)"
+  discovery_err="$OUTPUT_DIR/run-discovery.err"
+
+  for attempt in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
+    if discovered_run_id="$(find_run_id 2>"$discovery_err")"; then
+      RUN_ID="$discovered_run_id"
+      if [[ -n "$RUN_ID" && "$RUN_ID" != "null" ]]; then
+        break
+      fi
+    else
+      discovery_status=$?
+      if [[ "$discovery_status" -ne 2 ]]; then
+        cat "$discovery_err" >&2 || true
+        exit "$discovery_status"
+      fi
+    fi
+
+    if [[ "$attempt" -lt "$RUN_DISCOVERY_ATTEMPTS" ]]; then
+      echo "No matching HCP run found yet for commit ${VCS_REVISION:-<not supplied>} in ${WORKSPACE}; waiting ${RUN_DISCOVERY_SLEEP_SECONDS}s (${attempt}/${RUN_DISCOVERY_ATTEMPTS})."
+      sleep "$RUN_DISCOVERY_SLEEP_SECONDS"
+    fi
+  done
 fi
 
 if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+  cat "$OUTPUT_DIR/run-discovery.err" >&2 || true
   echo "No HCP Terraform run found for workspace ${WORKSPACE}." >&2
   exit 1
 fi

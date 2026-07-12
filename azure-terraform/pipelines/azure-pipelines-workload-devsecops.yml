@@ -39,8 +39,10 @@ variables:
   hcpWorkspacePrefix: ''
   hcpWorkspace: ''
   syncTfeOutputReadToken: 'true'
-  queueHcpRunFromAdo: 'true'
+  queueHcpRunFromAdo: 'false'
   allowLatestHcpRun: 'false'
+  hcpRunDiscoveryAttempts: '30'
+  hcpRunDiscoverySleepSeconds: '10'
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
@@ -126,8 +128,10 @@ stages:
                   --source-dir "$(Build.SourcesDirectory)" \
                   --vcs-revision "$(Build.SourceVersion)" \
                   --output-dir "$(Build.ArtifactStagingDirectory)/hcp"
+              else
+                echo "ADO run queueing is disabled. Waiting for the HCP VCS-triggered run for this commit."
               fi
-            displayName: Queue ClientSync HCP speculative plan for this commit
+            displayName: Queue ClientSync HCP speculative plan when enabled
             env:
               HCP_TOKEN: $(HCP_TOKEN)
 
@@ -147,6 +151,8 @@ stages:
                 "${run_id_args[@]}" \
                 --vcs-revision "$(Build.SourceVersion)" \
                 --allow-latest-run "$(allowLatestHcpRun)" \
+                --run-discovery-attempts "$(hcpRunDiscoveryAttempts)" \
+                --run-discovery-sleep-seconds "$(hcpRunDiscoverySleepSeconds)" \
                 --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
                 --fail-on-destroy "$(failOnDestroy)" \
                 --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \

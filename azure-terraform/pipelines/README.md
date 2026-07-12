@@ -11,7 +11,7 @@ The deployment pipeline intentionally stays close to the existing working pipeli
 
 - keep the `Core/Pipelines` Terraform IaC scan template for Terraform validation, linting, and existing quality checks,
 - keep the Checkmarx One job shape that already works,
-- add PIPE-06/07 HCP plan and policy evidence capture as a second stage. The stage queues an HCP speculative plan for the current commit, waits for plan JSON, and publishes the resulting evidence back to ADO.
+- add PIPE-06/07 HCP plan and policy evidence capture as a second stage. Workload pipelines default to HCP VCS-owned runs; ADO waits for the matching commit run, captures plan/policy evidence, and publishes the evidence back to ADO. API queue mode remains available for platform and smoke-test flows.
 
 OPA policy-code validation and OPA policy-set deployment remain separate because policy rules change on a governance cadence, not on every Terraform deployment. Use `azure-pipelines-opa-policy-code.yml` for OPA policy file changes.
 
@@ -21,7 +21,7 @@ The validated workload ADO flow is:
 
 1. Run the existing Terraform validation/linting and Checkmarx checks.
 2. Resolve the Terraform working directory to the correct HCP workspace.
-3. Queue an HCP speculative plan for the resolved workspace and current commit.
+3. Wait for the HCP VCS-triggered run for the resolved workspace and current commit.
 4. Wait for HCP plan JSON, policy checks, and run-task results.
 5. Publish full HCP evidence as the `hcp-plan-policy-evidence` artifact.
 6. Publish readable HCP evidence summaries into the ADO build.
@@ -48,7 +48,7 @@ Use `azure-pipelines-devsecops.yml` for platform stacks or any single-workspace 
 | Item | Coverage | Notes |
 | --- | --- | --- |
 | `PIPE-03` Checkmarx scan | Yes | Preserves the existing `Checkmarx AST@3` job with `sast`, `sca`, and `iac-security`. Adds a small evidence artifact. |
-| `PIPE-06` Speculative plan | Yes, queue + capture mode | Queues an HCP speculative plan through the HCP API for the configured workspace and current commit, waits for plan JSON, and publishes plan evidence. This avoids relying on HCP VCS trigger timing. |
+| `PIPE-06` Speculative plan | Yes, VCS-owned run capture by default | Workload pipelines wait for the HCP VCS-triggered run matching the build commit, then publish plan evidence. API queue mode remains available by setting `queueHcpRunFromAdo` to `true`. |
 | `PIPE-07` Policy/run task capture | Yes | Captures HCP `policy-checks` plus task-stage evidence, including run task results and policy evaluations when present. The summary includes policy and run-task failure counts. |
 | Destructive-change review | Yes | Classifies delete/replace actions into low, medium, and high impact. Low impact is warning-only. Medium requires PR acknowledgement. High requires PR acknowledgement plus linked work item or change reference. |
 
@@ -61,7 +61,7 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | Name | Type | Purpose |
 | --- | --- | --- |
 | `Checkmarx-One-Service-Connection` | Service connection | Existing Checkmarx AST service connection. |
-| `HCP_TOKEN` | Secret variable | HCP Terraform API token used to queue/read HCP runs, plans, policy checks, and run-task evidence. |
+| `HCP_TOKEN` | Secret variable | HCP Terraform API token used to read HCP runs, plans, policy checks, and run-task evidence. It also queues runs when `queueHcpRunFromAdo` is `true`. |
 | `HCP_OUTPUTS_TOKEN` | Secret variable, optional | Preferred token value to sync into workload workspaces as sensitive `TFE_TOKEN` so Terraform can read upstream `tfe_outputs`. If omitted, the workload pipeline falls back to `HCP_TOKEN`. |
 | `System.AccessToken` | Built-in OAuth token | Used to read the ADO PR description and linked work items for destructive-change acknowledgement. Enable "Allow scripts to access the OAuth token" if required by the ADO project settings. |
 | `terraformScriptsRoot` | Pipeline variable | Path to the checked-out Terraform automation folder. In this repository it is `azure-terraform`. |
@@ -73,7 +73,10 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | `hcpWorkspaceMapFile` | Workload pipeline variable | Source-controlled JSON map file, relative to the repository root. The ClientSync pipeline uses `azure-terraform/pipelines/workspace-maps/clientsync.json`. |
 | `hcpWorkspaceMap` | Workload pipeline optional variable | Inline JSON map override. Prefer the source-controlled map for committed workload changes. |
 | `hcpWorkspacePrefix` | Workload pipeline optional variable | Fallback naming pattern. If set, the resolver builds `<hcpWorkspacePrefix>-<environment>`. Use only when workspace names follow a reliable convention. |
-| `syncTfeOutputReadToken` | Workload pipeline variable | When `true`, syncs a sensitive `TFE_TOKEN` into the resolved HCP workspace before queueing the speculative plan. |
+| `syncTfeOutputReadToken` | Workload pipeline variable | When `true`, syncs a sensitive `TFE_TOKEN` into the resolved HCP workspace. For VCS-owned runs, workspace bootstrap should already provide this variable before the commit lands. |
+| `queueHcpRunFromAdo` | Workload/platform pipeline variable | When `false` (workload default), ADO waits for the HCP VCS-triggered run for the same commit. When `true`, ADO queues a plan-only API run and captures that run. |
+| `hcpRunDiscoveryAttempts` | Workload pipeline variable | Number of attempts to find the HCP VCS-triggered run when ADO is not queueing one. |
+| `hcpRunDiscoverySleepSeconds` | Workload pipeline variable | Seconds between HCP run discovery attempts. |
 
 Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
 
@@ -208,10 +211,14 @@ The HCP evidence stage requires:
 - the target root has a mapped HCP workspace with the correct Terraform working directory,
 - the HCP workspace has the required Terraform variables, environment variables, and Azure federated credentials,
 - policy sets and run tasks have already been attached to the target HCP workspace or project,
-- `HCP_TOKEN` is available to the pipeline and can queue/read runs, plans, policy checks, and task stages.
+- `HCP_TOKEN` is available to the pipeline and can read runs, plans, policy checks, and task stages. It must also be able to queue runs when `queueHcpRunFromAdo` is `true`.
 - the token synced as workspace `TFE_TOKEN` can read any upstream workspaces used by `tfe_outputs`.
 
-The ClientSync workload pipeline syncs `TFE_TOKEN` into the resolved HCP workspace before it queues the plan. Prefer setting `HCP_OUTPUTS_TOKEN` to a service/team token with read access to the platform-output producer workspaces. If `HCP_OUTPUTS_TOKEN` is not set, the sync step uses `HCP_TOKEN`. The API token used by ADO must also be allowed to manage variables in the target workspace. If that is not available, manually set a sensitive environment variable named `TFE_TOKEN` in the HCP workspace.
+Workload workspaces default to HCP VCS-owned execution. ADO does not queue a run by default; it waits for the HCP run matching `Build.SourceVersion`, then captures plan JSON, policy checks, and run-task output.
+
+Because the HCP VCS run can start before ADO executes, workspace bootstrap should provision Terraform variables, Azure dynamic credentials, and sensitive environment variables such as `TFE_TOKEN` ahead of time. The ADO sync step is useful for maintenance, but it should not be the only source of required variables for the current VCS-triggered run.
+
+Prefer setting `HCP_OUTPUTS_TOKEN` to a service/team token with read access to the platform-output producer workspaces. If `HCP_OUTPUTS_TOKEN` is not set, the sync step uses `HCP_TOKEN`. The API token used by ADO must also be allowed to manage variables in the target workspace. If that is not available, manually set a sensitive environment variable named `TFE_TOKEN` in the HCP workspace.
 
 For ClientSync `np1`, the producer workspaces referenced by `platform_outputs` must exist in the same HCP organization and have successful applies with the expected outputs:
 
@@ -219,7 +226,7 @@ For ClientSync `np1`, the producer workspaces referenced by `platform_outputs` m
 - `platform-connectivity`
 - `workload-spoke`
 
-HCP VCS automatic run triggers are optional for this ADO evidence flow. The pipeline queues its own plan by API so ADO can capture evidence for the exact build commit.
+For isolated smoke tests, set `queueHcpRunFromAdo` to `true`. Do that only when HCP VCS automatic triggers are disabled or duplicate API/VCS plan-only runs are acceptable.
 
 ADO does not run `terraform apply` and does not deploy policy sets. It retrieves plan JSON, policy-check output, and run-task output from HCP and publishes those files as pipeline artifacts. By default, raw destroy detection is warning/evidence only because deletes and replacements can be legitimate Terraform outcomes. Failed HCP policy checks and failed HCP run tasks fail the ADO pipeline.
 
