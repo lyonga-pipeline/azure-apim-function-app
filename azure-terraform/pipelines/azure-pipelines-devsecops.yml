@@ -22,6 +22,8 @@ variables:
   hcpWorkspace: azure-cloud
   queueHcpRunFromAdo: 'true'
   allowLatestHcpRun: 'false'
+  hcpPlanJsonAttempts: '180'
+  hcpPlanJsonSleepSeconds: '10'
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
@@ -147,6 +149,8 @@ stages:
                 "${run_id_args[@]}" \
                 --vcs-revision "$(Build.SourceVersion)" \
                 --allow-latest-run "$(allowLatestHcpRun)" \
+                --plan-json-attempts "$(hcpPlanJsonAttempts)" \
+                --plan-json-sleep-seconds "$(hcpPlanJsonSleepSeconds)" \
                 --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
                 --fail-on-destroy "$(failOnDestroy)" \
                 --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \

@@ -43,6 +43,8 @@ variables:
   allowLatestHcpRun: 'false'
   hcpRunDiscoveryAttempts: '30'
   hcpRunDiscoverySleepSeconds: '10'
+  hcpPlanJsonAttempts: '180'
+  hcpPlanJsonSleepSeconds: '10'
   destructiveChangeEnforcementMode: enforce
   destructiveChangeEnforceOnlyOnPr: 'true'
   requireMediumDestructiveChangeAck: 'true'
@@ -153,6 +155,8 @@ stages:
                 --allow-latest-run "$(allowLatestHcpRun)" \
                 --run-discovery-attempts "$(hcpRunDiscoveryAttempts)" \
                 --run-discovery-sleep-seconds "$(hcpRunDiscoverySleepSeconds)" \
+                --plan-json-attempts "$(hcpPlanJsonAttempts)" \
+                --plan-json-sleep-seconds "$(hcpPlanJsonSleepSeconds)" \
                 --output-dir "$(Build.ArtifactStagingDirectory)/hcp" \
                 --fail-on-destroy "$(failOnDestroy)" \
                 --fail-on-policy-failure "$(failOnHcpPolicyFailure)" \

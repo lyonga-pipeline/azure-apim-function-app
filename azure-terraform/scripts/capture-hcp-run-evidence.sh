@@ -20,6 +20,8 @@ FAIL_ON_POLICY_FAILURE=false
 FAIL_ON_RUN_TASK_FAILURE=false
 RUN_DISCOVERY_ATTEMPTS=30
 RUN_DISCOVERY_SLEEP_SECONDS=10
+PLAN_JSON_ATTEMPTS=180
+PLAN_JSON_SLEEP_SECONDS=10
 
 usage() {
   cat <<'EOF'
@@ -43,6 +45,11 @@ Options:
   --run-discovery-sleep-seconds <n>
                               Seconds to wait between run discovery attempts.
                               Default: 10.
+  --plan-json-attempts <n>    Attempts to wait for the HCP plan JSON after the
+                              run is found. Default: 180.
+  --plan-json-sleep-seconds <n>
+                              Seconds to wait between plan JSON attempts.
+                              Default: 10.
   --output-dir <dir>          Evidence output directory. Default: hcp-evidence.
   --fail-on-destroy <bool>    Fail when plan includes delete/replace actions.
   --fail-on-policy-failure <bool>
@@ -65,6 +72,8 @@ while [[ $# -gt 0 ]]; do
     --allow-latest-run) ALLOW_LATEST_RUN="${2:?Missing value for --allow-latest-run}"; shift 2 ;;
     --run-discovery-attempts) RUN_DISCOVERY_ATTEMPTS="${2:?Missing value for --run-discovery-attempts}"; shift 2 ;;
     --run-discovery-sleep-seconds) RUN_DISCOVERY_SLEEP_SECONDS="${2:?Missing value for --run-discovery-sleep-seconds}"; shift 2 ;;
+    --plan-json-attempts) PLAN_JSON_ATTEMPTS="${2:?Missing value for --plan-json-attempts}"; shift 2 ;;
+    --plan-json-sleep-seconds) PLAN_JSON_SLEEP_SECONDS="${2:?Missing value for --plan-json-sleep-seconds}"; shift 2 ;;
     --output-dir) OUTPUT_DIR="${2:?Missing value for --output-dir}"; shift 2 ;;
     --fail-on-destroy) FAIL_ON_DESTROY="${2:?Missing value for --fail-on-destroy}"; shift 2 ;;
     --fail-on-policy-failure) FAIL_ON_POLICY_FAILURE="${2:?Missing value for --fail-on-policy-failure}"; shift 2 ;;
@@ -281,7 +290,7 @@ if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
 fi
 
 echo "Capturing evidence for HCP run: $RUN_ID"
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 "$PLAN_JSON_ATTEMPTS"); do
   api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}" > "$OUTPUT_DIR/run.json"
   RUN_STATUS="$(jq -r '.data.attributes.status // "unknown"' "$OUTPUT_DIR/run.json")"
   PLAN_ID="$(jq -r '.data.relationships.plan.data.id // empty' "$OUTPUT_DIR/run.json")"
@@ -296,16 +305,19 @@ for attempt in $(seq 1 60); do
     exit 1
   fi
 
-  if [[ "$attempt" -eq 60 ]]; then
+  if [[ "$attempt" -eq "$PLAN_JSON_ATTEMPTS" ]]; then
     echo "Run ${RUN_ID} did not expose a plan relationship after ${attempt} attempts. Last status: ${RUN_STATUS}" >&2
+    if [[ "$RUN_STATUS" == "pending" || "$RUN_STATUS" == "plan_queued" ]]; then
+      echo "The HCP run has not started planning. Check for an older current run waiting for confirmation, limited HCP run capacity, or an unavailable agent pool." >&2
+    fi
     exit 1
   fi
 
-  sleep 10
+  sleep "$PLAN_JSON_SLEEP_SECONDS"
 done
 
 PLAN_JSON="$OUTPUT_DIR/plan.json"
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 "$PLAN_JSON_ATTEMPTS"); do
   api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}" > "$OUTPUT_DIR/run.json"
   RUN_STATUS="$(jq -r '.data.attributes.status // "unknown"' "$OUTPUT_DIR/run.json")"
 
@@ -331,9 +343,13 @@ for attempt in $(seq 1 60); do
 
   echo "Waiting for plan JSON: attempt=${attempt}, run_status=${RUN_STATUS}, http_status=${http_status}"
 
-  if [[ "$attempt" -eq 60 ]]; then
+  if [[ "$attempt" -eq "$PLAN_JSON_ATTEMPTS" ]]; then
     echo "Plan JSON was not available after ${attempt} attempts." >&2
     echo "Last plan JSON HTTP status: ${http_status}" >&2
+    echo "Last HCP run status: ${RUN_STATUS}" >&2
+    if [[ "$RUN_STATUS" == "pending" || "$RUN_STATUS" == "plan_queued" ]]; then
+      echo "The HCP run did not start planning before the ADO evidence timeout. Check for an older current run waiting for confirmation, limited HCP run capacity, or an unavailable agent pool." >&2
+    fi
     cat "$OUTPUT_DIR/plan-download.err" >&2 || true
     if [[ -s "$PLAN_JSON.tmp" ]]; then
       echo "Last plan JSON response body:" >&2
@@ -342,7 +358,7 @@ for attempt in $(seq 1 60); do
     exit 1
   fi
 
-  sleep 10
+  sleep "$PLAN_JSON_SLEEP_SECONDS"
 done
 
 api_get "https://app.terraform.io/api/v2/runs/${RUN_ID}/policy-checks" > "$OUTPUT_DIR/policy-checks.json" || {

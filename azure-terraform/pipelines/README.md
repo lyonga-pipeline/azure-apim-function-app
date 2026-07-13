@@ -77,6 +77,8 @@ PIPE-04 Orca is intentionally excluded from this Terraform deployment pipeline u
 | `queueHcpRunFromAdo` | Workload/platform pipeline variable | When `false` (workload default), ADO waits for the HCP VCS-triggered run for the same commit. When `true`, ADO queues a plan-only API run and captures that run. |
 | `hcpRunDiscoveryAttempts` | Workload pipeline variable | Number of attempts to find the HCP VCS-triggered run when ADO is not queueing one. |
 | `hcpRunDiscoverySleepSeconds` | Workload pipeline variable | Seconds between HCP run discovery attempts. |
+| `hcpPlanJsonAttempts` | Workload/platform pipeline variable | Number of attempts to wait for HCP plan JSON after the HCP run is found. |
+| `hcpPlanJsonSleepSeconds` | Workload/platform pipeline variable | Seconds between HCP plan JSON attempts. |
 
 Set `terraformScriptsRoot` to the path where the Terraform automation folder is checked out. In this repository it is `azure-terraform`. If the ADO implementation repository uses `azure-terraform` as the repository root, set `terraformScriptsRoot` to `.` and adjust pipeline path filters to remove the `azure-terraform/` prefix.
 
@@ -229,6 +231,8 @@ For ClientSync `np1`, the producer workspaces referenced by `platform_outputs` m
 For isolated smoke tests, set `queueHcpRunFromAdo` to `true`. Do that only when HCP VCS automatic triggers are disabled or duplicate API/VCS plan-only runs are acceptable.
 
 ADO does not run `terraform apply` and does not deploy policy sets. It retrieves plan JSON, policy-check output, and run-task output from HCP and publishes those files as pipeline artifacts. By default, raw destroy detection is warning/evidence only because deletes and replacements can be legitimate Terraform outcomes. Failed HCP policy checks and failed HCP run tasks fail the ADO pipeline.
+
+If ADO reports HCP run status `pending` or `plan_queued` with plan JSON HTTP `204`, HCP has not produced the plan yet. Check for an older current run waiting for confirmation, limited HCP run capacity, or an unavailable agent pool. Increase `hcpPlanJsonAttempts` only when longer HCP queue time is expected.
 
 Use `failOnDestroy: 'true'` only for workspaces where every delete or replacement must be blocked automatically. For most teams, the better enterprise pattern is to publish destructive-change evidence from ADO and enforce approval through HCP policy enforcement, HCP run tasks, manual apply, or protected ADO environments.
 
