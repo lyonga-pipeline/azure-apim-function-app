@@ -6,4 +6,6 @@ Keep this root in a separate HCP workspace from `platform-connectivity`. The hub
 
 The `platform-connectivity` hub VNet must expose a `GatewaySubnet` before enabling the gateway here. The current test tfvars include that subnet but do not deploy the gateway or circuit by default.
 
-Leave the maps in `terraform.tfvars.example` empty for smoke tests. Populate them only when the service provider, peering location, bandwidth, SKU, BGP design, and routing approvals are known.
+Leave `expressroute_posture.enabled = false` and the maps in `terraform.tfvars.example` empty for smoke tests. This keeps the root cost-free while still documenting that ExpressRoute is the expected production on-premises path.
+
+When `expressroute_posture.enabled = true`, Terraform requires at least one circuit, gateway public IP, ExpressRoute gateway, and connection. It also requires a provider design reference, BGP/routing approval, and cutover-window approval so partial hybrid connectivity cannot be promoted accidentally.

@@ -6,9 +6,9 @@ This pattern is the first implementation path for Compeer's new Azure IaC founda
 
 | Order | Root | Purpose | Produces |
 | --- | --- | --- | --- |
-| 1 | `global-governance` | Management group, subscription placement, Azure Policy, RBAC, budget, and broad guardrail scaffold | Management group IDs, policy assignment IDs, role assignment IDs, budget IDs |
-| 2 | `platform-management` | Shared observability foundation | Log Analytics workspace ID, action group ID |
-| 3 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS | VNet IDs, subnet ID maps, private DNS zone IDs |
+| 1 | `global-governance` | Management group, Azure Policy, RBAC, budget, and broad guardrail scaffold | Management group IDs, policy assignment IDs, role assignment IDs, budget IDs |
+| 2 | `platform-management` | Shared observability and disabled Defender/SOC posture | Log Analytics workspace ID, action group ID, Defender/SOC posture |
+| 3 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS, and Palo Alto route contract | VNet IDs, subnet ID maps, private DNS zone IDs, Palo Alto route contract |
 | 4 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute circuit, gateway, and connection IDs |
 | 5 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
 | 6 | `workload-spoke` | Pilot workload network spoke composition | Spoke VNet ID/name, spoke subnet ID map |
@@ -41,13 +41,16 @@ Required shared outputs include:
 The checked-in non-production tfvars are shaped for a short smoke test:
 
 - Defender for Cloud Standard plans are disabled in `platform-management/terraform.tfvars`.
-- Azure Firewall, ExpressRoute, VPN, DNS Resolver, DDoS Network Protection, and Recovery Services Vaults are represented by modules or optional roots, but are not enabled by default.
+- Defender/SOC posture is codified but inactive, so no Sentinel, Defender Standard, or data-collection resources deploy by default.
+- Palo Alto is represented as an enforced route/subnet contract, but VM-Series/Panorama resources are not deployed by default.
+- ExpressRoute, VPN, DNS Resolver, DDoS Network Protection, and Recovery Services Vaults are represented by modules, contracts, or optional roots, but are not enabled by default.
 - Private DNS zones, VNets, NSGs, route tables, identities, policies, budgets, and locks are generally low-cost or no-cost for a short test.
 
 Before enterprise or production testing, review and intentionally enable the paid controls:
 
 - Defender for Cloud Standard plans in `platform-management`.
-- Azure Firewall and Firewall Policy in `platform-connectivity`.
+- Sentinel/SOC onboarding, data-collection rules, and Defender settings in `platform-management`.
+- Palo Alto VM-Series/Panorama deployment automation after vendor design, licensing, bootstrap, and operations approval.
 - DDoS Network Protection for production internet-facing VNets.
 - ExpressRoute circuit, gateway, and connections in `platform-hybrid-connectivity`.
 - Recovery Services Vault and backup policies in the management or workload recovery design.
@@ -58,18 +61,18 @@ The current baseline is enough to prove HCP workspaces, state separation, Azure 
 
 Recommended additions before production promotion:
 
-- Azure Firewall or approved NVA, plus firewall policy, route tables, diagnostics, and change workflow.
+- Palo Alto VM-Series/Panorama deployment automation, HA design, bootstrap/config repository, route tables, diagnostics, and change workflow.
 - ExpressRoute, BGP/routing standards, on-prem DNS integration, and hybrid failover design.
 - Azure DNS Private Resolver inbound/outbound endpoints and forwarding rulesets.
 - DDoS Network Protection for production public ingress surfaces.
 - Sentinel/SIEM onboarding and data-collection rules aligned to security operations.
 - Backup/recovery vaults, policies, and restore testing for stateful workloads.
-- Subscription vending, IPAM, naming reservation, and workload onboarding automation.
+- IPAM, naming reservation, and workload onboarding automation. Subscription vending is intentionally external to this landing-zone repository.
 - PIM/RBAC group model, break-glass procedures, and access reviews.
 - Approved ingress patterns such as Application Gateway/WAF, Front Door, or Load Balancer where workloads require them.
 
 ## Enforcement Approach
 
-OPA begins in advisory mode through HCP plan checks. Azure Policy runtime guardrails are deployed from `global-governance` at management-group or subscription scope, starting with Audit/advisory impact review and then moving selected net-new controls to Deny after the pilot has passed. Existing projects remain outside the blocking policy set until they are remediated.
+OPA remains in advisory mode through HCP plan checks for now. Azure Policy runtime guardrails are deployed from `global-governance` at management-group or subscription scope, and the net-new non-production assignments now use `Deny` for high-confidence controls such as approved regions, required enterprise tags, public PaaS access, storage security, public IP creation, and public SQL network access. Existing projects remain outside the blocking policy set until they are remediated.
 
 The current OPA deployment model creates one individual OPA policy and attaches it to one OPA policy set. The policy bundles the Rego and required JSON data because some HCP test/free organizations do not support uploaded/versioned policy sets. The Azure DevOps OPA pipeline validates Rego, bundles the data, runs a local `opa check`/`opa eval`, then plans/applies the HCP policy resources on protected branches.

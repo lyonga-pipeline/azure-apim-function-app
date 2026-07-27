@@ -51,6 +51,26 @@ variable "hub_vnet" {
   })
 }
 
+variable "palo_alto" {
+  type = object({
+    enabled               = optional(bool, false)
+    deployment_model      = optional(string, "external")
+    private_ip_addresses  = optional(map(string), {})
+    trusted_subnet_key    = optional(string)
+    untrusted_subnet_key  = optional(string)
+    management_subnet_key = optional(string)
+    panorama_managed      = optional(bool, true)
+    notes                 = optional(string)
+  })
+  description = "Palo Alto network virtual appliance posture and route contract. This does not deploy paid VM-Series resources by default; it validates route intent when enabled."
+  default     = {}
+
+  validation {
+    condition     = contains(["external", "vm-series", "panorama-managed"], try(var.palo_alto.deployment_model, "external"))
+    error_message = "palo_alto.deployment_model must be one of external, vm-series, or panorama-managed."
+  }
+}
+
 variable "network_security_groups" {
   type = map(object({
     name = string

@@ -19,6 +19,17 @@ resource_group = {
   name = "rg-lz-platform-hybrid-connectivity-np"
 }
 
+# ExpressRoute is the expected production on-premises path, but it is inactive
+# by default so smoke tests do not deploy paid circuit or gateway resources.
+expressroute_posture = {
+  enabled                   = false
+  onpremises_required       = true
+  provider_design_reference = null
+  bgp_and_routing_approved  = false
+  cutover_window_approved   = false
+  notes                     = "Inactive until carrier/provider, BGP, routing, and cutover design is approved."
+}
+
 # Populate after the carrier/provider design is approved. Leave empty for smoke tests.
 expressroute_circuits  = {}
 gateway_public_ips     = {}

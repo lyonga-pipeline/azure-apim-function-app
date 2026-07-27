@@ -24,9 +24,6 @@ hub_vnet = {
   address_space = ["10.40.0.0/20"]
   dns_servers   = ["10.10.10.10", "10.10.10.11"]
   subnets = {
-    AzureFirewallSubnet = {
-      address_prefixes = ["10.40.0.0/26"]
-    }
     GatewaySubnet = {
       address_prefixes = ["10.40.0.64/27"]
     }
@@ -40,7 +37,29 @@ hub_vnet = {
     dns_resolver = {
       address_prefixes = ["10.40.3.0/28"]
     }
+    palo_alto_untrust = {
+      address_prefixes = ["10.40.4.0/26"]
+    }
+    palo_alto_trust = {
+      address_prefixes = ["10.40.4.64/26"]
+    }
+    palo_alto_management = {
+      address_prefixes = ["10.40.4.128/27"]
+    }
   }
+}
+
+palo_alto = {
+  enabled          = true
+  deployment_model = "external"
+  private_ip_addresses = {
+    trust_primary = "10.40.4.68"
+  }
+  trusted_subnet_key    = "palo_alto_trust"
+  untrusted_subnet_key  = "palo_alto_untrust"
+  management_subnet_key = "palo_alto_management"
+  panorama_managed      = true
+  notes                 = "Palo Alto VM-Series/Panorama lifecycle is governed externally until the approved vendor design is ready; this root enforces the hub route contract only."
 }
 
 network_security_groups = {
@@ -69,10 +88,10 @@ route_tables = {
   shared_services = {
     name = "rt-lz-hub-shared-services-np"
     routes = {
-      default_to_firewall = {
+      default_to_palo_alto = {
         address_prefix         = "0.0.0.0/0"
         next_hop_type          = "VirtualAppliance"
-        next_hop_in_ip_address = "10.40.0.4"
+        next_hop_in_ip_address = "10.40.4.68"
       }
     }
   }

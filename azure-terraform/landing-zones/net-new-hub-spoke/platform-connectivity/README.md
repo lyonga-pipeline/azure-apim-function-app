@@ -6,13 +6,16 @@ It keeps address allocation explicit in the root input contract. The VNet module
 
 NSGs, route tables, Private DNS zones, and VNet links are composed outside the VNet base module so networking ownership remains visible.
 
-The current smoke-test tfvars deploy hub networking primitives only. They include reserved `AzureFirewallSubnet` and `GatewaySubnet` address space so the hub is ready for Azure Firewall and ExpressRoute/VPN gateway enablement, but they do not deploy those paid services by default.
+The current smoke-test tfvars deploy hub networking primitives only. They include reserved `GatewaySubnet` address space for ExpressRoute/VPN gateway enablement and dedicated Palo Alto trust, untrust, and management subnet reservations. They do not deploy paid firewall, gateway, DNS resolver, or DDoS services by default.
+
+Palo Alto is codified as a route and subnet contract in `palo_alto`. When `palo_alto.enabled = true`, every `VirtualAppliance` route next hop must match an approved Palo Alto private IP, and the declared Palo Alto subnet keys must exist in the hub VNet input. This lets the landing zone enforce the intended egress architecture while keeping VM-Series/Panorama deployment in a separate approved vendor lifecycle.
 
 Integrate these enterprise controls into this root when approved:
 
-- Azure Firewall and Firewall Policy using the `azure-firewall` and `firewall-policy` modules.
+- Palo Alto VM-Series/Panorama modules or marketplace deployment automation after the vendor design, licensing, HA, bootstrap, and operations model are approved.
+- Azure Firewall and Firewall Policy only if Compeer chooses Azure Firewall for a specific landing-zone path.
 - DDoS Network Protection using the `ddos-protection-plan` module, then associate the plan to production VNets.
 - Azure DNS Private Resolver using the `private-dns-resolver` module for inbound on-prem queries and outbound conditional forwarding.
-- NAT Gateway only for explicit outbound scenarios where Azure Firewall is not the egress authority.
+- NAT Gateway only for explicit outbound scenarios where the approved egress authority is not used.
 
 Keep ExpressRoute circuit and gateway lifecycle in `platform-hybrid-connectivity`; consume the hub `GatewaySubnet` output there.

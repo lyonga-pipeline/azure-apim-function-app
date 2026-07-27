@@ -281,7 +281,7 @@ management_group_policy_assignments = {
         value = ["eastus", "centralus"]
       }
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
     non_compliance_messages = {
@@ -299,17 +299,19 @@ management_group_policy_assignments = {
     parameters = {
       requiredTagNames = {
         value = [
+          "env",
           "application",
-          "business_owner",
+          "bt_owner",
+          "source_repo",
+          "tf_workspace",
+          "recovery",
           "cost_center",
           "data_classification",
-          "environment",
-          "managed_by",
-          "recovery_tier"
+          "compliance_boundary"
         ]
       }
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
   }
@@ -321,7 +323,7 @@ management_group_policy_assignments = {
     display_name          = "Compeer deny public PaaS - NonProd"
     parameters = {
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
   }
@@ -333,7 +335,7 @@ management_group_policy_assignments = {
     display_name          = "Compeer secure storage - NonProd"
     parameters = {
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
   }
@@ -345,7 +347,7 @@ management_group_policy_assignments = {
     display_name          = "Compeer restrict public IP - NonProd"
     parameters = {
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
   }
@@ -357,7 +359,7 @@ management_group_policy_assignments = {
     display_name          = "Compeer private SQL network - NonProd"
     parameters = {
       effect = {
-        value = "Audit"
+        value = "Deny"
       }
     }
   }

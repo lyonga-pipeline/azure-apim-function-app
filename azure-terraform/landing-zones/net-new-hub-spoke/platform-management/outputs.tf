@@ -41,3 +41,14 @@ output "management_lock_ids" {
 output "defender_plan_ids" {
   value = { for key, value in azurerm_security_center_subscription_pricing.this : key => value.id }
 }
+
+output "defender_soc_posture" {
+  value = {
+    enabled                       = try(var.defender_soc_posture.enabled, false)
+    defender_standard_enabled     = try(var.defender_soc_posture.defender_standard_enabled, false)
+    sentinel_enabled              = try(var.defender_soc_posture.sentinel_enabled, false)
+    data_collection_rules_enabled = try(var.defender_soc_posture.data_collection_rules_enabled, false)
+    security_contact_enabled      = try(var.defender_soc_posture.security_contact_enabled, false)
+    notes                         = try(var.defender_soc_posture.notes, null)
+  }
+}

@@ -21,6 +21,52 @@ module "resource_group" {
   tags     = module.tags.tags
 }
 
+locals {
+  expressroute_posture_enabled = try(var.expressroute_posture.enabled, false)
+}
+
+resource "terraform_data" "expressroute_contract" {
+  input = {
+    enabled                   = local.expressroute_posture_enabled
+    onpremises_required       = try(var.expressroute_posture.onpremises_required, true)
+    provider_design_reference = try(var.expressroute_posture.provider_design_reference, null)
+    bgp_and_routing_approved  = try(var.expressroute_posture.bgp_and_routing_approved, false)
+    cutover_window_approved   = try(var.expressroute_posture.cutover_window_approved, false)
+    circuit_count             = length(var.expressroute_circuits)
+    gateway_public_ip_count   = length(var.gateway_public_ips)
+    gateway_enabled           = var.expressroute_gateway != null
+    connection_count          = length(var.expressroute_connections)
+    notes                     = try(var.expressroute_posture.notes, null)
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        !local.expressroute_posture_enabled ||
+        (
+          length(var.expressroute_circuits) > 0 &&
+          length(var.gateway_public_ips) > 0 &&
+          var.expressroute_gateway != null &&
+          length(var.expressroute_connections) > 0
+        )
+      )
+      error_message = "When ExpressRoute posture is enabled, configure at least one circuit, gateway public IP, ExpressRoute gateway, and connection."
+    }
+
+    precondition {
+      condition = (
+        !local.expressroute_posture_enabled ||
+        (
+          length(trimspace(coalesce(try(var.expressroute_posture.provider_design_reference, null), ""))) > 0 &&
+          try(var.expressroute_posture.bgp_and_routing_approved, false) &&
+          try(var.expressroute_posture.cutover_window_approved, false)
+        )
+      )
+      error_message = "When ExpressRoute posture is enabled, provider design reference, BGP/routing approval, and cutover approval must be captured."
+    }
+  }
+}
+
 module "expressroute_circuits" {
   source   = "../../../modules/expressroute-circuit"
   for_each = var.expressroute_circuits

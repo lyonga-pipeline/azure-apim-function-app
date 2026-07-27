@@ -33,6 +33,19 @@ variable "resource_group" {
   })
 }
 
+variable "expressroute_posture" {
+  type = object({
+    enabled                   = optional(bool, false)
+    onpremises_required       = optional(bool, true)
+    provider_design_reference = optional(string)
+    bgp_and_routing_approved  = optional(bool, false)
+    cutover_window_approved   = optional(bool, false)
+    notes                     = optional(string)
+  })
+  description = "No-cost ExpressRoute posture contract. When enabled, this root requires approved provider, BGP/routing, gateway, and connection inputs."
+  default     = {}
+}
+
 variable "expressroute_circuits" {
   type = map(object({
     name                     = string

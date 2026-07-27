@@ -195,6 +195,17 @@ defender_plans = {}
 security_contact         = null
 security_center_settings = {}
 
+# Defender/SOC posture is represented explicitly, but disabled for the
+# cost-safe baseline. Set these to true only after SOC design and cost approval.
+defender_soc_posture = {
+  enabled                       = false
+  defender_standard_enabled     = false
+  sentinel_enabled              = false
+  data_collection_rules_enabled = false
+  security_contact_enabled      = false
+  notes                         = "Inactive no-cost posture. Enables enterprise review without deploying Defender Standard, Sentinel, or data-collection resources."
+}
+
 # To promote the enterprise security baseline, import any pre-existing settings
 # first, then uncomment and manage these values.
 #

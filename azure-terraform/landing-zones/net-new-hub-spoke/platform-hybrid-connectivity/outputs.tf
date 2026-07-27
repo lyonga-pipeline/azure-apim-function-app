@@ -13,3 +13,7 @@ output "expressroute_gateway_id" {
 output "expressroute_connection_ids" {
   value = { for key, value in module.expressroute_connections : key => value.id }
 }
+
+output "expressroute_posture" {
+  value = terraform_data.expressroute_contract.output
+}

@@ -69,10 +69,10 @@ route_tables = {
   app = {
     name = "rt-online-banking-np1-app"
     routes = {
-      default_to_firewall = {
+      default_to_palo_alto = {
         address_prefix         = "0.0.0.0/0"
         next_hop_type          = "VirtualAppliance"
-        next_hop_in_ip_address = "10.40.0.4"
+        next_hop_in_ip_address = "10.40.4.68"
       }
     }
   }

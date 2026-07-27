@@ -71,3 +71,7 @@ output "management_lock_ids" {
 output "diagnostic_setting_ids" {
   value = { for key, value in module.diagnostic_settings : key => value.id }
 }
+
+output "palo_alto_route_contract" {
+  value = terraform_data.palo_alto_route_contract.output
+}

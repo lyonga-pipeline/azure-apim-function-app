@@ -221,3 +221,16 @@ variable "security_center_settings" {
   description = "Microsoft Defender for Cloud settings such as MCAS and WDATP."
   default     = {}
 }
+
+variable "defender_soc_posture" {
+  type = object({
+    enabled                       = optional(bool, false)
+    defender_standard_enabled     = optional(bool, false)
+    sentinel_enabled              = optional(bool, false)
+    data_collection_rules_enabled = optional(bool, false)
+    security_contact_enabled      = optional(bool, false)
+    notes                         = optional(string)
+  })
+  description = "No-cost posture contract for Defender/SOC readiness. This documents intent without enabling paid Defender, Sentinel, or data-collection resources by default."
+  default     = {}
+}

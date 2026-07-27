@@ -103,6 +103,31 @@ module "private_dns_hub_links" {
 }
 
 locals {
+  palo_alto_enabled              = try(var.palo_alto.enabled, false)
+  palo_alto_private_ip_addresses = try(var.palo_alto.private_ip_addresses, {})
+  palo_alto_subnet_keys = compact([
+    try(var.palo_alto.trusted_subnet_key, null),
+    try(var.palo_alto.untrusted_subnet_key, null),
+    try(var.palo_alto.management_subnet_key, null)
+  ])
+
+  virtual_appliance_next_hops = distinct(compact(flatten([
+    for table in values(var.route_tables) : [
+      for route in values(try(table.routes, {})) : try(route.next_hop_in_ip_address, null)
+      if try(route.next_hop_type, null) == "VirtualAppliance"
+    ]
+  ])))
+
+  undeclared_palo_alto_next_hops = local.palo_alto_enabled ? [
+    for ip in local.virtual_appliance_next_hops : ip
+    if !contains(values(local.palo_alto_private_ip_addresses), ip)
+  ] : []
+
+  missing_palo_alto_subnet_keys = [
+    for key in local.palo_alto_subnet_keys : key
+    if !contains(keys(var.hub_vnet.subnets), key)
+  ]
+
   connectivity_scope_ids = merge(
     {
       resource_group = module.resource_group.id
@@ -127,6 +152,40 @@ locals {
         try(local.connectivity_scope_ids[assignment.scope_key], null)
       )
     })
+  }
+}
+
+resource "terraform_data" "palo_alto_route_contract" {
+  input = {
+    enabled                     = local.palo_alto_enabled
+    deployment_model            = try(var.palo_alto.deployment_model, "external")
+    private_ip_addresses        = local.palo_alto_private_ip_addresses
+    virtual_appliance_next_hops = local.virtual_appliance_next_hops
+    subnet_keys                 = local.palo_alto_subnet_keys
+    panorama_managed            = try(var.palo_alto.panorama_managed, true)
+    notes                       = try(var.palo_alto.notes, null)
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !local.palo_alto_enabled || length(local.palo_alto_private_ip_addresses) > 0
+      error_message = "When Palo Alto posture is enabled, set at least one IP in var.palo_alto.private_ip_addresses."
+    }
+
+    precondition {
+      condition     = !local.palo_alto_enabled || length(local.virtual_appliance_next_hops) > 0
+      error_message = "When Palo Alto posture is enabled, configure at least one VirtualAppliance route."
+    }
+
+    precondition {
+      condition     = length(local.undeclared_palo_alto_next_hops) == 0
+      error_message = "Every VirtualAppliance route next hop must be declared in var.palo_alto.private_ip_addresses when Palo Alto posture is enabled."
+    }
+
+    precondition {
+      condition     = length(local.missing_palo_alto_subnet_keys) == 0
+      error_message = "Palo Alto subnet keys must exist in var.hub_vnet.subnets."
+    }
   }
 }
 
