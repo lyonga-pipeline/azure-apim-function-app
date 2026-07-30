@@ -1,0 +1,58 @@
+variable "subscription_id" {
+  type        = string
+  description = "Execution subscription used by the Terraform run identity."
+}
+
+variable "vending_enabled" {
+  type        = bool
+  description = "Global safety switch. Set to true only when the billing scope and management group catalog have been reviewed."
+  default     = false
+}
+
+variable "default_billing_scope_id" {
+  type        = string
+  description = "Default Azure billing scope used for subscription creation. A per-subscription billing_scope_id overrides this value."
+  default     = null
+}
+
+variable "default_tags" {
+  type        = map(string)
+  description = "Tags applied to all vended subscriptions unless overridden per subscription."
+  default     = {}
+}
+
+variable "management_groups" {
+  type = map(object({
+    display_name        = optional(string)
+    parent_key          = optional(string)
+    management_group_id = optional(string)
+    enabled             = optional(bool, true)
+  }))
+  description = "Management group catalog keyed by the architecture name. The root references existing management groups and normalizes names to Azure resource IDs."
+  default     = {}
+}
+
+variable "subscriptions" {
+  type = map(object({
+    subscription_name    = optional(string)
+    alias                = optional(string)
+    billing_scope_id     = optional(string)
+    management_group_key = string
+    workload             = optional(string, "Production")
+    enabled              = optional(bool, true)
+    tags                 = optional(map(string), {})
+  }))
+  description = "Subscriptions to vend and place under the target management group."
+  default     = {}
+}
+
+variable "subscription_timeouts" {
+  type = object({
+    create = optional(string, "90m")
+    read   = optional(string, "30m")
+    update = optional(string, "90m")
+    delete = optional(string, "90m")
+  })
+  description = "Operation timeouts for Azure subscription alias creation and lifecycle operations."
+  default     = {}
+}

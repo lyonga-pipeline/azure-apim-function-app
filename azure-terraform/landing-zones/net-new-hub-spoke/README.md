@@ -7,15 +7,16 @@ This pattern is the first implementation path for Compeer's new Azure IaC founda
 | Order | Root | Purpose | Produces |
 | --- | --- | --- | --- |
 | 1 | `global-governance` | Management group, Azure Policy, RBAC, budget, and broad guardrail scaffold | Management group IDs, policy assignment IDs, role assignment IDs, budget IDs |
-| 2 | `platform-management` | Shared observability and disabled Defender/SOC posture | Log Analytics workspace ID, action group ID, Defender/SOC posture |
-| 3 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS, and Palo Alto route contract | VNet IDs, subnet ID maps, private DNS zone IDs, Palo Alto route contract |
-| 4 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute circuit, gateway, and connection IDs |
-| 5 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
-| 6 | `workload-spoke` | Pilot workload network spoke composition | Spoke VNet ID/name, spoke subnet ID map |
-| 7 | `network-peering` | Cross-subscription hub/spoke attachment | Peering IDs, spoke Private DNS link IDs |
-| 8 | Consumer workload roots, such as `consumer-repos/online-banking/clientsync/environments/np1` | Application resources in the workload spoke | App resource IDs and endpoint evidence |
+| 2 | `subscription-vending` | Optional subscription creation and management group placement for the approved landing-zone hierarchy | Vended subscription IDs and management group association IDs |
+| 3 | `platform-management` | Shared observability and disabled Defender/SOC posture | Log Analytics workspace ID, action group ID, Defender/SOC posture |
+| 4 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS, and Palo Alto route contract | VNet IDs, subnet ID maps, private DNS zone IDs, Palo Alto route contract |
+| 5 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute circuit, gateway, and connection IDs |
+| 6 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
+| 7 | `workload-spoke` | Pilot workload network spoke composition | Spoke VNet ID/name, spoke subnet ID map |
+| 8 | `network-peering` | Cross-subscription hub/spoke attachment | Peering IDs, spoke Private DNS link IDs |
+| 9 | Consumer workload roots, such as `consumer-repos/online-banking/clientsync/environments/np1` | Application resources in the workload spoke | App resource IDs and endpoint evidence |
 
-Use separate HCP workspaces and state files for these roots in enterprise use. Governance, management, connectivity, hybrid connectivity, identity, and workload spokes have different owners, permissions, blast radius, and change windows. Combining them is acceptable only for short-lived local proof-of-concept work.
+Use separate HCP workspaces and state files for these roots in enterprise use. Governance, subscription vending, management, connectivity, hybrid connectivity, identity, and workload spokes have different owners, permissions, blast radius, and change windows. Combining them is acceptable only for short-lived local proof-of-concept work.
 
 `platform-hybrid-connectivity` is intentionally optional. Compeer's heavy on-premises presence means ExpressRoute is expected for a production landing zone, but the circuit, peering location, bandwidth, BGP, and route-advertisement design must come from the approved network/carrier design before deployment.
 
@@ -67,7 +68,7 @@ Recommended additions before production promotion:
 - DDoS Network Protection for production public ingress surfaces.
 - Sentinel/SIEM onboarding and data-collection rules aligned to security operations.
 - Backup/recovery vaults, policies, and restore testing for stateful workloads.
-- IPAM, naming reservation, and workload onboarding automation. Subscription vending is intentionally external to this landing-zone repository.
+- IPAM, naming reservation, and workload onboarding automation. The initial subscription-vending root provides the IaC catalog and placement workflow, but production use still needs the approved billing scope, requester/approver intake, quota checks, and owner assignment workflow.
 - PIM/RBAC group model, break-glass procedures, and access reviews.
 - Approved ingress patterns such as Application Gateway/WAF, Front Door, or Load Balancer where workloads require them.
 
