@@ -1,7 +1,9 @@
 output "management_group_ids" {
   value = merge(
     { for key, value in azurerm_management_group.root : key => value.id },
-    { for key, value in azurerm_management_group.child : key => value.id }
+    { for key, value in azurerm_management_group.level_1 : key => value.id },
+    { for key, value in azurerm_management_group.level_2 : key => value.id },
+    { for key, value in azurerm_management_group.level_3 : key => value.id }
   )
 }
 

@@ -3,6 +3,12 @@ variable "subscription_id" {
   description = "Execution subscription used by the Terraform run identity."
 }
 
+variable "tenant_id" {
+  type        = string
+  description = "Azure tenant/directory ID used by the Terraform run identity."
+  default     = null
+}
+
 variable "vending_enabled" {
   type        = bool
   description = "Global safety switch. Set to true only when the billing scope and management group catalog have been reviewed."
@@ -12,6 +18,24 @@ variable "vending_enabled" {
 variable "default_billing_scope_id" {
   type        = string
   description = "Default Azure billing scope used for subscription creation. A per-subscription billing_scope_id overrides this value."
+  default     = null
+}
+
+variable "billing_account_name" {
+  type        = string
+  description = "Microsoft Customer Agreement billing account name from the Azure portal. Used with billing_profile_name and invoice_section_name to build default_billing_scope_id."
+  default     = null
+}
+
+variable "billing_profile_name" {
+  type        = string
+  description = "Microsoft Customer Agreement billing profile name from the Azure portal."
+  default     = null
+}
+
+variable "invoice_section_name" {
+  type        = string
+  description = "Microsoft Customer Agreement invoice section name from the Azure portal."
   default     = null
 }
 

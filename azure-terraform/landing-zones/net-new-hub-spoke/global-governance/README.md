@@ -14,7 +14,9 @@ The error `Parent management group 'compeer-root' not found` means the configure
 
 The root supports both individual Azure Policy definitions and policy set definitions/initiatives. Use policy set definitions for the baseline landing-zone initiative so approved regions, required tags, public access, encryption, diagnostics, identity, and connectivity guardrails can be assigned as one scoped package at the net-new landing-zone management group.
 
-The checked-in non-production assignments use `Deny` for the high-confidence net-new controls: approved regions, required enterprise tags, public PaaS access, storage security, public IP creation, and public SQL network access. Existing/legacy workloads should be remediated or placed outside the blocking scope before they are attached to this guardrail set.
+The checked-in management-group scaffold matches the current go-live diagram for the new enterprise tree: 25 management group entries under `compeer-enterprise-mg`. That includes platform, workloads, internal apps, external apps, regulated apps, shared services, sandbox, and decommissioned branches. The existing `compeer-mg` branch shown outside this tree is treated as an existing landing-zone path and is not created by this root.
+
+The checked-in workload assignments use `Deny` for the high-confidence net-new controls: approved regions, required enterprise tags, public PaaS access, storage security, public IP creation, and public SQL network access. Existing/legacy workloads should be remediated or placed outside the blocking scope before they are attached to this guardrail set.
 
 This root is expected to pass the current OPA landing-zone workload policy because it deploys governance controls rather than workload/PaaS resources. Use Azure Policy for runtime guardrails and OPA for plan-time review of workload/platform deployment plans.
 

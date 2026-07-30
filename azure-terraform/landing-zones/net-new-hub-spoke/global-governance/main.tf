@@ -1,5 +1,5 @@
 locals {
-  root_parent_management_group_value = trimspace(coalesce(var.root_management_group_id, ""))
+  root_parent_management_group_value = trimspace(var.root_management_group_id == null ? "" : var.root_management_group_id)
   root_parent_management_group_id = (
     local.root_parent_management_group_value == "" ? null :
     startswith(local.root_parent_management_group_value, "/providers/Microsoft.Management/managementGroups/") ? local.root_parent_management_group_value :
@@ -11,10 +11,32 @@ locals {
     if try(value.parent_key, "root") == "root"
   }
 
-  child_management_groups = {
+  level_1_management_groups = {
     for key, value in var.management_groups : key => value
-    if try(value.parent_key, "root") != "root"
+    if contains(keys(local.root_management_groups), try(value.parent_key, "root"))
   }
+
+  level_2_management_groups = {
+    for key, value in var.management_groups : key => value
+    if contains(keys(local.level_1_management_groups), try(value.parent_key, "root"))
+  }
+
+  level_3_management_groups = {
+    for key, value in var.management_groups : key => value
+    if contains(keys(local.level_2_management_groups), try(value.parent_key, "root"))
+  }
+
+  unresolved_management_group_keys = sort(tolist(
+    setsubtract(
+      keys(var.management_groups),
+      concat(
+        keys(local.root_management_groups),
+        keys(local.level_1_management_groups),
+        keys(local.level_2_management_groups),
+        keys(local.level_3_management_groups)
+      )
+    )
+  ))
 }
 
 resource "azurerm_management_group" "root" {
@@ -25,12 +47,41 @@ resource "azurerm_management_group" "root" {
   parent_management_group_id = local.root_parent_management_group_id
 }
 
-resource "azurerm_management_group" "child" {
-  for_each = local.child_management_groups
+resource "azurerm_management_group" "level_1" {
+  for_each = local.level_1_management_groups
 
   name                       = each.key
   display_name               = each.value.display_name
   parent_management_group_id = azurerm_management_group.root[each.value.parent_key].id
+}
+
+resource "azurerm_management_group" "level_2" {
+  for_each = local.level_2_management_groups
+
+  name                       = each.key
+  display_name               = each.value.display_name
+  parent_management_group_id = azurerm_management_group.level_1[each.value.parent_key].id
+}
+
+resource "azurerm_management_group" "level_3" {
+  for_each = local.level_3_management_groups
+
+  name                       = each.key
+  display_name               = each.value.display_name
+  parent_management_group_id = azurerm_management_group.level_2[each.value.parent_key].id
+}
+
+resource "terraform_data" "management_group_contract" {
+  input = {
+    management_group_keys = sort(keys(var.management_groups))
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(local.unresolved_management_group_keys) == 0
+      error_message = "Management groups have unsupported or unknown parent keys: ${join(", ", local.unresolved_management_group_keys)}."
+    }
+  }
 }
 
 resource "azurerm_management_group_subscription_association" "this" {
@@ -38,6 +89,8 @@ resource "azurerm_management_group_subscription_association" "this" {
 
   management_group_id = local.management_group_scope_ids[each.value.management_group_key]
   subscription_id     = each.value.subscription_id
+
+  depends_on = [terraform_data.management_group_contract]
 }
 
 locals {
@@ -49,7 +102,13 @@ locals {
       for key, value in azurerm_management_group.root : key => value.id
     },
     {
-      for key, value in azurerm_management_group.child : key => value.id
+      for key, value in azurerm_management_group.level_1 : key => value.id
+    },
+    {
+      for key, value in azurerm_management_group.level_2 : key => value.id
+    },
+    {
+      for key, value in azurerm_management_group.level_3 : key => value.id
     }
   )
 

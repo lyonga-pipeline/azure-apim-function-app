@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.5.0"
 
   required_providers {
     azurerm = {
@@ -11,6 +11,7 @@ terraform {
 
 provider "azurerm" {
   features {}
+  tenant_id                       = var.tenant_id
   subscription_id                 = var.subscription_id
   resource_provider_registrations = "none"
 }

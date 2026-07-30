@@ -1,11 +1,22 @@
-subscription_id = "00000000-0000-0000-0000-000000000000"
+subscription_id = "ce792f64-9e63-483b-8136-a2538b764f3d"
+tenant_id       = "79dd759b-3fbe-4ab1-9439-ff87b14ba8f2"
 
-# Safety default: keep false until the billing scope and catalog are approved.
+# Safety default: keep false until the catalog is reviewed and approved.
 vending_enabled = false
 
-# Example formats:
-# /providers/Microsoft.Billing/billingAccounts/{billing_account_name}/billingProfiles/{billing_profile_name}/invoiceSections/{invoice_section_name}
-# /providers/Microsoft.Billing/billingAccounts/{billing_account_name}/enrollmentAccounts/{enrollment_account_name}
+# Azure portal: Subscriptions > Add > Create a subscription > Basics.
+# The portal displays:
+# Billing account  = Charles Lyonga (...truncated...)
+# Billing profile  = Charles Lyonga (BARQ-ROVI-BG7-PGB)
+# Invoice section  = Charles Lyonga (MRM-PUUU-PJA-PGB)
+# Plan             = Microsoft Azure Plan
+billing_account_name = "42f53d0e-734b-5ce6-0e37-1d640f0e75a1:d72eaae8-d2de-461c-ba3b-5bf77d323692_2019-05-31"
+billing_profile_name = "BARQ-ROVI-BG7-PGB"
+invoice_section_name = "MRM-PUUU-PJA-PGB"
+
+# Leave blank when using the MCA billing_account/profile/invoice_section fields.
+# Set this only when a client uses an EA billing scope or wants to pass the full
+# billing scope directly.
 default_billing_scope_id = ""
 
 default_tags = {
@@ -83,48 +94,48 @@ management_groups = {
     parent_key   = "external-apps-mg"
   }
 
-  # Future tree. Enable when regulated workloads require stronger isolation and controls.
+  # Go-live regulated-apps tree. Keep stricter controls scoped here as regulated workloads mature.
   "regulated-apps-mg" = {
     display_name = "Regulated Apps"
     parent_key   = "workloads-mg"
-    enabled      = false
+    enabled      = true
   }
   "regulated-apps-dev-mg" = {
     display_name = "Regulated Apps - Dev"
     parent_key   = "regulated-apps-mg"
-    enabled      = false
+    enabled      = true
   }
   "regulated-apps-test-mg" = {
     display_name = "Regulated Apps - Test"
     parent_key   = "regulated-apps-mg"
-    enabled      = false
+    enabled      = true
   }
   "regulated-apps-prod-mg" = {
     display_name = "Regulated Apps - Prod"
     parent_key   = "regulated-apps-mg"
-    enabled      = false
+    enabled      = true
   }
 
-  # Future tree. Enable when shared services need dedicated governance.
+  # Go-live shared-services tree. Use this for enterprise shared service subscriptions.
   "shared-services-mg" = {
     display_name = "Shared Services"
     parent_key   = "workloads-mg"
-    enabled      = false
+    enabled      = true
   }
   "shared-services-dev-mg" = {
     display_name = "Shared Services - Dev"
     parent_key   = "shared-services-mg"
-    enabled      = false
+    enabled      = true
   }
   "shared-services-test-mg" = {
     display_name = "Shared Services - Test"
     parent_key   = "shared-services-mg"
-    enabled      = false
+    enabled      = true
   }
   "shared-services-prod-mg" = {
     display_name = "Shared Services - Prod"
     parent_key   = "shared-services-mg"
-    enabled      = false
+    enabled      = true
   }
 
   "sandbox-mg" = {
@@ -364,7 +375,7 @@ subscriptions = {
   "regulated-apps-dev-workload7-sub" = {
     management_group_key = "regulated-apps-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload7"
       env              = "dev"
@@ -375,7 +386,7 @@ subscriptions = {
   "regulated-apps-dev-workload8-sub" = {
     management_group_key = "regulated-apps-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload8"
       env              = "dev"
@@ -386,7 +397,7 @@ subscriptions = {
   "regulated-apps-dev-workload9-sub" = {
     management_group_key = "regulated-apps-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload9"
       env              = "dev"
@@ -397,7 +408,7 @@ subscriptions = {
   "regulated-apps-test-workload7-sub" = {
     management_group_key = "regulated-apps-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload7"
       env              = "test"
@@ -408,7 +419,7 @@ subscriptions = {
   "regulated-apps-test-workload8-sub" = {
     management_group_key = "regulated-apps-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload8"
       env              = "test"
@@ -419,7 +430,7 @@ subscriptions = {
   "regulated-apps-test-workload9-sub" = {
     management_group_key = "regulated-apps-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload9"
       env              = "test"
@@ -430,7 +441,7 @@ subscriptions = {
   "regulated-apps-prod-workload7-sub" = {
     management_group_key = "regulated-apps-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload7"
       env              = "prod"
@@ -441,7 +452,7 @@ subscriptions = {
   "regulated-apps-prod-workload8-sub" = {
     management_group_key = "regulated-apps-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload8"
       env              = "prod"
@@ -452,7 +463,7 @@ subscriptions = {
   "regulated-apps-prod-workload9-sub" = {
     management_group_key = "regulated-apps-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "regulated-apps-workload9"
       env              = "prod"
@@ -464,7 +475,7 @@ subscriptions = {
   "APIM-dev-sub" = {
     management_group_key = "shared-services-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "APIM"
       env              = "dev"
@@ -475,7 +486,7 @@ subscriptions = {
   "APIM-test-sub" = {
     management_group_key = "shared-services-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "APIM"
       env              = "test"
@@ -486,7 +497,7 @@ subscriptions = {
   "APIM-prod-sub" = {
     management_group_key = "shared-services-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "APIM"
       env              = "prod"
@@ -497,7 +508,7 @@ subscriptions = {
   "enterprise-scheduler-dev-sub" = {
     management_group_key = "shared-services-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "enterprise-scheduler"
       env              = "dev"
@@ -508,7 +519,7 @@ subscriptions = {
   "enterprise-scheduler-test-sub" = {
     management_group_key = "shared-services-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "enterprise-scheduler"
       env              = "test"
@@ -519,7 +530,7 @@ subscriptions = {
   "enterprise-scheduler-prod-sub" = {
     management_group_key = "shared-services-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "enterprise-scheduler"
       env              = "prod"
@@ -530,7 +541,7 @@ subscriptions = {
   "data-platform-dev-sub" = {
     management_group_key = "shared-services-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "data-platform"
       env              = "dev"
@@ -541,7 +552,7 @@ subscriptions = {
   "data-platform-test-sub" = {
     management_group_key = "shared-services-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "data-platform"
       env              = "test"
@@ -552,7 +563,7 @@ subscriptions = {
   "data-platform-prod-sub" = {
     management_group_key = "shared-services-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "data-platform"
       env              = "prod"
@@ -563,7 +574,7 @@ subscriptions = {
   "messaging-dev-sub" = {
     management_group_key = "shared-services-dev-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "messaging"
       env              = "dev"
@@ -574,7 +585,7 @@ subscriptions = {
   "messaging-test-sub" = {
     management_group_key = "shared-services-test-mg"
     workload             = "DevTest"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "messaging"
       env              = "test"
@@ -585,7 +596,7 @@ subscriptions = {
   "messaging-prod-sub" = {
     management_group_key = "shared-services-prod-mg"
     workload             = "Production"
-    enabled              = false
+    enabled              = true
     tags = {
       application      = "messaging"
       env              = "prod"
