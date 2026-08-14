@@ -2,15 +2,17 @@
 
 This pattern is the first implementation path for Compeer's new Azure IaC foundation. It uses HCP Terraform workspaces, the Terraform 2.0 module catalog, policy-as-code, and explicit platform outputs to deploy a hub/spoke landing zone without inheriting legacy drift.
 
+The Phase 1 MVP target region is `centralus`. Keep region exceptions explicit in governance and OPA policy data; do not rely on older `eastus` or `eastus2` examples for the new ALZ path.
+
 ## Workspace Order
 
 | Order | Root | Purpose | Produces |
 | --- | --- | --- | --- |
 | 1 | `global-governance` | Management group, Azure Policy, RBAC, budget, and broad guardrail scaffold | Management group IDs, policy assignment IDs, role assignment IDs, budget IDs |
 | 2 | `subscription-vending` | Optional subscription creation and management group placement for the approved landing-zone hierarchy | Vended subscription IDs and management group association IDs |
-| 3 | `platform-management` | Shared observability and disabled Defender/SOC posture | Log Analytics workspace ID, action group ID, Defender/SOC posture |
-| 4 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS, and Palo Alto route contract | VNet IDs, subnet ID maps, private DNS zone IDs, Palo Alto route contract |
-| 5 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute circuit, gateway, and connection IDs |
+| 3 | `platform-management` | Shared observability and disabled Defender/SOC posture | Log Analytics workspace ID, action group ID, Defender/SOC posture contract |
+| 4 | `platform-connectivity` | Hub/spoke network, subnets, NSGs, route tables, Private DNS, DNS posture, and Palo Alto route contract | VNet IDs, subnet ID maps, private DNS zone IDs, DNS contract, Palo Alto route contract |
+| 5 | `platform-hybrid-connectivity` | Optional ExpressRoute circuit, gateway, and on-prem connection path | ExpressRoute posture, circuit, gateway, and connection IDs |
 | 6 | `platform-identity` | Platform identity and vault foundation | Identity principal IDs, Key Vault URI/ID |
 | 7 | `workload-spoke` | Pilot workload network spoke composition | Spoke VNet ID/name, spoke subnet ID map |
 | 8 | `network-peering` | Cross-subscription hub/spoke attachment | Peering IDs, spoke Private DNS link IDs |
@@ -35,6 +37,7 @@ Required shared outputs include:
 - `hub_virtual_network_id`, `hub_virtual_network_name`, and `hub_resource_group_name`
 - `spoke_virtual_network_id`, `spoke_virtual_network_name`, `spoke_resource_group_name`, and `subnet_ids`, keyed by purpose such as `app_integration`, `private_endpoints`, `apim`
 - `private_dns_zone_ids`, `private_dns_zone_names`, and `private_dns_zone_resource_group_names`, keyed by service such as `app_service`, `key_vault`, `storage_blob`
+- `dns_resolution_contract`, `palo_alto_route_contract`, `expressroute_posture`, and `defender_soc_posture` for architecture evidence
 - platform identity or Key Vault IDs where workloads are approved to consume them
 
 ## Cost-Safe Test Posture
@@ -45,6 +48,7 @@ The checked-in non-production tfvars are shaped for a short smoke test:
 - Defender/SOC posture is codified but inactive, so no Sentinel, Defender Standard, or data-collection resources deploy by default.
 - Palo Alto is represented as an enforced route/subnet contract, but VM-Series/Panorama resources are not deployed by default.
 - ExpressRoute, VPN, DNS Resolver, DDoS Network Protection, and Recovery Services Vaults are represented by modules, contracts, or optional roots, but are not enabled by default.
+- `platform-hybrid-connectivity/terraform.tfvars` is autoloaded and disabled, so HCP can plan the root without deploying ExpressRoute.
 - Private DNS zones, VNets, NSGs, route tables, identities, policies, budgets, and locks are generally low-cost or no-cost for a short test.
 
 Before enterprise or production testing, review and intentionally enable the paid controls:
@@ -71,6 +75,10 @@ Recommended additions before production promotion:
 - IPAM, naming reservation, and workload onboarding automation. The initial subscription-vending root provides the IaC catalog and placement workflow, but production use still needs the approved billing scope, requester/approver intake, quota checks, and owner assignment workflow.
 - PIM/RBAC group model, break-glass procedures, and access reviews.
 - Approved ingress patterns such as Application Gateway/WAF, Front Door, or Load Balancer where workloads require them.
+
+## Phase Gates
+
+The current code keeps the target management-group hierarchy visible, including future regulated-apps and shared-services branches. Subscription vending treats those two branches as Phase 2 dormant by setting their subscription entries to `enabled = false`; flip those entries only when ownership, policy scope, cost center, and workload onboarding approvals are complete.
 
 ## Enforcement Approach
 

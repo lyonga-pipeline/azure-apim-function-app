@@ -1,8 +1,6 @@
 {
   "net_new_lz": {
     "allowed_locations": [
-      "eastus",
-      "eastus2",
       "centralus"
     ],
     "required_tags": [

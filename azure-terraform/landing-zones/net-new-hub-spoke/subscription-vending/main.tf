@@ -70,15 +70,42 @@ locals {
     if !contains(["Production", "DevTest"], subscription.workload)
   ]
 
+  enabled_subscription_role_assignments = {
+    for key, assignment in var.subscription_role_assignments : key => assignment
+    if try(assignment.enabled, true)
+  }
+
+  unknown_role_assignment_subscription_keys = sort(distinct([
+    for _, assignment in local.enabled_subscription_role_assignments : assignment.subscription_key
+    if !contains(keys(local.enabled_subscriptions), assignment.subscription_key)
+  ]))
+
   subscription_contract_valid = (
     length(local.enabled_subscriptions) > 0 &&
     length(local.missing_billing_scope_keys) == 0 &&
     length(local.placeholder_billing_scope_keys) == 0 &&
     length(local.unknown_management_group_keys) == 0 &&
-    length(local.invalid_workload_keys) == 0
+    length(local.invalid_workload_keys) == 0 &&
+    length(local.unknown_role_assignment_subscription_keys) == 0
   )
 
   subscription_resource_inputs = local.subscription_contract_valid ? local.subscription_inputs : {}
+
+  subscription_role_assignment_inputs = local.subscription_contract_valid ? {
+    for key, assignment in local.enabled_subscription_role_assignments : key => {
+      scope                                  = "/subscriptions/${azurerm_subscription.this[assignment.subscription_key].subscription_id}"
+      principal_id                           = assignment.principal_id
+      role_definition_name                   = try(assignment.role_definition_name, null)
+      role_definition_id                     = try(assignment.role_definition_id, null)
+      principal_type                         = try(assignment.principal_type, null)
+      description                            = try(assignment.description, null)
+      condition                              = try(assignment.condition, null)
+      condition_version                      = try(assignment.condition_version, null)
+      skip_service_principal_aad_check       = try(assignment.skip_service_principal_aad_check, null)
+      delegated_managed_identity_resource_id = try(assignment.delegated_managed_identity_resource_id, null)
+    }
+    if contains(keys(azurerm_subscription.this), assignment.subscription_key)
+  } : {}
 }
 
 resource "terraform_data" "subscription_vending_contract" {
@@ -114,6 +141,11 @@ resource "terraform_data" "subscription_vending_contract" {
       condition     = length(local.invalid_workload_keys) == 0
       error_message = "Subscription workload must be Production or DevTest for: ${join(", ", local.invalid_workload_keys)}."
     }
+
+    precondition {
+      condition     = length(local.unknown_role_assignment_subscription_keys) == 0
+      error_message = "subscription_role_assignments references unknown or disabled subscription keys: ${join(", ", local.unknown_role_assignment_subscription_keys)}."
+    }
   }
 }
 
@@ -141,4 +173,12 @@ resource "azurerm_management_group_subscription_association" "this" {
 
   management_group_id = local.subscription_inputs[each.key].management_group_id
   subscription_id     = "/subscriptions/${each.value.subscription_id}"
+}
+
+module "subscription_role_assignments" {
+  source = "../../../modules/role-assignments"
+
+  assignments = local.subscription_role_assignment_inputs
+
+  depends_on = [azurerm_management_group_subscription_association.this]
 }

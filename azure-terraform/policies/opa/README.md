@@ -51,7 +51,7 @@ Set `enforcement_level = "mandatory"` only after the findings have been remediat
 Expected pass conditions:
 
 - all tagged resources include the required enterprise tags: `env`, `application`, `bt_owner`, `source_repo`, `tf_workspace`, `recovery`, `cost_center`, `data_classification`, and `compliance_boundary`,
-- resource locations are `eastus`, `eastus2`, `centralus`, or `global`,
+- resource locations are `centralus` or `global`,
 - no public IP addresses are created without an approved exception,
 - Storage Accounts do not enable public network access, shared access keys, public nested blob items, unsupported TLS, or disabled infrastructure encryption,
 - Key Vaults do not enable public network access and keep RBAC authorization, purge protection, and 90-day soft delete retention enabled,
@@ -117,7 +117,7 @@ opa test azure-terraform/policies/opa/policies azure-terraform/policies/opa/test
 Expected result:
 
 ```text
-PASS: 10/10
+PASS: 11/11
 ```
 
 ## HCP Enforcement Plan

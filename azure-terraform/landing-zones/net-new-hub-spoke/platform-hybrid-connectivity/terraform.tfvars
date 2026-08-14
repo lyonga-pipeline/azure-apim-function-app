@@ -1,0 +1,77 @@
+location    = "centralus"
+environment = "np"
+
+platform_tags = {
+  application         = "landing-zone-hybrid-connectivity"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/azure-cloud"
+  terraform_workspace = "lz-platform-hybrid-connectivity-np"
+  recovery_tier       = "standard"
+  cost_center         = "cloud-platform"
+  data_classification = "internal"
+  compliance_boundary = "finserv"
+  additional_tags = {
+    deployment_model = "net-new-lz"
+  }
+}
+
+resource_group = {
+  name = "rg-lz-platform-hybrid-connectivity-np"
+}
+
+# ExpressRoute is the expected production on-premises path, but it is inactive
+# by default so this workspace remains cost-free until the carrier/provider,
+# BGP/routing, gateway, and cutover design is approved.
+expressroute_posture = {
+  enabled                   = false
+  onpremises_required       = true
+  provider_design_reference = null
+  bgp_and_routing_approved  = false
+  cutover_window_approved   = false
+  notes                     = "Inactive until carrier/provider, BGP, routing, and cutover design is approved."
+}
+
+expressroute_circuits    = {}
+gateway_public_ips       = {}
+expressroute_gateway     = null
+expressroute_connections = {}
+
+# Example shape for a future approved deployment:
+#
+# expressroute_circuits = {
+#   primary = {
+#     name                  = "erc-lz-primary-np"
+#     service_provider_name = "Equinix"
+#     peering_location      = "Chicago"
+#     bandwidth_in_mbps     = 1000
+#     sku = {
+#       tier   = "Standard"
+#       family = "MeteredData"
+#     }
+#   }
+# }
+#
+# gateway_public_ips = {
+#   primary = {
+#     name  = "pip-er-gw-primary-np"
+#     zones = ["1", "2", "3"]
+#   }
+# }
+#
+# expressroute_gateway = {
+#   name = "ergw-lz-hub-np"
+#   sku  = "ErGw1AZ"
+#   ip_configurations = {
+#     primary = {
+#       public_ip_key     = "primary"
+#       gateway_subnet_id = "/subscriptions/.../subnets/GatewaySubnet"
+#     }
+#   }
+# }
+#
+# expressroute_connections = {
+#   primary = {
+#     name        = "conn-er-primary-np"
+#     circuit_key = "primary"
+#   }
+# }

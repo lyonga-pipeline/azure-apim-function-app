@@ -20,7 +20,7 @@ test_secure_storage_with_diagnostics_passes if {
 			"change": {
 				"actions": ["create"],
 				"after": {
-					"location": "eastus2",
+					"location": "centralus",
 					"public_network_access_enabled": false,
 					"min_tls_version": "TLS1_2",
 					"shared_access_key_enabled": false,
@@ -48,7 +48,7 @@ test_public_storage_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"public_network_access_enabled": true,
 				"tags": standard_tags,
 			},
@@ -64,7 +64,7 @@ test_hcp_wrapped_public_storage_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"public_network_access_enabled": true,
 				"tags": standard_tags,
 			},
@@ -80,7 +80,7 @@ test_sql_public_network_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"public_network_access_enabled": true,
 				"minimum_tls_version": "1.2",
 				"azuread_authentication_only": true,
@@ -98,7 +98,7 @@ test_key_vault_without_rbac_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"public_network_access_enabled": false,
 				"rbac_authorization_enabled": false,
 				"purge_protection_enabled": true,
@@ -117,7 +117,7 @@ test_key_vault_without_rbac_fails_with_legacy_provider_field if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"public_network_access_enabled": false,
 				"enable_rbac_authorization": false,
 				"purge_protection_enabled": true,
@@ -136,7 +136,7 @@ test_function_app_public_network_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"https_only": true,
 				"public_network_access_enabled": true,
 				"ftp_publish_basic_authentication_enabled": false,
@@ -159,7 +159,7 @@ test_function_app_without_managed_identity_fails if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"https_only": true,
 				"public_network_access_enabled": false,
 				"ftp_publish_basic_authentication_enabled": false,
@@ -182,7 +182,7 @@ test_missing_diagnostics_fails_for_required_resource_type if {
 		"change": {
 			"actions": ["create"],
 			"after": {
-				"location": "eastus2",
+				"location": "centralus",
 				"tags": standard_tags,
 			},
 		},

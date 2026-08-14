@@ -1,14 +1,17 @@
 # Terraform Composition Patterns
 
-Patterns compose narrow Terraform 2.0 base and companion modules into approved workload shapes.
+Patterns compose narrow Terraform 2.0 base and companion modules into approved deployment shapes.
 
 Base modules still own one primary Azure resource lifecycle. Pattern modules own a curated composition contract for common workload deployments. They are allowed to orchestrate dependencies, but they should not hide subscription, subnet, DNS, policy, or ownership decisions.
+
+Platform landing-zone roots are intentionally separated by lifecycle boundary. The platform pattern captures the enterprise component contract and points each required component back to the owning platform root rather than deploying the whole landing zone as one giant module.
 
 ## Available Patterns
 
 | Pattern | Purpose |
 | --- | --- |
 | `function-app` | Reference Function App workload composition with App Service Plan, identity, storage, Key Vault, App Insights, private endpoints, diagnostics, RBAC, and alerting. |
+| `platform-landing-zone` | No-resource Phase 1 ALZ component coverage contract mapped to workbook Stack, Domain, Component, and Criticality columns. |
 
 ## Design Rules
 
@@ -18,4 +21,4 @@ Base modules still own one primary Azure resource lifecycle. Pattern modules own
 - RBAC, diagnostics, private endpoints, and alerts remain visible in the pattern contract.
 - Production deployments must not disable private connectivity, diagnostics, or monitoring without an approved exception.
 - Broad `ignore_changes` for app settings is not part of the pattern.
-
+- Platform patterns preserve management group, subscription, connectivity, identity, management, and workload-spoke state boundaries.
