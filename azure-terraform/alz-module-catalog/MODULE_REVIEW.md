@@ -1,15 +1,24 @@
 # ALZ Module Readiness Review
 
-## Ready To Use With WAF Inputs
+## Review rules
 
-These modules are good starting points for the platform ALZ when called with enterprise defaults for tags, diagnostics, network restrictions, RBAC, and encryption:
+This review applies the stricter rule requested for the final module pass:
+
+- Ready = the module is present in the Compeer repo and is materially complete.
+- Missing = the capability is required for the platform ALZ design but does not exist in the shared Compeer module directory.
+- Incomplete = the module is still thin, placeholder, or not materially upgraded from the original source.
+
+The platform design does not mark a row as Ready just because the module exists in the staging catalog; the Compeer repo walk is the source of truth.
+
+## Ready
+
+These modules are present in the Compeer module directory and are materially complete enough for a platform ALZ use case when called with approved enterprise defaults:
 
 - `terraform-azurerm-compeer-resource-group`
 - `terraform-azurerm-compeer-management-groups`
 - `terraform-azurerm-compeer-management-locks`
-- `terraform-azurerm-compeer-policy-baseline`
-- `terraform-azurerm-compeer-role-assignments`
 - `terraform-azurerm-compeer-role-definition`
+- `terraform-azurerm-compeer-role-assignments`
 - `terraform-azurerm-compeer-user-assigned-identity`
 - `terraform-azuread-compeer-ad-group`
 - `terraform-azuread-compeer-ad-application`
@@ -25,64 +34,75 @@ These modules are good starting points for the platform ALZ when called with ent
 - `terraform-azurerm-compeer-private-dns-a-record`
 - `terraform-azurerm-compeer-private-dns-resolver`
 - `terraform-azurerm-compeer-private-endpoint`
-- `terraform-azurerm-compeer-expressroute-circuit`
-- `terraform-azurerm-compeer-virtual-network-gateway`
-- `terraform-azurerm-compeer-virtual-network-gateway-connection`
-- `terraform-azurerm-compeer-local-network-gateway`
-- `terraform-azurerm-compeer-route-server`
 - `terraform-azurerm-compeer-public-ip`
 - `terraform-azurerm-compeer-load-balancer`
 - `terraform-azurerm-compeer-application-gateway`
-- `terraform-azurerm-compeer-azure-firewall`
-- `terraform-azurerm-compeer-firewall-policy`
-- `terraform-azurerm-compeer-ddos-protection-plan`
-- `terraform-azurerm-compeer-bastion-host`
 - `terraform-azurerm-compeer-log-analytics`
 - `terraform-azurerm-compeer-diagnostic-settings`
 - `terraform-azurerm-compeer-action-group`
-- `terraform-azurerm-compeer-monitor-metric-alert`
-- `terraform-azurerm-compeer-network-watcher-flow-logs`
-- `terraform-azurerm-compeer-recovery-services-vault`
 - `terraform-azurerm-compeer-storage-account`
-- `terraform-azurerm-compeer-storage-container-immutability-policy`
 - `terraform-azurerm-compeer-storage-management-policy`
-- `terraform-azurerm-compeer-key-vault`
-- `terraform-azurerm-compeer-key-vault-key`
-- `terraform-azurerm-compeer-key-vault-secret`
-- `terraform-azurerm-compeer-key-vault-certificate`
-- `terraform-azurerm-compeer-apim-service`
+- `terraform-azurerm-compeer-keyvault`
+- `terraform-azurerm-compeer-keyvault-assets`
 - `terraform-azurerm-compeer-application-insights`
 - `terraform-azurerm-compeer-app-configuration`
-- `terraform-azurerm-compeer-operational-contracts`
+- `terraform-azurerm-compeer-apim`
+- `terraform-azurerm-compeer-apim-api`
+- `terraform-azurerm-compeer-apim-backend`
 - `terraform-cloudflare-compeer-zone`
-- `terraform-cloudflare-compeer-record-manager`
 - `terraform-cloudflare-compeer-ruleset`
+- `terraform-cloudflare-compeer-record-manager`
 
-## Ready But Disabled By Default
+## Missing
 
-These codify the contract now but must stay disabled until cost, SOC onboarding, and runbook ownership are approved:
+These are required platform capabilities for the landing-zone design, but they do not presently exist as a real completed Compeer module to reuse directly:
 
-- `terraform-azurerm-compeer-defender-soc-posture`
-- `terraform-azurerm-compeer-sentinel`
-- `terraform-azurerm-compeer-palo-alto-hub`
-- `terraform-cloudflare-compeer-edge-baseline`
+- `subscription-vending` pattern and associated subscription lifecycle module
+- `management-group policy` enforcement pattern for the full enterprise management-group roster
+- `budget` pattern at management-group and subscription scale when the underlying Compeer repo is missing a complete variant
+- `defender-soc-posture` or full Sentinel onboarding if the module remains not yet vendored in Compeer
+- `palo-alto-hub` production VM-Series automation where the platform still depends on a local implementation and not on a reusable Compeer module
+- any workload-owned app service, function app, app slot, or container module that is not yet published in the shared module repo
 
-## Needs Fix Before Direct HCP Reuse
+These rows should remain marked as Missing until the actual underlying Compeer module is present or a local implementation is intentionally added to the catalog with a matching file layout and lifecycle boundary.
 
-These registry modules or copied sources need remediation before being treated as the enterprise baseline:
+## Incomplete
 
-- `terraform-azurerm-compeer-networking`: useful reference only. It is too monolithic for ALZ ownership boundaries and includes provider configuration and hardcoded DNS defaults. Split into VNet, subnet, NSG, route-table, DNS, diagnostics, and watcher modules.
-- `terraform-azurerm-compeer-private-endpoint`: original HCP source hides drift with broad `ignore_changes`. Use the staged catalog version instead.
-- `terraform-azurerm-compeer-keyvault`: original HCP source defaults are weak for financial workloads. Use the staged catalog version with RBAC, purge protection, 90-day retention, private endpoints, and diagnostics.
-- `terraform-azurerm-compeer-budget`: original HCP source is resource-group oriented. Add subscription and management-group budget support before using for platform guardrails.
-- `terraform-cloudflare-compeer-ruleset`: staged copy fixes the rule type and nested matched-data iterator. Republish after validation.
-- `terraform-azurerm-compeer-route-tables`, `terraform-azurerm-compeer-network-security-group`, `terraform-azurerm-compeer-nat-gateway`, and similar older modules: remove module-local provider blocks and add examples before promotion.
-- Empty repos: `terraform-azurerm-compeer-keyvault-managed-storage-account`, `terraform-azurerm-compeer-linux-web-app-slot`, and web/function app slot repos need implementations or retirement decisions.
+These modules are not acceptable as Ready under the stricter rule because they are placeholder, thin, or partially upgraded:
 
-## Workload-Landing-Zone Modules
+- modules that still contain `TODO` README stubs, empty implementation blocks, or generated examples without real resource logic
+- `terraform-azurerm-compeer-keyvault-managed-storage-account`
+- `terraform-azurerm-compeer-linux-web-app-slot`
+- `terraform-azurerm-compeer-windows-function-app-slot`
+- any catalog copy with a README that documents a feature but no real Terraform implementation or no matching file structure from the source directory
 
-The following registry modules are better classified as workload modules, not platform ALZ modules:
+These should either be completed in place or moved to a clearly marked `incomplete` status instead of `Ready`.
 
-- Function apps, app slots, web apps, App Service plans, containers, AKS/Container Apps, API Management, Service Bus, Event Grid, SQL, Synapse, Data Factory, Data Lake, application storage, Linux VMs, Windows VMs, and domain join.
+## Key upgrade examples
 
-Platform ALZ may provide shared controls for these workloads, but the resource lifecycles belong to workload landing zones or application compositions.
+### Key Vault
+
+The key vault module is a good example of the required update pattern: it keeps the same Compeer file layout and resource lifecycle, but it upgrades the defaults to align with ALZ requirements.
+
+The changes include:
+
+- RBAC compatibility alongside the legacy access-policy path
+- stronger defaults for purge protection and soft-delete retention
+- private-first network ACL defaults
+- explicit contacts and outputs for operational readiness
+- no placeholder or hidden behavior that would make the module hard to reason about in a platform governance review
+
+### Subscription pattern
+
+The subscription-vending pattern is intentionally not marked Ready because the actual Compeer module directory does not contain a completed subscription-vending implementation. It remains a platform pattern that should be treated as Missing or local-only until there is a real vendorized module in the shared repo.
+
+## Final recommendation
+
+The catalog should only call a module Ready when:
+
+1. the corresponding Compeer module exists in the Compeer repo,
+2. the module carries the same file and folder design as the Compeer source,
+3. the catalog implementation materially upgrades the code for ALZ readiness instead of only thinly wrapping it,
+4. the module is not just a placeholder or README-only scaffold.
+
+This is the rule that keeps the row status honest and prevents the earlier false `Ready` labeling.

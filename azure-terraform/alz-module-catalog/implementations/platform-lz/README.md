@@ -1,10 +1,12 @@
 # Platform ALZ Implementation
 
-This root shows how the staged catalog modules and compositions are consumed for a platform landing zone. It mirrors the existing `landing-zones/net-new-hub-spoke` delivery model, but lives beside the catalog so teams can review the intended end-to-end consumption pattern before modules are promoted to the HCP private registry.
+This root shows the end-to-end platform landing-zone composition for the new ALZ path. It mirrors the delivery model in the existing landing-zone implementation but keeps the module references aligned to the catalog and to the registry versions recorded in `modules.txt`.
 
-## Source Strategy
+## Source strategy
 
-The platform slices are consumed as local catalog patterns because the pattern modules themselves are not published HCP modules yet:
+The implementation prefers published Terraform Cloud modules where the module already exists in the registry. For modules that are not yet published, it falls back to local catalog patterns in this repository.
+
+The current pattern references are:
 
 - `../../patterns/terraform-azurerm-compeer-global-governance`
 - `../../patterns/terraform-azurerm-compeer-subscription-vending`
@@ -14,15 +16,33 @@ The platform slices are consumed as local catalog patterns because the pattern m
 - `../../patterns/terraform-azurerm-compeer-platform-hybrid-connectivity`
 - `../../patterns/terraform-azurerm-compeer-palo-alto-hub`
 - `../../patterns/terraform-cloudflare-compeer-edge-baseline`
+- `../../patterns/terraform-azurerm-compeer-network-peering`
+- `../../patterns/terraform-azurerm-compeer-workload-spoke`
 
-When a pattern is promoted, replace the local source with its HCP registry address and a pinned version. Underlying Compeer modules that already have HCP versions should retain the versions listed in `modules.txt` when they are called directly or republished inside the patterns.
+Where the module already appears in `modules.txt` with a released registry version, keep that pinned version in the source statement when the pattern is promoted. Where the module does not yet exist, keep the local path until the registry module is available and reviewed.
 
-## Deployment Notes
+## End-to-end composition
 
-- Keep `subscription_vending.vending_enabled = false` until the billing scope, invoice section, and management-group placement permissions are confirmed in the client tenant.
-- Defender/SOC posture is modeled but disabled by default. Enabling paid Defender plans, Sentinel, or data collection rules should require SOC approval.
-- Palo Alto is modeled as a route/DNS contract first. VM-Series compute stays disabled until Panorama ownership, license model, bootstrap storage, and ExpressRoute routing are approved.
-- Cloudflare edge controls are disabled by default because the Cloudflare account and token lifecycle are owned outside Azure.
-- Workload spoke deployment is disabled by default; platform ALZ should provide contracts and shared services while workload teams own workload resource lifecycles.
+This implementation follows the same platform order used by the existing `net-new-hub-spoke` landing-zone path:
 
-Copy `terraform.tfvars.example` to `terraform.tfvars` in an environment-specific root, replace subscription IDs and billing scope values, and then enable only the slices approved for that rollout.
+1. governance and policy baseline
+2. subscription vending
+3. platform management
+4. platform connectivity
+5. platform identity
+6. hybrid connectivity
+7. optional Palo Alto hub
+8. optional Cloudflare edge baseline
+9. workload spoke and network peering
+
+This keeps the design aligned with the real deployment order used by the net-new hub/spoke roots while recording which platform slices are still local-only pending registry publication.
+
+## Deployment notes
+
+- Keep `subscription_vending.vending_enabled = false` until the billing scope, invoice section, and management-group placement permissions are confirmed for the tenant.
+- Defender/SOC posture is modeled but disabled by default.
+- Palo Alto is modeled as a route/DNS contract first; compute remains disabled until license and operational ownership are approved.
+- Cloudflare edge controls stay disabled by default unless Cloudflare ownership and API access are approved.
+- Workload spoke deployment is intentionally disabled by default so the platform ALZ can provide the shared service contract while workload owners own application resources.
+
+Copy `terraform.tfvars.example` to `terraform.tfvars` in an environment-specific root, update the subscription IDs and billing-scope values, and only enable the slices approved for that rollout.

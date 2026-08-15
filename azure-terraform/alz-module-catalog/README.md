@@ -1,44 +1,61 @@
 # Compeer ALZ Module Catalog
 
-This directory is the working catalog for the next ALZ module set. It stages the modules and patterns that should be published or republished as individual HCP registry modules.
+This directory is the platform reference catalog for the ALZ conversion. It keeps the Compeer module structure, preserves the local Terraform module boundaries, and stages the modules/patterns needed to mirror the implementation in the existing landing-zone roots.
 
-The catalog is platform-first:
+## Review standard
 
-- `modules/` contains reusable resource modules with one clear lifecycle boundary per Azure or Cloudflare resource family.
-- `patterns/` contains opinionated compositions for platform landing-zone slices, such as management groups, connectivity, hybrid connectivity, workload spokes, Palo Alto hub security, and Cloudflare edge baseline.
-- Existing platform roots under `../landing-zones/net-new-hub-spoke` remain the deployable reference implementation until these catalog modules are promoted.
+The catalog follows a stricter review rule than the earlier drafts:
 
-## Platform Coverage
+- Ready: the module exists in the Compeer repo under the shared source directory and is materially complete; it is a real module with matching Terraform files, variables, outputs, and a clear lifecycle boundary.
+- Missing: the platform capability is required for the ALZ pattern, but there is no corresponding module under the Compeer source repo to reuse directly.
+- Incomplete: the module exists in the catalog but is still placeholder/thin or not materially upgraded from the original source; it should not be marked Ready until the missing implementation is completed.
 
-The catalog now includes the missing platform ALZ building blocks needed for Phase 1 and Phase 2 planning:
+This means the review should not mark a catalog module as Ready just because it has a README and a source path. A module is Ready only if the equivalent code in the Compeer repo is actually present and complete.
 
-- Management group hierarchy and subscription placement
-- Subscription vending
-- Policy baseline assignment and exemptions
-- Management locks
-- Hub and spoke networking
-- Private DNS zones, links, resolver, endpoints, and records
-- ExpressRoute circuit, VPN/ER gateway, gateway connection, local network gateway, route server, and route tables
-- NSGs, NAT gateways, public IPs, load balancers, DDoS plan, Azure Firewall, and firewall policy
-- Bastion as an optional privileged access path
-- Palo Alto hub pattern for VM-Series, NICs, bootstrap storage, and load balancers
-- Log Analytics, diagnostic settings, action groups, metric alerts, Sentinel onboarding, storage immutability/lifecycle, and inactive Defender/SOC posture
-- Identity modules for Azure AD groups, applications, service principals, user-assigned identities, custom roles, and RBAC assignments
-- Cloudflare zone, records, ruleset, and edge-baseline pattern
-- Workload-adjacent services required by the pilot, including Key Vault, storage, API Management, App Configuration, and Recovery Services Vault
-- Operational contracts for required controls that remain cost-disabled or externally owned until the owning team approves deployment
+## Structure
 
-Defender/SOC posture and Sentinel are intentionally disabled by default so the module interface is codified without creating billable resources until the platform owner enables them.
+- `modules/` contains reusable Azure and Cloudflare resource modules that mirror the Compeer source layout.
+- `patterns/` contains the platform compositions that wire the resource modules into the landing-zone slices.
+- `implementations/platform-lz/` is the end-to-end platform landing zone that composes the patterns with Terraform Cloud registry versions where available and local paths where the module is not yet published.
+- `MODULE_REVIEW.md` contains the status matrix and the module-by-module rationale.
 
-## Promotion Guidance
+## Source-of-truth rule for this catalog
 
-Before publishing a staged module to HCP:
+The source of truth for module readiness is:
 
-1. Keep provider blocks out of reusable modules unless the module truly owns a distinct provider configuration.
-2. Keep `for_each` keys non-sensitive and stable.
-3. Prefer maps of objects for repeatable child resources.
-4. Default to private network access, CMK-ready encryption, diagnostic hooks, managed identity, RBAC, enterprise tags, and policy-friendly outputs.
-5. Avoid `ignore_changes` for security-sensitive properties unless the exception is documented in the module README.
-6. Add examples for at least one production-like configuration and one minimal disabled/no-cost configuration where applicable.
+- `../compeer-modules` for all modules already implemented by the Compeer repo.
+- `../azure-terraform/modules` for local platform modules that are required by the ALZ pattern but are not yet available in the shared Compeer module repo.
 
-See `MODULE_REVIEW.md` for the detailed module readiness review.
+Where a module exists in Compeer and the catalog copy is materially aligned to it, it can be considered Ready. Where the module does not exist in Compeer, the row should be marked Missing. Where the module is only a thin wrapper or generated placeholder, the row should be marked Incomplete.
+
+## Platform coverage
+
+The catalog currently supports the platform slices needed for the net-new hub/spoke ALZ model:
+
+- Management groups and subscription vending
+- Global governance and policy baseline
+- Platform management, monitoring, and log analytics
+- Connectivity, private DNS, NSGs, route tables, public IPs, NAT, and load balancers
+- Optional hybrid connectivity for ExpressRoute and VPN
+- Platform identity and Key Vault foundation
+- Workload-spoke networking and peering
+- Optional Palo Alto hub and Cloudflare edge baseline
+
+## Compeer upgrade expectation
+
+The catalog modules are intentionally designed to stay easy to cross-reference with the Compeer code. The folder names, Terraform file names, and module boundaries mirror the existing Compeer repos so a team can compare both sides and cherry-pick the same upgrade into the source module repo.
+
+For example, the Key Vault module was upgraded from the baseline Compeer pattern by:
+
+- preserving the same file structure (`main.tf`, `variables.tf`, `outputs.tf`, `data.tf`, `versions.tf`),
+- keeping the same lifecycle boundary as the Compeer module,
+- adding RBAC compatibility, stronger defaults, and private-first network controls,
+- removing placeholder behavior and aligning the catalog copy to the platform ALZ contract.
+
+## Terraform registry usage and local fallback
+
+The implementation root prefers the versions listed in `modules.txt` when those modules already exist in the Terraform Cloud registry. Missing or not-yet-published modules stay local to the catalog until they are available in Terraform Cloud.
+
+This keeps the module catalog aligned with the latest registry version when the module is already available, while avoiding false readiness claims for modules that still need to be developed or published.
+
+See `MODULE_REVIEW.md` for the detailed status matrix.
