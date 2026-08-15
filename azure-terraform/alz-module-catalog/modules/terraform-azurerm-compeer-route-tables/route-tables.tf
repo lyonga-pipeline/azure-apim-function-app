@@ -16,7 +16,7 @@ resource "azurerm_route_table" "rt" {
 }
 
 resource "azurerm_subnet_route_table_association" "subnet-route-table-association" {
-  count = length(var.subnet_ids)
+  count          = length(var.subnet_ids)
   subnet_id      = var.subnet_ids[count.index]
   route_table_id = azurerm_route_table.rt.id
 }

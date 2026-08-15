@@ -1,5 +1,5 @@
 module "tags" {
-  source = "../../../modules/platform-tags"
+  source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
   environment         = var.environment
   application         = var.platform_tags.application
@@ -14,7 +14,7 @@ module "tags" {
 }
 
 module "resource_group" {
-  source = "../../../modules/resource-group"
+  source = "../../modules/terraform-azurerm-compeer-resource-group"
 
   name     = var.resource_group.name
   location = var.location
@@ -22,18 +22,23 @@ module "resource_group" {
 }
 
 module "log_analytics" {
-  source = "../../../modules/log-analytics"
+  source = "../../modules/terraform-azurerm-compeer-log-analytics"
 
-  name                = var.log_analytics.name
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
-  retention_in_days   = var.log_analytics.retention_in_days
-  daily_quota_gb      = try(var.log_analytics.daily_quota_gb, null)
-  tags                = module.tags.tags
+  log_analytics_workspace_name       = var.log_analytics.name
+  create_resource_group              = false
+  resource_group_name                = module.resource_group.name
+  resource_group_id                  = module.resource_group.id
+  location                           = module.resource_group.location
+  log_analytics_sku                  = var.log_analytics.sku
+  log_analytics_retention_in_days    = var.log_analytics.retention_in_days
+  log_analytics_daily_quota_gb       = coalesce(try(var.log_analytics.daily_quota_gb, null), -1)
+  log_analytics_contributors         = []
+  log_analytics_role_definition_name = null
+  tags                               = module.tags.tags
 }
 
 module "action_group" {
-  source = "../../../modules/action-group"
+  source = "../../modules/terraform-azurerm-compeer-action-group"
 
   name                = var.action_group.name
   resource_group_name = module.resource_group.name
@@ -43,7 +48,7 @@ module "action_group" {
 }
 
 module "platform_storage_accounts" {
-  source   = "../../../modules/storage-account"
+  source   = "../../modules/terraform-azurerm-compeer-storage-account"
   for_each = var.platform_storage_accounts
 
   name                              = each.value.name
@@ -74,7 +79,7 @@ module "platform_storage_accounts" {
 }
 
 module "recovery_services_vaults" {
-  source   = "../../../modules/recovery-services-vault"
+  source   = "../../modules/terraform-azurerm-compeer-recovery-services-vault"
   for_each = var.recovery_services_vaults
 
   name                = each.value.name
@@ -138,7 +143,7 @@ resource "azurerm_resource_provider_registration" "this" {
 }
 
 module "role_assignments" {
-  source = "../../../modules/role-assignments"
+  source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = local.role_assignment_inputs
 }

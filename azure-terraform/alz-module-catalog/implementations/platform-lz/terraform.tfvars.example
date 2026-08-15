@@ -1,0 +1,238 @@
+tenant_id                 = "00000000-0000-0000-0000-000000000000"
+execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+location                  = "centralus"
+environment               = "prod"
+
+platform_tags = {
+  application         = "alz-platform"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-lz"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by       = "terraform"
+    deployment_model = "platform-lz-composition"
+  }
+}
+
+subscription_vending = {
+  enabled                  = true
+  vending_enabled          = false
+  default_billing_scope_id = null
+
+  management_groups = {
+    platform             = { display_name = "platform-mg", parent_key = "root" }
+    security             = { display_name = "security-mg", parent_key = "platform" }
+    identity             = { display_name = "identity-mg", parent_key = "platform" }
+    management           = { display_name = "management-mg", parent_key = "platform" }
+    connectivity         = { display_name = "connectivity-mg", parent_key = "platform" }
+    workloads            = { display_name = "workloads-mg", parent_key = "root" }
+    internal_apps        = { display_name = "internal-apps-mg", parent_key = "workloads" }
+    external_apps        = { display_name = "external-apps-mg", parent_key = "workloads" }
+    regulated_apps       = { display_name = "regulated-apps-mg", parent_key = "workloads" }
+    shared_services      = { display_name = "shared-services-mg", parent_key = "workloads" }
+    sandbox              = { display_name = "sandbox-mg", parent_key = "workloads" }
+    decommissioned       = { display_name = "decommissioned-mg", parent_key = "workloads" }
+    internal_apps_dev    = { display_name = "internal-apps-dev-mg", parent_key = "internal_apps" }
+    internal_apps_test   = { display_name = "internal-apps-test-mg", parent_key = "internal_apps" }
+    internal_apps_prod   = { display_name = "internal-apps-prod-mg", parent_key = "internal_apps" }
+    external_apps_dev    = { display_name = "external-apps-dev-mg", parent_key = "external_apps" }
+    external_apps_test   = { display_name = "external-apps-test-mg", parent_key = "external_apps" }
+    external_apps_prod   = { display_name = "external-apps-prod-mg", parent_key = "external_apps" }
+    regulated_apps_dev   = { display_name = "regulated-apps-dev-mg", parent_key = "regulated_apps" }
+    regulated_apps_test  = { display_name = "regulated-apps-test-mg", parent_key = "regulated_apps" }
+    regulated_apps_prod  = { display_name = "regulated-apps-prod-mg", parent_key = "regulated_apps" }
+    shared_services_dev  = { display_name = "shared-services-dev-mg", parent_key = "shared_services" }
+    shared_services_test = { display_name = "shared-services-test-mg", parent_key = "shared_services" }
+    shared_services_prod = { display_name = "shared-services-prod-mg", parent_key = "shared_services" }
+  }
+
+  subscriptions = {
+    platform_security     = { subscription_name = "platform-security-sub", management_group_key = "security", workload = "platform" }
+    platform_identity     = { subscription_name = "platform-identity-sub", management_group_key = "identity", workload = "platform" }
+    platform_management   = { subscription_name = "platform-management-sub", management_group_key = "management", workload = "platform" }
+    platform_connectivity = { subscription_name = "platform-connectivity-sub", management_group_key = "connectivity", workload = "platform" }
+    apim_dev              = { subscription_name = "APIM-dev-sub", management_group_key = "shared_services_dev", workload = "apim-dev" }
+    apim_test             = { subscription_name = "APIM-test-sub", management_group_key = "shared_services_test", workload = "apim-test" }
+    apim_prod             = { subscription_name = "APIM-prod-sub", management_group_key = "shared_services_prod", workload = "apim-prod" }
+    sandbox_ops           = { subscription_name = "sandbox-ops-sub", management_group_key = "sandbox", workload = "sandbox-ops" }
+  }
+}
+
+global_governance = {
+  enabled = true
+  management_groups = {
+    platform             = { display_name = "platform-mg", parent_key = "root" }
+    security             = { display_name = "security-mg", parent_key = "platform" }
+    identity             = { display_name = "identity-mg", parent_key = "platform" }
+    management           = { display_name = "management-mg", parent_key = "platform" }
+    connectivity         = { display_name = "connectivity-mg", parent_key = "platform" }
+    workloads            = { display_name = "workloads-mg", parent_key = "root" }
+    internal_apps        = { display_name = "internal-apps-mg", parent_key = "workloads" }
+    external_apps        = { display_name = "external-apps-mg", parent_key = "workloads" }
+    regulated_apps       = { display_name = "regulated-apps-mg", parent_key = "workloads" }
+    shared_services      = { display_name = "shared-services-mg", parent_key = "workloads" }
+    sandbox              = { display_name = "sandbox-mg", parent_key = "workloads" }
+    decommissioned       = { display_name = "decommissioned-mg", parent_key = "workloads" }
+    internal_apps_dev    = { display_name = "internal-apps-dev-mg", parent_key = "internal_apps" }
+    internal_apps_test   = { display_name = "internal-apps-test-mg", parent_key = "internal_apps" }
+    internal_apps_prod   = { display_name = "internal-apps-prod-mg", parent_key = "internal_apps" }
+    external_apps_dev    = { display_name = "external-apps-dev-mg", parent_key = "external_apps" }
+    external_apps_test   = { display_name = "external-apps-test-mg", parent_key = "external_apps" }
+    external_apps_prod   = { display_name = "external-apps-prod-mg", parent_key = "external_apps" }
+    regulated_apps_dev   = { display_name = "regulated-apps-dev-mg", parent_key = "regulated_apps" }
+    regulated_apps_test  = { display_name = "regulated-apps-test-mg", parent_key = "regulated_apps" }
+    regulated_apps_prod  = { display_name = "regulated-apps-prod-mg", parent_key = "regulated_apps" }
+    shared_services_dev  = { display_name = "shared-services-dev-mg", parent_key = "shared_services" }
+    shared_services_test = { display_name = "shared-services-test-mg", parent_key = "shared_services" }
+    shared_services_prod = { display_name = "shared-services-prod-mg", parent_key = "shared_services" }
+  }
+}
+
+platform_management = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group = {
+    name = "rg-platform-management-prod"
+  }
+  log_analytics = {
+    name              = "law-platform-prod-001"
+    retention_in_days = 365
+    daily_quota_gb    = 5
+  }
+  action_group = {
+    name       = "ag-platform-ops-prod"
+    short_name = "platops"
+    receivers  = {}
+  }
+  platform_storage_accounts = {}
+  recovery_services_vaults  = {}
+  defender_plans            = {}
+  security_contact          = null
+  defender_soc_posture = {
+    enabled                       = false
+    defender_standard_enabled     = false
+    sentinel_enabled              = false
+    data_collection_rules_enabled = false
+    security_contact_enabled      = false
+    notes                         = "Inactive contract only; enable after SOC onboarding and cost approval."
+  }
+}
+
+platform_connectivity = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group = {
+    name = "rg-platform-connectivity-prod"
+  }
+  hub_vnet = {
+    name          = "vnet-hub-prod-centralus-001"
+    address_space = ["10.0.0.0/16"]
+    dns_servers   = []
+    subnets = {
+      AzureFirewallSubnet      = { address_prefixes = ["10.0.0.0/26"] }
+      GatewaySubnet            = { address_prefixes = ["10.0.0.64/27"] }
+      RouteServerSubnet        = { address_prefixes = ["10.0.0.96/27"] }
+      AzureBastionSubnet       = { address_prefixes = ["10.0.0.128/26"] }
+      app_integration          = { address_prefixes = ["10.0.1.0/24"] }
+      private_endpoints        = { address_prefixes = ["10.0.2.0/24"] }
+      palo_alto_management     = { address_prefixes = ["10.0.3.0/24"] }
+      palo_alto_untrusted      = { address_prefixes = ["10.0.4.0/24"] }
+      palo_alto_trusted        = { address_prefixes = ["10.0.5.0/24"] }
+    }
+  }
+  palo_alto = {
+    enabled                = false
+    deployment_model       = "external"
+    panorama_managed       = true
+    trusted_subnet_key     = "palo_alto_trusted"
+    untrusted_subnet_key   = "palo_alto_untrusted"
+    management_subnet_key  = "palo_alto_management"
+    private_ip_addresses   = {}
+    notes                  = "Contract only until VM-Series deployment and Panorama ownership are approved."
+  }
+  dns_resolution = {
+    enabled                  = false
+    mode                     = "dc-forwarders"
+    private_resolver_enabled = false
+    dns_server_ips           = []
+  }
+  network_security_groups         = {}
+  subnet_nsg_associations         = {}
+  route_tables                    = {}
+  subnet_route_table_associations = {}
+  public_ips                      = {}
+  load_balancers                  = {}
+  private_dns_zones = {
+    app_service   = { name = "privatelink.azurewebsites.net", registration_enabled = false, link_to_hub = true }
+    key_vault     = { name = "privatelink.vaultcore.azure.net", registration_enabled = false, link_to_hub = true }
+    storage_blob  = { name = "privatelink.blob.core.windows.net", registration_enabled = false, link_to_hub = true }
+    storage_queue = { name = "privatelink.queue.core.windows.net", registration_enabled = false, link_to_hub = true }
+    storage_file  = { name = "privatelink.file.core.windows.net", registration_enabled = false, link_to_hub = true }
+  }
+}
+
+platform_identity = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group = {
+    name = "rg-platform-identity-prod"
+  }
+  platform_identities = {
+    automation = { name = "id-platform-automation-prod-001" }
+  }
+  key_vault = {
+    name                       = "kv-platform-prod-001"
+    sku_name                   = "standard"
+    soft_delete_retention_days = 90
+    purge_protection_enabled   = true
+    contacts                   = {}
+  }
+  key_vault_private_endpoint = null
+  diagnostics = {
+    logs = {
+      audit = { category = "AuditEvent" }
+    }
+    metrics = {
+      all = { category = "AllMetrics" }
+    }
+  }
+}
+
+platform_hybrid_connectivity = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group = {
+    name = "rg-platform-hybrid-prod"
+  }
+  expressroute_posture = {
+    enabled          = false
+    connectivity     = "expressroute"
+    notes            = "ExpressRoute contract only until circuit/provider details are approved."
+    on_prem_provider = "TBD"
+  }
+  expressroute_circuits           = {}
+  gateway_public_ips              = {}
+  expressroute_gateway            = null
+  expressroute_connections        = {}
+}
+
+palo_alto_hub = {
+  enabled = false
+}
+
+cloudflare_edge = {
+  enabled = false
+}
+
+network_peering = {
+  enabled  = false
+  peerings = {}
+}
+
+workload_spoke = {
+  enabled = false
+}

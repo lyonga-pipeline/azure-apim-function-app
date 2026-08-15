@@ -121,10 +121,10 @@ resource "azurerm_linux_web_app" "linux_web_app" {
           dynamic "headers" {
             for_each = ip_restriction.value.headers ? [ip_restriction.value.headers] : []
             content {
-              x_azure_fdid       = headers.value.x_azure_fdid
-              x_fd_health_probe  = headers.value.x_fd_health_probe
-              x_forwarded_for    = headers.value.x_forwarded_for
-              x_forwarded_host   = headers.value.x_forwarded_host
+              x_azure_fdid      = headers.value.x_azure_fdid
+              x_fd_health_probe = headers.value.x_fd_health_probe
+              x_forwarded_for   = headers.value.x_forwarded_for
+              x_forwarded_host  = headers.value.x_forwarded_host
             }
           }
         }
@@ -141,10 +141,10 @@ resource "azurerm_linux_web_app" "linux_web_app" {
           dynamic "headers" {
             for_each = scm_ip_restriction.value.headers ? [scm_ip_restriction.value.headers] : []
             content {
-              x_azure_fdid       = headers.value.x_azure_fdid
-              x_fd_health_probe  = headers.value.x_fd_health_probe
-              x_forwarded_for    = headers.value.x_forwarded_for
-              x_forwarded_host   = headers.value.x_forwarded_host
+              x_azure_fdid      = headers.value.x_azure_fdid
+              x_fd_health_probe = headers.value.x_fd_health_probe
+              x_forwarded_for   = headers.value.x_forwarded_for
+              x_forwarded_host  = headers.value.x_forwarded_host
             }
           }
         }

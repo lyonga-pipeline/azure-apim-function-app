@@ -1,6 +1,6 @@
 resource "azurerm_storage_data_lake_gen2_filesystem" "data_lake_gen2_fs" {
   name               = var.data_lake_gen2_fs_name
-  storage_account_id =data.azurerm_storage_account.storage_account.id
+  storage_account_id = data.azurerm_storage_account.storage_account.id
 }
 
 resource "azurerm_synapse_workspace" "synapse_workspace" {
@@ -12,14 +12,14 @@ resource "azurerm_synapse_workspace" "synapse_workspace" {
   sql_administrator_login_password     = var.sql_admin_password
 
   aad_admin {
-    login                = var.aad_admin_login
-    object_id            = var.aad_admin_object_id
-    tenant_id            = var.aad_admin_tenant_id
+    login     = var.aad_admin_login
+    object_id = var.aad_admin_object_id
+    tenant_id = var.aad_admin_tenant_id
   }
 
   identity {
     type = var.synapse_workspace_identity
-  } 
+  }
 
   tags = var.tags
 }

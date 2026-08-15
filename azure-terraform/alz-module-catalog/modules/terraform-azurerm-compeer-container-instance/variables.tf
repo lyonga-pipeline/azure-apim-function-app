@@ -52,8 +52,8 @@ variable "container_info" {
     memory                       = number
     environment_variables        = optional(map(any))
     secure_environment_variables = optional(map(any))
-    ports                        = optional(map(object({
-      port = number
+    ports = optional(map(object({
+      port     = number
       protocol = string
     })))
   }))

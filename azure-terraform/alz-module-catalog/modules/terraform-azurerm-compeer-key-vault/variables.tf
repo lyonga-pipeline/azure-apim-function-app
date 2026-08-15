@@ -51,8 +51,8 @@ variable "purge_protection_enabled" {
 }
 variable "enable_rbac_authorization" {
   description = "Deprecated compatibility input. Use rbac_authorization_enabled."
-  type    = bool
-  default = null
+  type        = bool
+  default     = null
 }
 
 variable "rbac_authorization_enabled" {

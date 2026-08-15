@@ -39,14 +39,14 @@ resource "azurerm_eventgrid_event_subscription" "subscription" {
   dynamic "dead_letter_identity" {
     for_each = each.value.subscription.dead_letter_identity != null ? [1] : []
     content {
-       type        = each.value.subscription.dead_letter_identity.type
+      type = each.value.subscription.dead_letter_identity.type
     }
   }
 
   dynamic "delivery_identity" {
     for_each = each.value.subscription.delivery_identity != null ? [1] : []
     content {
-       type        = each.value.subscription.delivery_identity.type
+      type = each.value.subscription.delivery_identity.type
     }
   }
 

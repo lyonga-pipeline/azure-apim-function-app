@@ -127,17 +127,17 @@ data "azurerm_resource_group" "main" {
 }
 
 resource "azurerm_servicebus_namespace" "main" {
-  name                          = var.name
-  location                      = data.azurerm_resource_group.main.location
-  resource_group_name           = data.azurerm_resource_group.main.name
-  sku                           = var.sku
-  capacity                      = var.capacity
-  tags                          = var.tags
+  name                = var.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  sku                 = var.sku
+  capacity            = var.capacity
+  tags                = var.tags
 
   network_rule_set {
-    default_action = "Deny"
+    default_action                = "Deny"
     public_network_access_enabled = var.public_network_access_enabled
-    ip_rules = var.firewall_ip_rules
+    ip_rules                      = var.firewall_ip_rules
   }
 
   # Add identity block

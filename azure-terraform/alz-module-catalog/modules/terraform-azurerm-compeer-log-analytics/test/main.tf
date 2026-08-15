@@ -15,6 +15,6 @@ module "log_analytics_workspace" {
   log_analytics_daily_quota_gb       = 10
 
   tags = {
-    env          = "dev"
+    env = "dev"
   }
 }

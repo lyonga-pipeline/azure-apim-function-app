@@ -18,8 +18,8 @@ data "azurerm_resource_group" "hub-rg" {
 }
 
 data "azurerm_virtual_network" "hub-vnet" {
-  provider = azurerm.hub
-  name = var.hub_vnet_name
+  provider            = azurerm.hub
+  name                = var.hub_vnet_name
   resource_group_name = data.azurerm_resource_group.hub-rg.name
 }
 
@@ -39,10 +39,10 @@ module "spoke_to_hub_peering" {
   providers = {
     azurerm = azurerm.hub
   }
-  peering_name              = "ncus-dev-to-hub-cn"
-  rg_name               = data.azurerm_resource_group.hub-rg.name
-  vnet_name             = data.azurerm_virtual_network.hub-vnet.name
-  remote_virtual_network_id = data.azurerm_virtual_network.spoke-vnet.id
+  peering_name                 = "ncus-dev-to-hub-cn"
+  rg_name                      = data.azurerm_resource_group.hub-rg.name
+  vnet_name                    = data.azurerm_virtual_network.hub-vnet.name
+  remote_virtual_network_id    = data.azurerm_virtual_network.spoke-vnet.id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   allow_gateway_transit        = false
@@ -54,10 +54,10 @@ module "hub_to_spoke_peering" {
   providers = {
     azurerm = azurerm.spoke
   }
-  peering_name              = "ncus-hub-to-dev-cn"
-  rg_name               = data.azurerm_resource_group.spoke-rg.name
-  vnet_name             = data.azurerm_virtual_network.spoke-vnet.name
-  remote_virtual_network_id = data.azurerm_virtual_network.hub-vnet.id
+  peering_name                 = "ncus-hub-to-dev-cn"
+  rg_name                      = data.azurerm_resource_group.spoke-rg.name
+  vnet_name                    = data.azurerm_virtual_network.spoke-vnet.name
+  remote_virtual_network_id    = data.azurerm_virtual_network.hub-vnet.id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   allow_gateway_transit        = true

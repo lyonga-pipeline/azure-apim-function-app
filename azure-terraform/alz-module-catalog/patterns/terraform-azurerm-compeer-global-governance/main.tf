@@ -175,7 +175,7 @@ resource "azurerm_policy_set_definition" "this" {
 }
 
 module "custom_role_definitions" {
-  source   = "../../../modules/role-definition"
+  source   = "../../modules/terraform-azurerm-compeer-role-definition"
   for_each = var.custom_role_definitions
 
   name               = each.value.name
@@ -190,7 +190,7 @@ module "custom_role_definitions" {
 }
 
 module "role_assignments" {
-  source = "../../../modules/role-assignments"
+  source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = local.role_assignment_inputs
 }

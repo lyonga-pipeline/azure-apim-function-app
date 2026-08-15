@@ -6,7 +6,7 @@ resource "azurerm_storage_account" "this" {
   account_replication_type          = coalesce(var.account_replication_type, "ZRS")
   account_kind                      = coalesce(var.account_kind, "StorageV2")
   access_tier                       = coalesce(var.access_tier, "Hot")
-  min_tls_version                   = "TLS1_2"
+  min_tls_version                   = var.min_tls_version
   public_network_access_enabled     = coalesce(var.public_network_access_enabled, false)
   allow_nested_items_to_be_public   = coalesce(var.allow_nested_items_to_be_public, false)
   shared_access_key_enabled         = coalesce(var.shared_access_key_enabled, false)

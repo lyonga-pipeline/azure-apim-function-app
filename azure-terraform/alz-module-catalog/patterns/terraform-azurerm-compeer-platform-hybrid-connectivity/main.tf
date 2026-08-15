@@ -1,5 +1,5 @@
 module "tags" {
-  source = "../../../modules/platform-tags"
+  source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
   environment         = var.environment
   application         = var.platform_tags.application
@@ -14,7 +14,7 @@ module "tags" {
 }
 
 module "resource_group" {
-  source = "../../../modules/resource-group"
+  source = "../../modules/terraform-azurerm-compeer-resource-group"
 
   name     = var.resource_group.name
   location = var.location
@@ -75,7 +75,7 @@ resource "terraform_data" "expressroute_contract" {
 }
 
 module "expressroute_circuits" {
-  source   = "../../../modules/expressroute-circuit"
+  source   = "../../modules/terraform-azurerm-compeer-expressroute-circuit"
   for_each = var.expressroute_circuits
 
   name                     = each.value.name
@@ -90,7 +90,7 @@ module "expressroute_circuits" {
 }
 
 module "gateway_public_ips" {
-  source   = "../../../modules/public-ip"
+  source   = "../../modules/terraform-azurerm-compeer-public-ip"
   for_each = var.gateway_public_ips
 
   name                = each.value.name
@@ -104,7 +104,7 @@ module "gateway_public_ips" {
 }
 
 module "expressroute_gateway" {
-  source = "../../../modules/virtual-network-gateway"
+  source = "../../modules/terraform-azurerm-compeer-virtual-network-gateway"
   count  = var.expressroute_gateway == null ? 0 : 1
 
   name                = var.expressroute_gateway.name
@@ -125,7 +125,7 @@ module "expressroute_gateway" {
 }
 
 module "expressroute_connections" {
-  source   = "../../../modules/virtual-network-gateway-connection"
+  source   = "../../modules/terraform-azurerm-compeer-virtual-network-gateway-connection"
   for_each = var.expressroute_connections
 
   name                       = each.value.name

@@ -13,7 +13,7 @@ resource "azurerm_key_vault_secret" "secret" {
 
   dynamic "lifecycle" {
     for_each = var.secret_lifecycle != null ? [var.secret_lifecycle] : []
-    content{
+    content {
       ignore_changes = secret_lifecycle.value.ignore_changes
     }
   }

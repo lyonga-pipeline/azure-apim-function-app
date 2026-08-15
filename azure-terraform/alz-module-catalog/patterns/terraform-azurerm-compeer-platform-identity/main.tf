@@ -1,7 +1,7 @@
 data "azurerm_client_config" "current" {}
 
 module "tags" {
-  source = "../../../modules/platform-tags"
+  source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
   environment         = var.environment
   application         = var.platform_tags.application
@@ -16,7 +16,7 @@ module "tags" {
 }
 
 module "resource_group" {
-  source = "../../../modules/resource-group"
+  source = "../../modules/terraform-azurerm-compeer-resource-group"
 
   name     = var.resource_group.name
   location = var.location
@@ -24,7 +24,7 @@ module "resource_group" {
 }
 
 module "platform_identities" {
-  source   = "../../../modules/user-assigned-identity"
+  source   = "../../modules/terraform-azurerm-compeer-user-assigned-identity"
   for_each = var.platform_identities
 
   name                = each.value.name
@@ -34,22 +34,21 @@ module "platform_identities" {
 }
 
 module "key_vault" {
-  source = "../../../modules/key-vault"
+  source = "../../modules/terraform-azurerm-compeer-keyvault"
 
   name                          = var.key_vault.name
   resource_group_name           = module.resource_group.name
   location                      = module.resource_group.location
-  tenant_id                     = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
   sku_name                      = var.key_vault.sku_name
   soft_delete_retention_days    = var.key_vault.soft_delete_retention_days
   purge_protection_enabled      = var.key_vault.purge_protection_enabled
-  enable_rbac_authorization     = true
+  rbac_authorization_enabled    = true
   public_network_access_enabled = false
   network_acls = {
     bypass         = "None"
     default_action = "Deny"
   }
-  contacts = var.key_vault.contacts
+  contacts = values(var.key_vault.contacts)
   tags     = module.tags.tags
 }
 
@@ -67,31 +66,36 @@ locals {
 }
 
 module "role_assignments" {
-  source = "../../../modules/role-assignments"
+  source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = merge(var.external_role_assignments, local.identity_role_assignments)
 }
 
 module "key_vault_private_endpoint" {
-  source = "../../../modules/private-endpoint"
+  source = "../../modules/terraform-azurerm-compeer-private-endpoint"
   count  = var.key_vault_private_endpoint == null ? 0 : 1
 
   name                = var.key_vault_private_endpoint.name
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   subnet_id           = var.key_vault_private_endpoint.subnet_id
-  private_service_connection = {
-    private_connection_resource_id = module.key_vault.id
-    subresource_names              = ["vault"]
-  }
-  private_dns_zone_group = {
+  private_service_connections = [
+    {
+      name                           = "${var.key_vault_private_endpoint.name}-psc"
+      is_manual_connection           = false
+      private_connection_resource_id = module.key_vault.id
+      subresource_names              = ["vault"]
+    }
+  ]
+  private_dns_zone_group = [{
+    name                 = "${var.key_vault_private_endpoint.name}-dns"
     private_dns_zone_ids = var.key_vault_private_endpoint.private_dns_zone_ids
-  }
+  }]
   tags = module.tags.tags
 }
 
 module "key_vault_diagnostics" {
-  source = "../../../modules/diagnostic-settings"
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   count  = var.log_analytics_workspace_id == null ? 0 : 1
 
   name                       = "${var.key_vault.name}-diag"

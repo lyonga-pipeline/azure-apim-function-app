@@ -168,9 +168,9 @@ resource "azurerm_mssql_virtual_machine" "mssql_virtual_machine" {
 
   lifecycle {
     ignore_changes = [
-      auto_backup, 
-      storage_configuration, 
-      sql_connectivity_port, 
+      auto_backup,
+      storage_configuration,
+      sql_connectivity_port,
       sql_connectivity_type
     ]
   }

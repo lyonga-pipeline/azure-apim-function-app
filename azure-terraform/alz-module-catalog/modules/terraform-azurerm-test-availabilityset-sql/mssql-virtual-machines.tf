@@ -8,7 +8,7 @@ resource "azurerm_windows_virtual_machine" "windows_vm" {
   size                     = var.virtual_machine_size
   enable_automatic_updates = var.enable_automatic_updates
   #availability_set_id      = var.enable_availability_set ? element(concat(azurerm_availability_set.availability.*.id, [""]), 0) : null
-  availability_set_id      = var.availability_set_id != null ? var.availability_set_id : (var.enable_availability_set ? element(concat(azurerm_availability_set.availability.*.id, [""]), 0) : null)
+  availability_set_id = var.availability_set_id != null ? var.availability_set_id : (var.enable_availability_set ? element(concat(azurerm_availability_set.availability.*.id, [""]), 0) : null)
 
   dynamic "os_disk" {
     for_each = var.os_disk != null ? [var.os_disk] : []

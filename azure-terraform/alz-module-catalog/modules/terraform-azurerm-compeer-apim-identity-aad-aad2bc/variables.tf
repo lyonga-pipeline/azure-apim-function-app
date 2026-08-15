@@ -1,13 +1,13 @@
 variable "create_apim_aad_idp" {
   description = "Whether to create Azure APIM Identity provider AAD"
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "create_apim_aadb2c_idp" {
   description = "Whether to create Azure APIM Identity provider AADB2C"
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "apim_name" {

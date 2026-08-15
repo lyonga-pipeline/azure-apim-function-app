@@ -10,7 +10,7 @@ output "windows_function_name" {
 
 output "principal_id" {
   description = "The Principle ID associated with managed service identity"
-  value  = azurerm_windows_function_app.windows_function_app.identity[0].principal_id
+  value       = azurerm_windows_function_app.windows_function_app.identity[0].principal_id
   ##value  = azurerm_windows_function_app.windows_function_app.identity.principal_id
 
 }

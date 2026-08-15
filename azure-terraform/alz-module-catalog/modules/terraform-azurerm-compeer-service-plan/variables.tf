@@ -1,21 +1,21 @@
 variable "name" {
   description = "The name which should be used for this Service Plan. Changing this forces a new AppService to be created."
-  type = string
+  type        = string
 }
 
 variable "location" {
   description = "The Azure Region where the Service Plan should exist. Changing this forces a new AppService to be created."
-  type = string
+  type        = string
 }
 
 variable "os_type" {
   description = "The O/S type for the App Services to be hosted in this plan. Possible values include Windows, Linux, and WindowsContainer. Changing this forces a new resource to be created."
-  type = string
+  type        = string
 }
 
 variable "resource_group_name" {
   description = "The name of the Resource Group where the AppService should exist. Changing this forces a new AppService to be created."
-  type = string
+  type        = string
 }
 
 variable "sku_name" {
@@ -30,36 +30,36 @@ variable "sku_name" {
 
 variable "app_service_environment_id" {
   description = "The ID of the App Service Environment to create this Service Plan in."
-  type = string
-  default = null
+  type        = string
+  default     = null
 }
 
 variable "maximum_elastic_worker_count" {
   description = "The maximum number of workers to use in an Elastic SKU Plan. Cannot be set unless using an Elastic SKU."
-  type = number
-  default = null
+  type        = number
+  default     = null
 }
 
 variable "worker_count" {
   description = "The number of Workers (instances) to be allocated."
-  type = number
-  default = null
+  type        = number
+  default     = null
 }
 
 variable "per_site_scaling_enabled" {
   description = "Should Per Site Scaling be enabled."
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "zone_balancing_enabled" {
   description = "Should the Service Plan balance across Availability Zones in the region. Changing this forces a new resource to be created."
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "tags" {
   description = "A mapping of tags which should be assigned to the AppService."
-  type = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
 }

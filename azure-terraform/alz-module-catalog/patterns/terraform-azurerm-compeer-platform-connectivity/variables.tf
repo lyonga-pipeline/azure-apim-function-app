@@ -108,7 +108,9 @@ variable "dns_resolution" {
 
 variable "network_security_groups" {
   type = map(object({
-    name = string
+    name       = string
+    subnet_key = optional(string)
+    subnet_id  = optional(string)
     rules = optional(map(object({
       priority                                   = number
       direction                                  = string

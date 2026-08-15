@@ -3,16 +3,16 @@ provider "azurerm" {
 }
 
 module "service_bus" {
-  source = "../"
+  source                        = "../"
   name                          = "sb-02-namespace"
   resource_group_name           = "rgr-test"
   sku                           = "Standard"
   public_network_access_enabled = true
-  firewall_ip_rules = ["1.1.1.1", "2.2.2.2"] 
-  
+  firewall_ip_rules             = ["1.1.1.1", "2.2.2.2"]
+
   queues = [
     {
-      name = "queue_test"
+      name                = "queue_test"
       enable_partitioning = false
       authorization_rules = [
         {
@@ -29,8 +29,8 @@ module "service_bus" {
 
   topics = [
     {
-      name                       = "topic_test"
-      enable_partitioning        = true
+      name                = "topic_test"
+      enable_partitioning = true
       authorization_rules = [
         {
           name   = "example"
@@ -39,10 +39,10 @@ module "service_bus" {
       ]
       subscriptions = [
         {
-          name                                 = "sub_test"
-          max_delivery_count                   = 1
-          lock_duration                        = "PT5M" //ISO 8601 format
-          forward_to                           = ""
+          name               = "sub_test"
+          max_delivery_count = 1
+          lock_duration      = "PT5M" //ISO 8601 format
+          forward_to         = ""
         }
       ]
     }

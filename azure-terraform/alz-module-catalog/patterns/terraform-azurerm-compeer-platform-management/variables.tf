@@ -36,6 +36,7 @@ variable "resource_group" {
 variable "log_analytics" {
   type = object({
     name              = string
+    sku               = optional(string, "PerGB2018")
     retention_in_days = optional(number, 90)
     daily_quota_gb    = optional(number)
   })

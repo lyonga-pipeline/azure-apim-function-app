@@ -22,12 +22,12 @@ variable "eventgrid_input_schema" {
 
 variable "source_arm_resource_id" {
   type        = string
-  description = "Id of the ARM resource to be used"  
+  description = "Id of the ARM resource to be used"
 }
 
 variable "topic_type" {
   type        = string
-  description = "The Topic Type of the Event Grid System Topic"  
+  description = "The Topic Type of the Event Grid System Topic"
 }
 
 variable "eventgrid_identity_type" {

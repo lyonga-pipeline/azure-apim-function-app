@@ -44,7 +44,7 @@ variable "public_network_access_enabled" {
 
 variable "firewall_ip_rules" {
   description = "Network rules for the Service Bus namespace"
-  type = list(string)
+  type        = list(string)
 }
 
 variable "tags" {
@@ -54,7 +54,7 @@ variable "tags" {
 }
 
 variable "enable_identity" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
   description = "Enable system-assigned managed identity for the Service Bus namespace."
 }

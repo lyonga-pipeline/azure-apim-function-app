@@ -29,8 +29,8 @@ resource "azurerm_nat_gateway_public_ip_association" "associate-pip" {
 }
 
 resource "azurerm_subnet_nat_gateway_association" "associate-subnet" {
-  count         = length(var.subnet_ids)
-  subnet_id     = var.subnet_ids[count.index]
+  count          = length(var.subnet_ids)
+  subnet_id      = var.subnet_ids[count.index]
   nat_gateway_id = azurerm_nat_gateway.nat-gateway.id
 }
 

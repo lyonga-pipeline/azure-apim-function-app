@@ -10,10 +10,10 @@ output "mssql_managed_instance_fqdn" {
 
 output "principal_id" {
   description = "MSSQL managed instance identity principal id"
-  value = azurerm_mssql_managed_instance.mssql_managed_instance.identity.0.principal_id
+  value       = azurerm_mssql_managed_instance.mssql_managed_instance.identity.0.principal_id
 }
 
 output "tenant_id" {
   description = "MSSQL managed instance identity tenant id"
-  value = azurerm_mssql_managed_instance.mssql_managed_instance.identity.0.tenant_id
+  value       = azurerm_mssql_managed_instance.mssql_managed_instance.identity.0.tenant_id
 }

@@ -6,7 +6,7 @@ resource "azurerm_eventgrid_system_topic" "system_topic" {
 
   # The source resource for the system topic
   source_arm_resource_id = var.source_arm_resource_id
-  
+
   topic_type = var.topic_type
 
   identity {

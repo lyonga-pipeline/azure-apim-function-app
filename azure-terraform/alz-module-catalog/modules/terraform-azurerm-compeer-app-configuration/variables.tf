@@ -115,13 +115,13 @@ variable "feature_locked" {
 variable "feature_name" {
   description = "The name of the App Configuration Feature. Changing this forces a new resource to be created."
   type        = string
-  default = ""
+  default     = ""
 }
 
 variable "percentage_filter_value" {
   description = "A list of one or more numbers representing the value of the percentage required to enable this feature."
   type        = number
-  default = 0
+  default     = 0
 }
 
 variable "feature_tags" {
@@ -156,7 +156,7 @@ variable "timewindow_filter" {
 variable "app_config_key_name" {
   description = "The name of the App Configuration Key to create."
   type        = string
-  default = ""
+  default     = ""
 }
 
 variable "app_config_key_content_type" {

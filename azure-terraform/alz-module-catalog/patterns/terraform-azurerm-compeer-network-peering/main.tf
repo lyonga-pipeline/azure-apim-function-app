@@ -75,15 +75,15 @@ resource "terraform_data" "resolved_input_validation" {
 }
 
 module "hub_to_spoke_peering" {
-  source = "../../../modules/vnet-peering"
+  source = "../../modules/terraform-azurerm-compeer-vnet-peering"
 
   providers = {
     azurerm = azurerm.hub
   }
 
-  name                         = "peer-${var.peering_name_prefix}-hub-to-spoke"
-  resource_group_name          = local.hub_resource_group_name
-  virtual_network_name         = local.hub_virtual_network_name
+  peering_name                 = "peer-${var.peering_name_prefix}-hub-to-spoke"
+  rg_name                      = local.hub_resource_group_name
+  vnet_name                    = local.hub_virtual_network_name
   remote_virtual_network_id    = local.spoke_virtual_network_id
   allow_virtual_network_access = var.hub_to_spoke.allow_virtual_network_access
   allow_forwarded_traffic      = var.hub_to_spoke.allow_forwarded_traffic
@@ -94,15 +94,15 @@ module "hub_to_spoke_peering" {
 }
 
 module "spoke_to_hub_peering" {
-  source = "../../../modules/vnet-peering"
+  source = "../../modules/terraform-azurerm-compeer-vnet-peering"
 
   providers = {
     azurerm = azurerm.spoke
   }
 
-  name                         = "peer-${var.peering_name_prefix}-spoke-to-hub"
-  resource_group_name          = local.spoke_resource_group_name
-  virtual_network_name         = local.spoke_virtual_network_name
+  peering_name                 = "peer-${var.peering_name_prefix}-spoke-to-hub"
+  rg_name                      = local.spoke_resource_group_name
+  vnet_name                    = local.spoke_virtual_network_name
   remote_virtual_network_id    = local.hub_virtual_network_id
   allow_virtual_network_access = var.spoke_to_hub.allow_virtual_network_access
   allow_forwarded_traffic      = var.spoke_to_hub.allow_forwarded_traffic
@@ -113,7 +113,7 @@ module "spoke_to_hub_peering" {
 }
 
 module "private_dns_spoke_links" {
-  source = "../../../modules/private-dns-vnet-link"
+  source = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
 
   providers = {
     azurerm = azurerm.hub

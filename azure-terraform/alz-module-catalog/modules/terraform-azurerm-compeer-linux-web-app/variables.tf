@@ -188,11 +188,11 @@ variable "site_config" {
       priority                  = optional(number)
       service_tag               = optional(string)
       virtual_network_subnet_id = optional(string)
-      headers                   = optional(object({
-        x_azure_fdid       = optional(list(string))
-        x_fd_health_probe  = optional(string)
-        x_forwarded_for    = optional(list(string))
-        x_forwarded_host   = optional(list(string))
+      headers = optional(object({
+        x_azure_fdid      = optional(list(string))
+        x_fd_health_probe = optional(string)
+        x_forwarded_for   = optional(list(string))
+        x_forwarded_host  = optional(list(string))
       }))
     })))
     scm_ip_restriction = optional(list(object({
@@ -202,11 +202,11 @@ variable "site_config" {
       priority                  = optional(number)
       service_tag               = optional(string)
       virtual_network_subnet_id = optional(string)
-      headers                   = optional(object({
-        x_azure_fdid       = optional(list(string))
-        x_fd_health_probe  = optional(string)
-        x_forwarded_for    = optional(list(string))
-        x_forwarded_host   = optional(list(string))
+      headers = optional(object({
+        x_azure_fdid      = optional(list(string))
+        x_fd_health_probe = optional(string)
+        x_forwarded_for   = optional(list(string))
+        x_forwarded_host  = optional(list(string))
       }))
     })))
     virtual_application = optional(list(object({

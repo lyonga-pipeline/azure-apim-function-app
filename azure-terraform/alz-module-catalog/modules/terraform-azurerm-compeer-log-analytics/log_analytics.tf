@@ -1,8 +1,8 @@
 resource "azurerm_resource_group" "rg" {
-   count    = var.create_resource_group ? 1 : 0
-   name     = var.resource_group_name
-   location = var.location
- }
+  count    = var.create_resource_group ? 1 : 0
+  name     = var.resource_group_name
+  location = var.location
+}
 
 resource "azurerm_role_assignment" "logs" {
   count                = length(var.log_analytics_contributors)

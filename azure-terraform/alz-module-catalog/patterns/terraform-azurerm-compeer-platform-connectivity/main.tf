@@ -1,5 +1,5 @@
 module "tags" {
-  source = "../../../modules/platform-tags"
+  source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
   environment         = var.environment
   application         = var.platform_tags.application
@@ -14,7 +14,7 @@ module "tags" {
 }
 
 module "resource_group" {
-  source = "../../../modules/resource-group"
+  source = "../../modules/terraform-azurerm-compeer-resource-group"
 
   name     = var.resource_group.name
   location = var.location
@@ -22,7 +22,7 @@ module "resource_group" {
 }
 
 module "hub_vnet" {
-  source = "../../../modules/virtual-network"
+  source = "../../modules/terraform-azurerm-compeer-virtual-network"
 
   name                = var.hub_vnet.name
   resource_group_name = module.resource_group.name
@@ -34,18 +34,42 @@ module "hub_vnet" {
 }
 
 module "network_security_groups" {
-  source   = "../../../modules/network-security-group"
+  source   = "../../modules/terraform-azurerm-compeer-network-security-group"
   for_each = var.network_security_groups
 
   name                = each.value.name
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
-  rules               = each.value.rules
-  tags                = module.tags.tags
+  subnet_id = coalesce(
+    try(each.value.subnet_id, null),
+    try(module.hub_vnet.subnet_ids[each.value.subnet_key], null),
+    "/subscriptions/${var.subscription_id}/resourceGroups/${module.resource_group.name}/providers/Microsoft.Network/virtualNetworks/${module.hub_vnet.name}/subnets/${try(each.value.subnet_key, each.key)}"
+  )
+  security_rule = [
+    for name, rule in try(each.value.rules, {}) : {
+      name                                       = name
+      description                                = try(rule.description, null)
+      protocol                                   = rule.protocol
+      source_port_range                          = try(rule.source_port_range, null)
+      source_port_ranges                         = try(rule.source_port_ranges, null)
+      destination_port_range                     = try(rule.destination_port_range, null)
+      destination_port_ranges                    = try(rule.destination_port_ranges, null)
+      source_address_prefix                      = try(rule.source_address_prefix, null)
+      source_address_prefixes                    = try(rule.source_address_prefixes, null)
+      source_application_security_group_ids      = try(rule.source_application_security_group_ids, null)
+      destination_address_prefix                 = try(rule.destination_address_prefix, null)
+      destination_address_prefixes               = try(rule.destination_address_prefixes, null)
+      destination_application_security_group_ids = try(rule.destination_application_security_group_ids, null)
+      access                                     = rule.access
+      priority                                   = rule.priority
+      direction                                  = rule.direction
+    }
+  ]
+  tags = module.tags.tags
 }
 
 module "subnet_nsg_associations" {
-  source   = "../../../modules/nsg-subnet-association"
+  source   = "../../modules/terraform-azurerm-compeer-nsg-subnet-association"
   for_each = var.subnet_nsg_associations
 
   subnet_id                 = module.hub_vnet.subnet_ids[each.value.subnet_key]
@@ -53,7 +77,7 @@ module "subnet_nsg_associations" {
 }
 
 module "route_tables" {
-  source   = "../../../modules/route-table"
+  source   = "../../modules/terraform-azurerm-compeer-route-table"
   for_each = var.route_tables
 
   name                          = each.value.name
@@ -65,7 +89,7 @@ module "route_tables" {
 }
 
 module "subnet_route_table_associations" {
-  source   = "../../../modules/subnet-route-table-association"
+  source   = "../../modules/terraform-azurerm-compeer-subnet-route-table-association"
   for_each = var.subnet_route_table_associations
 
   subnet_id      = module.hub_vnet.subnet_ids[each.value.subnet_key]
@@ -73,7 +97,7 @@ module "subnet_route_table_associations" {
 }
 
 module "public_ips" {
-  source   = "../../../modules/public-ip"
+  source   = "../../modules/terraform-azurerm-compeer-public-ip"
   for_each = var.public_ips
 
   name                    = each.value.name
@@ -92,7 +116,7 @@ module "public_ips" {
 }
 
 module "private_dns_zones" {
-  source = "../../../modules/private-dns-zone"
+  source = "../../modules/terraform-azurerm-compeer-private-dns-zone"
 
   zones = {
     for key, zone in var.private_dns_zones : key => {
@@ -105,7 +129,7 @@ module "private_dns_zones" {
 }
 
 module "private_dns_hub_links" {
-  source = "../../../modules/private-dns-vnet-link"
+  source = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
 
   links = {
     for key, zone in var.private_dns_zones : key => {
@@ -212,7 +236,7 @@ locals {
 }
 
 module "load_balancers" {
-  source   = "../../../modules/load-balancer"
+  source   = "../../modules/terraform-azurerm-compeer-load-balancer"
   for_each = local.load_balancer_inputs
 
   name                       = each.value.name
@@ -289,7 +313,7 @@ resource "terraform_data" "dns_resolution_contract" {
 }
 
 module "role_assignments" {
-  source = "../../../modules/role-assignments"
+  source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = local.role_assignment_inputs
 }
@@ -304,7 +328,7 @@ resource "azurerm_management_lock" "this" {
 }
 
 module "diagnostic_settings" {
-  source   = "../../../modules/diagnostic-settings"
+  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = var.diagnostic_settings
 
   name                       = each.value.name
