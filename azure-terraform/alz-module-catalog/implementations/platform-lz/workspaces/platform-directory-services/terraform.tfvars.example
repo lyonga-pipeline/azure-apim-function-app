@@ -27,17 +27,92 @@ directory_services = {
     name = "rg-platform-directory-services-prod"
   }
 
-  domain_controllers = {}
+  domain_controllers = {
+    # Replace subnet_key, private IPs, zone placement, image SKU, and sizing with
+    # approved values from IPAM, AD, Windows, and architecture owners before
+    # enabling this workspace.
+    dc01 = {
+      name                       = "AZR-SRV-ADDS-01"
+      computer_name              = "AZR-SRV-ADDS-01"
+      nic_name                   = "nic-azr-srv-adds-01"
+      subnet_key                 = "domain_controllers"
+      private_ip_address         = "10.0.10.10"
+      vm_size                    = "Standard_D2s_v5"
+      zone                       = "1"
+      admin_username             = "azureadmin"
+      accelerated_networking_enabled = true
+      source_image_reference = {
+        publisher = "MicrosoftWindowsServer"
+        offer     = "WindowsServer"
+        sku       = "2022-datacenter-azure-edition"
+        version   = "latest"
+      }
+      os_disk = {
+        caching              = "ReadWrite"
+        storage_account_type = "Premium_LRS"
+      }
+      data_disks = {
+        ad_data = {
+          name                 = "disk-azr-srv-adds-01-data"
+          lun                  = 0
+          disk_size_gb         = 128
+          storage_account_type = "Premium_LRS"
+          caching              = "ReadOnly"
+        }
+      }
+      diagnostics = {
+        enabled = false
+      }
+    }
+    dc02 = {
+      name                       = "AZR-SRV-ADDS-02"
+      computer_name              = "AZR-SRV-ADDS-02"
+      nic_name                   = "nic-azr-srv-adds-02"
+      subnet_key                 = "domain_controllers"
+      private_ip_address         = "10.0.10.11"
+      dns_servers                = ["10.0.10.10"]
+      vm_size                    = "Standard_D2s_v5"
+      zone                       = "2"
+      admin_username             = "azureadmin"
+      accelerated_networking_enabled = true
+      source_image_reference = {
+        publisher = "MicrosoftWindowsServer"
+        offer     = "WindowsServer"
+        sku       = "2022-datacenter-azure-edition"
+        version   = "latest"
+      }
+      os_disk = {
+        caching              = "ReadWrite"
+        storage_account_type = "Premium_LRS"
+      }
+      data_disks = {
+        ad_data = {
+          name                 = "disk-azr-srv-adds-02-data"
+          lun                  = 0
+          disk_size_gb         = 128
+          storage_account_type = "Premium_LRS"
+          caching              = "ReadOnly"
+        }
+      }
+      diagnostics = {
+        enabled = false
+      }
+    }
+  }
 
   operational_contracts = {
     ad_promotion = {
       enabled              = false
       implementation_state = "contract-only"
-      required_controls    = ["AD team promotion runbook", "replication validation", "DNS forwarder validation"]
-      notes                = "Terraform deploys VM infrastructure only. AD DS promotion and DNS configuration remain outside Terraform."
+      required_controls    = ["AD DS role installation", "AD team promotion runbook", "replication validation", "DNS forwarder validation"]
+      notes                = "Terraform deploys VM infrastructure only. Install AD DS/DNS roles and promote/configure the controllers through the approved AD team runbook or configuration-management process."
     }
   }
 }
 
-admin_passwords       = {}
+admin_passwords = {
+  # Supply matching sensitive HCP Terraform variables before enabling:
+  # dc01 = "<sensitive>"
+  # dc02 = "<sensitive>"
+}
 domain_join_passwords = {}

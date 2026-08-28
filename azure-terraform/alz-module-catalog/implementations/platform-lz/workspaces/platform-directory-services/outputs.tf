@@ -26,6 +26,10 @@ output "data_disk_ids" {
   value = try(module.directory_services[0].data_disk_ids, {})
 }
 
+output "data_disk_attachment_ids" {
+  value = try(module.directory_services[0].data_disk_attachment_ids, {})
+}
+
 output "diagnostic_setting_ids" {
   value = try(module.directory_services[0].diagnostic_setting_ids, {})
 }

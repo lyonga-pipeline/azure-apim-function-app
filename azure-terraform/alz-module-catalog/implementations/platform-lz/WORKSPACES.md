@@ -107,6 +107,7 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 - `domain_controller_private_ips`
 - `network_interface_ids`
 - `data_disk_ids`
+- `data_disk_attachment_ids`
 - `operational_contracts`
 
 `platform-cloudflare-connectors` publishes:
