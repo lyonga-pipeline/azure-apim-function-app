@@ -1,0 +1,44 @@
+tenant_id                   = "00000000-0000-0000-0000-000000000000"
+subscription_id             = "00000000-0000-0000-0000-000000000000"
+location                    = "centralus"
+environment                 = "prod"
+tfe_organization            = "Compeer-Financial-Services"
+management_workspace_name   = "platform-management"
+connectivity_workspace_name = "platform-connectivity"
+
+platform_tags = {
+  application         = "alz-platform-cloudflare-connectors"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-cloudflare-connectors"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+cloudflare_connectors = {
+  enabled = false
+
+  resource_group = {
+    name = "rg-platform-cloudflare-connectors-prod"
+  }
+
+  connectors = {}
+
+  operational_contracts = {
+    connector_runtime = {
+      enabled              = false
+      implementation_state = "contract-only"
+      required_controls    = ["approved cloudflared install path", "Palo Alto connector-to-origin policy", "tunnel health evidence"]
+      notes                = "Terraform deploys connector VM infrastructure only unless an approved extension or image process is supplied."
+    }
+  }
+}
+
+admin_passwords              = {}
+custom_data_by_key           = {}
+extension_protected_settings = {}

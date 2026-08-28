@@ -30,6 +30,7 @@ variable "forwarding_rules" {
     ruleset_key = string
     domain_name = string
     enabled     = optional(bool, true)
+    metadata    = optional(map(string))
     target_dns_servers = list(object({
       ip_address = string
       port       = optional(number, 53)

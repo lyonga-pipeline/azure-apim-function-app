@@ -9,11 +9,22 @@ variable "route_servers" {
     public_ip_address_id             = string
     branch_to_branch_traffic_enabled = optional(bool, true)
     tags                             = optional(map(string), {})
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }), {})
     bgp_connections = optional(map(object({
       name                 = string
       peer_asn             = number
       peer_ip              = string
       ipv4_route_server_id = optional(string)
+      timeouts = optional(object({
+        create = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
     })), {})
   }))
   default = {}

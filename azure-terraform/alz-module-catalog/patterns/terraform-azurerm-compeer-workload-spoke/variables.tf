@@ -3,6 +3,12 @@ variable "subscription_id" {
   description = "Workload subscription id."
 }
 
+variable "tenant_id" {
+  type        = string
+  description = "Azure tenant id. Leave null to use the tenant from the active Azure credentials."
+  default     = null
+}
+
 variable "location" {
   type        = string
   description = "Azure region for workload spoke resources."
@@ -35,27 +41,55 @@ variable "resource_group" {
 
 variable "spoke_vnet" {
   type = object({
-    name          = string
-    address_space = list(string)
-    dns_servers   = optional(list(string))
+    name                           = string
+    address_space                  = list(string)
+    dns_servers                    = optional(list(string))
+    bgp_community                  = optional(string)
+    edge_zone                      = optional(string)
+    flow_timeout_in_minutes        = optional(number)
+    private_endpoint_vnet_policies = optional(string)
     subnets = map(object({
       address_prefixes                              = list(string)
       service_endpoints                             = optional(list(string), [])
+      service_endpoint_policy_ids                   = optional(list(string), [])
+      default_outbound_access_enabled               = optional(bool)
       private_endpoint_network_policies             = optional(string, "Enabled")
       private_link_service_network_policies_enabled = optional(bool, true)
+      sharing_scope                                 = optional(string)
       delegations = optional(map(object({
         name    = string
         actions = optional(list(string), [])
       })), {})
+      ip_address_pool = optional(object({
+        id                     = string
+        number_of_ip_addresses = string
+      }))
+      timeouts = optional(object({
+        create = optional(string)
+        update = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
     }))
+    encryption = optional(object({
+      enforcement = string
+    }))
+    ip_address_pools = optional(map(object({
+      id                     = string
+      number_of_ip_addresses = string
+    })), {})
+    timeouts = optional(object({
+      create = optional(string)
+      update = optional(string)
+      read   = optional(string)
+      delete = optional(string)
+    }), {})
   })
 }
 
 variable "network_security_groups" {
   type = map(object({
-    name       = string
-    subnet_key = optional(string)
-    subnet_id  = optional(string)
+    name = string
     rules = optional(map(object({
       priority                                   = number
       direction                                  = string
@@ -125,6 +159,137 @@ variable "private_dns_zone_links" {
   default = {}
 }
 
+variable "workload_identity" {
+  type = object({
+    enabled = optional(bool, false)
+    name    = optional(string)
+  })
+  description = "Optional workload user-assigned managed identity."
+  default     = {}
+}
+
+variable "workload_key_vault" {
+  type = object({
+    enabled                    = optional(bool, false)
+    name                       = optional(string)
+    sku_name                   = optional(string, "premium")
+    soft_delete_retention_days = optional(number, 90)
+    purge_protection_enabled   = optional(bool, true)
+    rbac_authorization_enabled = optional(bool, true)
+    access_policies = optional(list(object({
+      tenant_id               = string
+      object_id               = string
+      application_id          = optional(string)
+      key_permissions         = optional(list(string), [])
+      secret_permissions      = optional(list(string), [])
+      certificate_permissions = optional(list(string))
+      storage_permissions     = optional(list(string))
+    })), [])
+    access_policies_by_key = optional(map(object({
+      tenant_id               = string
+      object_id               = string
+      application_id          = optional(string)
+      key_permissions         = optional(list(string), [])
+      secret_permissions      = optional(list(string), [])
+      certificate_permissions = optional(list(string), [])
+      storage_permissions     = optional(list(string), [])
+    })), {})
+    enabled_for_deployment          = optional(bool, false)
+    enabled_for_disk_encryption     = optional(bool, true)
+    enabled_for_template_deployment = optional(bool, false)
+    public_network_access_enabled   = optional(bool, false)
+    network_acls = optional(object({
+      default_action             = string
+      bypass                     = optional(string, "AzureServices")
+      ip_rules                   = optional(list(string), [])
+      virtual_network_subnet_ids = optional(list(string), [])
+    }))
+    contacts = optional(map(object({
+      email = string
+      name  = optional(string)
+      phone = optional(string)
+    })), {})
+    role_assignments = optional(map(object({
+      name                                   = optional(string)
+      scope                                  = optional(string)
+      principal_id                           = string
+      role_definition_name                   = optional(string)
+      role_definition_id                     = optional(string)
+      principal_type                         = optional(string)
+      description                            = optional(string)
+      condition                              = optional(string)
+      condition_version                      = optional(string)
+      skip_service_principal_aad_check       = optional(bool)
+      delegated_managed_identity_resource_id = optional(string)
+    })), {})
+    diagnostics = optional(object({
+      enabled                        = optional(bool, true)
+      name                           = optional(string)
+      log_analytics_workspace_id     = optional(string)
+      storage_account_id             = optional(string)
+      eventhub_authorization_rule_id = optional(string)
+      eventhub_name                  = optional(string)
+      partner_solution_id            = optional(string)
+      log_analytics_destination_type = optional(string)
+      logs = optional(map(object({
+        category       = optional(string)
+        category_group = optional(string)
+      })), {})
+      metrics = optional(map(object({
+        category = string
+        enabled  = optional(bool, true)
+      })), {})
+    }), {})
+    private_endpoint = optional(object({
+      name                            = string
+      subnet_key                      = optional(string)
+      subnet_id                       = optional(string)
+      custom_network_interface_name   = optional(string)
+      private_service_connection_name = optional(string)
+      private_dns_zone_group_name     = optional(string, "default")
+      private_dns_zone_ids            = optional(list(string), [])
+      edge_zone                       = optional(string)
+      ip_configurations = optional(list(object({
+        name               = string
+        private_ip_address = string
+        subresource_name   = string
+        member_name        = string
+      })), [])
+      timeouts = optional(object({
+        create = optional(string)
+        update = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
+    }))
+    timeouts = optional(object({
+      create = optional(string)
+      update = optional(string)
+      read   = optional(string)
+      delete = optional(string)
+    }), {})
+  })
+  description = "Optional workload Key Vault pattern using Compeer Key Vault, RBAC, diagnostics, and private endpoint modules."
+  default     = {}
+
+  validation {
+    condition = (
+      !coalesce(try(var.workload_key_vault.enabled, null), false) ||
+      try(var.workload_key_vault.name, null) != null
+    )
+    error_message = "workload_key_vault.name is required when workload_key_vault.enabled is true."
+  }
+
+  validation {
+    condition = (
+      try(var.workload_key_vault.private_endpoint, null) == null ||
+      try(var.workload_key_vault.private_endpoint.subnet_key, null) == null ||
+      try(var.workload_key_vault.private_endpoint.subnet_id, null) == null
+    )
+    error_message = "workload_key_vault.private_endpoint must not set both subnet_key and subnet_id."
+  }
+}
+
 variable "additional_scopes" {
   type        = map(string)
   description = "Any Additional named scopes that can be referenced by locks, diagnostics, or role assignments."
@@ -133,6 +298,7 @@ variable "additional_scopes" {
 
 variable "role_assignments" {
   type = map(object({
+    name                                   = optional(string)
     scope_key                              = optional(string)
     scope                                  = optional(string)
     principal_id                           = string

@@ -1,0 +1,45 @@
+zones = {
+  external_apps = {
+    account_id           = "REPLACE_ME_CLOUDFLARE_ACCOUNT_ID"
+    zone                 = "apps.compeer.example"
+    zone_type            = "full"
+    enable_zone_settings = true
+    settings = [
+      {
+        always_use_https = "on"
+        min_tls_version  = "1.2"
+        ssl              = "strict"
+        tls_1_3          = "on"
+      }
+    ]
+  }
+}
+
+records = {
+  app_gateway_failover = {
+    zone_key = "external_apps"
+    name     = "pilot"
+    type     = "CNAME"
+    value    = "cmp-cus-appgw.example.azurefd.net"
+    ttl      = 60
+    proxied  = true
+    comment  = "Phase 2 failover path to Azure Application Gateway"
+  }
+}
+
+rulesets = {
+  waf_baseline = {
+    zone_key      = "external_apps"
+    ruleset_kind  = "zone"
+    ruleset_name  = "Compeer ALZ WAF baseline"
+    ruleset_phase = "http_request_firewall_custom"
+    rules = [
+      {
+        expression  = "(http.request.uri.path contains \"/admin\")"
+        action      = "challenge"
+        description = "Example high-risk path challenge"
+        enabled     = false
+      }
+    ]
+  }
+}

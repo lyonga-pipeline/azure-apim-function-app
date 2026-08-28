@@ -37,10 +37,19 @@ action_group = {
 }
 
 # Optional platform services. Keep these empty for the cost-safe baseline;
-# populate only after backup/archive retention, networking, and cost ownership
-# are approved.
-platform_storage_accounts = {}
-recovery_services_vaults  = {}
+# populate only after backup/archive retention, networking, secret ownership,
+# and cost ownership are approved.
+platform_storage_accounts            = {}
+platform_key_vaults                  = {}
+platform_key_vault_diagnostics       = {}
+platform_key_vault_private_endpoints = {}
+recovery_services_vaults             = {}
+platform_storage_diagnostics         = {}
+platform_storage_private_endpoints   = {}
+recovery_services_vault_diagnostics  = {}
+data_collection_endpoints            = {}
+data_collection_rules                = {}
+data_collection_rule_associations    = {}
 
 # Example archive/bootstrap storage account for a promoted baseline:
 #
@@ -57,6 +66,22 @@ recovery_services_vaults  = {}
 #       change_feed_enabled             = true
 #       delete_retention_days           = 30
 #       container_delete_retention_days = 30
+#     }
+#   }
+# }
+#
+# Example platform Key Vault for a promoted secret baseline:
+#
+# platform_key_vaults = {
+#   platform = {
+#     name                          = "kv-lz-platform-np-001"
+#     sku_name                      = "standard"
+#     rbac_authorization_enabled    = true
+#     purge_protection_enabled      = true
+#     public_network_access_enabled = false
+#     network_acls = {
+#       bypass         = "AzureServices"
+#       default_action = "Deny"
 #     }
 #   }
 # }

@@ -72,6 +72,7 @@ variable "subscriptions" {
 
 variable "subscription_role_assignments" {
   type = map(object({
+    name                                   = optional(string)
     subscription_key                       = string
     principal_id                           = string
     role_definition_name                   = optional(string)

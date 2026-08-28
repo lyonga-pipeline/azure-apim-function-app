@@ -112,6 +112,7 @@ variable "custom_role_definitions" {
 
 variable "role_assignments" {
   type = map(object({
+    name                                   = optional(string)
     management_group_key                   = optional(string)
     scope                                  = optional(string)
     principal_id                           = string

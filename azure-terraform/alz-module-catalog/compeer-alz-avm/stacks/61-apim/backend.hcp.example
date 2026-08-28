@@ -1,0 +1,1 @@
+terraform { cloud { organization = "REPLACE_ME" workspaces { name = "cmp-wkl-apim-prod" } } }

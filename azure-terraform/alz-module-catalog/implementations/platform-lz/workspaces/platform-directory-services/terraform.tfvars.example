@@ -1,0 +1,43 @@
+tenant_id                   = "00000000-0000-0000-0000-000000000000"
+subscription_id             = "00000000-0000-0000-0000-000000000000"
+location                    = "centralus"
+environment                 = "prod"
+tfe_organization            = "Compeer-Financial-Services"
+management_workspace_name   = "platform-management"
+connectivity_workspace_name = "platform-connectivity"
+
+platform_tags = {
+  application         = "alz-platform-directory-services"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-directory-services"
+  recovery_tier       = "tier-0"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+directory_services = {
+  enabled = false
+
+  resource_group = {
+    name = "rg-platform-directory-services-prod"
+  }
+
+  domain_controllers = {}
+
+  operational_contracts = {
+    ad_promotion = {
+      enabled              = false
+      implementation_state = "contract-only"
+      required_controls    = ["AD team promotion runbook", "replication validation", "DNS forwarder validation"]
+      notes                = "Terraform deploys VM infrastructure only. AD DS promotion and DNS configuration remain outside Terraform."
+    }
+  }
+}
+
+admin_passwords       = {}
+domain_join_passwords = {}

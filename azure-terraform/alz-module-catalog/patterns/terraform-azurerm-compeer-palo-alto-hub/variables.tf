@@ -20,6 +20,17 @@ variable "tags" {
   default     = {}
 }
 
+variable "marketplace_agreement" {
+  description = "Optional Azure Marketplace agreement for Palo Alto VM-Series images. Import existing agreement ownership before enabling if terms were accepted outside Terraform."
+  type = object({
+    enabled   = optional(bool, false)
+    publisher = optional(string, "paloaltonetworks")
+    offer     = optional(string, "vmseries-flex")
+    plan      = optional(string, "bundle2")
+  })
+  default = {}
+}
+
 variable "bootstrap_storage_account" {
   description = "Optional storage account used for Palo Alto bootstrap artifacts."
   type = object({
@@ -147,4 +158,17 @@ variable "virtual_machines" {
     boot_diagnostics_storage_account_uri = optional(string)
   }))
   default = {}
+}
+
+variable "vendor_vmseries" {
+  description = "Optional Palo Alto Networks swfw-modules VM-Series instances keyed by logical name. Do not configure alongside virtual_machines."
+  type        = map(any)
+  default     = {}
+}
+
+variable "vendor_vmseries_passwords" {
+  description = "Sensitive VM-Series admin passwords keyed by vendor_vmseries key. Use HCP sensitive variables or approved secret store injection."
+  type        = map(string)
+  sensitive   = true
+  default     = {}
 }

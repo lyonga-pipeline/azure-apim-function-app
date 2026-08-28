@@ -1,0 +1,18 @@
+tenant_id             = "00000000-0000-0000-0000-000000000000"
+hub_subscription_id   = "00000000-0000-0000-0000-000000000000"
+spoke_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+network_peering = {
+  enabled                              = false
+  use_tfe_outputs                      = true
+  tfe_organization                     = "Compeer-Financial-Services"
+  platform_connectivity_workspace_name = "platform-connectivity"
+  workload_spoke_workspace_name        = "workload-spoke-internal-apps-prod"
+  peering_name_prefix                  = "internal-apps-prod"
+  hub_to_spoke                         = {}
+  spoke_to_hub                         = {}
+  private_dns_zones                    = {}
+  tags = {
+    managed_by = "terraform"
+  }
+}

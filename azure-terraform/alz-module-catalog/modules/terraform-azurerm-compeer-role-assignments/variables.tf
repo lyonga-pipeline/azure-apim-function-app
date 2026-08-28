@@ -1,5 +1,6 @@
 variable "assignments" {
   type = map(object({
+    name                                   = optional(string)
     scope                                  = string
     principal_id                           = string
     role_definition_name                   = optional(string)

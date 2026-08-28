@@ -22,6 +22,28 @@ locals {
   } : {}
 }
 
+resource "terraform_data" "vmseries_contract" {
+  input = {
+    local_vmseries_keys  = sort(keys(var.virtual_machines))
+    vendor_vmseries_keys = sort(keys(var.vendor_vmseries))
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !(length(var.virtual_machines) > 0 && length(var.vendor_vmseries) > 0)
+      error_message = "Configure either virtual_machines or vendor_vmseries, not both, to avoid duplicate firewall ownership."
+    }
+  }
+}
+
+resource "azurerm_marketplace_agreement" "palo_alto" {
+  count = var.enabled && coalesce(try(var.marketplace_agreement.enabled, null), false) ? 1 : 0
+
+  publisher = try(var.marketplace_agreement.publisher, "paloaltonetworks")
+  offer     = try(var.marketplace_agreement.offer, "vmseries-flex")
+  plan      = try(var.marketplace_agreement.plan, "bundle2")
+}
+
 module "bootstrap_storage" {
   source = "../../modules/terraform-azurerm-compeer-storage-account"
   count  = var.enabled && var.bootstrap_storage_account != null ? 1 : 0
@@ -153,4 +175,59 @@ resource "azurerm_linux_virtual_machine" "this" {
       error_message = "admin_password is required when disable_password_authentication is false."
     }
   }
+
+  depends_on = [terraform_data.vmseries_contract, azurerm_marketplace_agreement.palo_alto]
+}
+
+module "vendor_vmseries" {
+  source   = "PaloAltoNetworks/swfw-modules/azurerm//modules/vmseries"
+  version  = "3.5.1"
+  for_each = var.enabled ? var.vendor_vmseries : {}
+
+  name                = each.value.name
+  resource_group_name = var.resource_group_name
+  region              = var.location
+  tags                = var.tags
+
+  authentication = merge(
+    {
+      username                        = try(each.value.username, "panadmin")
+      password                        = try(var.vendor_vmseries_passwords[each.key], null)
+      disable_password_authentication = try(each.value.disable_password_authentication, true)
+      ssh_keys                        = try(each.value.ssh_keys, [])
+    },
+    try(each.value.authentication, {})
+  )
+
+  image = merge(
+    {
+      publisher               = try(each.value.img_publisher, "paloaltonetworks")
+      offer                   = try(each.value.img_offer, "vmseries-flex")
+      sku                     = try(each.value.img_sku, "byol")
+      version                 = try(each.value.img_version, "latest")
+      enable_marketplace_plan = try(each.value.enable_plan, true)
+      custom_id               = try(each.value.custom_image_id, null)
+    },
+    try(each.value.image, {})
+  )
+
+  virtual_machine = merge(
+    {
+      size                         = try(each.value.vm_size, "Standard_D3_v2")
+      zone                         = try(each.value.avzone, null)
+      disk_type                    = try(each.value.managed_disk_type, "StandardSSD_LRS")
+      disk_name                    = try(each.value.os_disk_name, "${each.value.name}-osdisk")
+      avset_id                     = try(each.value.avset_id, null)
+      accelerated_networking       = try(each.value.accelerated_networking, true)
+      bootstrap_options            = try(each.value.bootstrap_options, null)
+      boot_diagnostics_storage_uri = try(each.value.diagnostics_storage_uri, null)
+      identity_type                = try(each.value.identity_type, "SystemAssigned")
+      identity_ids                 = try(each.value.identity_ids, [])
+    },
+    try(each.value.virtual_machine, {})
+  )
+
+  interfaces = each.value.interfaces
+
+  depends_on = [terraform_data.vmseries_contract, azurerm_marketplace_agreement.palo_alto]
 }

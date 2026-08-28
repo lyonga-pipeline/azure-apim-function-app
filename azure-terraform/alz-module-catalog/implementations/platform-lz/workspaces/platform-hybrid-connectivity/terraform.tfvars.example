@@ -1,0 +1,53 @@
+tenant_id                   = "00000000-0000-0000-0000-000000000000"
+subscription_id             = "00000000-0000-0000-0000-000000000000"
+location                    = "centralus"
+environment                 = "prod"
+tfe_organization            = "Compeer-Financial-Services"
+connectivity_workspace_name = "platform-connectivity"
+
+platform_tags = {
+  application         = "alz-platform-hybrid-connectivity"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-hybrid-connectivity"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+hybrid_connectivity = {
+  enabled = true
+  resource_group = {
+    name = "rg-platform-hybrid-prod"
+  }
+  expressroute_posture = {
+    enabled                   = false
+    onpremises_required       = true
+    provider_design_reference = null
+    bgp_and_routing_approved  = false
+    cutover_window_approved   = false
+    notes                     = "Enable after carrier/provider details are approved."
+  }
+  expressroute_circuits    = {}
+  gateway_public_ips       = {}
+  expressroute_gateway     = null
+  expressroute_connections = {}
+
+  vpn_posture = {
+    enabled                      = false
+    backup_required              = true
+    design_reference             = null
+    bgp_and_routing_approved     = false
+    shared_key_handling_approved = false
+    failover_test_approved       = false
+    notes                        = "Enable after VPN peer details, PSK handling, routing, and failover testing are approved."
+  }
+  vpn_gateway_public_ips = {}
+  vpn_gateway            = null
+  local_network_gateways = {}
+  vpn_connections        = {}
+}

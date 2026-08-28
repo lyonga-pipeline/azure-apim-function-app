@@ -1,48 +1,49 @@
 # Platform ALZ Implementation
 
-This root shows the end-to-end platform landing-zone composition for the new ALZ path. It mirrors the delivery model in the existing landing-zone implementation but keeps the module references aligned to the catalog and to the registry versions recorded in `modules.txt`.
+`implementations/platform-lz` is a workspace catalog, not a deployable Terraform root.
 
-## Source strategy
+Each platform lifecycle boundary is deployed from an individual root under `workspaces/` and mapped to its own HCP Terraform workspace. This matches the IaC delivery strategy: ownership, state, approval, drift, recovery, and blast radius stay scoped to the platform domain being changed.
 
-The implementation prefers published Terraform Cloud modules where the module already exists in the registry. For modules that are not yet published, it falls back to local catalog patterns in this repository.
+The roots still reuse the common pattern modules under `../../patterns`. The AVM/HCP improvements are fitted into those patterns, so the separated workspaces compose the same reusable implementation instead of copying standalone AVM stacks.
 
-The current pattern references are:
+## Workspace Roots
 
-- `../../patterns/terraform-azurerm-compeer-global-governance`
-- `../../patterns/terraform-azurerm-compeer-subscription-vending`
-- `../../patterns/terraform-azurerm-compeer-platform-management`
-- `../../patterns/terraform-azurerm-compeer-platform-connectivity`
-- `../../patterns/terraform-azurerm-compeer-platform-identity`
-- `../../patterns/terraform-azurerm-compeer-platform-hybrid-connectivity`
-- `../../patterns/terraform-azurerm-compeer-palo-alto-hub`
-- `../../patterns/terraform-cloudflare-compeer-edge-baseline`
-- `../../patterns/terraform-azurerm-compeer-network-peering`
-- `../../patterns/terraform-azurerm-compeer-workload-spoke`
+```text
+workspaces/platform-governance
+workspaces/platform-subscriptions
+workspaces/platform-policy
+workspaces/platform-management
+workspaces/platform-connectivity
+workspaces/platform-identity-security
+workspaces/platform-hybrid-connectivity
+workspaces/platform-palo-alto
+workspaces/platform-directory-services
+workspaces/platform-cloudflare-connectors
+workspaces/platform-shared-services
+workspaces/platform-workload-spoke
+workspaces/platform-network-peering
+workspaces/platform-cloudflare-edge
+```
 
-Where the module already appears in `modules.txt` with a released registry version, keep that pinned version in the source statement when the pattern is promoted. Where the module does not yet exist, keep the local path until the registry module is available and reviewed.
+Each root has its own `terraform.tfvars.example` and should be attached to a distinct HCP Terraform workspace working directory.
 
-## End-to-end composition
+## Dependency Model
 
-This implementation follows the same platform order used by the existing `net-new-hub-spoke` landing-zone path:
+Dependent roots consume approved outputs with the HCP Terraform `tfe_outputs` data source, or through explicit IDs supplied as workspace variables. Do not use broad remote-state access for normal dependencies.
 
-1. governance and policy baseline
-2. subscription vending
-3. platform management
-4. platform connectivity
-5. platform identity
-6. hybrid connectivity
-7. optional Palo Alto hub
-8. optional Cloudflare edge baseline
-9. workload spoke and network peering
+Examples:
 
-This keeps the design aligned with the real deployment order used by the net-new hub/spoke roots while recording which platform slices are still local-only pending registry publication.
+- `platform-connectivity` can read `platform-management.log_analytics_workspace_id` for diagnostics.
+- `platform-policy` can read `platform-governance.management_group_ids` for policy definitions and assignments.
+- `platform-identity-security` can read `platform-management.log_analytics_workspace_id` and `platform-connectivity.private_dns_zone_ids`.
+- `platform-hybrid-connectivity` can read `platform-connectivity.subnet_ids["GatewaySubnet"]`.
+- `platform-directory-services` can read `platform-connectivity.subnet_ids` and `platform-management.log_analytics_workspace_id`.
+- `platform-cloudflare-connectors` can read the connector subnet from `platform-connectivity` and monitoring outputs from `platform-management`.
+- `platform-shared-services` can read hub VNet and Private DNS outputs from `platform-connectivity`.
+- workload spoke roots can read hub VNet, private DNS, and Log Analytics outputs.
+- `network-peering` reads connectivity and workload-spoke outputs to create the peering and DNS links.
+- `platform-cloudflare-edge` owns Cloudflare account resources only; Azure connector VMs stay in `platform-cloudflare-connectors`.
 
-## Deployment notes
+Provider subscription context remains an explicit workspace variable or HCP dynamic credential setting. Terraform should not configure an Azure provider from a producer workspace output inside the same run.
 
-- Keep `subscription_vending.vending_enabled = false` until the billing scope, invoice section, and management-group placement permissions are confirmed for the tenant.
-- Defender/SOC posture is modeled but disabled by default.
-- Palo Alto is modeled as a route/DNS contract first; compute remains disabled until license and operational ownership are approved.
-- Cloudflare edge controls stay disabled by default unless Cloudflare ownership and API access are approved.
-- Workload spoke deployment is intentionally disabled by default so the platform ALZ can provide the shared service contract while workload owners own application resources.
-
-Copy `terraform.tfvars.example` to `terraform.tfvars` in an environment-specific root, update the subscription IDs and billing-scope values, and only enable the slices approved for that rollout.
+See `WORKSPACES.md` for the deployment order and output contracts.

@@ -1,0 +1,8 @@
+terraform {
+  cloud {
+    organization = "REPLACE_HCP_ORGANIZATION"
+    workspaces {
+      name = "REPLACE_20_connectivity_WORKSPACE"
+    }
+  }
+}

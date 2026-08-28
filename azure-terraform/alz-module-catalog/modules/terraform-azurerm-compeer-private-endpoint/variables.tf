@@ -19,6 +19,12 @@ variable "location" {
   type        = string
 }
 
+variable "edge_zone" {
+  description = "Optional Azure edge zone where the Private Endpoint should exist."
+  type        = string
+  default     = null
+}
+
 variable "subnet_id" {
   description = "The ID of the Subnet from which Private IP Addresses will be allocated for this Private Endpoint."
   type        = string
@@ -37,8 +43,8 @@ variable "private_service_connections" {
   default = []
 
   validation {
-    condition     = length(var.private_service_connections) > 0
-    error_message = "At least one private_service_connections entry is required."
+    condition     = length(var.private_service_connections) == 1
+    error_message = "Exactly one private_service_connections entry is required by Azure for this resource."
   }
 
   validation {
@@ -63,6 +69,11 @@ variable "private_dns_zone_group" {
     private_dns_zone_ids = list(string)
   }))
   default = []
+
+  validation {
+    condition     = length(var.private_dns_zone_group) <= 1
+    error_message = "Azure supports at most one private_dns_zone_group per Private Endpoint."
+  }
 }
 
 variable "ip_configurations" {
@@ -74,4 +85,15 @@ variable "ip_configurations" {
     member_name        = string
   }))
   default = []
+}
+
+variable "timeouts" {
+  description = "Optional resource operation timeouts."
+  type = object({
+    create = optional(string)
+    update = optional(string)
+    read   = optional(string)
+    delete = optional(string)
+  })
+  default = {}
 }

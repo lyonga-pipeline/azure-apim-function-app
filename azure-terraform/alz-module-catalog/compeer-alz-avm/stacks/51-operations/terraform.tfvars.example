@@ -1,0 +1,34 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "cmp-prod-cus-mgmt-rg"
+
+action_groups = {
+  platform_ops = {
+    name       = "cmp-prod-cus-platform-ops-ag"
+    short_name = "pltops"
+    receivers = {
+      email = {
+        noc = {
+          email_address = "platform-ops@compeer.example"
+        }
+      }
+    }
+  }
+}
+
+metric_alerts = {
+  expressroute_gateway_cpu = {
+    name              = "cmp-prod-cus-er-gw-cpu"
+    scopes            = ["/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworkGateways/cmp-prod-cus-ergw"]
+    description       = "Example gateway CPU alert; tune with production telemetry."
+    action_group_keys = ["platform_ops"]
+    criteria = {
+      cpu = {
+        metric_namespace = "Microsoft.Network/virtualNetworkGateways"
+        metric_name      = "AverageBandwidth"
+        aggregation      = "Average"
+        operator         = "GreaterThan"
+        threshold        = 80
+      }
+    }
+  }
+}

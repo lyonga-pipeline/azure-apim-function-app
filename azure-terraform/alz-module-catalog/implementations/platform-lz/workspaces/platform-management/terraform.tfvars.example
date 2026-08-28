@@ -1,0 +1,128 @@
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+subscription_id = "00000000-0000-0000-0000-000000000000"
+location        = "centralus"
+environment     = "prod"
+
+platform_tags = {
+  application         = "alz-platform-management"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-management"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+management = {
+  enabled = true
+  resource_group = {
+    name = "rg-platform-management-prod"
+  }
+  log_analytics = {
+    name              = "law-platform-prod-001"
+    retention_in_days = 365
+    daily_quota_gb    = 5
+  }
+  action_group = {
+    name       = "ag-platform-ops-prod"
+    short_name = "platops"
+    receivers  = {}
+  }
+  platform_storage_accounts = {
+    audit = {
+      name                              = "stplatprodaudit001"
+      account_replication_type          = "ZRS"
+      public_network_access_enabled     = false
+      shared_access_key_enabled         = false
+      infrastructure_encryption_enabled = true
+      default_to_oauth_authentication   = true
+    }
+  }
+  platform_storage_diagnostics = {
+    audit = {
+      name                = "diag-stplatprodaudit001-law"
+      storage_account_key = "audit"
+      metrics = {
+        transaction = { category = "Transaction" }
+      }
+    }
+  }
+  platform_key_vaults = {
+    platform = {
+      name                          = "kv-platform-prod-001"
+      sku_name                      = "standard"
+      rbac_authorization_enabled    = true
+      purge_protection_enabled      = true
+      public_network_access_enabled = false
+      network_acls = {
+        bypass         = "AzureServices"
+        default_action = "Deny"
+      }
+    }
+  }
+  platform_key_vault_diagnostics = {
+    platform = {
+      name          = "diag-kv-platform-prod-001-law"
+      key_vault_key = "platform"
+      logs = {
+        audit = { category = "AuditEvent" }
+      }
+      metrics = {
+        all = { category = "AllMetrics" }
+      }
+    }
+  }
+  platform_key_vault_private_endpoints = {}
+  recovery_services_vaults = {
+    platform = {
+      name              = "rsv-platform-prod-001"
+      storage_mode_type = "ZoneRedundant"
+    }
+  }
+  recovery_services_vault_diagnostics = {
+    platform = {
+      name                        = "diag-rsv-platform-prod-001-law"
+      recovery_services_vault_key = "platform"
+      logs = {
+        all = { category_group = "allLogs" }
+      }
+      metrics = {
+        all = { category = "AllMetrics" }
+      }
+    }
+  }
+  data_collection_endpoints         = {}
+  data_collection_rules             = {}
+  data_collection_rule_associations = {}
+  sentinel = {
+    enabled = false
+    approved_data_connectors = {
+      activity_log = {
+        connector_type = "AzureActivity"
+        enabled        = false
+      }
+      defender_for_cloud = {
+        connector_type = "MicrosoftDefenderForCloud"
+        enabled        = false
+      }
+      entra_id = {
+        connector_type = "MicrosoftEntraID"
+        enabled        = false
+      }
+    }
+  }
+  defender_plans   = {}
+  security_contact = null
+  defender_soc_posture = {
+    enabled                       = false
+    defender_standard_enabled     = false
+    sentinel_enabled              = false
+    data_collection_rules_enabled = false
+    security_contact_enabled      = false
+    notes                         = "Enable after SOC onboarding and cost approval."
+  }
+}

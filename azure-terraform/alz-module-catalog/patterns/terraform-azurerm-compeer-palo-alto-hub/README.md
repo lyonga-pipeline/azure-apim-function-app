@@ -7,5 +7,7 @@ Composes Azure-side Palo Alto VM-Series hub resources:
 - Palo Alto NICs with IP forwarding
 - Trust and untrust load balancers
 - Palo Alto VM-Series Linux virtual machines
+- Optional Azure Marketplace agreement ownership
+- Optional current Palo Alto Networks `swfw-modules` VM-Series module composition pinned to `3.5.1`
 
 Panorama or Strata Cloud Manager policy onboarding remains a separate operational contract unless the team chooses a PAN-OS provider workflow. Keep this pattern disabled until firewall licensing, image plan acceptance, bootstrap process, and routing ownership are approved.

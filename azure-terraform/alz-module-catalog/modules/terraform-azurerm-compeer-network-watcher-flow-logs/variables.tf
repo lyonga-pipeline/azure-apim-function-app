@@ -18,6 +18,12 @@ variable "flow_logs" {
       workspace_resource_id = string
       interval_in_minutes   = optional(number, 10)
     }))
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }), {})
   }))
   default = {}
 }

@@ -24,13 +24,14 @@ variable "sku_name" {
   }
 }
 
-# variable "tenant_id" {
-#   description = "The Azure Active Directory tenant ID that should be used for authenticating requests to the key vault."
-#   type        = string
-# }
+variable "tenant_id" {
+  description = "The Azure Active Directory tenant ID to use for the Key Vault. Defaults to the tenant from the active provider credentials."
+  type        = string
+  default     = null
+}
 
 variable "access_policies" {
-  description = "Access policies for the key vault. Used only when RBAC authorization is disabled."
+  description = "Backward-compatible access policy list for the key vault. Used only when RBAC authorization is disabled. Prefer access_policies_by_key for new consumers."
   type = list(object({
     tenant_id               = string
     object_id               = string
@@ -41,6 +42,20 @@ variable "access_policies" {
     storage_permissions     = optional(list(string))
   }))
   default = []
+}
+
+variable "access_policies_by_key" {
+  description = "Keyed access policies for the key vault. Used only when RBAC authorization is disabled. Keys should be stable business identifiers such as group-reader or app-deployer."
+  type = map(object({
+    tenant_id               = string
+    object_id               = string
+    application_id          = optional(string)
+    key_permissions         = optional(list(string), [])
+    secret_permissions      = optional(list(string), [])
+    certificate_permissions = optional(list(string), [])
+    storage_permissions     = optional(list(string), [])
+  }))
+  default = {}
 }
 
 variable "rbac_authorization_enabled" {
@@ -87,12 +102,12 @@ variable "network_acls" {
   }
 
   validation {
-    condition     = var.network_acls == null || contains(["Allow", "Deny"], var.network_acls.default_action)
+    condition     = var.network_acls == null ? true : contains(["Allow", "Deny"], var.network_acls.default_action)
     error_message = "network_acls.default_action must be Allow or Deny."
   }
 
   validation {
-    condition     = var.network_acls == null || contains(["AzureServices", "None"], var.network_acls.bypass)
+    condition     = var.network_acls == null ? true : contains(["AzureServices", "None"], var.network_acls.bypass)
     error_message = "network_acls.bypass must be AzureServices or None."
   }
 }
@@ -135,6 +150,17 @@ variable "contacts" {
     phone = optional(string)
   }))
   default = []
+}
+
+variable "timeouts" {
+  description = "Optional resource operation timeouts."
+  type = object({
+    create = optional(string)
+    update = optional(string)
+    read   = optional(string)
+    delete = optional(string)
+  })
+  default = {}
 }
 
 variable "tags" {

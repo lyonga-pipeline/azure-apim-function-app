@@ -1,0 +1,29 @@
+workload_identities = {
+  hcp_platform = {
+    display_name = "cmp-prod-cus-hcp-platform"
+    description  = "HCP Terraform dynamic credential identity for platform ALZ stacks."
+    federated_credentials = {
+      governance = {
+        display_name = "hcp-governance"
+        issuer       = "https://app.terraform.io"
+        subject      = "organization:Compeer-Financial-Services:project:REPLACE:workspace:cmp-prod-cus-governance:run_phase:*"
+      }
+      connectivity = {
+        display_name = "hcp-connectivity"
+        issuer       = "https://app.terraform.io"
+        subject      = "organization:Compeer-Financial-Services:project:REPLACE:workspace:cmp-prod-cus-connectivity:run_phase:*"
+      }
+    }
+  }
+  ado_platform = {
+    display_name = "cmp-prod-cus-ado-platform"
+    description  = "Azure DevOps workload identity for ALZ pipelines."
+    federated_credentials = {
+      main = {
+        display_name = "ado-main"
+        issuer       = "https://vstoken.dev.azure.com/REPLACE_ORG_GUID"
+        subject      = "sc://REPLACE_ORG/REPLACE_PROJECT/REPLACE_SERVICE_CONNECTION"
+      }
+    }
+  }
+}

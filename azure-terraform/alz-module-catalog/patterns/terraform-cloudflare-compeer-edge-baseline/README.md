@@ -1,5 +1,5 @@
 # Compeer Cloudflare Edge Baseline
 
-Creates a minimal Cloudflare zone, DNS record, and ruleset baseline for the external edge path.
+Creates the Cloudflare-owned edge/control-plane resources for the external-app ingress path: zones, DNS records, rulesets, Zero Trust tunnels, remotely managed tunnel ingress, and optional Access applications/policies.
 
-Use this pattern for Cloudflare-managed DNS, Zero Trust gateway rules, and Cloudflare-to-Azure failover records. Tunnel connector deployment still needs a runtime pattern for `cloudflared` agents.
+Connector VMs are deployed from the Azure `platform-cloudflare-connectors` workspace. Keep tunnel secrets in HCP sensitive variables and import existing Cloudflare resources before assigning Terraform ownership.

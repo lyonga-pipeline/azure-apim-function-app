@@ -3,7 +3,7 @@ resource "azurerm_network_security_group" "network_security_group" {
   resource_group_name = var.resource_group_name
   location            = var.location
   dynamic "security_rule" {
-    for_each = var.security_rule
+    for_each = local.security_rules
     content {
       name                                       = security_rule.value.name
       description                                = lookup(security_rule.value, "description", null)

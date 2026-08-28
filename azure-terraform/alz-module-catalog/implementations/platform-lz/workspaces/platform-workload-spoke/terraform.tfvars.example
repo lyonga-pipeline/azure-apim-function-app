@@ -1,0 +1,42 @@
+tenant_id                   = "00000000-0000-0000-0000-000000000000"
+subscription_id             = "00000000-0000-0000-0000-000000000000"
+location                    = "centralus"
+environment                 = "prod"
+tfe_organization            = "Compeer-Financial-Services"
+management_workspace_name   = "platform-management"
+connectivity_workspace_name = "platform-connectivity"
+
+workload_tags = {
+  application         = "internal-apps"
+  business_owner      = "Application Owner"
+  source_repo         = "ado://Compeer/internal-apps"
+  terraform_workspace = "workload-spoke-internal-apps-prod"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+workload_spoke = {
+  enabled = false
+  resource_group = {
+    name = "rg-internal-apps-prod"
+  }
+  spoke_vnet = {
+    name          = "vnet-internal-apps-prod-centralus-001"
+    address_space = ["10.10.0.0/16"]
+    subnets = {
+      app_integration   = { address_prefixes = ["10.10.1.0/24"] }
+      private_endpoints = { address_prefixes = ["10.10.2.0/24"], private_endpoint_network_policies = "Disabled" }
+    }
+  }
+  workload_identity = {
+    enabled = false
+  }
+  workload_key_vault = {
+    enabled = false
+  }
+}

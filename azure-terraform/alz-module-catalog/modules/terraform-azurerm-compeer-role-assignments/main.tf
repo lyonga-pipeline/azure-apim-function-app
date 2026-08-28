@@ -11,6 +11,7 @@ locals {
 resource "azurerm_role_assignment" "this" {
   for_each = local.assignments
 
+  name                                   = try(each.value.name, null)
   scope                                  = each.value.scope
   principal_id                           = each.value.principal_id
   principal_type                         = try(each.value.principal_type, null)

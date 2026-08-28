@@ -1,0 +1,6 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "REPLACE_ME"
+dr_resource_group_name = "REPLACE_ME"
+key_vault_resource_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.KeyVault/vaults/REPLACE"
+disk_encryption_key_id = "https://REPLACE.vault.azure.net/keys/REPLACE/REPLACE"
+log_analytics_workspace_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.OperationalInsights/workspaces/REPLACE"

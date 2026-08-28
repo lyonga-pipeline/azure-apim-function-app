@@ -1,0 +1,115 @@
+organization = "Compeer-Financial-Services"
+
+projects = {
+  platform = {
+    name        = "alz-platform"
+    description = "Azure Landing Zone platform roots"
+    tags        = { phase = "1" }
+  }
+  workloads = {
+    name        = "alz-workloads"
+    description = "Workload landing-zone roots"
+    tags        = { phase = "1" }
+  }
+}
+
+workspaces = {
+  governance = {
+    name              = "alz-00-governance"
+    project_key       = "platform"
+    working_directory = "stacks/00-governance"
+    terraform_version = "~> 1.12.0"
+    tag_names         = ["alz", "platform", "governance"]
+  }
+  platform = {
+    name              = "alz-10-platform"
+    project_key       = "platform"
+    working_directory = "stacks/10-platform"
+    terraform_version = "~> 1.12.0"
+    tag_names         = ["alz", "platform", "management"]
+  }
+  connectivity = {
+    name              = "alz-20-connectivity"
+    project_key       = "platform"
+    working_directory = "stacks/20-connectivity"
+    terraform_version = "~> 1.12.0"
+    tag_names         = ["alz", "platform", "network"]
+  }
+}
+
+teams = {
+  platform_ops = {
+    name        = "AZ-Platform-Operators"
+    sso_team_id = "REPLACE_ME_ENTRA_GROUP_OBJECT_ID"
+  }
+  security_readers = {
+    name        = "AZ-Security-Readers"
+    sso_team_id = "REPLACE_ME_ENTRA_GROUP_OBJECT_ID"
+  }
+}
+
+workspace_team_access = {
+  platform_ops_governance = {
+    workspace_key = "governance"
+    team_key      = "platform_ops"
+    access        = "write"
+  }
+  security_platform_read = {
+    workspace_key = "platform"
+    team_key      = "security_readers"
+    access        = "read"
+  }
+}
+
+variable_sets = {
+  azure = {
+    name           = "alz-azure-common"
+    description    = "Common Azure provider inputs"
+    workspace_keys = ["governance", "platform", "connectivity"]
+    variables = {
+      tenant_id = {
+        key      = "ARM_TENANT_ID"
+        value    = "REPLACE_ME"
+        category = "env"
+      }
+    }
+  }
+}
+
+registry_modules = {
+  keyvault = {
+    name            = "compeer-keyvault"
+    module_provider = "azurerm"
+    registry_name   = "private"
+  }
+  storage_account = {
+    name            = "compeer-storage-account"
+    module_provider = "azurerm"
+    registry_name   = "private"
+  }
+  private_endpoint = {
+    name            = "compeer-private-endpoint"
+    module_provider = "azurerm"
+    registry_name   = "private"
+  }
+}
+
+policy_sets = {
+  alz_guardrails = {
+    name           = "alz-guardrails"
+    kind           = "sentinel"
+    global         = false
+    workspace_keys = ["governance", "platform", "connectivity"]
+    vcs_repo = {
+      identifier = "Compeer-Financial-Services/alz-policy"
+      branch     = "main"
+    }
+  }
+}
+
+run_triggers = {
+  governance_to_platform = {
+    workspace_key        = "platform"
+    source_workspace_key = "governance"
+  }
+}

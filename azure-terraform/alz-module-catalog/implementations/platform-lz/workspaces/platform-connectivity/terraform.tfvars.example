@@ -1,0 +1,84 @@
+tenant_id                 = "00000000-0000-0000-0000-000000000000"
+subscription_id           = "00000000-0000-0000-0000-000000000000"
+location                  = "centralus"
+environment               = "prod"
+tfe_organization          = "Compeer-Financial-Services"
+management_workspace_name = "platform-management"
+
+platform_tags = {
+  application         = "alz-platform-connectivity"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-connectivity"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+connectivity = {
+  enabled = true
+  resource_group = {
+    name = "rg-platform-connectivity-prod"
+  }
+  hub_vnet = {
+    name          = "vnet-hub-prod-centralus-001"
+    address_space = ["10.0.0.0/16"]
+    dns_servers   = []
+    subnets = {
+      GatewaySubnet        = { address_prefixes = ["10.0.0.64/27"] }
+      RouteServerSubnet    = { address_prefixes = ["10.0.0.96/27"] }
+      AzureBastionSubnet   = { address_prefixes = ["10.0.0.128/26"] }
+      app_integration      = { address_prefixes = ["10.0.1.0/24"] }
+      private_endpoints    = { address_prefixes = ["10.0.2.0/24"] }
+      palo_alto_management = { address_prefixes = ["10.0.3.0/24"] }
+      palo_alto_untrusted  = { address_prefixes = ["10.0.4.0/24"] }
+      palo_alto_trusted    = { address_prefixes = ["10.0.5.0/24"] }
+    }
+  }
+  ddos_protection_plan = {
+    enabled             = false
+    name                = "ddos-platform-prod-001"
+    enable_for_hub_vnet = true
+  }
+  dns_resolution = {
+    enabled                  = false
+    mode                     = "dc-forwarders"
+    private_resolver_enabled = false
+    dns_server_ips           = []
+  }
+  private_dns_resolver = {
+    enabled            = false
+    inbound_endpoints  = {}
+    outbound_endpoints = {}
+  }
+  bastion = {
+    enabled            = false
+    name               = "bas-platform-prod-001"
+    subnet_key         = "AzureBastionSubnet"
+    sku                = "Standard"
+    tunneling_enabled  = true
+    ip_connect_enabled = true
+  }
+  network_security_groups         = {}
+  subnet_nsg_associations         = {}
+  route_tables                    = {}
+  subnet_route_table_associations = {}
+  public_ips                      = {}
+  route_server_public_ips         = {}
+  route_servers                   = {}
+  load_balancers                  = {}
+  network_watchers                = {}
+  local_network_gateways          = {}
+  network_watcher_flow_logs       = {}
+  private_dns_zones = {
+    app_service   = { name = "privatelink.azurewebsites.net", registration_enabled = false, link_to_hub = true }
+    key_vault     = { name = "privatelink.vaultcore.azure.net", registration_enabled = false, link_to_hub = true }
+    storage_blob  = { name = "privatelink.blob.core.windows.net", registration_enabled = false, link_to_hub = true }
+    storage_queue = { name = "privatelink.queue.core.windows.net", registration_enabled = false, link_to_hub = true }
+    storage_file  = { name = "privatelink.file.core.windows.net", registration_enabled = false, link_to_hub = true }
+  }
+}

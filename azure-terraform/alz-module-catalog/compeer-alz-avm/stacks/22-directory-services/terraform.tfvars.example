@@ -1,0 +1,43 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+location            = "centralus"
+resource_group_name = "cmp-prod-cus-identity-rg"
+
+domain_controllers = {
+  dc01 = {
+    name                   = "cmp-prod-cus-dc-01"
+    computer_name          = "CMP-CUS-DC01"
+    network_interface_name = "cmp-prod-cus-dc-01-nic"
+    subnet_id              = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/SharedServicesSubnet"
+    private_ip_address     = "10.40.0.132"
+    zone                   = "1"
+    data_disks = {
+      ntds = {
+        name         = "cmp-prod-cus-dc-01-ntds"
+        lun          = 0
+        disk_size_gb = 128
+      }
+    }
+  }
+  dc02 = {
+    name                   = "cmp-prod-cus-dc-02"
+    computer_name          = "CMP-CUS-DC02"
+    network_interface_name = "cmp-prod-cus-dc-02-nic"
+    subnet_id              = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/SharedServicesSubnet"
+    private_ip_address     = "10.40.0.133"
+    zone                   = "2"
+    data_disks = {
+      ntds = {
+        name         = "cmp-prod-cus-dc-02-ntds"
+        lun          = 0
+        disk_size_gb = 128
+      }
+    }
+  }
+}
+
+admin_passwords = {
+  dc01 = "REPLACE_ME_SECURE_PASSWORD"
+  dc02 = "REPLACE_ME_SECURE_PASSWORD"
+}
+
+log_analytics_workspace_id = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-mgmt-rg/providers/Microsoft.OperationalInsights/workspaces/cmp-prod-cus-law"

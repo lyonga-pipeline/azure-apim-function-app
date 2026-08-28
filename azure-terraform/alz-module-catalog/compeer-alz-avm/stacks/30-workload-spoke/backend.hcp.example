@@ -1,0 +1,8 @@
+terraform {
+  cloud {
+    organization = "REPLACE_HCP_ORGANIZATION"
+    workspaces {
+      name = "REPLACE_30_workload_spoke_WORKSPACE"
+    }
+  }
+}

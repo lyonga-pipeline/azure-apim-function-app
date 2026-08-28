@@ -12,6 +12,12 @@ variable "local_network_gateways" {
       peer_weight         = optional(number)
     }))
     tags = optional(map(string), {})
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }), {})
   }))
   default = {}
 }

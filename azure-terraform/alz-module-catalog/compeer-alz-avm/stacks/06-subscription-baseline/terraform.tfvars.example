@@ -1,0 +1,73 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+environment     = "prod"
+prefix          = "cmp"
+location        = "centralus"
+
+resource_provider_registrations = [
+  "Microsoft.Authorization",
+  "Microsoft.Compute",
+  "Microsoft.Insights",
+  "Microsoft.KeyVault",
+  "Microsoft.Network",
+  "Microsoft.OperationalInsights",
+  "Microsoft.RecoveryServices",
+  "Microsoft.Security",
+  "Microsoft.Storage"
+]
+
+resource_groups = {
+  network    = { name = "cmp-prod-cus-network-rg" }
+  monitoring = { name = "cmp-prod-cus-monitoring-rg" }
+  security   = { name = "cmp-prod-cus-security-rg" }
+  identity   = { name = "cmp-prod-cus-identity-rg" }
+  backup     = { name = "cmp-prod-cus-backup-rg" }
+}
+
+log_analytics_workspace_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.OperationalInsights/workspaces/REPLACE"
+
+defender_enabled = false
+soc_posture_contract = {
+  defender_standard_enabled     = false
+  sentinel_enabled              = true
+  data_collection_rules_enabled = false
+  security_contact_enabled      = false
+  notes                         = "Defender plans are held until cost and SOC approval."
+}
+
+budgets = {
+  platform = {
+    name       = "cmp-prod-platform-monthly"
+    amount     = 1000
+    start_date = "2026-01-01T00:00:00Z"
+    notifications = {
+      actual_80 = {
+        threshold      = 80
+        threshold_type = "Actual"
+        contact_emails = ["cloud-finops@example.com"]
+      }
+      forecast_100 = {
+        threshold      = 100
+        threshold_type = "Forecasted"
+        contact_emails = ["cloud-finops@example.com"]
+      }
+    }
+  }
+}
+
+operational_contracts = {
+  provider_enablement = {
+    phase                = "Phase 1"
+    owner                = "Cloud Enablement"
+    implementation_state = "external-system"
+    required_controls    = ["Marketplace terms accepted", "Regional quota approved"]
+    evidence_locations   = ["Azure support request", "EA/MCA marketplace setting"]
+    notes                = "Step 0.4 and 0.5 prerequisite gates remain externally approved before apply."
+  }
+}
+
+tags = {
+  CostCenter  = "REPLACE_ME"
+  Owner       = "REPLACE_ME"
+  DataClass   = "Internal"
+  Criticality = "Tier1"
+}

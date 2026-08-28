@@ -1,0 +1,8 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "REPLACE_ME"
+name = "cmp-prod-cus-sql"
+private_endpoint_subnet_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/virtualNetworks/REPLACE/subnets/PrivateEndpoints"
+private_dns_zone_ids = ["/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net"]
+log_analytics_workspace_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.OperationalInsights/workspaces/REPLACE"
+entra_admin_login = "REPLACE_ME"
+entra_admin_object_id = "00000000-0000-0000-0000-000000000000"

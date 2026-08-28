@@ -1,0 +1,15 @@
+tenant_id                 = "00000000-0000-0000-0000-000000000000"
+execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+location                  = "centralus"
+tfe_organization          = "Compeer-Financial-Services"
+governance_workspace_name = "platform-governance"
+
+policy = {
+  enabled = false
+
+  policy_assignment_location          = "centralus"
+  custom_policy_definitions           = {}
+  custom_policy_set_definitions       = {}
+  management_group_policy_assignments = {}
+  subscription_policy_assignments     = {}
+}

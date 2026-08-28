@@ -1,0 +1,6 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "REPLACE_ME"
+node_subnet_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/virtualNetworks/REPLACE/subnets/aks"
+pod_cidr = "10.244.0.0/16"
+service_cidr = "10.0.0.0/16"
+dns_service_ip = "10.0.0.10"

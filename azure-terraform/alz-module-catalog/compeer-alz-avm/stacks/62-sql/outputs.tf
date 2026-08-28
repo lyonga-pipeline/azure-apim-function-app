@@ -1,0 +1,1 @@
+output "sql_server_id" { value = module.sql_server.resource_id }

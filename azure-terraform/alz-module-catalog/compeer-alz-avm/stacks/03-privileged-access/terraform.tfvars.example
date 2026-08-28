@@ -1,0 +1,28 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+pim_eligible_role_assignments = {
+  platform_operator = {
+    scope              = "/providers/Microsoft.Management/managementGroups/compeer-platform-mg"
+    role_definition_id = "/providers/Microsoft.Management/managementGroups/compeer-platform-mg/providers/Microsoft.Authorization/roleDefinitions/REPLACE_ME"
+    principal_id       = "REPLACE_ME_ENTRA_GROUP_OBJECT_ID"
+    justification      = "ALZ platform operations JIT access"
+    schedule = {
+      expiration = {
+        duration_days = 365
+      }
+    }
+  }
+}
+
+break_glass_user_principal_names = [
+  "az-breakglass-01@compeer.example",
+  "az-breakglass-02@compeer.example",
+]
+
+log_analytics_workspace_id = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-mgmt-rg/providers/Microsoft.OperationalInsights/workspaces/cmp-prod-cus-law"
+
+break_glass_alert = {
+  enabled             = false
+  resource_group_name = "cmp-prod-cus-mgmt-rg"
+  action_group_ids    = []
+}

@@ -25,6 +25,16 @@ resource "azurerm_route_server" "this" {
   public_ip_address_id             = each.value.public_ip_address_id
   branch_to_branch_traffic_enabled = try(each.value.branch_to_branch_traffic_enabled, true)
   tags                             = try(each.value.tags, {})
+
+  dynamic "timeouts" {
+    for_each = length(try(each.value.timeouts, {})) == 0 ? [] : [each.value.timeouts]
+    content {
+      create = try(timeouts.value.create, null)
+      read   = try(timeouts.value.read, null)
+      update = try(timeouts.value.update, null)
+      delete = try(timeouts.value.delete, null)
+    }
+  }
 }
 
 resource "azurerm_route_server_bgp_connection" "this" {
@@ -34,4 +44,13 @@ resource "azurerm_route_server_bgp_connection" "this" {
   route_server_id = coalesce(try(each.value.ipv4_route_server_id, null), azurerm_route_server.this[each.value.route_server_key].id)
   peer_asn        = each.value.peer_asn
   peer_ip         = each.value.peer_ip
+
+  dynamic "timeouts" {
+    for_each = length(try(each.value.timeouts, {})) == 0 ? [] : [each.value.timeouts]
+    content {
+      create = try(timeouts.value.create, null)
+      read   = try(timeouts.value.read, null)
+      delete = try(timeouts.value.delete, null)
+    }
+  }
 }

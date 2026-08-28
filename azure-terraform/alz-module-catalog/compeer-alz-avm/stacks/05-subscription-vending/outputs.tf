@@ -1,0 +1,1 @@
+output "subscription_ids" { value = { for k, v in module.subscription : k => v.subscription_id } }

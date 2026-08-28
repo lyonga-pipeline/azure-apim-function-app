@@ -1,0 +1,52 @@
+tenant_id                   = "00000000-0000-0000-0000-000000000000"
+subscription_id             = "00000000-0000-0000-0000-000000000000"
+location                    = "centralus"
+environment                 = "prod"
+tfe_organization            = "Compeer-Financial-Services"
+management_workspace_name   = "platform-management"
+connectivity_workspace_name = "platform-connectivity"
+
+platform_tags = {
+  application         = "alz-platform-shared-services"
+  business_owner      = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  terraform_workspace = "platform-shared-services"
+  recovery_tier       = "standard"
+  cost_center         = "CC-0000"
+  data_classification = "confidential"
+  compliance_boundary = "enterprise"
+  additional_tags = {
+    created_by = "terraform"
+  }
+}
+
+shared_services = {
+  enabled = false
+
+  resource_group = {
+    name = "rg-platform-shared-services-prod"
+  }
+
+  spoke_vnet = {
+    name          = "platform-cus-prod-shared-vnet"
+    address_space = ["10.255.0.0/24"]
+    subnets = {
+      private_endpoints = {
+        address_prefixes = ["10.255.0.0/27"]
+      }
+      shared_services = {
+        address_prefixes = ["10.255.0.32/27"]
+      }
+    }
+  }
+
+  platform_identity               = { enabled = false }
+  platform_key_vault              = { enabled = false }
+  network_security_groups         = {}
+  subnet_nsg_associations         = {}
+  route_tables                    = {}
+  subnet_route_table_associations = {}
+  role_assignments                = {}
+  management_locks                = {}
+  diagnostic_settings             = {}
+}

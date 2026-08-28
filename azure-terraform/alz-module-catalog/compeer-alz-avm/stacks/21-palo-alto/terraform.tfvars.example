@@ -1,0 +1,65 @@
+subscription_id      = "00000000-0000-0000-0000-000000000000"
+location             = "centralus"
+resource_group_name  = "cmp-prod-cus-connectivity-rg"
+bootstrap_storage_name = "cmpprodcuspaloboot"
+
+bootstrap_file_share = {
+  name     = "bootstrap"
+  quota_gb = 50
+}
+
+marketplace_agreements = {
+  vmseries = {
+    publisher = "paloaltonetworks"
+    offer     = "vmseries-flex"
+    plan      = "byol"
+  }
+}
+
+appliances = {
+  fw01 = {
+    name            = "cmp-prod-cus-pa-01"
+    vm_size         = "Standard_D4s_v5"
+    zone            = "1"
+    interface_order = ["management", "untrust", "trust", "ha"]
+    source_image_reference = {
+      publisher = "paloaltonetworks"
+      offer     = "vmseries-flex"
+      sku       = "byol"
+      version   = "latest"
+    }
+    plan = {
+      name      = "byol"
+      publisher = "paloaltonetworks"
+      product   = "vmseries-flex"
+    }
+    interfaces = {
+      management = {
+        name               = "cmp-prod-cus-pa-01-mgmt-nic"
+        subnet_id          = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/MgmtSubnet"
+        private_ip_address = "10.40.0.68"
+      }
+      untrust = {
+        name                          = "cmp-prod-cus-pa-01-untrust-nic"
+        subnet_id                     = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/UntrustSubnet"
+        private_ip_address            = "10.40.0.36"
+        load_balancer_backend_pool_id = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/loadBalancers/cmp-prod-cus-palo-untrust-ilb/backendAddressPools/palo-untrust-pool"
+      }
+      trust = {
+        name                          = "cmp-prod-cus-pa-01-trust-nic"
+        subnet_id                     = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/TrustSubnet"
+        private_ip_address            = "10.40.0.20"
+        load_balancer_backend_pool_id = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/loadBalancers/cmp-prod-cus-palo-trust-ilb/backendAddressPools/palo-trust-pool"
+      }
+      ha = {
+        name               = "cmp-prod-cus-pa-01-ha-nic"
+        subnet_id          = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworks/cmp-prod-cus-hub-vnet/subnets/MgmtSubnet"
+        private_ip_address = "10.40.0.69"
+      }
+    }
+  }
+}
+
+admin_passwords = {
+  fw01 = "REPLACE_ME_SECURE_PASSWORD"
+}

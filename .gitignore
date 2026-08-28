@@ -8,3 +8,5 @@ terraform.tfstate.backup
 *.tfplan
 crash.log
 azure-terraform/modules/storage-account/.local-validation/20260702-225658/module-validation.log
+azure-terraform/alz-module-catalog/modules.zip
+azure-terraform/alz-module-catalog/modules.zip

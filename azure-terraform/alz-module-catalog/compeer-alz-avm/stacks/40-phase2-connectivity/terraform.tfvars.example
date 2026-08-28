@@ -1,0 +1,36 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "cmp-prod-cus-connectivity-rg"
+hub_vnet_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/virtualNetworks/REPLACE"
+log_analytics_workspace_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.OperationalInsights/workspaces/REPLACE"
+app_gateway_subnet_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/virtualNetworks/REPLACE/subnets/AppGatewaySubnet"
+app_gateway_backend_ips = []
+enable_vpn_gateway = false
+
+network_watchers = {
+  centralus = {
+    name                = "NetworkWatcher_centralus"
+    resource_group_name = "NetworkWatcherRG"
+    location            = "centralus"
+  }
+}
+
+local_network_gateways = {
+  datacenter = {
+    name            = "cmp-prod-cus-dc-lng"
+    gateway_address = "203.0.113.10"
+    address_space   = ["10.0.0.0/8"]
+    bgp_settings = {
+      asn                 = 65010
+      bgp_peering_address = "10.255.255.1"
+    }
+  }
+}
+
+vpn_connections = {}
+vpn_connection_shared_keys = {}
+
+route_server_public_ips = {}
+route_servers = {}
+
+network_watcher_flow_logs = {}
+network_connection_monitors = {}

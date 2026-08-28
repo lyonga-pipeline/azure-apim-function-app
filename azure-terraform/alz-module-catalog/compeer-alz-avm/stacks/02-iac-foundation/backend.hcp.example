@@ -1,0 +1,9 @@
+terraform {
+  cloud {
+    organization = "Compeer-Financial-Services"
+
+    workspaces {
+      name = "alz-02-iac-foundation"
+    }
+  }
+}

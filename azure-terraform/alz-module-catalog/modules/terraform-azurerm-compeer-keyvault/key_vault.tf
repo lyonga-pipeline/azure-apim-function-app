@@ -6,7 +6,7 @@ resource "azurerm_key_vault" "keyvault" {
   location                        = var.location
   resource_group_name             = var.resource_group_name
   sku_name                        = var.sku_name
-  tenant_id                       = data.azurerm_client_config.current.tenant_id
+  tenant_id                       = local.tenant_id
   enabled_for_deployment          = var.enabled_for_deployment
   enabled_for_disk_encryption     = var.enabled_for_disk_encryption
   enabled_for_template_deployment = var.enabled_for_template_deployment
@@ -16,7 +16,7 @@ resource "azurerm_key_vault" "keyvault" {
   soft_delete_retention_days      = var.soft_delete_retention_days
 
   dynamic "access_policy" {
-    for_each = local.rbac_authorization_enabled ? [] : var.access_policies
+    for_each = local.rbac_authorization_enabled ? {} : local.access_policies
     content {
       tenant_id               = access_policy.value.tenant_id
       object_id               = access_policy.value.object_id
@@ -50,9 +50,9 @@ resource "azurerm_key_vault" "keyvault" {
   tags = var.tags
 
   timeouts {
-    create = "4h"
-    update = "4h"
-    read   = "4h"
-    delete = "4h"
+    create = try(var.timeouts.create, "4h")
+    update = try(var.timeouts.update, "4h")
+    read   = try(var.timeouts.read, "4h")
+    delete = try(var.timeouts.delete, "4h")
   }
 }

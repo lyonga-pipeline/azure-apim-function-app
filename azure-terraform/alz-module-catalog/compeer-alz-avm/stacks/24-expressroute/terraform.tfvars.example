@@ -1,0 +1,33 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+location            = "centralus"
+resource_group_name = "cmp-prod-cus-connectivity-rg"
+
+expressroute_circuits = {
+  ch3_2gbps = {
+    name                  = "cmp-prod-cus-er-ch3"
+    service_provider_name = "Equinix"
+    peering_location      = "Chicago"
+    bandwidth_in_mbps     = 2000
+    sku = {
+      tier   = "Standard"
+      family = "MeteredData"
+    }
+    peerings = {
+      private = {
+        peering_type                  = "AzurePrivatePeering"
+        vlan_id                       = 120
+        peer_asn                      = 65010
+        primary_peer_address_prefix   = "192.0.2.0/30"
+        secondary_peer_address_prefix = "192.0.2.4/30"
+      }
+    }
+  }
+}
+
+gateway_connections = {
+  hub = {
+    name                       = "cmp-prod-cus-er-conn"
+    virtual_network_gateway_id = "/subscriptions/REPLACE_ME/resourceGroups/cmp-prod-cus-connectivity-rg/providers/Microsoft.Network/virtualNetworkGateways/cmp-prod-cus-ergw"
+    express_route_circuit_key  = "ch3_2gbps"
+  }
+}

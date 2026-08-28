@@ -1,0 +1,49 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+environment = "prod"
+prefix      = "cmp"
+location    = "centralus"
+log_analytics_workspace_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.OperationalInsights/workspaces/REPLACE"
+hub_address_space = ["10.200.0.0/16"] # REPLACE with approved IPAM allocation
+subnets = {
+  GatewaySubnet        = { address_prefixes = ["10.200.0.0/26"], route_table_key = "gateway" }
+  AzureBastionSubnet   = { address_prefixes = ["10.200.0.64/26"] }
+  MgmtSubnet           = { address_prefixes = ["10.200.1.0/24"], route_table_key = "management" }
+  UntrustSubnet        = { address_prefixes = ["10.200.2.0/24"] }
+  TrustSubnet          = { address_prefixes = ["10.200.3.0/24"] }
+  SharedServicesSubnet = { address_prefixes = ["10.200.4.0/24"] }
+  AppGatewaySubnet     = { address_prefixes = ["10.200.5.0/24"] }
+  CloudflareSubnet     = { address_prefixes = ["10.200.6.0/24"] }
+}
+hub_route_tables = {
+  gateway = {
+    bgp_route_propagation_enabled = true
+    routes = {
+      spoke_prod = {
+        name                   = "internal-apps-prod"
+        address_prefix         = "10.210.0.0/16"
+        next_hop_type          = "VirtualAppliance"
+        next_hop_in_ip_address = "10.200.3.10"
+      }
+      spoke_nonprod = {
+        name                   = "internal-apps-nonprod"
+        address_prefix         = "10.211.0.0/16"
+        next_hop_type          = "VirtualAppliance"
+        next_hop_in_ip_address = "10.200.3.10"
+      }
+    }
+  }
+  management = {
+    bgp_route_propagation_enabled = true
+    routes = {}
+  }
+}
+enable_private_dns_resolver = false
+enable_bastion              = true
+tags = { CostCenter = "REPLACE_ME", Owner = "REPLACE_ME", DataClass = "Internal" }
+
+# Reserve approved ILB VIPs from the Trust/Untrust subnets.
+palo_trust_ilb_ip   = "10.200.3.10"
+palo_untrust_ilb_ip = "10.200.2.10"
+# Backend addresses are populated after Palo Alto instances/NICs exist.
+palo_trust_backend_addresses = {}
+palo_untrust_backend_addresses = {}

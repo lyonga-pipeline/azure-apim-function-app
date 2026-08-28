@@ -22,3 +22,19 @@ output "bootstrap_storage_account_id" {
   description = "Bootstrap storage account ID when configured."
   value       = try(module.bootstrap_storage[0].id, null)
 }
+
+output "marketplace_agreement_id" {
+  description = "Palo Alto Marketplace agreement ID when managed by this pattern."
+  value       = try(azurerm_marketplace_agreement.palo_alto[0].id, null)
+}
+
+output "vendor_vmseries" {
+  description = "Palo Alto Networks swfw-modules VM-Series outputs keyed by firewall key."
+  value = {
+    for key, firewall in module.vendor_vmseries : key => {
+      mgmt_ip_address = firewall.mgmt_ip_address
+      interfaces      = firewall.interfaces
+      principal_id    = firewall.principal_id
+    }
+  }
+}

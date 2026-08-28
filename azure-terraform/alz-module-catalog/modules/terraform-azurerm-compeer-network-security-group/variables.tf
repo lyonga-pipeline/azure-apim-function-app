@@ -14,7 +14,7 @@ variable "location" {
 }
 
 variable "security_rule" {
-  description = "List of objects representing security rules, as defined below."
+  description = "Backward-compatible list of security rules. Prefer security_rules for new consumers so rule identity is keyed by name."
   type = list(object({
     name                                       = string
     description                                = optional(string)
@@ -33,11 +33,30 @@ variable "security_rule" {
     priority                                   = number
     direction                                  = string
   }))
+  default = []
 }
 
-variable "subnet_id" {
-  description = "The ID of the Subnet. Changing this forces a new resource to be created."
-  type        = string
+variable "security_rules" {
+  description = "Keyed security rules. Keys should be stable names; each value.name is the Azure NSG rule name."
+  type = map(object({
+    name                                       = string
+    description                                = optional(string)
+    protocol                                   = optional(string)
+    source_port_range                          = optional(string)
+    source_port_ranges                         = optional(set(string))
+    destination_port_range                     = optional(string)
+    destination_port_ranges                    = optional(set(string))
+    source_address_prefix                      = optional(string)
+    source_address_prefixes                    = optional(set(string))
+    source_application_security_group_ids      = optional(set(string))
+    destination_address_prefix                 = optional(string)
+    destination_address_prefixes               = optional(set(string))
+    destination_application_security_group_ids = optional(set(string))
+    access                                     = string
+    priority                                   = number
+    direction                                  = string
+  }))
+  default = {}
 }
 
 variable "tags" {

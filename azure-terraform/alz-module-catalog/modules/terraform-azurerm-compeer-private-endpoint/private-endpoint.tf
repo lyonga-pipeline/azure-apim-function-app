@@ -3,10 +3,11 @@ resource "azurerm_private_endpoint" "private_endpoint" {
   resource_group_name           = var.resource_group_name
   custom_network_interface_name = var.custom_network_interface_name != null ? var.custom_network_interface_name : null
   location                      = var.location
+  edge_zone                     = var.edge_zone
   subnet_id                     = var.subnet_id
   tags                          = var.tags
   dynamic "private_service_connection" {
-    for_each = var.private_service_connections
+    for_each = local.private_service_connections
     content {
       name                              = private_service_connection.value.name
       is_manual_connection              = private_service_connection.value.is_manual_connection
@@ -17,14 +18,14 @@ resource "azurerm_private_endpoint" "private_endpoint" {
     }
   }
   dynamic "private_dns_zone_group" {
-    for_each = var.private_dns_zone_group
+    for_each = local.private_dns_zone_groups
     content {
       name                 = private_dns_zone_group.value.name
       private_dns_zone_ids = private_dns_zone_group.value.private_dns_zone_ids
     }
   }
   dynamic "ip_configuration" {
-    for_each = var.ip_configurations
+    for_each = local.ip_configurations
     content {
       name               = ip_configuration.value.name
       private_ip_address = ip_configuration.value.private_ip_address
@@ -34,9 +35,9 @@ resource "azurerm_private_endpoint" "private_endpoint" {
   }
 
   timeouts {
-    create = "1h"
-    update = "1h"
-    read   = "5m"
-    delete = "1h"
+    create = try(var.timeouts.create, "1h")
+    update = try(var.timeouts.update, "1h")
+    read   = try(var.timeouts.read, "5m")
+    delete = try(var.timeouts.delete, "1h")
   }
 }

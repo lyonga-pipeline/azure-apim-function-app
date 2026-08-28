@@ -22,6 +22,14 @@ output "key_vault_uri" {
   value = module.key_vault.vault_uri
 }
 
+output "key_vault_private_endpoint_id" {
+  value = try(module.key_vault_private_endpoint[0].id, null)
+}
+
+output "key_vault_diagnostic_setting_id" {
+  value = try(module.key_vault_diagnostics[0].id, null)
+}
+
 output "role_assignment_ids" {
   value = module.role_assignments.ids
 }

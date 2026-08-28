@@ -1,0 +1,17 @@
+subscriptions = {
+  connectivity = {
+    alias_name = "cmp-connectivity-prod"
+    display_name = "Compeer Connectivity Production"
+    billing_scope = "/providers/Microsoft.Billing/billingAccounts/REPLACE/enrollmentAccounts/REPLACE"
+    workload = "Production"
+    management_group_id = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    tags = { Environment = "prod", ManagedBy = "Terraform" }
+  }
+  management = {
+    alias_name = "cmp-management-prod"
+    display_name = "Compeer Management Production"
+    billing_scope = "/providers/Microsoft.Billing/billingAccounts/REPLACE/enrollmentAccounts/REPLACE"
+    workload = "Production"
+    management_group_id = "/providers/Microsoft.Management/managementGroups/platform-mg"
+  }
+}

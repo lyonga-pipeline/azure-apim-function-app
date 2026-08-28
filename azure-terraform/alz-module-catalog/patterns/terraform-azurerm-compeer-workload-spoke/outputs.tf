@@ -26,6 +26,34 @@ output "private_endpoint_subnet_id" {
   value = try(module.spoke_vnet.subnet_ids["private_endpoints"], null)
 }
 
+output "workload_identity_id" {
+  value = try(module.workload_identity[0].id, null)
+}
+
+output "workload_identity_client_id" {
+  value = try(module.workload_identity[0].client_id, null)
+}
+
+output "workload_identity_principal_id" {
+  value = try(module.workload_identity[0].principal_id, null)
+}
+
+output "workload_key_vault_id" {
+  value = try(module.workload_key_vault[0].id, null)
+}
+
+output "workload_key_vault_name" {
+  value = try(module.workload_key_vault[0].name, null)
+}
+
+output "workload_key_vault_private_endpoint_id" {
+  value = try(module.workload_key_vault_private_endpoint[0].id, null)
+}
+
+output "workload_key_vault_diagnostic_setting_id" {
+  value = try(module.workload_key_vault_diagnostics[0].id, null)
+}
+
 output "spoke_to_hub_peering_id" {
   value = try(module.spoke_to_hub_peering[0].id, null)
 }

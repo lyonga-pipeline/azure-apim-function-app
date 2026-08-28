@@ -1,0 +1,46 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+location            = "centralus"
+resource_group_name = "cmp-prod-cus-avd-rg"
+
+application_group = {
+  name = "cmp-prod-cus-avd-dag"
+  type = "Desktop"
+}
+
+host_pool = {
+  name               = "cmp-prod-cus-avd-hp"
+  type               = "Pooled"
+  load_balancer_type = "BreadthFirst"
+}
+
+workspace = {
+  name                          = "cmp-prod-cus-avd-ws"
+  public_network_access_enabled = false
+}
+
+scaling_plan = {
+  name      = "cmp-prod-cus-avd-sp"
+  time_zone = "Central Standard Time"
+  schedule = [
+    {
+      name                                 = "weekday"
+      days_of_week                         = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+      ramp_up_start_time                   = "06:00"
+      ramp_up_load_balancing_algorithm     = "BreadthFirst"
+      ramp_up_capacity_threshold_percent   = 60
+      ramp_up_minimum_hosts_percent        = 20
+      peak_start_time                      = "08:00"
+      peak_load_balancing_algorithm        = "BreadthFirst"
+      ramp_down_start_time                 = "17:00"
+      ramp_down_load_balancing_algorithm   = "DepthFirst"
+      ramp_down_capacity_threshold_percent = 40
+      ramp_down_minimum_hosts_percent      = 10
+      ramp_down_force_logoff_users         = false
+      ramp_down_wait_time_minutes          = 30
+      ramp_down_notification_message       = "Please save your work and sign out."
+      ramp_down_stop_hosts_when            = "ZeroActiveSessions"
+      off_peak_start_time                  = "20:00"
+      off_peak_load_balancing_algorithm    = "DepthFirst"
+    }
+  ]
+}

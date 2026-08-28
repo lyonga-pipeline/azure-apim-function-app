@@ -1,0 +1,1 @@
+output "apim_id" { value = module.apim.resource_id }

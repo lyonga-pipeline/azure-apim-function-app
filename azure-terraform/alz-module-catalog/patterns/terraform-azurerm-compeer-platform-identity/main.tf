@@ -36,31 +36,49 @@ module "platform_identities" {
 module "key_vault" {
   source = "../../modules/terraform-azurerm-compeer-keyvault"
 
-  name                          = var.key_vault.name
-  resource_group_name           = module.resource_group.name
-  location                      = module.resource_group.location
-  sku_name                      = var.key_vault.sku_name
-  soft_delete_retention_days    = var.key_vault.soft_delete_retention_days
-  purge_protection_enabled      = var.key_vault.purge_protection_enabled
-  rbac_authorization_enabled    = true
-  public_network_access_enabled = false
-  network_acls = {
+  name                        = var.key_vault.name
+  resource_group_name         = module.resource_group.name
+  location                    = module.resource_group.location
+  tenant_id                   = var.tenant_id
+  sku_name                    = var.key_vault.sku_name
+  soft_delete_retention_days  = var.key_vault.soft_delete_retention_days
+  purge_protection_enabled    = var.key_vault.purge_protection_enabled
+  rbac_authorization_enabled  = try(var.key_vault.rbac_authorization_enabled, true)
+  access_policies             = try(var.key_vault.access_policies, [])
+  access_policies_by_key      = try(var.key_vault.access_policies_by_key, {})
+  enabled_for_deployment      = try(var.key_vault.enabled_for_deployment, false)
+  enabled_for_disk_encryption = try(var.key_vault.enabled_for_disk_encryption, false)
+  enabled_for_template_deployment = try(
+    var.key_vault.enabled_for_template_deployment,
+    false
+  )
+  public_network_access_enabled = try(var.key_vault.public_network_access_enabled, false)
+  network_acls = coalesce(try(var.key_vault.network_acls, null), {
     bypass         = "None"
     default_action = "Deny"
-  }
+  })
   contacts = values(var.key_vault.contacts)
+  timeouts = try(var.key_vault.timeouts, {})
   tags     = module.tags.tags
 }
 
 locals {
   identity_role_assignments = {
     for key, assignment in var.identity_role_assignments : key => {
-      scope                = coalesce(try(assignment.scope, null), module.key_vault.id)
-      principal_id         = module.platform_identities[assignment.identity_key].principal_id
-      principal_type       = assignment.principal_type
-      role_definition_name = try(assignment.role_definition_name, null)
-      role_definition_id   = try(assignment.role_definition_id, null)
-      description          = try(assignment.description, null)
+      scope                            = coalesce(try(assignment.scope, null), module.key_vault.id)
+      name                             = try(assignment.name, null)
+      principal_id                     = module.platform_identities[assignment.identity_key].principal_id
+      principal_type                   = assignment.principal_type
+      role_definition_name             = try(assignment.role_definition_name, null)
+      role_definition_id               = try(assignment.role_definition_id, null)
+      description                      = try(assignment.description, null)
+      condition                        = try(assignment.condition, null)
+      condition_version                = try(assignment.condition_version, null)
+      skip_service_principal_aad_check = try(assignment.skip_service_principal_aad_check, null)
+      delegated_managed_identity_resource_id = try(
+        assignment.delegated_managed_identity_resource_id,
+        null
+      )
     }
   }
 }
@@ -78,6 +96,7 @@ module "key_vault_private_endpoint" {
   name                = var.key_vault_private_endpoint.name
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
+  edge_zone           = try(var.key_vault_private_endpoint.edge_zone, null)
   subnet_id           = var.key_vault_private_endpoint.subnet_id
   private_service_connections = [
     {
@@ -91,18 +110,20 @@ module "key_vault_private_endpoint" {
     name                 = "${var.key_vault_private_endpoint.name}-dns"
     private_dns_zone_ids = var.key_vault_private_endpoint.private_dns_zone_ids
   }]
-  tags = module.tags.tags
+  timeouts = try(var.key_vault_private_endpoint.timeouts, {})
+  tags     = module.tags.tags
 }
 
 module "key_vault_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   count  = var.log_analytics_workspace_id == null ? 0 : 1
 
-  name                       = "${var.key_vault.name}-diag"
-  target_resource_id         = module.key_vault.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-  logs                       = var.diagnostics.logs
-  metrics                    = var.diagnostics.metrics
+  name                           = "${var.key_vault.name}-diag"
+  target_resource_id             = module.key_vault.id
+  log_analytics_workspace_id     = var.log_analytics_workspace_id
+  log_analytics_destination_type = try(var.diagnostics.log_analytics_destination_type, null)
+  logs                           = var.diagnostics.logs
+  metrics                        = var.diagnostics.metrics
 }
 
 locals {

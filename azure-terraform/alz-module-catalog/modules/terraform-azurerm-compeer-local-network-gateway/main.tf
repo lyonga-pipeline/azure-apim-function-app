@@ -16,4 +16,14 @@ resource "azurerm_local_network_gateway" "this" {
       peer_weight         = try(bgp_settings.value.peer_weight, null)
     }
   }
+
+  dynamic "timeouts" {
+    for_each = length(try(each.value.timeouts, {})) == 0 ? [] : [each.value.timeouts]
+    content {
+      create = try(timeouts.value.create, null)
+      read   = try(timeouts.value.read, null)
+      update = try(timeouts.value.update, null)
+      delete = try(timeouts.value.delete, null)
+    }
+  }
 }

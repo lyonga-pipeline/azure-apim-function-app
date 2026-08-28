@@ -1,0 +1,4 @@
+organization = "Compeer-Financial-Services"
+workspaces {
+  name = "cmp-prod-cus-workload-identity"
+}

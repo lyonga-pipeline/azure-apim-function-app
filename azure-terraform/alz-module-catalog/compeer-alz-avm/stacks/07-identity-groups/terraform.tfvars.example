@@ -1,0 +1,42 @@
+rbac_groups = {
+  platform_operators = {
+    display_name = "Prod_Azure_Platform_Operator"
+    description  = "Eligible platform operators for Central US ALZ."
+  }
+  network_operators = {
+    display_name = "Prod_Azure_Network_Operator"
+    description  = "Eligible network operators for Central US connectivity."
+  }
+  security_readers = {
+    display_name = "Prod_Azure_Security_Reader"
+    description  = "Security and audit readers for ALZ evidence."
+  }
+  workload_contributors = {
+    display_name = "Prod_Azure_Workload_Contributor"
+    description  = "Workload contributor group used by subscription baseline RBAC."
+  }
+}
+
+operational_contracts = {
+  conditional_access = {
+    phase                = "Phase 1"
+    owner                = "Identity"
+    implementation_state = "external-system"
+    required_controls    = ["MFA", "Compliant device", "Azure management plane apps"]
+    notes                = "IAM-08 is tenant-wide and validated outside Terraform to avoid lockout risk."
+  }
+  break_glass = {
+    phase                = "Phase 1"
+    owner                = "Identity"
+    implementation_state = "external-system"
+    required_controls    = ["Two cloud-only accounts", "CA exclusion", "Sign-in alert"]
+    notes                = "IAM-04 accounts are deliberately manual; monitoring is implemented through the observability/SOC baseline."
+  }
+  pim_approval = {
+    phase                = "Phase 1"
+    owner                = "Identity"
+    implementation_state = "external-system"
+    required_controls    = ["Eligible assignments", "Approval", "MFA", "Entra ID P2"]
+    notes                = "PIM eligibility can be codified in 09-privileged-access; approval/MFA settings remain tenant configuration until provider coverage is confirmed."
+  }
+}

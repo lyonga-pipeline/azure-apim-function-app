@@ -1,0 +1,12 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+endpoints = {
+  keyvault = {
+    name = "cmp-prod-cus-platform-kv-pe"
+    network_interface_name = "cmp-prod-cus-platform-kv-pe-nic"
+    resource_group_name = "REPLACE_ME"
+    subnet_resource_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/virtualNetworks/REPLACE/subnets/SharedServicesSubnet"
+    private_connection_resource_id = "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.KeyVault/vaults/REPLACE"
+    subresource_names = ["vault"]
+    private_dns_zone_resource_ids = ["/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"]
+  }
+}

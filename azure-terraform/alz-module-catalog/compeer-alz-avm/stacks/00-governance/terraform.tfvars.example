@@ -1,0 +1,51 @@
+management_subscription_id      = "00000000-0000-0000-0000-000000000000"
+root_parent_management_group_id = "REPLACE_ROOT_MG_ID"
+architecture_name               = "alz"
+location                        = "centralus"
+management_group_role_assignments = {
+  platform_readers = {
+    principal_id               = "00000000-0000-0000-0000-000000000000"
+    role_definition_id_or_name = "Reader"
+  }
+}
+
+custom_role_definitions = {
+  platform_operator = {
+    name        = "Compeer Platform Operator"
+    description = "Least-privilege platform operator role. Replace actions with RBAC transformation approved set."
+    actions = [
+      "Microsoft.Resources/subscriptions/resourceGroups/read",
+      "Microsoft.Resources/deployments/*",
+      "Microsoft.Support/*"
+    ]
+    not_actions       = []
+    data_actions      = []
+    not_data_actions  = []
+    assignable_scopes = ["/providers/Microsoft.Management/managementGroups/REPLACE_ROOT_MG_ID"]
+  }
+}
+
+policy_definitions = {
+  deny_public_ip = {
+    display_name        = "Compeer - Deny unmanaged public IP addresses"
+    management_group_id = "REPLACE_ROOT_MG_ID"
+    policy_rule = {
+      if = {
+        field  = "type"
+        equals = "Microsoft.Network/publicIPAddresses"
+      }
+      then = {
+        effect = "deny"
+      }
+    }
+  }
+}
+
+management_group_policy_assignments = {
+  deny_public_ip = {
+    management_group_id   = "REPLACE_ROOT_MG_ID"
+    policy_definition_key = "deny_public_ip"
+    display_name          = "Deny unmanaged public IP addresses"
+    enforce               = false
+  }
+}

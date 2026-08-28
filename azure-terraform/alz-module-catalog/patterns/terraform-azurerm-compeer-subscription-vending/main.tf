@@ -93,6 +93,7 @@ locals {
 
   subscription_role_assignment_inputs = local.subscription_contract_valid ? {
     for key, assignment in local.enabled_subscription_role_assignments : key => {
+      name                                   = try(assignment.name, null)
       scope                                  = "/subscriptions/${azurerm_subscription.this[assignment.subscription_key].subscription_id}"
       principal_id                           = assignment.principal_id
       role_definition_name                   = try(assignment.role_definition_name, null)

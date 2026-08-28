@@ -24,13 +24,20 @@ module "resource_group" {
 module "spoke_vnet" {
   source = "../../modules/terraform-azurerm-compeer-virtual-network"
 
-  name                = var.spoke_vnet.name
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
-  address_space       = var.spoke_vnet.address_space
-  dns_servers         = try(var.spoke_vnet.dns_servers, null)
-  subnets             = var.spoke_vnet.subnets
-  tags                = module.tags.tags
+  name                           = var.spoke_vnet.name
+  resource_group_name            = module.resource_group.name
+  location                       = module.resource_group.location
+  address_space                  = var.spoke_vnet.address_space
+  dns_servers                    = try(var.spoke_vnet.dns_servers, null)
+  bgp_community                  = try(var.spoke_vnet.bgp_community, null)
+  edge_zone                      = try(var.spoke_vnet.edge_zone, null)
+  flow_timeout_in_minutes        = try(var.spoke_vnet.flow_timeout_in_minutes, null)
+  private_endpoint_vnet_policies = try(var.spoke_vnet.private_endpoint_vnet_policies, null)
+  subnets                        = var.spoke_vnet.subnets
+  encryption                     = try(var.spoke_vnet.encryption, null)
+  ip_address_pools               = try(var.spoke_vnet.ip_address_pools, {})
+  timeouts                       = try(var.spoke_vnet.timeouts, {})
+  tags                           = module.tags.tags
 }
 
 module "network_security_groups" {
@@ -40,13 +47,8 @@ module "network_security_groups" {
   name                = each.value.name
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
-  subnet_id = coalesce(
-    try(each.value.subnet_id, null),
-    try(module.spoke_vnet.subnet_ids[each.value.subnet_key], null),
-    "/subscriptions/${var.subscription_id}/resourceGroups/${module.resource_group.name}/providers/Microsoft.Network/virtualNetworks/${module.spoke_vnet.name}/subnets/${try(each.value.subnet_key, each.key)}"
-  )
-  security_rule = [
-    for name, rule in try(each.value.rules, {}) : {
+  security_rules = {
+    for name, rule in try(each.value.rules, {}) : name => {
       name                                       = name
       description                                = try(rule.description, null)
       protocol                                   = rule.protocol
@@ -64,7 +66,7 @@ module "network_security_groups" {
       priority                                   = rule.priority
       direction                                  = rule.direction
     }
-  ]
+  }
   tags = module.tags.tags
 }
 
@@ -126,11 +128,133 @@ module "private_dns_spoke_links" {
   tags = module.tags.tags
 }
 
+module "workload_identity" {
+  source = "../../modules/terraform-azurerm-compeer-user-assigned-identity"
+  count  = coalesce(try(var.workload_identity.enabled, null), false) ? 1 : 0
+
+  name                = coalesce(try(var.workload_identity.name, null), "${var.spoke_vnet.name}-uami")
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  tags                = module.tags.tags
+}
+
+module "workload_key_vault" {
+  source = "../../modules/terraform-azurerm-compeer-keyvault"
+  count  = coalesce(try(var.workload_key_vault.enabled, null), false) ? 1 : 0
+
+  name                        = var.workload_key_vault.name
+  resource_group_name         = module.resource_group.name
+  location                    = module.resource_group.location
+  tenant_id                   = var.tenant_id
+  sku_name                    = try(var.workload_key_vault.sku_name, "premium")
+  soft_delete_retention_days  = try(var.workload_key_vault.soft_delete_retention_days, 90)
+  purge_protection_enabled    = try(var.workload_key_vault.purge_protection_enabled, true)
+  rbac_authorization_enabled  = try(var.workload_key_vault.rbac_authorization_enabled, true)
+  access_policies             = try(var.workload_key_vault.access_policies, [])
+  access_policies_by_key      = try(var.workload_key_vault.access_policies_by_key, {})
+  enabled_for_deployment      = try(var.workload_key_vault.enabled_for_deployment, false)
+  enabled_for_disk_encryption = try(var.workload_key_vault.enabled_for_disk_encryption, true)
+  enabled_for_template_deployment = try(
+    var.workload_key_vault.enabled_for_template_deployment,
+    false
+  )
+  public_network_access_enabled = try(var.workload_key_vault.public_network_access_enabled, false)
+  network_acls = coalesce(try(var.workload_key_vault.network_acls, null), {
+    bypass         = "AzureServices"
+    default_action = "Deny"
+  })
+  contacts = values(try(var.workload_key_vault.contacts, {}))
+  timeouts = try(var.workload_key_vault.timeouts, {})
+  tags     = module.tags.tags
+}
+
+locals {
+  workload_key_vault_role_assignment_inputs = coalesce(try(var.workload_key_vault.enabled, null), false) ? merge(
+    coalesce(try(var.workload_identity.enabled, null), false) ? {
+      workload_identity_secrets_user = {
+        scope                = module.workload_key_vault[0].id
+        principal_id         = module.workload_identity[0].principal_id
+        role_definition_name = "Key Vault Secrets User"
+        principal_type       = "ServicePrincipal"
+      }
+    } : {},
+    {
+      for key, assignment in try(var.workload_key_vault.role_assignments, {}) : key => merge(assignment, {
+        scope = coalesce(try(assignment.scope, null), module.workload_key_vault[0].id)
+      })
+    }
+  ) : {}
+}
+
+module "workload_key_vault_role_assignments" {
+  source = "../../modules/terraform-azurerm-compeer-role-assignments"
+
+  assignments = local.workload_key_vault_role_assignment_inputs
+}
+
+module "workload_key_vault_diagnostics" {
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  count = (
+    coalesce(try(var.workload_key_vault.enabled, null), false) &&
+    coalesce(try(var.workload_key_vault.diagnostics.enabled, null), true) &&
+    try(var.workload_key_vault.diagnostics.log_analytics_workspace_id, null) != null
+  ) ? 1 : 0
+
+  name                           = coalesce(try(var.workload_key_vault.diagnostics.name, null), "${var.workload_key_vault.name}-diag")
+  target_resource_id             = module.workload_key_vault[0].id
+  log_analytics_workspace_id     = var.workload_key_vault.diagnostics.log_analytics_workspace_id
+  log_analytics_destination_type = try(var.workload_key_vault.diagnostics.log_analytics_destination_type, null)
+  storage_account_id             = try(var.workload_key_vault.diagnostics.storage_account_id, null)
+  eventhub_authorization_rule_id = try(
+    var.workload_key_vault.diagnostics.eventhub_authorization_rule_id,
+    null
+  )
+  eventhub_name       = try(var.workload_key_vault.diagnostics.eventhub_name, null)
+  partner_solution_id = try(var.workload_key_vault.diagnostics.partner_solution_id, null)
+  logs                = try(var.workload_key_vault.diagnostics.logs, { all = { category_group = "allLogs" } })
+  metrics             = try(var.workload_key_vault.diagnostics.metrics, { all = { category = "AllMetrics" } })
+}
+
+module "workload_key_vault_private_endpoint" {
+  source = "../../modules/terraform-azurerm-compeer-private-endpoint"
+  count  = coalesce(try(var.workload_key_vault.enabled, null), false) && try(var.workload_key_vault.private_endpoint, null) != null ? 1 : 0
+
+  name                          = var.workload_key_vault.private_endpoint.name
+  custom_network_interface_name = try(var.workload_key_vault.private_endpoint.custom_network_interface_name, null)
+  resource_group_name           = module.resource_group.name
+  location                      = module.resource_group.location
+  edge_zone                     = try(var.workload_key_vault.private_endpoint.edge_zone, null)
+  subnet_id                     = coalesce(try(var.workload_key_vault.private_endpoint.subnet_id, null), try(module.spoke_vnet.subnet_ids[var.workload_key_vault.private_endpoint.subnet_key], null), try(module.spoke_vnet.subnet_ids["private_endpoints"], null))
+  private_service_connections = [
+    {
+      name                           = coalesce(try(var.workload_key_vault.private_endpoint.private_service_connection_name, null), "${var.workload_key_vault.private_endpoint.name}-psc")
+      is_manual_connection           = false
+      private_connection_resource_id = module.workload_key_vault[0].id
+      subresource_names              = ["vault"]
+    }
+  ]
+  private_dns_zone_group = length(try(var.workload_key_vault.private_endpoint.private_dns_zone_ids, [])) == 0 ? [] : [
+    {
+      name                 = coalesce(try(var.workload_key_vault.private_endpoint.private_dns_zone_group_name, null), "default")
+      private_dns_zone_ids = var.workload_key_vault.private_endpoint.private_dns_zone_ids
+    }
+  ]
+  ip_configurations = try(var.workload_key_vault.private_endpoint.ip_configurations, [])
+  timeouts          = try(var.workload_key_vault.private_endpoint.timeouts, {})
+  tags              = module.tags.tags
+}
+
 locals {
   workload_scope_ids = merge(
     {
       resource_group = module.resource_group.id
       spoke_vnet     = module.spoke_vnet.id
+    },
+    length(module.workload_identity) == 0 ? {} : {
+      workload_identity = module.workload_identity[0].id
+    },
+    length(module.workload_key_vault) == 0 ? {} : {
+      workload_key_vault = module.workload_key_vault[0].id
     },
     {
       for key, value in module.network_security_groups : "nsg:${key}" => value.id

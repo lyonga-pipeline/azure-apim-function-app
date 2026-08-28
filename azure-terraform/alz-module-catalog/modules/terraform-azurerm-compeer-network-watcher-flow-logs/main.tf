@@ -23,4 +23,14 @@ resource "azurerm_network_watcher_flow_log" "this" {
       interval_in_minutes   = try(traffic_analytics.value.interval_in_minutes, 10)
     }
   }
+
+  dynamic "timeouts" {
+    for_each = length(try(each.value.timeouts, {})) == 0 ? [] : [each.value.timeouts]
+    content {
+      create = try(timeouts.value.create, null)
+      read   = try(timeouts.value.read, null)
+      update = try(timeouts.value.update, null)
+      delete = try(timeouts.value.delete, null)
+    }
+  }
 }

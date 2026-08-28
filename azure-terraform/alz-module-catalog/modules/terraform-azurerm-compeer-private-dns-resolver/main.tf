@@ -44,6 +44,7 @@ resource "azurerm_private_dns_resolver_forwarding_rule" "this" {
   dns_forwarding_ruleset_id = azurerm_private_dns_resolver_dns_forwarding_ruleset.this[each.value.ruleset_key].id
   domain_name               = each.value.domain_name
   enabled                   = try(each.value.enabled, true)
+  metadata                  = try(each.value.metadata, null)
 
   dynamic "target_dns_servers" {
     for_each = each.value.target_dns_servers
