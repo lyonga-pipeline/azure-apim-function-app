@@ -218,3 +218,34 @@ Provider mirror for offline validate/test:
 azurerm/azuread/cloudflare/local, then `-plugin-dir=<dir>`.
 `terraform test` needs `terraform init` first even with `mock_provider`.
 
+
+## Phase 3 — patterns + implementations alignment (commit ce8318b)
+
+All 14 `patterns/` and 14 `implementations/platform-lz/workspaces/` now
+`terraform validate` clean against the hardened modules (offline, provider
+mirror). `network-peering` validates only via its implementation wrapper
+(standalone it needs `azurerm.hub` / `azurerm.spoke` passed for its
+`configuration_aliases`).
+
+Interface-drift fixes (redesign renamed a consumed module input; the pattern
+was never updated — all caught by `terraform validate`, none by tests):
+- `platform-connectivity` → `bastion-host`: module is now a pure resource
+  module (external public IP, no diagnostics). Pattern now composes
+  `public-ip` + `bastion-host` + `diagnostic-settings`. `var.bastion` contract
+  unchanged.
+- `platform-management` → `keyvault`: removed stale `enable_rbac_authorization`
+  (superseded by `rbac_authorization_enabled`).
+- `directory-services` → `windows-vm`: `enable_automatic_updates` →
+  `automatic_updates_enabled`; deprecated alias kept on the pattern input.
+
+Provider pins: every azurerm root/pattern normalized to `>= 4.42.0, < 5.0.0`
+(was a mix of `~> 4.0`, `>= 4.42.0, < 5.0.0`, `>= 3.100.0, < 5.0.0`).
+
+Mirror now also carries `tfe`, `random`, `tls`, `null` (needed by the
+implementations).
+
+**Not done (needs live Azure):** `terraform plan` of the implementations —
+would surface any `precondition` / cross-field `validation` that only fires at
+plan time. Module `tests/` cover create + validation-rejection; full lifecycle
+(no-op → in-place → replace → destroy, principle 10) is documented in each
+module README matrix but not executed offline.
