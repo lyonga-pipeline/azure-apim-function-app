@@ -9,4 +9,8 @@ terraform.tfstate.backup
 crash.log
 azure-terraform/modules/storage-account/.local-validation/20260702-225658/module-validation.log
 azure-terraform/alz-module-catalog/modules.zip
-azure-terraform/alz-module-catalog/modules.zip
+azure-terraform/alz-module-catalog/modules-fully-redesigned.zip
+
+# Reusable modules must not commit a dependency lock file - only root
+# configurations (patterns / implementations run as workspaces) should.
+azure-terraform/alz-module-catalog/modules/**/.terraform.lock.hcl
