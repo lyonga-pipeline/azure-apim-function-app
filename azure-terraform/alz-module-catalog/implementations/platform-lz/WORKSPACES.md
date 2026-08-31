@@ -95,11 +95,12 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 
 - `marketplace_agreement_id`
 - `bootstrap_storage_account_id`
+- `bootstrap_storage_share_ids`
 - `public_ip_ids`
 - `network_interface_ids`
 - `load_balancer_ids`
 - `virtual_machine_ids`
-- `vendor_vmseries`
+- `virtual_machine_identity_principal_ids`
 
 `platform-directory-services` publishes:
 

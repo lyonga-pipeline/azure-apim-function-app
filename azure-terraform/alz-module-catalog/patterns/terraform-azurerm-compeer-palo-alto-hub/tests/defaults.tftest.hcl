@@ -104,7 +104,7 @@ run "two_firewalls_two_lbs_bootstrap" {
   }
 }
 
-run "rejects_file_share_without_key" {
+run "rejects_file_share_partial_external_storage" {
   command = plan
 
   variables {
@@ -120,4 +120,47 @@ run "rejects_file_share_without_key" {
   }
 
   expect_failures = [var.virtual_machines]
+}
+
+run "file_share_self_service_key_from_own_storage" {
+  command = plan
+
+  variables {
+    virtual_machines = {
+      fw1 = {
+        name                   = "vm-fw-hub-01"
+        size                   = "Standard_D3_v2"
+        admin_username         = "panadmin"
+        network_interface_keys = ["fw1_mgmt", "fw1_untrust", "fw1_trust"]
+        admin_ssh_keys         = [{ username = "panadmin", public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDwrGCKSiTb4HGJ9CKxdSKO05e7PDu2xoYF9WGfePR45 tftest@example" }]
+        # No storage_account_name / key: read from the pattern's own bootstrap storage.
+        bootstrap = { mode = "azure-file-share" }
+      }
+    }
+  }
+
+  assert {
+    condition     = local.need_managed_bootstrap_key == true
+    error_message = "self-service bootstrap key path not triggered"
+  }
+}
+
+run "rejects_file_share_self_service_without_bootstrap_storage" {
+  command = plan
+
+  variables {
+    bootstrap_storage_account = null
+    bootstrap_share_layout    = {}
+    virtual_machines = {
+      fw1 = {
+        name                   = "vm-fw-hub-01"
+        size                   = "Standard_D3_v2"
+        admin_username         = "panadmin"
+        network_interface_keys = ["fw1_mgmt"]
+        bootstrap              = { mode = "azure-file-share" }
+      }
+    }
+  }
+
+  expect_failures = [terraform_data.bootstrap_contract]
 }

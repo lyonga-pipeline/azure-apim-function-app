@@ -166,13 +166,21 @@ variable "virtual_machines" {
 
     # PAN-OS bootstrap. `mode`:
     #   "none"              - no custom_data (default)
-    #   "azure-file-share"  - classic Azure Files bootstrap. Needs
-    #                         storage_account_name + storage_account_key.
-    #                         NOTE: the key is rendered into custom_data and
-    #                         therefore into Terraform state.
+    #   "azure-file-share"  - classic Azure Files bootstrap.
+    #                         * Own storage: leave storage_account_name/key unset
+    #                           and set var.bootstrap_storage_account; the pattern
+    #                           reads the key from a data source.
+    #                         * External storage (e.g. a phase-1 bootstrap
+    #                           workspace): set BOTH storage_account_name and
+    #                           storage_account_key.
+    #                         The key is rendered into custom_data and therefore
+    #                         into Terraform state either way.
     #   "custom-data"       - supply the init-cfg / userdata text directly in
     #                         `custom_data` (or `init_cfg_content`); the pattern
     #                         base64-encodes it. No storage key in state.
+    #                         Typical init-cfg: type=dhcp-client, hostname,
+    #                         vm-auth-key, plugin-op-commands=set-cores:<n>,
+    #                         panorama-server / tplname / dgname.
     bootstrap = optional(object({
       mode                 = optional(string, "none")
       storage_account_name = optional(string)
@@ -194,12 +202,17 @@ variable "virtual_machines" {
   }
 
   validation {
+    # For an externally-owned bootstrap account, name + key are both required.
+    # When the caller supplies neither, this pattern's own bootstrap storage is
+    # used and the key is read from a data source (var.bootstrap_storage_account
+    # must then be set - checked by a resource precondition).
     condition = alltrue([
       for vm in values(var.virtual_machines) :
       try(vm.bootstrap.mode, "none") != "azure-file-share" ? true :
+      (try(vm.bootstrap.storage_account_name, null) == null && try(vm.bootstrap.storage_account_key, null) == null) ||
       (try(vm.bootstrap.storage_account_name, null) != null && try(vm.bootstrap.storage_account_key, null) != null)
     ])
-    error_message = "bootstrap.mode = azure-file-share requires bootstrap.storage_account_name and bootstrap.storage_account_key."
+    error_message = "bootstrap.mode = azure-file-share: supply BOTH storage_account_name and storage_account_key (external account), or NEITHER (use this pattern's bootstrap_storage_account)."
   }
 
   validation {
@@ -230,15 +243,3 @@ variable "bootstrap_share_layout" {
   default = {}
 }
 
-variable "vendor_vmseries" {
-  description = "Optional Palo Alto Networks swfw-modules VM-Series instances keyed by logical name. Do not configure alongside virtual_machines."
-  type        = map(any)
-  default     = {}
-}
-
-variable "vendor_vmseries_passwords" {
-  description = "Sensitive VM-Series admin passwords keyed by vendor_vmseries key. Use HCP sensitive variables or approved secret store injection."
-  type        = map(string)
-  sensitive   = true
-  default     = {}
-}

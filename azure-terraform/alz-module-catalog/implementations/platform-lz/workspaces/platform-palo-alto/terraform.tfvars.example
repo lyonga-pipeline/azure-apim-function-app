@@ -107,11 +107,10 @@ palo_alto = {
       admin_username         = "panadmin"
       network_interface_keys = ["fw1_mgmt", "fw1_untrust", "fw1_trust", "fw1_sunstream"]
       admin_ssh_keys         = [{ username = "panadmin", public_key = "ssh-ed25519 AAAA... replace" }]
+      # azure-file-share against the pattern's own bootstrap_storage_account:
+      # omit storage_account_name/key and the pattern reads the key itself.
       bootstrap = {
-        mode                 = "azure-file-share"
-        storage_account_name = "stpanbootstrapprod01"
-        # storage_account_key lands in state - prefer mode = "custom-data".
-        storage_account_key = "REPLACE_WITH_KEY_OR_USE_CUSTOM_DATA"
+        mode = "azure-file-share"
       }
     }
     fw2 = {
@@ -128,7 +127,11 @@ palo_alto = {
     }
   }
 
-  vendor_vmseries = {}
 }
 
-palo_alto_vendor_vmseries_passwords = {}
+# Only needed when a firewall's bootstrap points at an EXTERNAL storage account
+# (e.g. a separate phase-1 bootstrap workspace). Omit to use the pattern's own
+# bootstrap_storage_account. Keyed by the palo_alto.virtual_machines key.
+palo_alto_bootstrap_storage_keys = {
+  # fw1 = "<phase-1 bootstrap storage primary access key>"
+}

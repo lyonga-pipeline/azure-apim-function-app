@@ -46,8 +46,8 @@ variable "palo_alto" {
   }
 }
 
-variable "palo_alto_vendor_vmseries_passwords" {
-  description = "Sensitive VM-Series admin passwords keyed by palo_alto.vendor_vmseries key."
+variable "palo_alto_bootstrap_storage_keys" {
+  description = "Sensitive bootstrap storage-account access keys keyed by firewall (palo_alto.virtual_machines key). Set only when a firewall points at an EXTERNAL bootstrap storage account (e.g. a phase-1 workspace output). Omit to use this pattern's own bootstrap storage."
   type        = map(string)
   sensitive   = true
   default     = {}

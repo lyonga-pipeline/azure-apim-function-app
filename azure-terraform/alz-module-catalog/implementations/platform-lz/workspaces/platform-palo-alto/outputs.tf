@@ -14,14 +14,18 @@ output "virtual_machine_ids" {
   value = module.palo_alto.virtual_machine_ids
 }
 
+output "virtual_machine_identity_principal_ids" {
+  value = module.palo_alto.virtual_machine_identity_principal_ids
+}
+
 output "bootstrap_storage_account_id" {
   value = module.palo_alto.bootstrap_storage_account_id
 }
 
-output "marketplace_agreement_id" {
-  value = module.palo_alto.marketplace_agreement_id
+output "bootstrap_storage_share_ids" {
+  value = module.palo_alto.bootstrap_storage_share_ids
 }
 
-output "vendor_vmseries" {
-  value = module.palo_alto.vendor_vmseries
+output "marketplace_agreement_id" {
+  value = module.palo_alto.marketplace_agreement_id
 }

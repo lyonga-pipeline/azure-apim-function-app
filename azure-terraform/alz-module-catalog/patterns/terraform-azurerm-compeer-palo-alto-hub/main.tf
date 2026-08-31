@@ -21,12 +21,19 @@ locals {
     })
   } : {}
 
+  # Bootstrap storage details for azure-file-share mode. The account name/key
+  # can come from the caller (phase-1 output) or, when this pattern owns the
+  # bootstrap storage, from the data lookup below.
+  managed_bootstrap_name = var.enabled && var.bootstrap_storage_account != null ? var.bootstrap_storage_account.name : null
+
+  managed_bootstrap_key = try(data.azurerm_storage_account.bootstrap[0].primary_access_key, "")
+
   # PAN-OS bootstrap custom_data, computed per firewall VM.
   vm_custom_data = {
     for key, vm in var.virtual_machines : key => (
       try(vm.bootstrap.mode, "none") == "azure-file-share" ? base64encode(join("\n", [
-        "storage-account=${vm.bootstrap.storage_account_name}",
-        "access-key=${vm.bootstrap.storage_account_key}",
+        "storage-account=${coalesce(try(vm.bootstrap.storage_account_name, ""), local.managed_bootstrap_name, " ")}",
+        "access-key=${coalesce(try(vm.bootstrap.storage_account_key, ""), local.managed_bootstrap_key, " ")}",
         "file-share=${try(vm.bootstrap.file_share_name, "bootstrap")}",
         "share-directory=${try(vm.bootstrap.share_directory, "None")}",
       ])) :
@@ -34,6 +41,13 @@ locals {
       null
     )
   }
+
+  # True when any firewall uses azure-file-share against this pattern's own
+  # bootstrap storage (no caller-supplied key).
+  need_managed_bootstrap_key = local.managed_bootstrap_name != null && anytrue([
+    for vm in values(var.virtual_machines) :
+    try(vm.bootstrap.mode, "none") == "azure-file-share" && try(vm.bootstrap.storage_account_key, null) == null
+  ])
 
   bootstrap_share_directories = var.enabled && var.bootstrap_storage_account != null ? {
     for item in flatten([
@@ -59,18 +73,31 @@ locals {
   } : {}
 }
 
-resource "terraform_data" "vmseries_contract" {
-  input = {
-    local_vmseries_keys  = sort(keys(var.virtual_machines))
-    vendor_vmseries_keys = sort(keys(var.vendor_vmseries))
-  }
+resource "terraform_data" "bootstrap_contract" {
+  count = var.enabled ? 1 : 0
+
+  input = { firewalls = sort(keys(var.virtual_machines)) }
 
   lifecycle {
     precondition {
-      condition     = !(length(var.virtual_machines) > 0 && length(var.vendor_vmseries) > 0)
-      error_message = "Configure either virtual_machines or vendor_vmseries, not both, to avoid duplicate firewall ownership."
+      condition = !anytrue([
+        for vm in values(var.virtual_machines) :
+        try(vm.bootstrap.mode, "none") == "azure-file-share" &&
+        try(vm.bootstrap.storage_account_name, null) == null &&
+        var.bootstrap_storage_account == null
+      ])
+      error_message = "A firewall uses bootstrap.mode = azure-file-share without an external storage_account_name/key, so var.bootstrap_storage_account must be set."
     }
   }
+}
+
+data "azurerm_storage_account" "bootstrap" {
+  count = local.need_managed_bootstrap_key ? 1 : 0
+
+  name                = var.bootstrap_storage_account.name
+  resource_group_name = var.resource_group_name
+
+  depends_on = [module.bootstrap_storage]
 }
 
 resource "azurerm_marketplace_agreement" "palo_alto" {
@@ -248,58 +275,8 @@ resource "azurerm_linux_virtual_machine" "this" {
     }
   }
 
-  depends_on = [terraform_data.vmseries_contract, azurerm_marketplace_agreement.palo_alto]
-}
-
-module "vendor_vmseries" {
-  source   = "PaloAltoNetworks/swfw-modules/azurerm//modules/vmseries"
-  version  = "3.5.1"
-  for_each = var.enabled ? var.vendor_vmseries : {}
-
-  name                = each.value.name
-  resource_group_name = var.resource_group_name
-  region              = var.location
-  tags                = var.tags
-
-  authentication = merge(
-    {
-      username                        = try(each.value.username, "panadmin")
-      password                        = try(var.vendor_vmseries_passwords[each.key], null)
-      disable_password_authentication = try(each.value.disable_password_authentication, true)
-      ssh_keys                        = try(each.value.ssh_keys, [])
-    },
-    try(each.value.authentication, {})
-  )
-
-  image = merge(
-    {
-      publisher               = try(each.value.img_publisher, "paloaltonetworks")
-      offer                   = try(each.value.img_offer, "vmseries-flex")
-      sku                     = try(each.value.img_sku, "byol")
-      version                 = try(each.value.img_version, "latest")
-      enable_marketplace_plan = try(each.value.enable_plan, true)
-      custom_id               = try(each.value.custom_image_id, null)
-    },
-    try(each.value.image, {})
-  )
-
-  virtual_machine = merge(
-    {
-      size                         = try(each.value.vm_size, "Standard_D3_v2")
-      zone                         = try(each.value.avzone, null)
-      disk_type                    = try(each.value.managed_disk_type, "StandardSSD_LRS")
-      disk_name                    = try(each.value.os_disk_name, "${each.value.name}-osdisk")
-      avset_id                     = try(each.value.avset_id, null)
-      accelerated_networking       = try(each.value.accelerated_networking, true)
-      bootstrap_options            = try(each.value.bootstrap_options, null)
-      boot_diagnostics_storage_uri = try(each.value.diagnostics_storage_uri, null)
-      identity_type                = try(each.value.identity_type, "SystemAssigned")
-      identity_ids                 = try(each.value.identity_ids, [])
-    },
-    try(each.value.virtual_machine, {})
-  )
-
-  interfaces = each.value.interfaces
-
-  depends_on = [terraform_data.vmseries_contract, azurerm_marketplace_agreement.palo_alto]
+  depends_on = [
+    azurerm_marketplace_agreement.palo_alto,
+    azurerm_storage_share_file.bootstrap,
+  ]
 }

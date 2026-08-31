@@ -32,14 +32,15 @@ locals {
     })
   }
 
-  vendor_vmseries = {
-    for vm_key, vm in try(var.palo_alto.vendor_vmseries, {}) : vm_key => merge(vm, {
-      interfaces = [
-        for interface in try(vm.interfaces, []) : merge(interface, {
-          subnet_id = coalesce(try(interface.subnet_id, null), try(local.connectivity_outputs.subnet_ids[interface.subnet_key], null))
-        })
-      ]
-    })
+  # Inject the (sensitive) bootstrap storage key per firewall when the caller
+  # points at an EXTERNAL bootstrap storage account (phase-1 output). Omit the
+  # key entirely to use this pattern's own bootstrap storage.
+  virtual_machines = {
+    for vm_key, vm in try(var.palo_alto.virtual_machines, {}) : vm_key => (
+      try(var.palo_alto_bootstrap_storage_keys[vm_key], null) == null ? vm : merge(vm, {
+        bootstrap = merge(try(vm.bootstrap, {}), { storage_account_key = var.palo_alto_bootstrap_storage_keys[vm_key] })
+      })
+    )
   }
 }
 
@@ -60,7 +61,5 @@ module "palo_alto" {
   public_ips                = try(var.palo_alto.public_ips, {})
   network_interfaces        = local.network_interfaces
   load_balancers            = local.load_balancers
-  virtual_machines          = try(var.palo_alto.virtual_machines, {})
-  vendor_vmseries           = local.vendor_vmseries
-  vendor_vmseries_passwords = var.palo_alto_vendor_vmseries_passwords
+  virtual_machines          = local.virtual_machines
 }

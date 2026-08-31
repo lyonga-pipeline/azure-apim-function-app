@@ -29,23 +29,35 @@ the `paloaltonetworks / vmseries-flex / <plan>` image agreement. That is not
 | Public IPs | `public-ip` module | mgmt + untrust only; pin their RG in the private-only allow-list |
 | NICs | `network-interface` module | `ip_forwarding_enabled = true`; 3 per firewall + any Sunstream NICs |
 | Load balancers | `load-balancer` module | `trust` ILB + `sunstream` ILB (just another map key) |
-| Firewall VMs | `azurerm_linux_virtual_machine` (for_each) | `source_image_reference` + `plan`; system-assigned identity |
-| PAN official module | `PaloAltoNetworks/swfw-modules//modules/vmseries` `3.5.1` | Alternative via `vendor_vmseries` (mutually exclusive with `virtual_machines`) |
+| Firewall VMs | `azurerm_linux_virtual_machine` (for_each) | Custom, image-based: `source_image_reference` + `plan`; system-assigned identity, `custom_data` bootstrap. **This is the only VM path** — the `PaloAltoNetworks/swfw-modules` AVM module was removed. |
 
 ## Bootstrap (`virtual_machines[*].bootstrap`)
 
 | `mode` | Needs | `custom_data` becomes | State impact |
 |---|---|---|---|
 | `none` (default) | - | unset | - |
-| `azure-file-share` | `storage_account_name`, `storage_account_key` | `storage-account=...\naccess-key=...\nfile-share=...\nshare-directory=...` (base64) | **the key is in Terraform state** |
+| `azure-file-share` (own storage) | nothing — set `var.bootstrap_storage_account`; key read from a data source | `storage-account=…\naccess-key=…\nfile-share=…\nshare-directory=…` (base64) | **key in state** |
+| `azure-file-share` (external storage) | BOTH `storage_account_name` + `storage_account_key` (e.g. phase-1 output) | same | **key in state** |
 | `custom-data` | `custom_data` or `init_cfg_content` | your text (base64) | none |
 
 `bootstrap_share_layout` lays down the PAN-OS folder structure and can upload an
-`init-cfg.txt` / `bootstrap.xml` from a local path or inline `content`.
+`init-cfg.txt` / `bootstrap.xml` from a local path or inline `content`. VMs
+`depend_on` the uploaded files, so within one apply the config lands before the
+firewall boots.
 
 For a key-free flow, use `mode = "custom-data"` with a PAN-OS 10+ `init-cfg.txt`
-(`type=dhcp-client`, `plugin-op-commands`, `dgname`, `tplname`, `vm-auth-key`)
-and let the firewall pull config from Panorama / Strata Cloud Manager.
+(`type=dhcp-client`, `plugin-op-commands=set-cores:<n>`, `vm-auth-key`,
+`panorama-server` / `tplname` / `dgname`) and let the firewall pull config from
+Panorama / Strata Cloud Manager.
+
+### Two-phase deployment
+
+If bootstrap storage is provisioned by a **separate phase-1 workspace** (e.g.
+`azure-fw-bootstrap/`), point each firewall at it: `bootstrap.mode =
+"azure-file-share"` + `storage_account_name` from the phase-1 output, and pass
+the key via the workspace's `palo_alto_bootstrap_storage_keys` map (sensitive).
+Leave `var.bootstrap_storage_account = null` so this pattern doesn't create a
+second one.
 
 ## Sunstream
 
@@ -76,11 +88,20 @@ in Terraform state. Prefer `custom-data` mode + SSH keys. Outputs:
 
 ## Migration
 
-Additive only. New: `virtual_machines[*].bootstrap`,
-`virtual_machines[*].identity`, `bootstrap_share_layout`, the
-`azurerm_storage_share_directory` / `_file` resources, and the `local` provider.
-`azurerm_storage_share` switched from the deprecated `storage_account_name` to
-`storage_account_id`.
+**Breaking:** the `PaloAltoNetworks/swfw-modules//modules/vmseries` AVM module
+path was **removed**. `var.vendor_vmseries`, `var.vendor_vmseries_passwords`, and
+the `vendor_vmseries` output are gone; the workspace's
+`palo_alto_vendor_vmseries_passwords` is replaced by
+`palo_alto_bootstrap_storage_keys`. All firewalls now use the custom,
+image-based `azurerm_linux_virtual_machine` path. If you had `vendor_vmseries`
+entries, re-express them as `virtual_machines` + `network_interfaces` +
+`load_balancers` map entries (the pattern already had this path).
+
+Additive: `virtual_machines[*].bootstrap` (incl. self-service key from the
+pattern's own bootstrap storage), `virtual_machines[*].identity`,
+`bootstrap_share_layout`, the `azurerm_storage_share_directory` / `_file`
+resources, the `local` provider. `azurerm_storage_share` switched from the
+deprecated `storage_account_name` to `storage_account_id`.
 
 Panorama / Strata Cloud Manager policy onboarding stays a separate operational
 contract. Keep the workspace disabled until firewall licensing, image plan
