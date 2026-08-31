@@ -108,6 +108,9 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 - `network_interface_ids`
 - `data_disk_ids`
 - `data_disk_attachment_ids`
+- `ad_ds_role_install_extension_ids`
+- `domain_join_extension_ids`
+- `ad_ds_promotion_extension_ids`
 - `operational_contracts`
 
 `platform-cloudflare-connectors` publishes:

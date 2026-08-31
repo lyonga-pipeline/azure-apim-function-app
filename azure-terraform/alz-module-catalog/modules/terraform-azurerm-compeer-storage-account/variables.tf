@@ -100,6 +100,7 @@ variable "allow_nested_items_to_be_public" {
 variable "shared_access_key_enabled" {
   description = "Whether shared key authorization is enabled."
   type        = bool
+  sensitive   = true
   default     = false
 }
 

@@ -1,20 +1,29 @@
-# Monitor Metric Alert Module
+# terraform-azurerm-compeer-monitor-metric-alert
 
-This companion module manages Azure Monitor metric alerts separately from the resources being monitored.
+A single azurerm_monitor_metric_alert. `criteria` (static), `dynamic_criteria` and the availability-test criteria are all typed maps/objects; `actions` links action groups by ID.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Alert lifecycle | Alerts can be embedded into workload resource modules. | Alerts are separate so thresholds and action groups can change independently. |
-| Criteria support | Simple alert modules may only support basic criteria. | Supports static criteria, dynamic criteria, web test availability criteria, and multiple actions. |
-| Operations ownership | App teams and operations teams may own alert behavior differently. | Alert rules can be composed around any resource scope. |
+Inputs are explicitly typed; repeatable configuration uses `map(object)` with
+caller-stable keys. See `variables.tf` for the full surface and `outputs.tf`
+for composition-ready IDs/attributes.
 
-## Design Intent
+## Lifecycle
 
-Use this module to create reusable operational alerts for workloads and platform resources. Pair it with `action-group` for notification routing.
+Configuration changes update in place unless the Azure resource marks the field
+ForceNew (name / location / scope / parent). Adding or removing a map key affects
+only that entry. Durable/state-bearing resources (workspaces, vaults, budgets,
+management groups) must not be recreated by routine module upgrades.
 
-## Why This Matters
+State exposure: only where a secret input or sensitive output is documented in
+`variables.tf` / `outputs.tf`.
 
-Alert thresholds and action routing often change after the infrastructure resource is stable. Keeping alerts separate prevents operational tuning from changing the base resource lifecycle.
+## Migration
 
+versions.tf standardised; descriptions and value validation added; `x == null || x.attr`
+validation patterns fixed. Interface preserved for any consumed module.
+
+## Tests
+
+`terraform test` (offline, `mock_provider`): create / no-op, and key
+validations & preconditions where present.

@@ -5,6 +5,7 @@ resource "azurerm_eventgrid_topic" "main" {
   input_schema                  = var.eventgrid_input_schema
   public_network_access_enabled = var.public_network_access_enabled
   local_auth_enabled            = var.local_auth_enabled
+  tags                          = var.tags
 
   identity {
     type         = var.eventgrid_identity_type

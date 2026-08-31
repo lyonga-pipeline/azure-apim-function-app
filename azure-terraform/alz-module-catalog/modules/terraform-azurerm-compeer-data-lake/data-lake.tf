@@ -1,6 +1,7 @@
 # Defining Data Blocks
 
-data "azurerm_client_config" "current" {}
+# Removed unused data lookup azurerm_client_config.current; dependencies are supplied explicitly.
+
 
 ## Azure Data Lake filesystem
 

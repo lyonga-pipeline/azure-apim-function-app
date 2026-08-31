@@ -1,1 +1,1 @@
-data "azuread_client_config" "current" {}
+# No directory discovery is required by this resource module.

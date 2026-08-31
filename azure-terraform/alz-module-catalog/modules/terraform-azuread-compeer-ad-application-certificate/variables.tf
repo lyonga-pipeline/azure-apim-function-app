@@ -1,6 +1,13 @@
-variable "application_object_id" {
-  description = "The object ID of the application for which this certificate should be created."
+variable "application_id" {
+  description = "Resource ID of the application (azuread_application.<name>.id, i.e. /applications/{object-id}). Preferred."
   type        = string
+  default     = null
+}
+
+variable "application_object_id" {
+  description = "DEPRECATED: bare application object ID. Prefer application_id; retained for backward compatibility."
+  type        = string
+  default     = null
 }
 
 variable "encoding" {
@@ -41,4 +48,5 @@ variable "type" {
 variable "value" {
   description = "The certificate data, which can be PEM encoded, base64 encoded DER or hexadecimal encoded DER."
   type        = string
+  sensitive   = true
 }

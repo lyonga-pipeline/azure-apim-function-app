@@ -1,4 +1,7 @@
-variable "key_vault_id" { type = string }
+variable "key_vault_id" {
+  description = "Resource ID of the existing Key Vault."
+  type        = string
+}
 variable "keys" {
   type = map(object({
     key_type        = string
@@ -39,6 +42,7 @@ variable "keys" {
   }
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

@@ -20,10 +20,10 @@ resource "azurerm_mssql_managed_instance" "mssql_managed_instance" {
   timezone_id                    = var.timezone_id
 
   dynamic "identity" {
-    for_each = var.identity != {} ? [var.identity] : []
+    for_each = var.identity == null ? [] : [var.identity]
     content {
       type         = identity.value.type
-      identity_ids = lookup(identity.value, "identity_ids", null)
+      identity_ids = try(identity.value.identity_ids, null)
     }
   }
 }

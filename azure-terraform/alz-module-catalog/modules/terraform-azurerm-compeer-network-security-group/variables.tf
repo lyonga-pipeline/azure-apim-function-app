@@ -57,6 +57,16 @@ variable "security_rules" {
     direction                                  = string
   }))
   default = {}
+
+  validation {
+    condition     = alltrue([for r in values(var.security_rules) : r.priority >= 100 && r.priority <= 4096])
+    error_message = "security_rules[*].priority must be between 100 and 4096."
+  }
+
+  validation {
+    condition     = alltrue([for r in values(var.security_rules) : contains(["Allow", "Deny"], r.access) && contains(["Inbound", "Outbound"], r.direction)])
+    error_message = "security_rules[*].access must be Allow/Deny and direction Inbound/Outbound."
+  }
 }
 
 variable "tags" {

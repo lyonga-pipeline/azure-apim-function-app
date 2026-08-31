@@ -1,29 +1,28 @@
-# Storage Management Policy Module
+# terraform-azurerm-compeer-storage-management-policy
 
-This module manages storage lifecycle management rules separately from the storage account and child data objects.
+The single lifecycle-management (tiering / expiry) policy for a caller-owned storage account.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Data lifecycle | Retention and tiering rules can be embedded in the storage account module. | Management policy has its own lifecycle. |
-| Application variance | Blob cleanup and archive rules vary by workload. | Rules are passed explicitly by each app or pattern root. |
-| Safety | Lifecycle rules can delete or move data. | A dedicated module makes review and promotion safer. |
+- Resource: `azurerm_storage_management_policy` (lifecycle management policy).
+- Inputs are explicitly typed; optional blocks are `optional(object(...))` and repeatables are `map(object(...))` keyed by a caller-stable name.
+- Adjacent resource-group / network / RBAC / diagnostic capabilities are composed externally.
 
-## Design Intent
+## Lifecycle
 
-This module owns:
+| Change | Effect |
+|---|---|
+| `rules` add/remove/retune (keyed `map(object)`) | In-place update |
+| `storage_account_id` | Replace (one policy per account) |
 
-- Storage account management policy
-- Lifecycle rules for tiering, deletion, and retention
+## State exposure
 
-Use companion modules for:
+Outputs: policy `id`. No secrets.
 
-- `storage-account`
-- `storage-container`
-- `storage-blob`
+## Migration
 
-## Why This Matters
+No breaking changes. `rules` is a `map(object)` keyed by a caller-stable name so rule identity is stable across edits.
 
-Storage lifecycle policy affects data retention and cost. It should be visible as a separate decision, not hidden inside storage account creation.
+## Tests
 
+`terraform test` (`tests/defaults.tftest.hcl`, `mock_provider`) — create and attribute wiring; validation failures where the module adds `validation` / `precondition` rules.

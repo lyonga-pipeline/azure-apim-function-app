@@ -38,3 +38,11 @@ Use companion modules for:
 
 Application Gateway has many inseparable nested blocks because Azure models routing inside the gateway resource. The improvement is not to split every nested block into separate Terraform modules, but to make the interface stable, named, validated, and easier to consume through approved gateway patterns.
 
+
+### Module contract principles
+
+- The module owns only the lifecycle stated in its architecture classification; adjacent RG/network/RBAC/private-endpoint/diagnostic/extension capabilities are composed externally unless explicitly classified as a pattern module.
+- Optional capabilities use `null`, `{}` or typed optional objects/maps rather than magic empty strings or implicit creation side effects.
+- Repeatable caller-owned instances must use stable logical keys; callers should not depend on list index identity.
+- Secrets supplied to Terraform remain part of Terraform state even when marked sensitive; use HCP sensitive variables or an approved secret-delivery pattern.
+- Provider ranges are bounded. Widen provider constraints only after create/no-change/update/upgrade/replacement lifecycle tests pass.

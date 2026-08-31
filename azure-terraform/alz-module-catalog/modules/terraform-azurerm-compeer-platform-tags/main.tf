@@ -12,19 +12,15 @@ locals {
     compliance_boundary = var.compliance_boundary
   }
 
-  optional_tags = {
-    creation_date = var.creation_date_utc
-    last_modified = var.last_modified_utc
-  }
-
+  # Drop null / empty values so a caller that omits an optional tag does not
+  # produce an empty tag on every resource.
   tags = merge(
     { for key, value in local.default_tags : key => value if value != null && value != "" },
-    { for key, value in local.optional_tags : key => value if value != null && value != "" },
     var.additional_tags,
   )
 }
 
 output "tags" {
-  description = "Normalized tag map for enterprise resources."
+  description = "Normalized enterprise tag map (frozen key names - consumed by every pattern)."
   value       = local.tags
 }

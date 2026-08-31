@@ -1,269 +1,132 @@
-variable "apim_name" {
-  description = "The name of the API Management Service. Changing this forces a new resource to be created."
+variable "name" {
+  description = "Name of the API Management service. Changing this forces a new resource."
   type        = string
 }
-
 variable "resource_group_name" {
-  description = "The name of the Resource Group in which the API Management Service should be exist. Changing this forces a new resource to be created."
+  description = "Resource group the service is created in. Changing this forces a new resource."
   type        = string
 }
-
 variable "location" {
-  description = "The Azure location where the API Management Service exists. Changing this forces a new resource to be created."
+  description = "Azure region. Changing this forces a new resource."
   type        = string
 }
-
 variable "publisher_name" {
-  description = "The name of publisher/company."
+  description = "Publisher name shown in the developer portal."
   type        = string
 }
-
 variable "publisher_email" {
-  description = "The email of publisher/company."
+  description = "Publisher email for service notifications."
   type        = string
 }
-
 variable "sku_name" {
-  description = "sku_name is a string consisting of two parts separated by an underscore(_). The first part is the name, valid values include: Consumption, Developer, Basic, Standard and Premium. The second part is the capacity (e.g. the number of deployed units of the sku), which must be a positive integer (e.g. Developer_1)."
+  description = "SKU in <tier>_<capacity> form, e.g. Developer_1, Standard_2, Premium_3."
   type        = string
-}
+  default     = "Developer_1"
 
-variable "additional_location" {
-  description = "One or more additional_location blocks as defined below."
-  type = list(object({
-    location             = string
-    capacity             = optional(number)
-    zones                = optional(set(string))
-    public_ip_address_id = optional(string)
-    gateway_disabled     = optional(bool)
-    virtual_network_configuration = optional(object({
-      subnet_id = string
-    }))
-  }))
-  default = []
+  validation {
+    condition     = can(regex("^(Consumption|Developer|Basic|Standard|Premium|BasicV2|StandardV2|PremiumV2)_[0-9]+$", var.sku_name))
+    error_message = "sku_name must be <tier>_<capacity>, e.g. Developer_1 or Premium_3."
+  }
 }
-
-variable "certificate" {
-  description = "One or more (up to 10) certificate blocks as defined below."
-  type = list(object({
-    encoded_certificate  = string
-    store_name           = string
-    certificate_password = optional(string)
-  }))
-  default = []
-}
-
-variable "client_certificate_enabled" {
-  description = "Enforce a client certificate to be presented on each request to the gateway? This is only supported when SKU type is Consumption."
+variable "public_network_access_enabled" {
+  description = "Whether the service is reachable from public networks. Defaults closed."
   type        = bool
   default     = false
 }
-
-variable "delegation" {
-  description = "A delegation block as defined below."
-  type = object({
-    subscriptions_enabled     = optional(bool)
-    user_registration_enabled = optional(bool)
-    url                       = optional(string)
-    validation_key            = optional(string)
-  })
-  default = null
-}
-
-variable "gateway_disabled" {
-  description = "Disable the gateway in main region? This is only supported when additional_location is set."
-  type        = bool
-  default     = null
-}
-
-variable "min_api_version" {
-  description = "The version which the control plane API calls to API Management service are limited with version equal to or newer than."
-  type        = number
-  default     = null
-}
-
-variable "zones" {
-  description = "Specifies a list of Availability Zones in which this API Management service should be located. Changing this forces a new API Management service to be created."
-  type        = set(string)
-  default     = null
-}
-
-variable "identity" {
-  description = "An identity block as defined below."
-  type = object({
-    type         = string
-    identity_ids = optional(set(string))
-  })
-  default = null
-}
-
-variable "hostname_configuration" {
-  description = "An hostname_configuration block as defined below."
-  type = object({
-    management = optional(list(object({
-      host_name                       = string
-      key_vault_id                    = optional(string)
-      certificate                     = optional(string)
-      certificate_password            = optional(string)
-      negotiate_client_certificate    = optional(bool)
-      ssl_keyvault_identity_client_id = optional(string)
-    })))
-    portal = optional(list(object({
-      host_name                       = string
-      key_vault_id                    = optional(string)
-      certificate                     = optional(string)
-      certificate_password            = optional(string)
-      negotiate_client_certificate    = optional(bool)
-      ssl_keyvault_identity_client_id = optional(string)
-    })))
-    developer_portal = optional(list(object({
-      host_name                       = string
-      key_vault_id                    = optional(string)
-      certificate                     = optional(string)
-      certificate_password            = optional(string)
-      negotiate_client_certificate    = optional(bool)
-      ssl_keyvault_identity_client_id = optional(string)
-    })))
-    proxy = optional(list(object({
-      host_name                       = string
-      key_vault_id                    = optional(string)
-      certificate                     = optional(string)
-      certificate_password            = optional(string)
-      negotiate_client_certificate    = optional(bool)
-      ssl_keyvault_identity_client_id = optional(string)
-    })))
-    scm = optional(list(object({
-      host_name                       = string
-      key_vault_id                    = optional(string)
-      certificate                     = optional(string)
-      certificate_password            = optional(string)
-      negotiate_client_certificate    = optional(bool)
-      ssl_keyvault_identity_client_id = optional(string)
-    })))
-  })
-  default = null
-}
-
-variable "notification_sender_email" {
-  description = "Email address from which the notification will be sent."
-  type        = string
-  default     = null
-}
-
-variable "policy" {
-  description = "An policy block as defined below."
-  type = object({
-    xml_content = optional(string)
-    xml_link    = optional(string)
-  })
-  default = null
-}
-
-variable "protocols" {
-  description = "An protocols block as defined below."
-  type = object({
-    enable_http2 = bool
-  })
-  default = null
-}
-
-variable "security" {
-  description = "An security block as defined below."
-  type = object({
-    enable_backend_ssl30                                = optional(bool)
-    enable_backend_tls10                                = optional(bool)
-    enable_backend_tls11                                = optional(bool)
-    enable_frontend_ssl30                               = optional(bool)
-    enable_frontend_tls10                               = optional(bool)
-    enable_frontend_tls11                               = optional(bool)
-    tls_ecdhe_ecdsa_with_aes128_cbc_sha_ciphers_enabled = optional(bool)
-    tls_ecdhe_ecdsa_with_aes256_cbc_sha_ciphers_enabled = optional(bool)
-    tls_ecdhe_rsa_with_aes128_cbc_sha_ciphers_enabled   = optional(bool)
-    tls_ecdhe_rsa_with_aes256_cbc_sha_ciphers_enabled   = optional(bool)
-    tls_rsa_with_aes128_cbc_sha256_ciphers_enabled      = optional(bool)
-    tls_rsa_with_aes128_cbc_sha_ciphers_enabled         = optional(bool)
-    tls_rsa_with_aes128_gcm_sha256_ciphers_enabled      = optional(bool)
-    tls_rsa_with_aes256_gcm_sha384_ciphers_enabled      = optional(bool)
-    tls_rsa_with_aes256_cbc_sha256_ciphers_enabled      = optional(bool)
-    tls_rsa_with_aes256_cbc_sha_ciphers_enabled         = optional(bool)
-    triple_des_ciphers_enabled                          = optional(bool)
-  })
-  default = null
-}
-
-variable "sign_in" {
-  description = "An sign_in block as defined below."
-  type = object({
-    enabled = bool
-  })
-  default = null
-}
-
-variable "sign_up" {
-  description = "An sign_up block as defined below."
-  type = object({
-    enabled = bool
-    terms_of_service = object({
-      consent_required = bool
-      enabled          = bool
-      text             = string
-    })
-  })
-  default = null
-}
-
-variable "tenant_access" {
-  description = "An tenant_access block as defined below."
-  type = object({
-    enabled = bool
-  })
-  default = null
-}
-
-variable "public_ip_address_id" {
-  description = "ID of a standard SKU IPv4 Public IP."
-  type        = string
-  default     = null
-}
-
-variable "public_network_access_enabled" {
-  description = "Is public access to the service allowed?"
-  type        = bool
-  default     = true
-}
-
 variable "virtual_network_type" {
-  description = "The type of virtual network you want to use, valid values include: None, External, Internal."
+  description = "None, External, or Internal."
   type        = string
-  default     = "Internal"
+  default     = "None"
+  validation {
+    condition     = contains(["External", "Internal", "None"], var.virtual_network_type)
+    error_message = "virtual_network_type must be External, Internal, or None."
+  }
 }
-
 variable "virtual_network_configuration" {
-  description = "A virtual_network_configuration block as defined below. Required when virtual_network_type is External or Internal."
+  description = "Subnet for VNet integration. Required when virtual_network_type != None."
   type = object({
     subnet_id = string
   })
   default = null
 }
-
+variable "identity" {
+  description = "Optional managed identity."
+  type = object({
+    type         = string
+    identity_ids = optional(list(string), [])
+  })
+  default = null
+}
+variable "security" {
+  description = "Optional TLS/cipher hardening overrides. Defaults disable SSL3/TLS1.0/TLS1.1 on both frontend and backend."
+  type = object({
+    backend_ssl30_enabled                               = optional(bool)
+    backend_tls10_enabled                               = optional(bool)
+    backend_tls11_enabled                               = optional(bool)
+    frontend_ssl30_enabled                              = optional(bool)
+    frontend_tls10_enabled                              = optional(bool)
+    frontend_tls11_enabled                              = optional(bool)
+    tls_ecdhe_ecdsa_with_aes128_cbc_sha_ciphers_enabled = optional(bool)
+  })
+  default = null
+}
+variable "protocols" {
+  description = "Optional protocol settings. http2 defaults on."
+  type = object({
+    http2_enabled = optional(bool)
+  })
+  default = null
+}
+variable "sign_in" {
+  description = "Optional developer-portal sign-in settings."
+  type = object({
+    enabled = bool
+  })
+  default = null
+}
+variable "sign_up" {
+  description = "Optional developer-portal sign-up settings."
+  type = object({
+    enabled = bool
+    terms_of_service = optional(object({
+      consent_required = optional(bool, false)
+      enabled          = optional(bool, false)
+      text             = optional(string)
+    }))
+  })
+  default = null
+}
 variable "tags" {
-  description = "A mapping of tags assigned to the resource."
+  description = "Tags applied to the service."
   type        = map(string)
   default     = {}
 }
 
-variable "diagnostic_setting_name" {
-  description = "Name for the diagnostic settings"
+variable "min_api_version" {
+  description = "Pin the control-plane API version the service accepts (e.g. 2021-08-01)."
   type        = string
+  default     = null
 }
 
-variable "log_analytics_workspace_id" {
-  description = "Specifices the ID of the Log Analytics Workspace where Diagnostic Data should be sent"
-  type        = string
+variable "client_certificate_enabled" {
+  description = "Require a client certificate on the gateway (Consumption tier only)."
+  type        = bool
+  default     = null
 }
 
-variable "log_analytics_destination_type" {
-  description = "When set to 'Dedicated' logs sent to Log Analytics workspace will go into resource specific tables, instead of the legacy AzureDiagnostics table"
-  type        = string
-  default     = "AzureDiagnostics"
+variable "zones" {
+  description = "Availability zones for the service (Premium tier). null lets Azure choose."
+  type        = list(string)
+  default     = null
+}
+
+variable "timeouts" {
+  description = "Optional resource operation timeouts. APIM create/update can take 45+ minutes."
+  type = object({
+    create = optional(string)
+    read   = optional(string)
+    update = optional(string)
+    delete = optional(string)
+  })
+  default = {}
 }

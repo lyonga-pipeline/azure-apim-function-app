@@ -1,16 +1,34 @@
-# Key Vault Key Module
+# terraform-azurerm-compeer-key-vault-key
 
-This companion module manages Key Vault keys separately from the Key Vault resource.
+Key Vault **keys** only, created in a caller-owned vault. Vault, RBAC, private
+endpoints and diagnostics are owned elsewhere.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Key lifecycle | Key material can be mixed into the vault module. | Keys are managed independently from vault creation. |
-| Rotation | Rotation and key policy concerns evolve separately from vault settings. | Key configuration can be updated without changing the core vault lifecycle. |
-| Composition | Workloads may need different keys for encryption or signing. | Application roots compose only the keys they need. |
+- `keys` is a `map(object)` keyed by a caller-stable logical name.
+- Each entry: `name`, `key_type` (RSA / RSA-HSM / EC / EC-HSM), `key_opts`,
+  optional `key_size`, `curve`, `not_before_date`, `expiration_date`,
+  `rotation_policy`, `tags`.
+- `key_vault_id` is required and injected by the caller.
 
-## Design Intent
+## Lifecycle
 
-Use this module for customer-managed keys, encryption keys, and other workload-owned Key Vault keys. Keep vault networking, RBAC, diagnostics, and private endpoints in their own modules.
+| Change | Effect |
+|---|---|
+| Add / remove a map key | Creates / destroys just that key |
+| `key_opts`, dates, `rotation_policy`, `tags` | In-place update |
+| `name`, `key_type`, `key_size`, `curve` | Replace |
+| `key_vault_id` | Replace all keys |
 
+## State exposure
+
+Key material is generated in the HSM/vault and never leaves it; state holds
+metadata and IDs only. Outputs: `ids` (map key -> key resource ID).
+
+## Migration
+
+No breaking changes. Interface unchanged.
+
+## Tests
+
+`terraform test` — create, no-op replan, add/remove a map key.

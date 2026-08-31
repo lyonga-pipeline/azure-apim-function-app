@@ -46,7 +46,7 @@ variable "local_auth_enabled" {
 
 variable "tags" {
   type        = map(string)
-  description = "A mapping of tags to assign to the resource."
+  description = "DEPRECATED: retained for backward compatibility; no longer used by the implementation. A mapping of tags to assign to the resource."
   default     = {}
 }
 

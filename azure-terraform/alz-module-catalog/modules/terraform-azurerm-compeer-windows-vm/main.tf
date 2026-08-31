@@ -1,5 +1,11 @@
 locals {
-  default_computer_name = substr(replace(replace(replace(var.name, "_", ""), ".", ""), " ", ""), 0, 15)
+  # Windows computer names are limited to 15 characters. Consumers with stricter
+  # naming/uniqueness requirements should pass computer_name explicitly.
+  default_computer_name = substr(
+    replace(replace(replace(var.name, "_", ""), ".", ""), " ", ""),
+    0,
+    15
+  )
 }
 
 resource "azurerm_windows_virtual_machine" "this" {
@@ -15,7 +21,7 @@ resource "azurerm_windows_virtual_machine" "this" {
   availability_set_id        = var.availability_set_id
   provision_vm_agent         = var.provision_vm_agent
   allow_extension_operations = var.allow_extension_operations
-  enable_automatic_updates   = var.enable_automatic_updates
+  automatic_updates_enabled  = var.automatic_updates_enabled
   patch_mode                 = var.patch_mode
   patch_assessment_mode      = var.patch_assessment_mode
   hotpatching_enabled        = var.hotpatching_enabled
@@ -37,6 +43,7 @@ resource "azurerm_windows_virtual_machine" "this" {
   dynamic "boot_diagnostics" {
     for_each = var.boot_diagnostics == null ? [] : [var.boot_diagnostics]
     content {
+      # null uses Azure-managed boot diagnostics storage.
       storage_account_uri = try(boot_diagnostics.value.storage_account_uri, null)
     }
   }
@@ -44,7 +51,8 @@ resource "azurerm_windows_virtual_machine" "this" {
   dynamic "additional_capabilities" {
     for_each = var.additional_capabilities == null ? [] : [var.additional_capabilities]
     content {
-      ultra_ssd_enabled = try(additional_capabilities.value.ultra_ssd_enabled, false)
+      # Preserve provider semantics when the consumer does not explicitly set it.
+      ultra_ssd_enabled = try(additional_capabilities.value.ultra_ssd_enabled, null)
     }
   }
 
@@ -67,7 +75,7 @@ resource "azurerm_windows_virtual_machine" "this" {
   }
 
   dynamic "source_image_reference" {
-    for_each = var.source_image_id == null ? [var.source_image_reference] : []
+    for_each = var.source_image_id == null && var.source_image_reference != null ? [var.source_image_reference] : []
     content {
       publisher = source_image_reference.value.publisher
       offer     = source_image_reference.value.offer
@@ -78,26 +86,50 @@ resource "azurerm_windows_virtual_machine" "this" {
 
   source_image_id = var.source_image_id
 
+  timeouts {
+    create = try(var.timeouts.create, null)
+    read   = try(var.timeouts.read, null)
+    update = try(var.timeouts.update, null)
+    delete = try(var.timeouts.delete, null)
+  }
+
   lifecycle {
     precondition {
-      condition     = (var.zone == null || var.availability_set_id == null)
+      condition     = var.zone == null || var.availability_set_id == null
       error_message = "zone and availability_set_id cannot both be set."
     }
+
     precondition {
       condition     = var.source_image_id == null || var.source_image_reference == null
       error_message = "Set either source_image_id or source_image_reference, not both."
     }
+
     precondition {
       condition     = var.source_image_id != null || var.source_image_reference != null
       error_message = "One of source_image_id or source_image_reference must be set."
     }
+
     precondition {
       condition     = !var.hotpatching_enabled || (var.patch_mode == "AutomaticByPlatform" && var.provision_vm_agent)
-      error_message = "hotpatching_enabled requires patch_mode AutomaticByPlatform and provision_vm_agent true."
+      error_message = "hotpatching_enabled requires patch_mode = AutomaticByPlatform and provision_vm_agent = true."
     }
+
+    precondition {
+      condition     = var.patch_assessment_mode != "AutomaticByPlatform" || var.provision_vm_agent
+      error_message = "patch_assessment_mode = AutomaticByPlatform requires provision_vm_agent = true."
+    }
+
     precondition {
       condition     = try(length(var.network_interface_ids) > 0, false)
       error_message = "At least one network_interface_id is required."
+    }
+
+    precondition {
+      condition = var.identity == null ? true : (
+        !strcontains(var.identity.type, "UserAssigned") ||
+        try(length(var.identity.identity_ids) > 0, false)
+      )
+      error_message = "identity.identity_ids must contain at least one ID when identity.type includes UserAssigned."
     }
   }
 }

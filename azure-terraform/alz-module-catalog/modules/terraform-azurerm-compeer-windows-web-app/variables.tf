@@ -90,22 +90,8 @@ variable "tags" {
   default     = {}
 }
 
-// variable "diagnostic_setting_name" {
-//   description = "Name for the diagnostic settings"
-//   type        = string
-// }
-
-// variable "log_analytics_workspace_id" {
-//   description = "Specifices the ID of the Log Analytics Workspace where Diagnostic Data should be sent"
-//   type        = string
-//   default     = ""
-// }
-
-// variable "log_analytics_destination_type" {
-//   description = "When set to 'Dedicated' logs sent to Log Analytics workspace will go into resource specific tables, instead of the legacy AzureDiagnostics table"
-//   type        = string
-//   default     = "AzureDiagnostics"
-// }
+# Diagnostic settings are composed by the dedicated diagnostic-settings module
+# at the pattern layer, not owned here.
 
 variable "site_config" {
   description = "Configuration for each site"
@@ -226,7 +212,12 @@ variable "site_config" {
       }))
     }))
   }))
-  default = []
+  default = [{}]
+
+  validation {
+    condition     = length(var.site_config) == 1
+    error_message = "site_config must contain exactly one block ([{...}]); it maps to the required singleton site_config block."
+  }
 }
 
 variable "auth_settings" {
@@ -273,13 +264,12 @@ variable "backup" {
 }
 
 variable "connection_string" {
-  description = "One or more Connection string configuration"
-  type = list(object({
-    name  = string
+  description = "App connection strings, keyed by connection-string name (the map key becomes the Azure connection_string name)."
+  type = map(object({
     type  = string
     value = string
   }))
-  default = []
+  default = {}
 }
 
 variable "identity" {

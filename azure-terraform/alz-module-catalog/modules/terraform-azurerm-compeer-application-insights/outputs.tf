@@ -4,11 +4,13 @@ output "application_insights_id" {
 }
 
 output "application_insights_instrumentation_key" {
+  sensitive   = true
   description = "The Instrumentation Key of the Application Insights component."
   value       = azurerm_application_insights.application_insights.instrumentation_key
 }
 
 output "application_insights_connection_string" {
+  sensitive   = true
   description = "The Connection String of the Application Insights component."
   value       = azurerm_application_insights.application_insights.connection_string
 }

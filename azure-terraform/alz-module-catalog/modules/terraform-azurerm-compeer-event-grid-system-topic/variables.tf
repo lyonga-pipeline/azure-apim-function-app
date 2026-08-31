@@ -14,12 +14,6 @@ variable "location" {
   default     = "northcentralus"
 }
 
-variable "eventgrid_input_schema" {
-  type        = string
-  description = "Specifies the schema in which incoming events will be published to this domain. Allowed values are `CloudEventSchemaV1_0`, `CustomEventSchema`, or `EventGridSchema`"
-  default     = "EventGridSchema"
-}
-
 variable "source_arm_resource_id" {
   type        = string
   description = "Id of the ARM resource to be used"

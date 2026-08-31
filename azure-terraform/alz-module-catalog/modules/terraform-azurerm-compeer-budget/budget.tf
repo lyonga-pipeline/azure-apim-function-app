@@ -90,8 +90,7 @@ resource "azurerm_consumption_budget_management_group" "this" {
       threshold      = notification.value.threshold
       threshold_type = notification.value.threshold_type
       contact_emails = notification.value.contact_emails
-      contact_groups = notification.value.contact_groups
-      contact_roles  = notification.value.contact_roles
+      # azurerm_consumption_budget_management_group.notification has no contact_groups/contact_roles.
     }
   }
 

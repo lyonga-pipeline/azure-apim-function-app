@@ -1,44 +1,43 @@
-# APIM Service Module
+# terraform-azurerm-compeer-apim-service
 
-This module manages the API Management service lifecycle and preserves the APIM family decomposition observed in the reviewed configuration.
+Azure API Management **service** only (`azurerm_api_management`). APIs, backends,
+products, named values, policies, diagnostics and OpenID providers are separate
+modules composed by the pattern.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Module family | APIM service, APIs, and products were already separated, which is a good pattern. | Keeps APIM service separate from APIs, policies, products, named values, and backends. |
-| Service lifecycle | Base service can become overloaded with API publishing concerns. | Focuses on the APIM service resource, networking mode, identity, security, protocols, sign-in, and sign-up settings. |
-| Input contract | Large service interface can be hard to consume without examples. | Uses typed singleton objects for optional configuration areas. |
-| Diagnostics | Reviewed pattern showed diagnostic settings with drift exceptions. | Diagnostics are handled by the generic `diagnostic-settings` companion module. |
+- Required: `name`, `resource_group_name`, `location`, `publisher_name`,
+  `publisher_email`.
+- `sku_name` is `<tier>_<capacity>` (validated by regex).
+- `virtual_network_type` is `None` / `External` / `Internal`; a precondition
+  requires `virtual_network_configuration` for the VNet-integrated modes and
+  forbids it for `None`.
+- Optional typed blocks: `identity`, `security` (transport toggles, azurerm 4.x
+  `*_enabled` names), `protocols` (`http2_enabled`), `sign_in`, `sign_up`,
+  `timeouts`.
 
-## Design Intent
+## Lifecycle
 
-This module owns:
+| Change | Effect |
+|---|---|
+| `sku_name` capacity or tier | In-place scale (can take ~30-45 min) |
+| `security`, `protocols`, `sign_in`, `sign_up`, `identity`, `public_network_access_enabled`, `tags` | In-place update |
+| `name`, `resource_group_name`, `location` | Replace |
+| `virtual_network_type`, `virtual_network_configuration.subnet_id` | Replace |
 
-- APIM service resource
-- Publisher details
-- SKU
-- Public network access
-- Virtual network type and configuration
-- Managed identity
-- Service-level security/protocol settings
-- Sign-in and sign-up settings
+## State exposure
 
-Use companion modules for:
+No secrets in state. Outputs: `id`, `name`, `gateway_url`,
+`gateway_regional_url`, `management_api_url`, `developer_portal_url`,
+`portal_url`, `public_ip_addresses`, `private_ip_addresses`,
+`identity_principal_id`, `identity_tenant_id`.
 
-- `apim-api`
-- `apim-api-policy`
-- `apim-product`
-- `apim-product-api`
-- `apim-backend`
-- `apim-named-value`
-- `apim-policy`
-- `apim-custom-domain`
-- `private-endpoint`
-- `diagnostic-settings`
-- `role-assignments`
+## Migration
 
-## Why This Matters
+`security` object keys renamed to the azurerm 4.x form
+(`enable_backend_tls10` -> `backend_tls10_enabled`, etc.) and `protocols.enable_http2`
+-> `protocols.http2_enabled`. `timeouts` and the richer output set are additive.
 
-The reviewed APIM family was heading in the right direction by separating APIM service, API, and product concerns. This module keeps that direction and makes the APIM service the stable platform boundary while API publishing remains independently deployable.
+## Tests
 
+`terraform test` — create + default SKU, bad-SKU rejection, VNet precondition.

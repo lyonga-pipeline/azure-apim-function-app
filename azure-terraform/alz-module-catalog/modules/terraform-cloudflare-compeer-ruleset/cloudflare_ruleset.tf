@@ -2,9 +2,16 @@ resource "cloudflare_ruleset" "ruleset" {
   kind        = var.ruleset_kind
   name        = var.ruleset_name
   phase       = var.ruleset_phase
-  account_id  = var.cloudflare_account_id
+  account_id  = var.zone_id == null ? var.cloudflare_account_id : null
   description = var.description
   zone_id     = var.zone_id
+
+  lifecycle {
+    precondition {
+      condition     = (var.zone_id == null) != (var.cloudflare_account_id == null)
+      error_message = "Set exactly one of zone_id or cloudflare_account_id (a ruleset is scoped to a zone or an account, not both)."
+    }
+  }
 
   dynamic "rules" {
     for_each = var.rules
@@ -43,7 +50,6 @@ resource "cloudflare_ruleset" "ruleset" {
           ssl                        = lookup(action_parameters.value, "ssl", null)
           status_code                = lookup(action_parameters.value, "status_code", null)
           sxg                        = lookup(action_parameters.value, "sxg", null)
-          version                    = lookup(action_parameters.value, "version", null)
           # origin_cache_control       = lookup(action_parameters.value, "origin_cache_control", null)
           # additional_cacheable_ports = lookup(action_parameters.value, "additional_cacheable_ports", null)
           # read_timeout               = lookup(action_parameters.value, "read_timeout", null)

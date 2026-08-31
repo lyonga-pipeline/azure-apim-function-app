@@ -6,7 +6,7 @@ variable "display_name" {
 variable "security_enabled" {
   description = "Whether the group is a security group for controlling access."
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "mail_enabled" {
@@ -115,6 +115,11 @@ variable "visibility" {
   description = "The group join policy and group content visibility."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.visibility == null ? true : contains(["Private", "Public", "Hiddenmembership"], var.visibility)
+    error_message = "visibility must be Private, Public or Hiddenmembership."
+  }
 }
 
 variable "writeback_enabled" {

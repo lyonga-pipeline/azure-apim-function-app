@@ -34,6 +34,7 @@ variable "enable_ip_forwarding" {
 }
 
 variable "enable_accelerated_networking" {
+  type        = bool
   description = "Should Accelerated Networking be enabled? Defaults to false."
   default     = true
 }
@@ -69,6 +70,7 @@ variable "admin_username" {
 variable "admin_password" {
   description = "The Password which should be used for the local-administrator on this Virtual Machine"
   type        = string
+  sensitive   = true
   default     = null
 }
 
@@ -302,7 +304,7 @@ variable "tags" {
   default     = {}
 }
 
-variable "enable_automatic_updates" {
+variable "automatic_updates_enabled" {
   description = "Specifies if Automatic Updates are Enabled for the Windows Virtual Machine."
   type        = bool
   default     = false

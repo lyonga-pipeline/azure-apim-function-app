@@ -20,78 +20,83 @@ resource "azuread_application" "ad_application" {
   tags                           = var.tags
 
   dynamic "api" {
-    for_each = var.api
+    for_each = var.api == null ? [] : [var.api]
     content {
-      known_client_applications      = lookup(api.value, "known_client_applications", null)
-      mapped_claims_enabled          = lookup(api.value, "mapped_claims_enabled", false)
-      requested_access_token_version = lookup(api.value, "requested_access_token_version", 1)
+      known_client_applications      = api.value.known_client_applications
+      mapped_claims_enabled          = api.value.mapped_claims_enabled
+      requested_access_token_version = api.value.requested_access_token_version
+
       dynamic "oauth2_permission_scope" {
-        for_each = lookup(api.value, "oauth2_permission_scope", [])
+        for_each = api.value.oauth2_permission_scope
         content {
+          id                         = oauth2_permission_scope.value.id
           admin_consent_description  = oauth2_permission_scope.value.admin_consent_description
           admin_consent_display_name = oauth2_permission_scope.value.admin_consent_display_name
-          id                         = oauth2_permission_scope.value.id
-          enabled                    = lookup(oauth2_permission_scope.value, "enabled", true)
-          type                       = lookup(oauth2_permission_scope.value, "type", "User")
-          user_consent_description   = lookup(oauth2_permission_scope.value, "user_consent_description", null)
-          user_consent_display_name  = lookup(oauth2_permission_scope.value, "user_consent_display_name", null)
-          value                      = lookup(oauth2_permission_scope.value, "value", null)
+          enabled                    = oauth2_permission_scope.value.enabled
+          type                       = oauth2_permission_scope.value.type
+          user_consent_description   = oauth2_permission_scope.value.user_consent_description
+          user_consent_display_name  = oauth2_permission_scope.value.user_consent_display_name
+          value                      = oauth2_permission_scope.value.value
         }
       }
     }
   }
+
   dynamic "app_role" {
     for_each = var.app_role
     content {
+      id                   = app_role.value.id
       allowed_member_types = app_role.value.allowed_member_types
       description          = app_role.value.description
       display_name         = app_role.value.display_name
-      id                   = app_role.value.id
-      enabled              = lookup(app_role.value, "enabled", true)
-      value                = lookup(app_role.value, "value", null)
+      enabled              = app_role.value.enabled
+      value                = app_role.value.value
     }
   }
+
   dynamic "optional_claims" {
-    for_each = [var.optional_claims]
+    for_each = (
+      length(var.optional_claims.access_token) + length(var.optional_claims.id_token) + length(var.optional_claims.saml2_token) > 0
+      ? [var.optional_claims] : []
+    )
     content {
       dynamic "access_token" {
-        for_each = lookup(optional_claims.value, "access_token", [])
+        for_each = optional_claims.value.access_token
         content {
           additional_properties = access_token.value.additional_properties
           essential             = access_token.value.essential
           name                  = access_token.value.name
-          source                = lookup(access_token.value, "source", null)
+          source                = access_token.value.source
         }
       }
-
       dynamic "id_token" {
-        for_each = lookup(optional_claims.value, "id_token", [])
+        for_each = optional_claims.value.id_token
         content {
           additional_properties = id_token.value.additional_properties
           essential             = id_token.value.essential
           name                  = id_token.value.name
-          source                = lookup(id_token.value, "source", null)
+          source                = id_token.value.source
         }
       }
-
       dynamic "saml2_token" {
-        for_each = lookup(optional_claims.value, "saml2_token", [])
+        for_each = optional_claims.value.saml2_token
         content {
           additional_properties = saml2_token.value.additional_properties
           essential             = saml2_token.value.essential
           name                  = saml2_token.value.name
-          source                = lookup(saml2_token.value, "source", null)
+          source                = saml2_token.value.source
         }
       }
-
     }
   }
+
   dynamic "public_client" {
-    for_each = var.public_client
+    for_each = var.public_client == null ? [] : [var.public_client]
     content {
       redirect_uris = public_client.value.redirect_uris
     }
   }
+
   dynamic "required_resource_access" {
     for_each = var.required_resource_access
     content {
@@ -106,21 +111,23 @@ resource "azuread_application" "ad_application" {
       }
     }
   }
+
   dynamic "single_page_application" {
-    for_each = var.single_page_application != null ? [var.single_page_application] : []
+    for_each = var.single_page_application == null ? [] : [var.single_page_application]
     content {
       redirect_uris = single_page_application.value.redirect_uris
     }
   }
+
   dynamic "web" {
-    for_each = var.web != null ? [var.web] : []
+    for_each = var.web == null ? [] : [var.web]
     content {
       homepage_url  = web.value.homepage_url
       logout_url    = web.value.logout_url
       redirect_uris = web.value.redirect_uris
 
       dynamic "implicit_grant" {
-        for_each = web.value.implicit_grant ? [web.value.implicit_grant] : []
+        for_each = web.value.implicit_grant == null ? [] : [web.value.implicit_grant]
         content {
           access_token_issuance_enabled = implicit_grant.value.access_token_issuance_enabled
           id_token_issuance_enabled     = implicit_grant.value.id_token_issuance_enabled
@@ -128,5 +135,4 @@ resource "azuread_application" "ad_application" {
       }
     }
   }
-
 }

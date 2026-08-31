@@ -1,77 +1,41 @@
-# Azure Log Analytics Workspace
+# terraform-azurerm-compeer-log-analytics
 
-This Terraform module creates an Azure Log Analytics workspace. It is intentionally scoped to the workspace resource so it can be composed cleanly by platform and workload patterns.
+A single `azurerm_log_analytics_workspace`. Solutions, data collection rules,
+Sentinel onboarding and diagnostic settings are separate modules.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
-
-- Resource-scoped ownership: the module models the Log Analytics workspace boundary, not a complete management landing-zone deployment.
-- Pattern-ready interface: resource group lifecycle, workspace RBAC, Defender for Cloud associations, diagnostics, and cross-subscription orchestration belong in the consuming pattern or root.
-- Optional capability surface: workspace identity, ingestion/query access posture, local auth, data collection rule, CMK query behavior, retention, quota, reservation capacity, timeouts, and tags can be configured without forking the module.
-- Stable lifecycle behavior: callers provide the workspace name, resource group, and location explicitly; routine changes such as SKU, retention, quota, tags, and supported workspace settings stay as provider-managed in-place updates where Azure allows.
-- Composition-ready outputs: the module exports resource ID, name, workspace GUID, resource group, location, and identity principal ID for downstream modules and HCP workspace outputs.
-- Backward-compatible growth: new workspace capabilities should be added through optional inputs with sensible defaults.
-
-## Usage
-
-```hcl
-module "log_analytics_workspace" {
-  source = "../"
-
-  log_analytics_workspace_name    = "law-platform-prod-eastus2"
-  resource_group_name             = "rg-platform-management-prod-eastus2"
-  location                        = "eastus2"
-  log_analytics_sku               = "PerGB2018"
-  log_analytics_retention_in_days = 180
-  log_analytics_daily_quota_gb    = 10
-
-  internet_ingestion_enabled    = true
-  internet_query_enabled        = true
-  local_authentication_disabled = true
-
-  identity = {
-    type = "SystemAssigned"
-  }
-
-  tags = {
-    environment = "prod"
-  }
-}
-```
-
-Handle workspace-scoped RBAC, Defender for Cloud workspace associations, and management solution composition in a platform pattern/root so those lifecycles remain separate from the workspace resource.
-
-## Inputs
-
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| `log_analytics_workspace_name` | Name of the Log Analytics workspace. | `string` | n/a | yes |
-| `resource_group_name` | Existing resource group name where the workspace is deployed. | `string` | n/a | yes |
-| `location` | Azure region for the workspace. | `string` | n/a | yes |
-| `log_analytics_sku` | Log Analytics workspace SKU. | `string` | `"PerGB2018"` | no |
-| `log_analytics_retention_in_days` | Workspace data retention in days. | `number` | `180` | no |
-| `log_analytics_daily_quota_gb` | Workspace daily ingestion quota in GB. Use `-1` for unlimited. | `number` | `-1` | no |
-| `allow_resource_only_permissions` | Enables resource-context permissions only when supported by Azure. | `bool` | `null` | no |
-| `cmk_for_query_forced` | Forces CMK usage for queries where supported. | `bool` | `null` | no |
-| `data_collection_rule_id` | Data collection rule ID associated with the workspace. | `string` | `null` | no |
-| `immediate_data_purge_on_30_days_enabled` | Enables immediate purge for 30-day retention changes. | `bool` | `null` | no |
-| `internet_ingestion_enabled` | Allows ingestion over public internet endpoints. | `bool` | `null` | no |
-| `internet_query_enabled` | Allows queries over public internet endpoints. | `bool` | `null` | no |
-| `local_authentication_disabled` | Disables local authentication where supported. | `bool` | `null` | no |
-| `reservation_capacity_in_gb_per_day` | Reservation capacity in GB per day. | `number` | `null` | no |
-| `identity` | Managed identity configuration. | `object` | `null` | no |
-| `timeouts` | Provider timeout overrides. | `object` | `{}` | no |
-| `tags` | Tags to assign to the workspace. | `map(string)` | `{}` | no |
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `log_analytics_workspace_name` | string | — | ForceNew |
+| `resource_group_name` / `location` | string | — | ForceNew |
+| `log_analytics_sku` | string | — | validated (PerGB2018, CapacityReservation, ...) |
+| `log_analytics_retention_in_days` | number | — | validated: 7 (Free) or 30-730 |
+| `log_analytics_daily_quota_gb` | number | — | `-1` = unlimited; update in place |
+| `internet_ingestion_enabled` / `internet_query_enabled` / `local_authentication_disabled` | bool | — | update in place |
+| `identity` | object | `null` | optional managed identity |
+| `timeouts` | object | `{}` | passthrough |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `id` | Log Analytics workspace resource ID. |
-| `resource_id` | Log Analytics workspace resource ID. |
-| `name` | Log Analytics workspace name. |
-| `workspace_id` | Log Analytics workspace GUID. |
-| `resource_group_name` | Resource group containing the workspace. |
-| `location` | Azure region of the workspace. |
-| `identity_principal_id` | System-assigned identity principal ID when enabled. |
+`id`, `workspace_id` (customer ID), `name`, `primary_shared_key` (sensitive),
+`secondary_shared_key` (sensitive).
+
+## Lifecycle contract
+
+`retention`, `daily_quota_gb`, internet/auth flags, `identity`, `tags` → **update
+in place**. `sku` change between reservation tiers may be in-place;
+`log_analytics_workspace_name` / `rg` / `location` → **replace**. A workspace is a
+durable data store — never recreate on a routine upgrade.
+
+**State exposure:** `primary_shared_key` / `secondary_shared_key` are sensitive
+outputs and are in state.
+
+## Migration
+
+Interface unchanged (1 consumer). Added `sku` + `retention_in_days` validation and
+descriptions.
+
+## Tests
+
+`terraform test` (offline): create, bad-retention rejection.

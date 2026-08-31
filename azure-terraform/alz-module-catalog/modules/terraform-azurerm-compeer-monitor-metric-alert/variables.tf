@@ -1,7 +1,14 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
+variable "name" {
+  description = "Resource name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
 variable "scopes" {
-  type = set(string)
+  description = "Resource IDs the alert evaluates against."
+  type        = set(string)
 
   validation {
     condition     = length(var.scopes) > 0
@@ -96,6 +103,7 @@ variable "actions" {
   default = {}
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

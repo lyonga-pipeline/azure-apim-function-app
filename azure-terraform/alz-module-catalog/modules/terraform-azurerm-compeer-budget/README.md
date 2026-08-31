@@ -1,47 +1,29 @@
 # terraform-azurerm-compeer-budget
 
-Creates Azure consumption budgets at resource group, subscription, or management group scope.
+Consumption budget for a resource group, subscription or management group. `scope_type = null` (default) creates nothing. `contact_groups`/`contact_roles` are not sent to the management-group budget (provider limitation).
 
-## Scope Selection
+## Contract
 
-Use `scope_type` for new deployments:
+Inputs are explicitly typed; repeatable configuration uses `map(object)` with
+caller-stable keys. See `variables.tf` for the full surface and `outputs.tf`
+for composition-ready IDs/attributes.
 
-- `resource_group`
-- `subscription`
-- `management_group`
+## Lifecycle
 
-The legacy `create_for_rg` and `create_for_subscription` inputs are still supported for compatibility.
+Configuration changes update in place unless the Azure resource marks the field
+ForceNew (name / location / scope / parent). Adding or removing a map key affects
+only that entry. Durable/state-bearing resources (workspaces, vaults, budgets,
+management groups) must not be recreated by routine module upgrades.
 
-## Enterprise Defaults
+State exposure: only where a secret input or sensitive output is documented in
+`variables.tf` / `outputs.tf`.
 
-- Supports management group budgets for platform hierarchy control.
-- Supports subscription budgets for subscription vending outputs.
-- Supports multiple named notifications.
-- Keeps legacy resource group budget inputs so existing callers can migrate safely.
+## Migration
 
-## Example
+versions.tf standardised; descriptions and value validation added; `x == null || x.attr`
+validation patterns fixed. Interface preserved for any consumed module.
 
-```hcl
-module "platform_budget" {
-  source = "./modules/terraform-azurerm-compeer-budget"
+## Tests
 
-  scope_type      = "subscription"
-  subscription_id = "/subscriptions/00000000-0000-0000-0000-000000000000"
-  budget_name     = "monthly-platform-budget"
-  amount          = 1000
-  start_date      = "2026-01-01T00:00:00Z"
-
-  notifications = {
-    actual_80 = {
-      threshold      = 80
-      threshold_type = "Actual"
-      contact_emails = ["cloud-finops@example.com"]
-    }
-    forecast_100 = {
-      threshold      = 100
-      threshold_type = "Forecasted"
-      contact_emails = ["cloud-finops@example.com"]
-    }
-  }
-}
-```
+`terraform test` (offline, `mock_provider`): create / no-op, and key
+validations & preconditions where present.

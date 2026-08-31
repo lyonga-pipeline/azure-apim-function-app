@@ -1,24 +1,24 @@
-output "windows_function_id" {
-  description = "The ID of the Windows Web App."
+output "id" {
+  description = "Resource ID of the Windows Function App."
   value       = azurerm_windows_function_app.windows_function_app.id
 }
 
-output "windows_function_name" {
-  description = "The name of the Windows function App."
+output "name" {
+  description = "Name of the Windows Function App."
   value       = azurerm_windows_function_app.windows_function_app.name
 }
 
-output "principal_id" {
-  description = "The Principle ID associated with managed service identity"
-  value       = azurerm_windows_function_app.windows_function_app.identity[0].principal_id
-  ##value  = azurerm_windows_function_app.windows_function_app.identity.principal_id
-
+output "default_hostname" {
+  description = "Default hostname of the Function App."
+  value       = azurerm_windows_function_app.windows_function_app.default_hostname
 }
 
-output "name" {
-  value = var.name
+output "outbound_ip_addresses" {
+  description = "Comma-separated outbound IP addresses."
+  value       = azurerm_windows_function_app.windows_function_app.outbound_ip_addresses
 }
 
-output "resource_group_name" {
-  value = var.resource_group_name
+output "identity_principal_id" {
+  description = "Principal ID of the app's system-assigned identity, when enabled."
+  value       = try(azurerm_windows_function_app.windows_function_app.identity[0].principal_id, null)
 }

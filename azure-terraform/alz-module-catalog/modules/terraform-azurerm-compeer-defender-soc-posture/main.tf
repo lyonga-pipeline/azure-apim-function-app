@@ -1,3 +1,7 @@
+# ============================================================================
+# PATTERN MODULE: composes subscription security posture controls; coordinate ownership with Azure Policy/Defender governance.
+# ============================================================================
+
 locals {
   contract = {
     enabled                       = var.enabled

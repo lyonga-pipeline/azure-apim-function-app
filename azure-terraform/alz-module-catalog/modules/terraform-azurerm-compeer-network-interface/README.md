@@ -1,30 +1,38 @@
-# Network Interface Module
+# terraform-azurerm-compeer-network-interface
 
-This module manages network interfaces separately from virtual machines and load balancer associations.
+A single `azurerm_network_interface`. IP configurations are a `map(object)` keyed
+by config name. Used by the VM and directory-services patterns.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `ip_configurations` | map(object) | — | ≥1 required (validated); `{subnet_id, private_ip_address_allocation(Static\|Dynamic), private_ip_address?, primary?, public_ip_address_id?, ...}`; Static requires `private_ip_address` (validated) |
+| `accelerated_networking_enabled` | bool | `true` | update in place (v4 name) |
+| `ip_forwarding_enabled` | bool | `false` | update in place (v4 name) |
+| `dns_servers` | list(string) | `null` | update in place |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: IP configurations and network interface attributes are exposed for NVA, VM, and appliance patterns without embedding workload assumptions.
+`id`, `name`, `resource_group_name`, `mac_address`, `private_ip_address`,
+`private_ip_addresses`, `ip_configurations` (composite, keyed by config name).
 
-## What Is Better
+## Lifecycle contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| NIC lifecycle | NICs can be hidden inside VM modules. | NICs can be managed independently and passed to VM modules. |
-| Attachments | NSGs, ASGs, and backend pools often have separate ownership. | Association modules own those attachments. |
+`ip_configurations` (add/edit/remove entries), `dns_servers`,
+`accelerated_networking_enabled`, `ip_forwarding_enabled`, `tags` → **update in
+place**. `name` / `resource_group_name` / `location` → **replace**.
 
-## Design Intent
+State exposure: none.
 
-Use this module for base NIC creation. Use companion modules for NSG association, ASG association, backend pool association, and VM attachment.
+## Migration
 
+**Fixed broken outputs:** `ip_configuration_ids` and `ip_configurations[*].id`
+referenced a non-existent `id` attribute on the ip_configuration block (azurerm
+4.x) — removed / corrected. Added `≥1 ip_configuration` and allocation-method
+validation; input descriptions.
+
+## Tests
+
+`terraform test` (offline): create, no-ipconfig rejection, bad-allocation rejection.

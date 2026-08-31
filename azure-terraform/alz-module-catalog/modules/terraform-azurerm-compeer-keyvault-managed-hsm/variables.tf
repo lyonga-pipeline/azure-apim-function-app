@@ -47,12 +47,22 @@ variable "public_network_access_enabled" {
 }
 
 variable "network_acls" {
-  description = "A network_acls block as defined below."
-  type = list(object({
+  description = "Optional network ACL block. `default_action` is Allow or Deny; `bypass` is None or AzureServices."
+  type = object({
     bypass         = string
     default_action = string
-  }))
-  default = []
+  })
+  default = null
+
+  validation {
+    condition     = var.network_acls == null ? true : contains(["Allow", "Deny"], var.network_acls.default_action)
+    error_message = "network_acls.default_action must be Allow or Deny."
+  }
+
+  validation {
+    condition     = var.network_acls == null ? true : contains(["None", "AzureServices"], var.network_acls.bypass)
+    error_message = "network_acls.bypass must be None or AzureServices."
+  }
 }
 
 variable "security_domain_key_vault_certificate_ids" {

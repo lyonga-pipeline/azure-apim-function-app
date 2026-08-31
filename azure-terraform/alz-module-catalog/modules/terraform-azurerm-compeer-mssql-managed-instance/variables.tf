@@ -6,6 +6,7 @@ variable "administrator_login" {
 variable "administrator_login_password" {
   description = "The password associated with the administrator_login user. Must comply with Azure's Password Policy."
   type        = string
+  sensitive   = true
 }
 
 variable "license_type" {
@@ -138,7 +139,7 @@ variable "identity" {
   })
   default = null
   validation {
-    condition     = contains(["SystemAssigned", "UserAssigned"], var.identity.type)
+    condition     = var.identity == null ? true : contains(["SystemAssigned", "UserAssigned"], var.identity.type)
     error_message = "Valid values for identity type are SystemAssigned and UserAssigned."
   }
 }

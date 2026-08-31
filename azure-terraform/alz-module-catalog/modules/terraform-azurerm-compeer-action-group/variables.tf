@@ -1,9 +1,24 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "short_name" { type = string }
+variable "name" {
+  description = "Name of the action group. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group the action group is created in. Changing this forces a new resource."
+  type        = string
+}
+variable "short_name" {
+  description = "Short name used in SMS/email subjects. 1-12 characters."
+  type        = string
+
+  validation {
+    condition     = length(var.short_name) >= 1 && length(var.short_name) <= 12
+    error_message = "short_name must be 1-12 characters."
+  }
+}
 variable "enabled" {
-  type    = bool
-  default = true
+  description = "Whether the action group is enabled."
+  type        = bool
+  default     = true
 }
 variable "receivers" {
   type = object({

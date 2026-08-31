@@ -44,6 +44,35 @@ locals {
     if coalesce(try(controller.domain_join.enabled, null), false)
   }
 
+  ad_ds_role_installs = {
+    for controller_key, controller in var.domain_controllers : controller_key => controller.ad_ds_role_install
+    if coalesce(try(controller.ad_ds_role_install.enabled, null), false)
+  }
+
+  ad_ds_promotions = {
+    for controller_key, controller in var.domain_controllers : controller_key => controller.ad_ds_promotion
+    if coalesce(try(controller.ad_ds_promotion.enabled, null), false)
+  }
+
+  ad_ds_promotion_domain_admin_password_keys = {
+    for controller_key, promotion in local.ad_ds_promotions :
+    controller_key => coalesce(try(promotion.domain_admin_password_key, null), controller_key)
+  }
+
+  ad_ds_promotion_safe_mode_password_keys = {
+    for controller_key, promotion in local.ad_ds_promotions :
+    controller_key => coalesce(
+      try(promotion.safe_mode_admin_password_key, null),
+      try(promotion.domain_admin_password_key, null),
+      controller_key
+    )
+  }
+
+  powershell_bool = {
+    "false" = "$false"
+    "true"  = "$true"
+  }
+
   scope_ids = merge(
     {
       resource_group = module.resource_group.id
@@ -72,8 +101,10 @@ locals {
 
 resource "terraform_data" "controller_contract" {
   input = {
-    domain_controller_keys = sort(keys(var.domain_controllers))
-    domain_join_keys       = sort(keys(local.domain_joins))
+    domain_controller_keys  = sort(keys(var.domain_controllers))
+    domain_join_keys        = sort(keys(local.domain_joins))
+    ad_ds_role_install_keys = sort(keys(local.ad_ds_role_installs))
+    ad_ds_promotion_keys    = sort(keys(local.ad_ds_promotions))
   }
 
   lifecycle {
@@ -89,6 +120,38 @@ resource "terraform_data" "controller_contract" {
         for key, join in local.domain_joins : contains(keys(var.domain_join_passwords), coalesce(try(join.domain_password_key, null), key))
       ])
       error_message = "domain_join_passwords must contain a sensitive password entry for each enabled domain join."
+    }
+
+    precondition {
+      condition = alltrue([
+        for key, install in local.ad_ds_role_installs : length(try(install.features, [])) > 0
+      ])
+      error_message = "Each enabled AD DS role installation must include at least one Windows feature."
+    }
+
+    precondition {
+      condition = alltrue([
+        for key, promotion in local.ad_ds_promotions :
+        length(trimspace(coalesce(try(promotion.domain_name, null), ""))) > 0 &&
+        length(trimspace(coalesce(try(promotion.domain_admin_username, null), ""))) > 0
+      ])
+      error_message = "Each enabled AD DS promotion must set domain_name and domain_admin_username."
+    }
+
+    precondition {
+      condition = alltrue([
+        for key, promotion in local.ad_ds_promotions :
+        contains(keys(var.ad_ds_promotion_passwords), local.ad_ds_promotion_domain_admin_password_keys[key])
+      ])
+      error_message = "ad_ds_promotion_passwords must contain a domain admin password for each enabled AD DS promotion."
+    }
+
+    precondition {
+      condition = alltrue([
+        for key, promotion in local.ad_ds_promotions :
+        contains(keys(var.ad_ds_promotion_passwords), local.ad_ds_promotion_safe_mode_password_keys[key])
+      ])
+      error_message = "ad_ds_promotion_passwords must contain a safe mode administrator password for each enabled AD DS promotion."
     }
   }
 }
@@ -135,7 +198,7 @@ module "domain_controllers" {
   timezone                   = try(each.value.timezone, "UTC")
   provision_vm_agent         = try(each.value.provision_vm_agent, true)
   allow_extension_operations = try(each.value.allow_extension_operations, true)
-  enable_automatic_updates   = try(each.value.enable_automatic_updates, true)
+  automatic_updates_enabled  = try(each.value.automatic_updates_enabled, try(each.value.enable_automatic_updates, true))
   patch_mode                 = try(each.value.patch_mode, "AutomaticByPlatform")
   patch_assessment_mode      = try(each.value.patch_assessment_mode, "AutomaticByPlatform")
   hotpatching_enabled        = try(each.value.hotpatching_enabled, false)
@@ -176,6 +239,32 @@ resource "azurerm_virtual_machine_data_disk_attachment" "data" {
   caching            = try(each.value.caching, "ReadOnly")
 }
 
+# Confirm with the AD team whether Terraform should own AD DS/DNS role
+# installation before enabling this extension in an enterprise workspace.
+resource "azurerm_virtual_machine_extension" "ad_ds_role_install" {
+  for_each = local.ad_ds_role_installs
+
+  name                 = try(each.value.name, "install-ad-dns")
+  virtual_machine_id   = module.domain_controllers[each.key].id
+  publisher            = "Microsoft.Compute"
+  type                 = "CustomScriptExtension"
+  type_handler_version = try(each.value.type_handler_version, "1.10")
+
+  settings = jsonencode({
+    scriptVersion    = try(each.value.script_version, "v1")
+    commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"Install-WindowsFeature -Name ${join(",", try(each.value.features, ["AD-Domain-Services", "DNS"]))}${try(each.value.include_management_tools, true) ? " -IncludeManagementTools" : ""} -ErrorAction Stop\""
+  })
+
+  timeouts {
+    create = try(each.value.timeouts.create, "60m")
+    update = try(each.value.timeouts.update, "60m")
+    read   = try(each.value.timeouts.read, "5m")
+    delete = try(each.value.timeouts.delete, "60m")
+  }
+
+  depends_on = [terraform_data.controller_contract]
+}
+
 module "vm_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = {
@@ -209,7 +298,57 @@ module "domain_join" {
   join_options         = try(each.value.join_options, 3)
   type_handler_version = try(each.value.type_handler_version, "1.3")
 
-  depends_on = [terraform_data.controller_contract]
+  depends_on = [
+    terraform_data.controller_contract,
+    azurerm_virtual_machine_extension.ad_ds_role_install
+  ]
+}
+
+# Confirm with the AD team whether Terraform should own domain controller
+# promotion. This is opt-in because promotion writes guest/AD state and places
+# sensitive promotion material in the Terraform execution path.
+resource "azurerm_virtual_machine_extension" "ad_ds_promotion" {
+  for_each = local.ad_ds_promotions
+
+  name                 = try(each.value.name, "promote-to-dc")
+  virtual_machine_id   = module.domain_controllers[each.key].id
+  publisher            = "Microsoft.Compute"
+  type                 = "CustomScriptExtension"
+  type_handler_version = try(each.value.type_handler_version, "1.10")
+
+  settings = jsonencode({
+    scriptVersion = try(each.value.script_version, "v1")
+  })
+
+  protected_settings = jsonencode({
+    commandToExecute = join(" ", compact([
+      "powershell -ExecutionPolicy Bypass -Command \"",
+      "$ErrorActionPreference = 'Stop';",
+      "Install-WindowsFeature -Name ${join(",", try(each.value.features, ["AD-Domain-Services", "DNS"]))}${try(each.value.include_management_tools, true) ? " -IncludeManagementTools" : ""} -ErrorAction Stop;",
+      "Import-Module ADDSDeployment;",
+      "if ((Get-CimInstance Win32_ComputerSystem).DomainRole -ge 4) { Write-Output 'This VM is already a domain controller; skipping promotion.'; exit 0 };",
+      "$domainPasswordPlain = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64encode(lookup(var.ad_ds_promotion_passwords, local.ad_ds_promotion_domain_admin_password_keys[each.key], ""))}'));",
+      "$safeModePasswordPlain = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64encode(lookup(var.ad_ds_promotion_passwords, local.ad_ds_promotion_safe_mode_password_keys[each.key], ""))}'));",
+      "$domainPassword = ConvertTo-SecureString $domainPasswordPlain -AsPlainText -Force;",
+      "$safeModePassword = ConvertTo-SecureString $safeModePasswordPlain -AsPlainText -Force;",
+      "$cred = New-Object System.Management.Automation.PSCredential('${coalesce(try(each.value.domain_admin_username, null), "")}', $domainPassword);",
+      "Install-ADDSDomainController -DomainName '${coalesce(try(each.value.domain_name, null), "")}' -Credential $cred -SafeModeAdministratorPassword $safeModePassword -InstallDns:${local.powershell_bool[tostring(try(each.value.install_dns, true))]} -NoGlobalCatalog:${local.powershell_bool[tostring(try(each.value.no_global_catalog, false))]}${try(each.value.site_name, null) == null ? "" : " -SiteName '${each.value.site_name}'"} -CriticalReplicationOnly:${local.powershell_bool[tostring(try(each.value.critical_replication_only, false))]} -NoRebootOnCompletion:${local.powershell_bool[tostring(try(each.value.no_reboot_on_completion, true))]} -Force:${local.powershell_bool[tostring(try(each.value.force, true))]} -Confirm:$false;",
+      "Write-Output 'Promotion command completed. Reboot may be required to finalize domain controller configuration.'\""
+    ]))
+  })
+
+  timeouts {
+    create = try(each.value.timeouts.create, "120m")
+    update = try(each.value.timeouts.update, "120m")
+    read   = try(each.value.timeouts.read, "5m")
+    delete = try(each.value.timeouts.delete, "120m")
+  }
+
+  depends_on = [
+    terraform_data.controller_contract,
+    azurerm_virtual_machine_extension.ad_ds_role_install,
+    module.domain_join
+  ]
 }
 
 module "role_assignments" {

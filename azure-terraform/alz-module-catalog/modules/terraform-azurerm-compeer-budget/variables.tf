@@ -4,7 +4,7 @@ variable "scope_type" {
   default     = null
 
   validation {
-    condition     = var.scope_type == null || contains(["resource_group", "subscription", "management_group"], var.scope_type)
+    condition     = var.scope_type == null ? true : contains(["resource_group", "subscription", "management_group"], var.scope_type)
     error_message = "scope_type must be null, resource_group, subscription, or management_group."
   }
 }
@@ -12,7 +12,7 @@ variable "scope_type" {
 variable "create_for_rg" {
   type        = bool
   description = "Legacy compatibility flag for creating a resource group budget."
-  default     = true
+  default     = false
 }
 
 variable "create_for_subscription" {
@@ -31,12 +31,6 @@ variable "resource_group_name" {
   type        = string
   description = "Resource group name when scope_type is resource_group."
   default     = null
-}
-
-variable "resource_group_location" {
-  type        = string
-  description = "Legacy compatibility input. Resource group budgets use the existing resource group location."
-  default     = "eastus2"
 }
 
 variable "subscription_id" {
@@ -69,7 +63,7 @@ variable "amount" {
   default     = null
 
   validation {
-    condition     = var.amount == null || var.amount > 0
+    condition     = var.amount == null ? true : var.amount > 0
     error_message = "amount must be greater than zero when provided."
   }
 }
@@ -80,7 +74,7 @@ variable "rg_amount" {
   default     = null
 
   validation {
-    condition     = var.rg_amount == null || var.rg_amount > 0
+    condition     = var.rg_amount == null ? true : var.rg_amount > 0
     error_message = "rg_amount must be greater than zero when provided."
   }
 }

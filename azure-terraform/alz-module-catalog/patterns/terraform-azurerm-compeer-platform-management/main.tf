@@ -113,7 +113,6 @@ module "platform_key_vaults" {
   access_policies                 = try(each.value.access_policies, [])
   access_policies_by_key          = try(each.value.access_policies_by_key, {})
   rbac_authorization_enabled      = try(each.value.rbac_authorization_enabled, true)
-  enable_rbac_authorization       = try(each.value.enable_rbac_authorization, null)
   enabled_for_deployment          = try(each.value.enabled_for_deployment, false)
   enabled_for_disk_encryption     = try(each.value.enabled_for_disk_encryption, false)
   enabled_for_template_deployment = try(each.value.enabled_for_template_deployment, false)

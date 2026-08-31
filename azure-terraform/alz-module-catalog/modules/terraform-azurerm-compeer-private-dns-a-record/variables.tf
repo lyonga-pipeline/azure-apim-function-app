@@ -1,4 +1,5 @@
 variable "records" {
+  description = "A records keyed by a stable logical key."
   type = map(object({
     name                = string
     zone_name           = string
@@ -8,6 +9,11 @@ variable "records" {
     tags                = optional(map(string), {})
   }))
   default = {}
+
+  validation {
+    condition     = alltrue([for r in values(var.records) : r.ttl >= 1 && r.ttl <= 2147483647 && length(r.records) > 0])
+    error_message = "Each record needs ttl in 1..2147483647 and at least one IP."
+  }
 }
 
 variable "tags" {

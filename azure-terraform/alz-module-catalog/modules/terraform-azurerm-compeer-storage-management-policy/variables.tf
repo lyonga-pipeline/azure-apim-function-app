@@ -1,4 +1,7 @@
-variable "storage_account_id" { type = string }
+variable "storage_account_id" {
+  description = "Resource ID of the storage account."
+  type        = string
+}
 variable "rules" {
   type = map(object({
     enabled = optional(bool, true)

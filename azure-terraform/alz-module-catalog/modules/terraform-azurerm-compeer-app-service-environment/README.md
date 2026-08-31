@@ -93,3 +93,11 @@ This declares a resource of type `azurerm_app_service_environment_v3` with a loc
 ---
 
 For further details and examples, please refer to the [official documentation](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/app_service_environment) and [ASE v3 documentation](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/app_service_environment_v3).
+
+### Module contract principles
+
+- The module owns only the lifecycle stated in its architecture classification; adjacent RG/network/RBAC/private-endpoint/diagnostic/extension capabilities are composed externally unless explicitly classified as a pattern module.
+- Optional capabilities use `null`, `{}` or typed optional objects/maps rather than magic empty strings or implicit creation side effects.
+- Repeatable caller-owned instances must use stable logical keys; callers should not depend on list index identity.
+- Secrets supplied to Terraform remain part of Terraform state even when marked sensitive; use HCP sensitive variables or an approved secret-delivery pattern.
+- Provider ranges are bounded. Widen provider constraints only after create/no-change/update/upgrade/replacement lifecycle tests pass.

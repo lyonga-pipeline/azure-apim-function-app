@@ -1,41 +1,72 @@
-# Windows VM Module
+# terraform-azurerm-compeer-windows-vm
 
-This module is the Terraform 2.0 replacement pattern for reviewed Windows VM configurations. It owns the VM lifecycle but deliberately keeps guest configuration and post-provision actions separate.
+Lean single Windows VM (`azurerm_windows_virtual_machine`). NICs, managed data
+disks, extensions and domain-join are caller-owned and composed by their
+dedicated modules (`network-interface`, `windows-vm-domain-join`, ...). This is
+the preferred Windows VM resource boundary; `windows-virtual-machine` is the
+older composite variant.
 
-## What Is Better
+## Usage
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| VM lifecycle | VM, domain join, disks, extensions, and guest configuration can become bundled together. | Core VM creation is separate from data disks, domain join, and extensions. |
-| Input contract | Flat inputs can make image, availability, and identity combinations unclear. | Uses structured objects for image reference, plan, OS disk, identity, diagnostics, and capabilities. |
-| Security posture | Secure boot, vTPM, encryption at host, patch mode, and diagnostics may be inconsistent. | Exposes enterprise VM controls explicitly with validation where appropriate. |
-| Availability model | Zone and availability set can be mixed without clear rules. | Keeps availability set and zone as explicit inputs so pattern modules can enforce environment rules. |
+```hcl
+module "dc" {
+  source                = "../terraform-azurerm-compeer-windows-vm"
+  name                  = "vm-dc01"
+  resource_group_name   = module.rg.name
+  location              = "eastus2"
+  network_interface_ids = [module.nic.id]
+  admin_password        = var.dc_admin_password
 
-## Design Intent
+  source_image_reference = {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-datacenter-azure-edition"
+    version   = "latest"
+  }
 
-This module owns:
+  tags = module.tags.tags
+}
+```
 
-- Windows VM resource
-- Base NIC attachment
-- OS disk
-- Image or marketplace plan selection
-- Identity
-- Patch and agent settings
-- Secure boot, vTPM, and encryption-at-host controls
-- Boot diagnostics
+## Inputs (selected)
 
-Use companion modules for:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `network_interface_ids` | list(string) | — | first is primary; ≥1 required |
+| `admin_password` | string (sensitive) | — | validated: ≥14 chars, upper/lower/digit/special |
+| `computer_name` | string | derived | ≤15 chars; default = sanitised `name` prefix |
+| `zone` / `availability_set_id` | string | `null` | mutually exclusive (precondition); `zone` is ForceNew |
+| `source_image_id` / `source_image_reference` | string / object | `null` | exactly one required (preconditions) |
+| `os_disk` | object | Premium_LRS / ReadWrite | `caching`, `storage_account_type`, sizes |
+| `patch_mode` | string | `AutomaticByPlatform` | validated Manual/AutomaticByOS/AutomaticByPlatform |
+| `secure_boot_enabled` / `vtpm_enabled` / `encryption_at_host_enabled` | bool | `true` | Trusted Launch + host encryption on by default |
+| `identity` | object | `null` | UserAssigned requires ≥1 `identity_ids` (precondition) |
+| `timeouts` | object | `{}` | passthrough |
 
-- `network-interface`
-- `windows-vm-data-disks`
-- `windows-vm-domain-join`
-- `windows-vm-extension`
-- `availability-set`
-- `role-assignments`
-- `diagnostic-settings`
-- `monitor-metric-alert`
+## Outputs
 
-## Why This Matters
+`id`, `name`, `computer_name`, `identity`, `identity_principal_id`, `private_ips`.
 
-Domain join, disk layout, guest bootstrap, and extensions change on a different cadence than VM creation. Keeping them separate reduces blast radius and lets operations teams manage Day-2 VM configuration without replacing the base VM module.
+## Lifecycle contract
 
+| Change | Result |
+|---|---|
+| `tags`, `vm_size` (resize), `patch_mode`, `license_type`, `identity`, `boot_diagnostics`, `allow_extension_operations` | **update in place** |
+| `admin_password` | update in place (reset) |
+| `os_disk.disk_size_gb` increase | update in place |
+| `name`, `computer_name`, `zone`, `availability_set_id`, `source_image_*`, `admin_username`, `os_disk.storage_account_type`, `encryption_at_host_enabled` | **replace** (Azure ForceNew) |
+
+**State exposure:** `admin_password` is stored in Terraform state. Protect the
+backend; prefer feeding it from Key Vault via a data source in the caller.
+
+## Migration
+
+`enable_automatic_updates` renamed to `automatic_updates_enabled` (azurerm-4.x
+current name). Added `patch_mode` validation and descriptions. Fixed a
+precondition that dereferenced `var.identity` before the null check.
+
+## Tests
+
+`terraform test` (offline): Trusted-Launch defaults, zone/availability-set
+exclusivity, weak-password rejection, patch_mode validation.

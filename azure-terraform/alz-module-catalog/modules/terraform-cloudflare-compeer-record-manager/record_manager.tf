@@ -57,10 +57,10 @@ resource "cloudflare_record" "record" {
   }
 
   dynamic "timeouts" {
-    for_each = length(var.timeouts) > 0 ? var.timeouts : {}
+    for_each = length([for v in values(var.timeouts) : v if v != null]) > 0 ? [var.timeouts] : []
     content {
-      create = lookup(timeouts.value, "create", null)
-      update = lookup(timeouts.value, "update", null)
+      create = timeouts.value.create
+      update = timeouts.value.update
     }
   }
 }

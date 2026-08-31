@@ -1,62 +1,37 @@
-## Requirements
+# terraform-azurerm-compeer-windows-web-app
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >=3.11, < 5.0 |
+Single `azurerm_windows_web_app`. Same shape and contract as
+`terraform-azurerm-compeer-linux-web-app` (see that README for full input /
+output / lifecycle detail) except `site_config.application_stack` uses the Windows
+fields (`current_stack`, `dotnet_version`, `dotnet_core_version`, `tomcat_version`,
+`java_version`, `node_version`, `php_version`, `python`).
 
-## Providers
-
-| Name | Version |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >=3.11, < 5.0 |
-
-## Modules
-
-No modules.
-
-## Resources
-
-| Name | Type |
-|------|------|
-| [azurerm_windows_web_app.windows_web_app](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/windows_web_app) | resource |
-| [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
-
-## Inputs
-
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_app_settings"></a> [app\_settings](#input\_app\_settings) | A map of key-value pairs of App Settings. | `map(string)` | `null` | no |
-| <a name="input_auth_settings"></a> [auth\_settings](#input\_auth\_settings) | Authentication settings configuration | <pre>list(object({<br>    enabled                        = bool<br>    additional_login_parameters    = optional(map(string))<br>    allowed_external_redirect_urls = optional(list(string))<br>    runtime_version                = optional(string)<br>    token_refresh_extension_hours  = optional(number)<br>    token_store_enabled            = optional(bool)<br>    unauthenticated_client_action  = optional(string)<br>    active_directory = optional(object({<br>      client_id                  = string<br>      allowed_audiences          = optional(list(string))<br>      client_secret              = optional(string)<br>      client_secret_setting_name = optional(string)<br>    }))<br>    microsoft = optional(object({<br>      client_id                  = string<br>      client_secret              = optional(string)<br>      client_secret_setting_name = optional(string)<br>      oauth_scopes               = optional(list(string))<br>    }))<br>  }))</pre> | `[]` | no |
-| <a name="input_backup"></a> [backup](#input\_backup) | Backup settings configuration | <pre>list(object({<br>    name                = string<br>    storage_account_url = string<br>    enabled             = bool<br>    schedule = optional(object({<br>      frequency_interval       = string<br>      frequency_unit           = string<br>      keep_at_least_one_backup = optional(bool)<br>      retention_period_days    = optional(number)<br>      start_time               = optional(string)<br>    }))<br>  }))</pre> | `[]` | no |
-| <a name="input_client_affinity_enabled"></a> [client\_affinity\_enabled](#input\_client\_affinity\_enabled) | Should Client Affinity be enabled? | `bool` | `false` | no |
-| <a name="input_client_certificate_enabled"></a> [client\_certificate\_enabled](#input\_client\_certificate\_enabled) | Should Client Certificates be enabled? | `bool` | `false` | no |
-| <a name="input_client_certificate_exclusion_paths"></a> [client\_certificate\_exclusion\_paths](#input\_client\_certificate\_exclusion\_paths) | Paths to exclude when using client certificates, separated by ; | `string` | `null` | no |
-| <a name="input_client_certificate_mode"></a> [client\_certificate\_mode](#input\_client\_certificate\_mode) | The Client Certificate mode. Possible values are Required, Optional, and OptionalInteractiveUser. This property has no effect when client\_cert\_enabled is false | `string` | `null` | no |
-| <a name="input_connection_string"></a> [connection\_string](#input\_connection\_string) | One or more Connection string configuration | <pre>list(object({<br>    name  = string<br>    type  = string<br>    value = string<br>  }))</pre> | `[]` | no |
-| <a name="input_enabled"></a> [enabled](#input\_enabled) | Should the Windows Web App be enabled? Defaults to true. | `bool` | `true` | no |
-| <a name="input_ftp_publish_basic_authentication_enabled"></a> [ftp\_publish\_basic\_authentication\_enabled](#input\_ftp\_publish\_basic\_authentication\_enabled) | Should FTP publish profile use basic authentication. Defaults to true. | `bool` | `true` | no |
-| <a name="input_https_only"></a> [https\_only](#input\_https\_only) | Should the Windows Web App require HTTPS connections. | `bool` | `true` | no |
-| <a name="input_identity"></a> [identity](#input\_identity) | For setting managed identity for accessing Azure services. | <pre>list(object({<br>    type         = string<br>    identity_ids = optional(list(string))<br>  }))</pre> | `[]` | no |
-| <a name="input_key_vault_reference_identity_id"></a> [key\_vault\_reference\_identity\_id](#input\_key\_vault\_reference\_identity\_id) | The User Assigned Identity ID used for accessing KeyVault secrets. The identity must be assigned to the application in the identity block. | `string` | `null` | no |
-| <a name="input_location"></a> [location](#input\_location) | The Azure Region where the Windows Web App should exist. Changing this forces a new Windows Web App to be created. | `string` | n/a | yes |
-| <a name="input_logs"></a> [logs](#input\_logs) | Logging settings configuration | <pre>list(object({<br>    application_logs = optional(object({<br>      detailed_error_messages = optional(bool)<br>      failed_request_tracing  = optional(bool)<br>      file_system_level       = optional(string)<br>      azure_blob_storage = optional(object({<br>        level             = string<br>        retention_in_days = optional(number)<br>        sas_url           = optional(string)<br>      }))<br>    }))<br>    http_logs = optional(object({<br>      azure_blob_storage = optional(list(object({<br>        retention_in_days = optional(number)<br>        sas_url           = optional(string)<br>      })))<br>      file_system = optional(object({<br>        retention_in_days = optional(number)<br>        retention_in_mb   = optional(number)<br>      }))<br>    }))<br>  }))</pre> | `[]` | no |
-| <a name="input_name"></a> [name](#input\_name) | The name which should be used for this Windows Web App. Changing this forces a new Windows Web App to be created. | `string` | n/a | yes |
-| <a name="input_public_network_access_enabled"></a> [public\_network\_access\_enabled](#input\_public\_network\_access\_enabled) | Should public network access be enabled for the Web App. | `bool` | `false` | no |
-| <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the Resource Group where the Windows Web App should exist. Changing this forces a new Windows Web App to be created. | `string` | n/a | yes |
-| <a name="input_service_plan_id"></a> [service\_plan\_id](#input\_service\_plan\_id) | The ID of the Service Plan that this Windows App Service will be created in. | `string` | n/a | yes |
-| <a name="input_site_config"></a> [site\_config](#input\_site\_config) | Configuration for each site | <pre>list(object({<br>    always_on                                     = optional(bool)<br>    api_definition_url                            = optional(string)<br>    api_management_api_id                         = optional(string)<br>    app_command_line                              = optional(string)<br>    container_registry_managed_identity_client_id = optional(string)<br>    container_registry_use_managed_identity       = optional(bool)<br>    default_documents                             = optional(list(string))<br>    ftps_state                                    = optional(string)<br>    health_check_path                             = optional(string)<br>    health_check_eviction_time_in_min             = optional(number)<br>    http2_enabled                                 = optional(bool)<br>    load_balancing_mode                           = optional(string)<br>    local_mysql_enabled                           = optional(bool)<br>    managed_pipeline_mode                         = optional(string)<br>    minimum_tls_version                           = optional(string)<br>    remote_debugging_enabled                      = optional(bool)<br>    remote_debugging_version                      = optional(string)<br>    scm_minimum_tls_version                       = optional(string)<br>    scm_use_main_ip_restriction                   = optional(bool)<br>    use_32_bit_worker                             = optional(bool)<br>    vnet_route_all_enabled                        = optional(bool)<br>    websockets_enabled                            = optional(bool)<br>    worker_count                                  = optional(number)<br>    application_stack = optional(object({<br>      current_stack                = optional(string)<br>      docker_image_name            = optional(string)<br>      docker_registry_url          = optional(string)<br>      docker_registry_username     = optional(string)<br>      docker_registry_password     = optional(string)<br>      dotnet_version               = optional(string)<br>      dotnet_core_version          = optional(string)<br>      tomcat_version               = optional(string)<br>      java_embedded_server_enabled = optional(bool)<br>      java_version                 = optional(string)<br>      node_version                 = optional(string)<br>      php_version                  = optional(string)<br>      python                       = optional(string)<br>    }))<br>    auto_heal_setting = optional(object({<br>      action = optional(object({<br>        action_type                    = optional(string)<br>        minimum_process_execution_time = optional(string)<br>        custom_action = optional(object({<br>          executable = optional(string)<br>          parameters = optional(string)<br>        }))<br>      }))<br>      trigger = optional(object({<br>        private_memory_kb = optional(string)<br>        requests = optional(list(object({<br>          count    = optional(string)<br>          interval = optional(string)<br>        })))<br>        slow_request = optional(object({<br>          count      = optional(string)<br>          interval   = optional(string)<br>          time_taken = optional(string)<br>        }))<br>        slow_request_with_path = optional(object({<br>          count      = optional(string)<br>          interval   = optional(string)<br>          time_taken = optional(string)<br>          path       = optional(string)<br>        }))<br>        status_code = optional(object({<br>          count             = optional(string)<br>          interval          = optional(string)<br>          status_code_range = optional(string)<br>          path              = optional(string)<br>          sub_status        = optional(string)<br>          win32_status      = optional(string)<br>        }))<br>      }))<br>    }))<br>    cors = optional(object({<br>      allowed_origins     = list(string)<br>      support_credentials = optional(bool)<br>    }))<br>    ip_restriction = optional(object({<br>      action                    = optional(string)<br>      ip_address                = optional(string)<br>      name                      = optional(string)<br>      priority                  = optional(number)<br>      service_tag               = optional(string)<br>      virtual_network_subnet_id = optional(string)<br>      headers = optional(object({<br>        x_azure_fdid      = optional(list(string))<br>        x_fd_health_probe = optional(string)<br>        x_forwarded_for   = optional(list(string))<br>        x_forwarded_host  = optional(list(string))<br>      }))<br>    }))<br>    scm_ip_restriction = optional(object({<br>      action                    = optional(string)<br>      ip_address                = optional(string)<br>      name                      = optional(string)<br>      priority                  = optional(number)<br>      service_tag               = optional(string)<br>      virtual_network_subnet_id = optional(string)<br>      headers = optional(object({<br>        x_azure_fdid      = optional(list(string))<br>        x_fd_health_probe = optional(string)<br>        x_forwarded_for   = optional(list(string))<br>        x_forwarded_host  = optional(list(string))<br>      }))<br>    }))<br>    virtual_application = optional(object({<br>      physical_path = string<br>      preload       = bool<br>      virtual_path  = string<br>      virtual_directory = optional(object({<br>        physical_path = optional(string)<br>        virtual_path  = optional(string)<br>      }))<br>    }))<br>  }))</pre> | `[]` | no |
-| <a name="input_sticky_settings"></a> [sticky\_settings](#input\_sticky\_settings) | Typically used for sticky session configurations. | <pre>list(object({<br>    app_setting_names       = optional(list(string), [])<br>    connection_string_names = optional(list(string), [])<br>  }))</pre> | `[]` | no |
-| <a name="input_storage_account"></a> [storage\_account](#input\_storage\_account) | To link Azure storage accounts. | <pre>list(object({<br>    access_key   = string<br>    account_name = string<br>    name         = string<br>    share_name   = string<br>    type         = string<br>    mount_path   = optional(string)<br>  }))</pre> | `[]` | no |
-| <a name="input_tags"></a> [tags](#input\_tags) | A mapping of tags which should be assigned to the Windows Web App. | `map(string)` | `{}` | no |
-| <a name="input_virtual_network_subnet_id"></a> [virtual\_network\_subnet\_id](#input\_virtual\_network\_subnet\_id) | The subnet id which will be used by this Web App for regional virtual network integration. | `string` | `null` | no |
-| <a name="input_webdeploy_publish_basic_authentication_enabled"></a> [webdeploy\_publish\_basic\_authentication\_enabled](#input\_webdeploy\_publish\_basic\_authentication\_enabled) | Should WebDeploy publish profile use basic authentication. Defaults to true. | `bool` | `true` | no |
-| <a name="input_zip_deploy_file"></a> [zip\_deploy\_file](#input\_zip\_deploy\_file) | The local path and filename of the Zip packaged application to deploy to this Windows Web App. | `string` | `null` | no |
+Service Plan is passed in by ID; diagnostics compose at the pattern layer.
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_webapp_id"></a> [webapp\_id](#output\_webapp\_id) | The ID of the Windows Web App. |
-| <a name="output_webapp_principal_id"></a> [webapp\_principal\_id](#output\_webapp\_principal\_id) | The Principle ID associated with managed service identity |
-| <a name="output_webapp_tenant_id"></a> [webapp\_tenant\_id](#output\_webapp\_tenant\_id) | The Principle ID associated with managed service identity |
+`id`, `name`, `default_hostname`, `outbound_ip_addresses`, `identity_principal_id`.
+
+## Lifecycle contract
+
+`app_settings`, `site_config.*`, `connection_string`, `https_only`,
+`public_network_access_enabled`, `identity`, `tags`, `service_plan_id` -> **update
+in place**. `name` / `resource_group_name` / `location` -> **replace**.
+
+State exposure: `connection_string[*].value` and `storage_account[*].access_key`
+are in state - prefer Key Vault references.
+
+## Migration / fixes applied
+
+- Removed dead `data "azurerm_monitor_diagnostic_categories"` + unused `locals`
+  (embedded-diagnostics leftover - caused apply failures).
+- Rewrote `site_config` nested `dynamic` `for_each` to null-safe form.
+- Removed stray commented-out `variable` blocks that broke `terraform fmt`.
+- Outputs renamed to `id` / `name` / `identity_principal_id` (null-safe).
+
+**Known follow-up:** same `list(object)`-as-singleton refactor as `linux-web-app`.
+
+## Tests
+
+`terraform test` (offline): secure defaults, keyed connection strings,
+empty-site_config rejection.

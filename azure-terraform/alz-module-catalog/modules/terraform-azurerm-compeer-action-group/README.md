@@ -1,44 +1,61 @@
-# Action Group Module
+# terraform-azurerm-compeer-action-group
 
-This module manages Azure Monitor Action Groups as a focused operational companion module.
+Azure Monitor Action Group. One resource, full receiver surface (all receiver
+families), each family a `map(object)` keyed by a stable caller name so adding one
+receiver never reorders the others.
 
-## Reusability and Extensibility
+`terraform-azurerm-compeer-actiongroup` has an identical interface; both are kept
+and maintained to the same standard.
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+## Usage
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+```hcl
+module "ag" {
+  source              = "../terraform-azurerm-compeer-action-group"
+  name                = "ag-platform-critical"
+  resource_group_name = module.rg.name
+  short_name          = "platcrit"
 
-Module-specific extension points: Receiver maps cover email, webhook, SMS, voice, ARM role, automation runbook, app push, Azure Function, Event Hub, ITSM, and Logic App receivers without coupling the module to alert rules.
+  receivers = {
+    email   = { oncall = { email_address = "oncall@example.com" } }
+    webhook = { pagerduty = { service_uri = var.pd_uri } }
+  }
 
-## What Is Better
+  tags = module.tags.tags
+}
+```
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Scope | Reviewed module was already narrow and reusable. | Keeps action group lifecycle focused and independent from alerts. |
-| Receiver contract | Receiver support can be too narrow or examples can contain sensitive-looking values. | Uses a structured `receivers` object and keeps receiver values as explicit inputs. |
-| Composition | Alerts and action groups can be bundled into every workload module. | Action groups are reusable across many alert modules and workloads. |
+## Inputs
 
-## Design Intent
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` | string | - | ForceNew |
+| `resource_group_name` | string | - | ForceNew |
+| `short_name` | string | - | validated 1-12 chars |
+| `enabled` | bool | `true` | update in place |
+| `receivers` | object | `{}` | per-family `map(object)`: `email`, `webhook`, `sms`, `voice`, `arm_role`, `automation_runbook`, `azure_app_push`, `azure_function`, `event_hub`, `itsm`, `logic_app` |
+| `tags` | map(string) | `{}` | update in place |
+| `timeouts` | object | `{}` | passthrough |
 
-This module owns:
+## Outputs
 
-- Monitor Action Group resource
-- Action group enabled state
-- Email, webhook, SMS, voice, ARM role, automation runbook, app push, Azure Function, Event Hub, ITSM, and Logic App receivers supported by the module contract
-- Standard outputs for alert composition
+`id`, `name`, `resource_group_name`, `short_name`, `enabled`.
 
-Use companion modules for:
+## Lifecycle contract
 
-- `monitor-metric-alert`
-- service-specific diagnostic and alert patterns
+| Change | Result |
+|---|---|
+| `enabled`, `tags`, any receiver add/remove/edit | **update in place** - receivers are inline blocks; the group is never replaced |
+| `name`, `resource_group_name` | **replace** (ForceNew) |
 
-## Why This Matters
+State exposure: webhook/function URIs and ITSM connection IDs passed in `receivers`
+are stored in state. Treat them as secret-adjacent.
 
-Action groups are shared operational targets. Keeping them separate lets alert thresholds and monitored resources change without recreating notification channels.
+## Migration
+
+`short_name` is now validated (1-12 chars). No other interface change.
+
+## Tests
+
+`terraform test` (offline): create with email+webhook receivers, additive receiver
+add, `short_name` length validation.

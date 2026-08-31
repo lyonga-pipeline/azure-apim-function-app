@@ -34,8 +34,16 @@ output "diagnostic_setting_ids" {
   value = try(module.directory_services[0].diagnostic_setting_ids, {})
 }
 
+output "ad_ds_role_install_extension_ids" {
+  value = try(module.directory_services[0].ad_ds_role_install_extension_ids, {})
+}
+
 output "domain_join_extension_ids" {
   value = try(module.directory_services[0].domain_join_extension_ids, {})
+}
+
+output "ad_ds_promotion_extension_ids" {
+  value = try(module.directory_services[0].ad_ds_promotion_extension_ids, {})
 }
 
 output "operational_contracts" {

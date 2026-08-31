@@ -1,45 +1,42 @@
-# Public IP Module
+# terraform-azurerm-compeer-public-ip
 
-This module creates public IP resources separately from load balancers, NAT Gateways, Application Gateways, and other consumers.
+A single `azurerm_public_ip`. Used by App Gateway, NAT Gateway, Bastion,
+VPN/ER gateways and the route server.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `allocation_method` | string | `Static` | validated; Standard SKU requires Static (precondition) |
+| `sku` | string | `Standard` | validated Basic/Standard; ForceNew |
+| `sku_tier` | string | `Regional` | ForceNew |
+| `ip_version` | string | `IPv4` | ForceNew |
+| `zones` | list(string) | `[]` | ForceNew; set for zone-redundant Standard IPs |
+| `idle_timeout_in_minutes` | number | `4` | update in place |
+| `ddos_protection_mode` / `ddos_protection_plan_id` | string | `null` | update in place |
+| `domain_name_label` / `reverse_fqdn` | string | `null` | update in place |
+| `timeouts` | object | `{}` | passthrough |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: SKU, tier, zones, labels, prefix, DDoS posture, IP tags, and timeouts are configurable so public IPs can be reused by Bastion, Route Server, gateways, and appliances.
+`id`, `name`, `resource_group_name`, `location`, `ip_address`, `fqdn`, `zones`.
 
-## What Is Better
+## Lifecycle contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Public endpoint ownership | Public IP creation can be embedded in consumer modules. | Public IP lifecycle is explicit and reusable. |
-| DNS and SKU choices | Allocation, SKU, zones, and DNS labels may vary. | Public IP attributes are controlled through a focused contract. |
-| Reuse | A public IP may be consumed by several platform patterns. | Consumers receive an explicit public IP ID. |
+`idle_timeout_in_minutes`, `ddos_protection_*`, `domain_name_label`,
+`reverse_fqdn`, `tags` → **update in place**. `sku`, `sku_tier`, `ip_version`,
+`zones`, `allocation_method` on Basic, `name`/`rg`/`location` → **replace**.
+`ip_address` is only known after apply for Dynamic IPs.
 
-## Design Intent
+State exposure: none.
 
-This module owns:
+## Migration
 
-- Public IP resource creation
-- Allocation, SKU, tier, zones, and DNS label settings
-- Tags and outputs
+Interface unchanged (5 consumers). Added `allocation_method` / `sku` validation
+and the Standard-requires-Static precondition; input descriptions.
 
-Use companion modules for:
+## Tests
 
-- `nat-gateway-public-ip-association`
-- `load-balancer`
-- `application-gateway`
-
-## Why This Matters
-
-Public IPs are externally visible resources and often need separate approval, naming, and lifecycle control. This module prevents consumer modules from creating public exposure implicitly.
-
+`terraform test` (offline): Standard/Static defaults, Standard+Dynamic
+precondition, bad-SKU validation.

@@ -1,29 +1,36 @@
-# Route Table Module
+# terraform-azurerm-compeer-route-table
 
-This module manages route tables separately from subnet attachment.
+A single route table + its routes (`azurerm_route_table`). Routes are a
+`map(object)` keyed by route name. Subnet association is
+`subnet-route-table-association`. Canonical route-table module (2 pattern
+consumers); `route-tables` (plural) is the equivalent legacy name.
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `bgp_route_propagation_enabled` | bool | `true` | update in place |
+| `routes` | map(object) | `{}` | key = route name; `{address_prefix, next_hop_type, next_hop_in_ip_address?}` — `next_hop_type` validated; appliance IP required iff `VirtualAppliance` |
+| `tags` | map(string) | `{}` | update in place |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Routes are keyed by logical name and kept independent from subnet association so route ownership can change without recreating subnets.
+`id`, `name`, `resource_group_name`, `subnet_ids` (associations, external).
 
-## What Is Better
+## Lifecycle contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Routing lifecycle | Route tables and subnet associations can be bundled into broad network modules. | Route table creation is separate from subnet association. |
-| Ownership | Routing policy and subnet ownership may differ. | Route associations are explicit companion resources. |
+`bgp_route_propagation_enabled`, `routes` (add/edit/remove), `tags` → **update in
+place** (routes are inline). `name` / `resource_group_name` / `location` →
+**replace**.
 
-## Design Intent
+State exposure: none.
 
-Use this module for route table creation and routes. Use `subnet-route-table-association` to attach the route table to a subnet.
+## Migration
+
+Interface unchanged (2 consumers). Added `next_hop_type` + appliance-IP
+validation, input descriptions, `resource_group_name` / `subnet_ids` outputs.
+
+## Tests
+
+`terraform test` (offline): create, appliance-without-IP rejection.

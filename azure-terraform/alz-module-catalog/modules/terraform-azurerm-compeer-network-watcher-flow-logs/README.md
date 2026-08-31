@@ -1,18 +1,26 @@
-# Compeer Network Watcher Flow Logs
+# terraform-azurerm-compeer-network-watcher-flow-logs
 
-Configures NSG flow logs with retention and optional traffic analytics. Use this module with the central log archive storage account and Log Analytics workspace.
+NSG flow logs (`azurerm_network_watcher_flow_log`) keyed by a stable logical key,
+with optional Traffic Analytics. The Network Watcher, storage account and Log
+Analytics workspace are all caller-owned and passed in by ID/name.
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+`flow_logs` — `map(object({ name, network_watcher_name, resource_group_name,
+network_security_group_id, storage_account_id, enabled?, retention_policy?,
+traffic_analytics?, timeouts? }))`.
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Flow logs are keyed by logical name and support storage, retention, traffic analytics, enablement, and timeout options per NSG.
+`ids`, `names`, `flow_logs` (composite) — keyed by input key.
+
+## Lifecycle contract
+
+`enabled`, `retention_policy`, `traffic_analytics` → **update in place**. `name`
+/ `network_watcher_name` / `network_security_group_id` → **replace** that flow log.
+
+State exposure: none.
+
+## Tests
+
+`terraform test` (offline): create.

@@ -1,18 +1,30 @@
-# Private DNS Resolver Module
+# terraform-azurerm-compeer-private-dns-resolver
 
-This module manages Azure Private DNS Resolver resources and forwarding configuration.
+Azure Private DNS Resolver (`azurerm_private_dns_resolver`) plus its inbound /
+outbound endpoints, forwarding rulesets, forwarding rules and ruleset VNet links —
+each a keyed `map(object)`. The VNet and the dedicated resolver subnets are
+caller-owned.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+`name`, `resource_group_name`, `location`, `virtual_network_id`;
+`inbound_endpoints`, `outbound_endpoints`, `forwarding_rulesets`,
+`forwarding_rules`, `forwarding_ruleset_vnet_links` — all keyed maps.
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Resolver endpoints, forwarding rulesets, rules, VNet links, metadata, and outputs are keyed so DNS forwarding patterns can add entries without address churn.
+`id`, `inbound_endpoint_ids`, `outbound_endpoint_ids`, `forwarding_ruleset_ids`,
+plus composite maps.
+
+## Lifecycle contract
+
+Adding / removing an endpoint, ruleset, rule or link affects only that entry.
+Forwarding-rule `domain_name` / `target_dns_servers` / `enabled`, `tags` →
+**update in place**. `virtual_network_id`, endpoint `subnet_id` → **replace** the
+resolver / endpoint.
+
+State exposure: none.
+
+## Tests
+
+`terraform test` (offline): create.

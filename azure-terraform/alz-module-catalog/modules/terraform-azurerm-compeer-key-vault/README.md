@@ -1,44 +1,62 @@
-# Key Vault Module
+# terraform-azurerm-compeer-key-vault
 
-This module is the Terraform 2.0 replacement pattern for the reviewed Key Vault configuration. It keeps the vault lifecycle focused on the vault resource itself while moving access, secrets, keys, certificates, diagnostics, and private connectivity into companion modules.
+Azure Key Vault (vault resource only). Same capability as
+`terraform-azurerm-compeer-keyvault`; this variant uses a keyed
+`access_policies` map (stable identity) and has no current pattern consumers, so
+its interface can evolve more freely. Data-plane objects, private endpoints,
+diagnostics and RBAC are composed by the dedicated companion modules.
 
-## What Is Better
+## Usage
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Vault lifecycle | Vault creation and access policy ownership are coupled together. | Vault creation is kept separate from access assignments and data-plane objects. |
-| Access model | Access-policy-first design can create drift when application and platform teams change access independently. | Supports RBAC-first vault posture with `enable_rbac_authorization`; access policies remain a separate compatibility module when needed. |
-| Security posture | Public access and network ACL choices depend heavily on consumer input. | Defaults to private-by-default posture with `public_network_access_enabled = false` and explicit `network_acls`. |
-| Validation | Limited visible validation in the reviewed pattern. | Validates SKU and soft-delete retention bounds. |
-| Outputs | Dependent modules need stable vault identifiers. | Exposes `id`, `name`, and `vault_uri` for companion modules and application roots. |
-| Lifecycle separation | Secrets, keys, certificates, private endpoints, diagnostics, and role assignments can become mixed into the vault module. | Those concerns are composed with `key-vault-secret`, `key-vault-key`, `key-vault-certificate`, `private-endpoint`, `diagnostic-settings`, and `role-assignments`. |
+```hcl
+module "vault" {
+  source              = "../terraform-azurerm-compeer-key-vault"
+  name                = "kv-app-prod"
+  resource_group_name = module.rg.name
+  location            = "eastus2"
+  tenant_id           = var.tenant_id
+  tags                = module.tags.tags
+}
+```
 
-## Design Intent
+## Inputs
 
-This module owns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` | string | — | ForceNew; validated |
+| `resource_group_name` / `location` / `tenant_id` | string | — | first two ForceNew |
+| `sku_name` | string | `standard` | `standard` \| `premium` |
+| `soft_delete_retention_days` | number | `90` | 7-90 |
+| `purge_protection_enabled` | bool | `true` | one-way |
+| `public_network_access_enabled` | bool | `false` | update in place |
+| `rbac_authorization_enabled` | bool | `true` | update in place |
+| `access_policies` | map(object) | `{}` | keyed by stable id; used only when RBAC off |
+| `network_acls` | object \| null | `null` | `null` = no ACL block; object = validated |
+| `contacts` | map(object) | `{}` | keyed certificate contacts |
+| `timeouts` | object | `{}` | passthrough |
 
-- Key Vault resource creation
-- SKU, tenant, soft-delete, and purge-protection settings
-- RBAC enablement flag
-- Public network access posture
-- Network ACLs
-- Certificate contacts
-- Standard outputs for downstream composition
+## Outputs
 
-Use companion modules for:
+`id`, `name`, `vault_uri`, `resource_group_name`, `tenant_id`,
+`rbac_authorization_enabled`, `private_endpoint_subresource_name` (`"vault"`).
 
-- `role-assignments`
-- `key-vault-access-policy`
-- `key-vault-secret`
-- `key-vault-key`
-- `key-vault-certificate`
-- `private-endpoint`
-- `diagnostic-settings`
-- `monitor-metric-alert`
+## Lifecycle contract
 
-## Why This Matters
+| Change | Result |
+|---|---|
+| `sku_name`, `public_network_access_enabled`, `network_acls`, `contacts`, `tags`, `access_policies` | **update in place** |
+| `rbac_authorization_enabled` toggle | update in place (auth-model switch) |
+| lower `soft_delete_retention_days` | **replace** |
+| `name`, `resource_group_name`, `location`, `tenant_id` | **replace** |
 
-The reviewed pattern is a good starting point, but coupling vault creation with access and data-plane objects makes the module harder to reuse at enterprise scale. A vault can live for years while secrets, keys, certificates, access, private DNS, and diagnostics change on different cadences.
+State exposure: none directly.
 
-The improved pattern keeps the vault stable and lets application roots compose the surrounding capabilities explicitly.
+## Migration
 
+Fixed a latent bug: `network_acls` validation used `x == null || x.attr` which
+throws on the null default - now `x == null ? true : ...`.
+
+## Tests
+
+`terraform test` (offline): secure defaults, keyed access policy, name validation,
+RBAC-off precondition.

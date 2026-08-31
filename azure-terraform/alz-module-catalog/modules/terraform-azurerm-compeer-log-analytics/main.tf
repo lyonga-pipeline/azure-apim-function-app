@@ -1,7 +1,3 @@
-/*
-This module intentionally owns only the Log Analytics workspace resource.
-
-Compose resource groups, workspace RBAC, Defender for Cloud associations,
-diagnostic settings, and management solutions in a pattern/root module so each
-concern can evolve with a distinct lifecycle.
-*/
+# Compatibility file retained intentionally.
+# The workspace resource is implemented in log_analytics.tf so the module remains
+# compatible with the catalog-wide AzureRM 4.x provider constraint.

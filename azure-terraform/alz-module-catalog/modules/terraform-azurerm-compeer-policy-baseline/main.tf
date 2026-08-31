@@ -1,3 +1,7 @@
+# ============================================================================
+# PATTERN MODULE: policy definitions/initiatives/assignments are composed here intentionally; scope ownership must remain explicit.
+# ============================================================================
+
 locals {
   policy_definition_ids = { for key, value in azurerm_policy_definition.this : key => value.id }
   policy_set_ids        = { for key, value in azurerm_policy_set_definition.this : key => value.id }

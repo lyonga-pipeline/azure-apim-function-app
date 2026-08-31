@@ -1,28 +1,29 @@
-# Storage Container Immutability Policy Module
+# terraform-azurerm-compeer-storage-container-immutability-policy
 
-This module manages immutability policy for storage containers separately from container and storage account creation.
+A time-based immutability (WORM) policy on a caller-owned blob container.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Compliance control | Immutability can be hidden inside container creation. | Immutability is an explicit compliance module. |
-| Risk | Locking policies have operational consequences. | The policy is reviewed and applied separately. |
-| Lifecycle | Containers may exist before immutability is approved. | Roots compose this module when the retention requirement is confirmed. |
+- Resource: `azurerm_storage_container_immutability_policy` (immutability policy).
+- Inputs are explicitly typed; optional blocks are `optional(object(...))` and repeatables are `map(object(...))` keyed by a caller-stable name.
+- Adjacent resource-group / network / RBAC / diagnostic capabilities are composed externally.
 
-## Design Intent
+## Lifecycle
 
-This module owns:
+| Change | Effect |
+|---|---|
+| `immutability_period_in_days`, `protected_append_writes_enabled`, `protected_append_writes_all_enabled` | In-place update (while unlocked) |
+| `locked` false -> true | In-place, and thereafter the period can only be extended |
+| `storage_container_resource_manager_id` | Replace |
 
-- Container immutability policy
-- Retention period and lock behavior where supported
+## State exposure
 
-Use companion modules for:
+Outputs: policy `id`. No secrets.
 
-- `storage-account`
-- `storage-container`
+## Migration
 
-## Why This Matters
+No breaking changes. Interface unchanged.
 
-Immutable storage can affect delete, retention, and recovery operations. Separating the policy makes the risk visible before it is applied.
+## Tests
 
+`terraform test` (`tests/defaults.tftest.hcl`, `mock_provider`) — create and attribute wiring; validation failures where the module adds `validation` / `precondition` rules.

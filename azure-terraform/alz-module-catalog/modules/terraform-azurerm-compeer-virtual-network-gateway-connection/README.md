@@ -1,18 +1,28 @@
-# Virtual Network Gateway Connection Module
+# terraform-azurerm-compeer-virtual-network-gateway-connection
 
-This module manages Azure virtual network gateway connections.
+A single `azurerm_virtual_network_gateway_connection`. A **precondition** enforces
+that `type` matches exactly one target: `ExpressRoute` → `express_route_circuit_id`;
+`IPsec` → `local_network_gateway_id` (+ `shared_key`); `Vnet2Vnet` →
+`peer_virtual_network_gateway_id`.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+`name`, `resource_group_name`, `location`, `virtual_network_gateway_id`, `type`;
+one of `express_route_circuit_id` / `local_network_gateway_id` /
+`peer_virtual_network_gateway_id`; `shared_key` (sensitive), `authorization_key`
+(sensitive), BGP / IPsec-policy / NAT-rule options.
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Connections are keyed and support VPN/ExpressRoute options, shared keys, BGP, IPsec policies, traffic selectors, routing weight, and timeouts.
+`id`, `name`, `resource_group_name`.
+
+## Lifecycle contract
+
+`shared_key`, `routing_weight`, `connection_mode`, BGP flags, `tags` → **update in
+place**. `type`, the target `*_id`, `virtual_network_gateway_id` → **replace**.
+
+**State exposure:** `shared_key` and `authorization_key` are in state.
+
+## Tests
+
+`terraform test` (offline): ExpressRoute connection, IPsec-without-LNG precondition.

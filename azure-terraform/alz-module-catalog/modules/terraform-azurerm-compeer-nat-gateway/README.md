@@ -1,20 +1,36 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# terraform-azurerm-compeer-nat-gateway
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+A single `azurerm_nat_gateway`. Public IP / prefix association and
+subnet association are separate resources — compose them at the pattern layer
+(a NAT gateway with no public IP does nothing).
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+## Inputs
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `location` / `resource_group_name` | string | — | ForceNew |
+| `sku_name` | string | `Standard` | |
+| `idle_timeout_in_minutes` | number | `4` | validated 4-120; update in place |
+| `zones` | list(string) | `null` | zonal; ForceNew |
+| `tags` | map(string) | `{}` | update in place |
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Outputs
+
+`id`, `name`, `resource_group_name`.
+
+## Lifecycle contract
+
+`idle_timeout_in_minutes`, `tags` → **update in place**. `name` / `location` /
+`resource_group_name` / `sku_name` / `zones` → **replace**.
+
+State exposure: none.
+
+## Migration
+
+`nat_gateway_name` → `name`; `output.nat_gateway_id` → `id`,
+`nat_gateway_name` → `name` (0 consumers). Added `idle_timeout_in_minutes`
+validation and descriptions. Removed the dead `data.tf`.
+
+## Tests
+
+`terraform test` (offline): create, bad-idle-timeout rejection.

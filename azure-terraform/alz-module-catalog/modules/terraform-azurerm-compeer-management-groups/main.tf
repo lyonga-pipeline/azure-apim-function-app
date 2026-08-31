@@ -11,22 +11,22 @@ locals {
 
   level_1_groups = {
     for key, group in var.management_groups : key => group
-    if contains(keys(local.root_groups), try(group.parent_key, ""))
+    if contains(keys(local.root_groups), (group.parent_key == null ? "" : group.parent_key))
   }
 
   level_2_groups = {
     for key, group in var.management_groups : key => group
-    if contains(keys(local.level_1_groups), try(group.parent_key, ""))
+    if contains(keys(local.level_1_groups), (group.parent_key == null ? "" : group.parent_key))
   }
 
   level_3_groups = {
     for key, group in var.management_groups : key => group
-    if contains(keys(local.level_2_groups), try(group.parent_key, ""))
+    if contains(keys(local.level_2_groups), (group.parent_key == null ? "" : group.parent_key))
   }
 
   level_4_groups = {
     for key, group in var.management_groups : key => group
-    if contains(keys(local.level_3_groups), try(group.parent_key, ""))
+    if contains(keys(local.level_3_groups), (group.parent_key == null ? "" : group.parent_key))
   }
 
   level_1_parent_ids = merge(
