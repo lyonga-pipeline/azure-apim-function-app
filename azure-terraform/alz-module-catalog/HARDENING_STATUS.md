@@ -249,3 +249,43 @@ would surface any `precondition` / cross-field `validation` that only fires at
 plan time. Module `tests/` cover create + validation-rejection; full lifecycle
 (no-op → in-place → replace → destroy, principle 10) is documented in each
 module README matrix but not executed offline.
+
+## Phase 4 — LZ security guardrails (commits 6ae65b6, 94f2c9c, d2e4635)
+
+### Subscription onboarding (6ae65b6)
+- `subscription-vending` pattern + `platform-subscriptions` workspace: **NOT
+  DEPLOYED** banners added. Code kept intact for a future EA/MCA billing model.
+- New `subscription-onboarding` pattern + `platform-subscription-onboarding`
+  workspace: takes CSP-created subscription GUIDs, moves each to its target MG
+  (`azurerm_management_group_subscription_association`), applies a consistent
+  baseline RBAC set + inline app RBAC at subscription scope. Stable for_each
+  keys `<sub>::baseline::<name>` / `<sub>::app::<name>`. `scripts/move-subscription.sh`
+  break-glass. tests (4) pass. MG hierarchy + MG-scope RBAC stay in
+  `global-governance`.
+
+### Private-only connectivity guardrail (94f2c9c)
+- `platform-policy` pattern: new `var.private_only_connectivity` — 2 custom deny
+  policies (no Public IP outside an allow-list of RGs; no Public IP on NICs),
+  an initiative, and an MG assignment. `effect` defaults to `Audit`. Built-in
+  PaaS "disable public network access" policies are opt-in (GUIDs tenant-
+  verifiable). Merges into the pattern's existing policy maps. tests (4) pass.
+- README call-out: enabling Deny is a program — per-resource-type required
+  changes + blast radius (App Gateway internal-only; APIM Internal VNet =
+  replace; App Service/Storage/KV/SQL public access off + Private Endpoint; VM
+  PIPs removed; Bastion/Route Server/VPN-GW/Palo stay public in allow-listed
+  RGs). Cloudflare-side review is out of repo scope.
+- Module defaults flipped private-by-default: `event-grid`,
+  `automation-account`, `keyvault-managed-hsm` (`public_network_access_enabled`
+  true→false), `event-grid-namespace` (`"Enabled"`→`"Disabled"`).
+
+### Palo Alto — Terraform-native VM-Series bootstrap (d2e4635)
+- `palo-alto-hub`: added `virtual_machines[*].bootstrap` (none /
+  azure-file-share / custom-data → `custom_data`), `virtual_machines[*].identity`
+  (SystemAssigned), `bootstrap_share_layout` (share dir/file layout via
+  `azurerm_storage_share_directory` / `_file` / `local_file`). Switched
+  `azurerm_storage_share` to `storage_account_id`. `local` provider added.
+  Marketplace *agreement* (image licence) kept; Marketplace *solution template*
+  not used. 2-VM / 2-LB / Sunstream example in the workspace tfvars. tests (2)
+  pass.
+
+**Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.
