@@ -321,7 +321,6 @@ variable "platform_key_vaults" {
       storage_permissions     = optional(list(string), [])
     })), {})
     rbac_authorization_enabled      = optional(bool, true)
-    enable_rbac_authorization       = optional(bool)
     enabled_for_deployment          = optional(bool, false)
     enabled_for_disk_encryption     = optional(bool, false)
     enabled_for_template_deployment = optional(bool, false)

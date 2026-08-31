@@ -61,7 +61,8 @@ variable "domain_controllers" {
     timezone                   = optional(string, "UTC")
     provision_vm_agent         = optional(bool, true)
     allow_extension_operations = optional(bool, true)
-    enable_automatic_updates   = optional(bool, true)
+    automatic_updates_enabled  = optional(bool)
+    enable_automatic_updates   = optional(bool) # deprecated alias for automatic_updates_enabled
     patch_mode                 = optional(string, "AutomaticByPlatform")
     patch_assessment_mode      = optional(string, "AutomaticByPlatform")
     hotpatching_enabled        = optional(bool, false)

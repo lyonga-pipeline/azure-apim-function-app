@@ -253,14 +253,43 @@ module "private_dns_resolver" {
   tags = module.tags.tags
 }
 
+locals {
+  bastion_enabled = coalesce(try(var.bastion.enabled, null), false)
+  # Create a Bastion public IP only when the caller has not supplied one.
+  bastion_create_public_ip = local.bastion_enabled && try(var.bastion.public_ip_id, null) == null
+  bastion_name             = coalesce(try(var.bastion.name, null), "${var.hub_vnet.name}-bas")
+}
+
+# The bastion-host resource module consumes an externally managed Standard/Static
+# public IP; the pattern owns that composition.
+module "bastion_public_ip" {
+  source = "../../modules/terraform-azurerm-compeer-public-ip"
+  count  = local.bastion_create_public_ip ? 1 : 0
+
+  name                    = coalesce(try(var.bastion.public_ip.name, null), "${local.bastion_name}-pip")
+  resource_group_name     = coalesce(try(var.bastion.resource_group_name, null), module.resource_group.name)
+  location                = coalesce(try(var.bastion.location, null), module.resource_group.location)
+  allocation_method       = try(var.bastion.public_ip.allocation_method, "Static")
+  sku                     = try(var.bastion.public_ip.sku, "Standard")
+  sku_tier                = try(var.bastion.public_ip.sku_tier, "Regional")
+  ip_version              = try(var.bastion.public_ip.ip_version, "IPv4")
+  domain_name_label       = try(var.bastion.public_ip.domain_name_label, null)
+  idle_timeout_in_minutes = try(var.bastion.public_ip.idle_timeout_in_minutes, 4)
+  public_ip_prefix_id     = try(var.bastion.public_ip.public_ip_prefix_id, null)
+  reverse_fqdn            = try(var.bastion.public_ip.reverse_fqdn, null)
+  zones                   = coalesce(try(var.bastion.public_ip.zones, null), try(var.bastion.public_ip_zones, null), [])
+  tags                    = merge(module.tags.tags, try(var.bastion.public_ip.tags, {}))
+}
+
 module "bastion" {
   source = "../../modules/terraform-azurerm-compeer-bastion-host"
-  count  = coalesce(try(var.bastion.enabled, null), false) ? 1 : 0
+  count  = local.bastion_enabled ? 1 : 0
 
-  name                      = coalesce(try(var.bastion.name, null), "${var.hub_vnet.name}-bas")
+  name                      = local.bastion_name
   resource_group_name       = coalesce(try(var.bastion.resource_group_name, null), module.resource_group.name)
   location                  = coalesce(try(var.bastion.location, null), module.resource_group.location)
   bastion_subnet_id         = coalesce(try(var.bastion.subnet_id, null), try(module.hub_vnet.subnet_ids[var.bastion.subnet_key], null), try(module.hub_vnet.subnet_ids["AzureBastionSubnet"], null))
+  public_ip_id              = coalesce(try(var.bastion.public_ip_id, null), one(module.bastion_public_ip[*].id))
   sku                       = try(var.bastion.sku, "Standard")
   copy_paste_enabled        = try(var.bastion.copy_paste_enabled, true)
   file_copy_enabled         = try(var.bastion.file_copy_enabled, false)
@@ -270,13 +299,25 @@ module "bastion" {
   shareable_link_enabled    = try(var.bastion.shareable_link_enabled, false)
   tunneling_enabled         = try(var.bastion.tunneling_enabled, true)
   scale_units               = try(var.bastion.scale_units, 2)
-  public_ip_zones           = try(var.bastion.public_ip_zones, [])
-  public_ip_id              = try(var.bastion.public_ip_id, null)
-  public_ip                 = try(var.bastion.public_ip, {})
   zones                     = try(var.bastion.zones, null)
-  diagnostic_settings       = try(var.bastion.diagnostic_settings, {})
   timeouts                  = try(var.bastion.timeouts, {})
   tags                      = module.tags.tags
+}
+
+# Bastion diagnostics are composed via the dedicated module, one per caller key.
+module "bastion_diagnostics" {
+  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  for_each = local.bastion_enabled ? try(var.bastion.diagnostic_settings, {}) : {}
+
+  name                           = coalesce(try(each.value.name, null), "${local.bastion_name}-${each.key}-diag")
+  target_resource_id             = module.bastion[0].id
+  log_analytics_workspace_id     = try(each.value.log_analytics_workspace_id, null)
+  log_analytics_destination_type = try(each.value.log_analytics_destination_type, null)
+  storage_account_id             = try(each.value.storage_account_id, null)
+  eventhub_authorization_rule_id = try(each.value.eventhub_authorization_rule_id, null)
+  eventhub_name                  = try(each.value.eventhub_name, null)
+  logs                           = { for c in coalesce(try(each.value.logs, null), ["BastionAuditLogs"]) : c => { category = c } }
+  metrics                        = { for c in coalesce(try(each.value.metrics, null), ["AllMetrics"]) : c => { category = c } }
 }
 
 locals {

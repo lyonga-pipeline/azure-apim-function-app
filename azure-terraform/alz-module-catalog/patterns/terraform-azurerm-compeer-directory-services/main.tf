@@ -198,7 +198,7 @@ module "domain_controllers" {
   timezone                   = try(each.value.timezone, "UTC")
   provision_vm_agent         = try(each.value.provision_vm_agent, true)
   allow_extension_operations = try(each.value.allow_extension_operations, true)
-  enable_automatic_updates   = try(each.value.enable_automatic_updates, true)
+  automatic_updates_enabled  = try(each.value.automatic_updates_enabled, try(each.value.enable_automatic_updates, true))
   patch_mode                 = try(each.value.patch_mode, "AutomaticByPlatform")
   patch_assessment_mode      = try(each.value.patch_assessment_mode, "AutomaticByPlatform")
   hotpatching_enabled        = try(each.value.hotpatching_enabled, false)
