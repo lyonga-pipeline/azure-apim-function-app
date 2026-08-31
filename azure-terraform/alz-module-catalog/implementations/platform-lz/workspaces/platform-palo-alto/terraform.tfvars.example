@@ -9,22 +9,126 @@ tags = {
   terraform_workspace = "platform-palo-alto"
 }
 
+# Terraform-native VM-Series deployment (no Marketplace solution template):
+# 2 firewalls, mgmt/untrust/trust NICs + Sunstream dataplane NICs, a trust ILB
+# and a Sunstream ILB, storage bootstrap. subnet_key values resolve against the
+# connectivity workspace's subnet_ids output.
 palo_alto = {
   enabled = false
 
+  # Accept the VM-Series image agreement once per subscription (NOT the template).
   marketplace_agreement = {
-    enabled   = false
+    enabled   = true
     publisher = "paloaltonetworks"
     offer     = "vmseries-flex"
     plan      = "bundle2"
   }
 
-  bootstrap_storage_account = null
-  public_ips                = {}
-  network_interfaces        = {}
-  load_balancers            = {}
-  virtual_machines          = {}
-  vendor_vmseries           = {}
+  bootstrap_storage_account = {
+    name                          = "stpanbootstrapprod01"
+    account_replication_type      = "ZRS"
+    public_network_access_enabled = false
+    file_shares = {
+      bootstrap = { quota = 5 }
+    }
+  }
+
+  bootstrap_share_layout = {
+    bootstrap = {
+      directories = ["config", "content", "license", "software"]
+      files = {
+        "init-cfg.txt" = {
+          path = "config"
+          # PAN-OS 10+ pulls the rest from Panorama / Strata Cloud Manager.
+          content = <<-CFG
+            type=dhcp-client
+            hostname=$${hostname}
+            panorama-server=10.10.0.10
+            tplname=Compeer-Hub
+            dgname=Compeer-Hub-FW
+            dhcp-send-hostname=yes
+            dhcp-send-client-id=yes
+            dhcp-accept-server-hostname=yes
+            dhcp-accept-server-domain=yes
+          CFG
+        }
+      }
+    }
+  }
+
+  public_ips = {
+    fw_mgmt = { name = "pip-fw-mgmt", allocation_method = "Static", sku = "Standard" }
+    fw_untrust = { name = "pip-fw-untrust", allocation_method = "Static", sku = "Standard" }
+  }
+
+  network_interfaces = {
+    fw1_mgmt      = { name = "nic-fw1-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "fw-mgmt", primary = true, private_ip_address_allocation = "Dynamic", public_ip_key = "fw_mgmt" } } }
+    fw1_untrust   = { name = "nic-fw1-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-untrust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.2.4", public_ip_key = "fw_untrust" } } }
+    fw1_trust     = { name = "nic-fw1-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-trust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.3.4" } } }
+    fw1_sunstream = { name = "nic-fw1-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-sunstream", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.4.4" } } }
+    fw2_mgmt      = { name = "nic-fw2-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "fw-mgmt", primary = true, private_ip_address_allocation = "Dynamic" } } }
+    fw2_untrust   = { name = "nic-fw2-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-untrust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.2.5" } } }
+    fw2_trust     = { name = "nic-fw2-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-trust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.3.5" } } }
+    fw2_sunstream = { name = "nic-fw2-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-sunstream", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.4.5" } } }
+  }
+
+  load_balancers = {
+    trust = {
+      name = "lb-fw-trust"
+      sku  = "Standard"
+      frontend_ip_configurations = {
+        trust = { name = "fe-trust", subnet_key = "fw-trust", private_ip_address_allocation = "Static", private_ip_address = "10.0.3.10" }
+      }
+      backend_address_pools = { fw = {} }
+      probes                = { https = { port = 443, protocol = "Tcp" } }
+      rules = {
+        all = { frontend_ip_configuration_name = "trust", backend_address_pool_names = ["fw"], probe_name = "https", protocol = "All", frontend_port = 0, backend_port = 0, floating_ip_enabled = true }
+      }
+    }
+    sunstream = {
+      name = "lb-fw-sunstream"
+      sku  = "Standard"
+      frontend_ip_configurations = {
+        sunstream = { name = "fe-sunstream", subnet_key = "fw-sunstream", private_ip_address_allocation = "Static", private_ip_address = "10.0.4.10" }
+      }
+      backend_address_pools = { fw = {} }
+      probes                = { https = { port = 443, protocol = "Tcp" } }
+      rules = {
+        all = { frontend_ip_configuration_name = "sunstream", backend_address_pool_names = ["fw"], probe_name = "https", protocol = "All", frontend_port = 0, backend_port = 0, floating_ip_enabled = true }
+      }
+    }
+  }
+
+  virtual_machines = {
+    fw1 = {
+      name                   = "vm-fw-hub-01"
+      size                   = "Standard_D3_v2"
+      zone                   = "1"
+      admin_username         = "panadmin"
+      network_interface_keys = ["fw1_mgmt", "fw1_untrust", "fw1_trust", "fw1_sunstream"]
+      admin_ssh_keys         = [{ username = "panadmin", public_key = "ssh-ed25519 AAAA... replace" }]
+      bootstrap = {
+        mode                 = "azure-file-share"
+        storage_account_name = "stpanbootstrapprod01"
+        # storage_account_key lands in state - prefer mode = "custom-data".
+        storage_account_key = "REPLACE_WITH_KEY_OR_USE_CUSTOM_DATA"
+      }
+    }
+    fw2 = {
+      name                   = "vm-fw-hub-02"
+      size                   = "Standard_D3_v2"
+      zone                   = "2"
+      admin_username         = "panadmin"
+      network_interface_keys = ["fw2_mgmt", "fw2_untrust", "fw2_trust", "fw2_sunstream"]
+      admin_ssh_keys         = [{ username = "panadmin", public_key = "ssh-ed25519 AAAA... replace" }]
+      bootstrap = {
+        mode             = "custom-data"
+        init_cfg_content = "type=dhcp-client\nhostname=vm-fw-hub-02\npanorama-server=10.10.0.10\ntplname=Compeer-Hub\ndgname=Compeer-Hub-FW\n"
+      }
+    }
+  }
+
+  vendor_vmseries = {}
 }
 
 palo_alto_vendor_vmseries_passwords = {}

@@ -20,6 +20,43 @@ locals {
       }
     })
   } : {}
+
+  # PAN-OS bootstrap custom_data, computed per firewall VM.
+  vm_custom_data = {
+    for key, vm in var.virtual_machines : key => (
+      try(vm.bootstrap.mode, "none") == "azure-file-share" ? base64encode(join("\n", [
+        "storage-account=${vm.bootstrap.storage_account_name}",
+        "access-key=${vm.bootstrap.storage_account_key}",
+        "file-share=${try(vm.bootstrap.file_share_name, "bootstrap")}",
+        "share-directory=${try(vm.bootstrap.share_directory, "None")}",
+      ])) :
+      try(vm.bootstrap.mode, "none") == "custom-data" ? base64encode(coalesce(try(vm.bootstrap.custom_data, null), try(vm.bootstrap.init_cfg_content, null))) :
+      null
+    )
+  }
+
+  bootstrap_share_directories = var.enabled && var.bootstrap_storage_account != null ? {
+    for item in flatten([
+      for share_name, layout in var.bootstrap_share_layout : [
+        for dir in layout.directories : { key = "${share_name}/${dir}", share = share_name, name = dir }
+      ]
+    ]) : item.key => item
+  } : {}
+
+  bootstrap_share_files = var.enabled && var.bootstrap_storage_account != null ? {
+    for item in flatten([
+      for share_name, layout in var.bootstrap_share_layout : [
+        for file_key, file in layout.files : {
+          key         = "${share_name}/${file_key}"
+          share       = share_name
+          name        = file_key
+          path        = try(file.path, null)
+          source_path = try(file.source_path, null)
+          content     = try(file.content, null)
+        }
+      ]
+    ]) : item.key => item
+  } : {}
 }
 
 resource "terraform_data" "vmseries_contract" {
@@ -64,9 +101,35 @@ module "bootstrap_storage" {
 resource "azurerm_storage_share" "bootstrap" {
   for_each = var.enabled && var.bootstrap_storage_account != null ? try(var.bootstrap_storage_account.file_shares, {}) : {}
 
-  name                 = each.key
-  storage_account_name = module.bootstrap_storage[0].name
-  quota                = try(each.value.quota, 5)
+  name               = each.key
+  storage_account_id = module.bootstrap_storage[0].id
+  quota              = try(each.value.quota, 5)
+}
+
+resource "azurerm_storage_share_directory" "bootstrap" {
+  for_each = local.bootstrap_share_directories
+
+  name             = each.value.name
+  storage_share_id = azurerm_storage_share.bootstrap[each.value.share].id
+}
+
+# Inline file content is materialized to a local file first, then uploaded.
+resource "local_file" "bootstrap" {
+  for_each = { for k, v in local.bootstrap_share_files : k => v if v.content != null }
+
+  filename = "${path.module}/.bootstrap-render/${replace(each.key, "/", "_")}"
+  content  = each.value.content
+}
+
+resource "azurerm_storage_share_file" "bootstrap" {
+  for_each = local.bootstrap_share_files
+
+  name             = each.value.name
+  storage_share_id = azurerm_storage_share.bootstrap[each.value.share].id
+  path             = each.value.path
+  source           = each.value.content != null ? local_file.bootstrap[each.key].filename : each.value.source_path
+
+  depends_on = [azurerm_storage_share_directory.bootstrap]
 }
 
 module "public_ips" {
@@ -126,7 +189,16 @@ resource "azurerm_linux_virtual_machine" "this" {
   admin_password                  = try(each.value.admin_password, null)
   disable_password_authentication = try(each.value.disable_password_authentication, true)
   network_interface_ids           = [for nic_key in each.value.network_interface_keys : module.network_interfaces[nic_key].id]
+  custom_data                     = local.vm_custom_data[each.key]
   tags                            = var.tags
+
+  dynamic "identity" {
+    for_each = try(each.value.identity, null) == null ? [] : [each.value.identity]
+    content {
+      type         = try(identity.value.type, "SystemAssigned")
+      identity_ids = try(identity.value.identity_ids, [])
+    }
+  }
 
   os_disk {
     name                 = try(each.value.os_disk.name, null)

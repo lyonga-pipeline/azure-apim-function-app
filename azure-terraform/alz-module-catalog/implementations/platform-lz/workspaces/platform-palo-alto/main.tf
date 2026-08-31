@@ -55,6 +55,7 @@ module "palo_alto" {
   location                  = var.location
   tags                      = merge(var.tags, try(var.palo_alto.tags, {}))
   bootstrap_storage_account = try(var.palo_alto.bootstrap_storage_account, try(var.palo_alto.bootstrap, null))
+  bootstrap_share_layout    = try(var.palo_alto.bootstrap_share_layout, {})
   marketplace_agreement     = try(var.palo_alto.marketplace_agreement, { enabled = false })
   public_ips                = try(var.palo_alto.public_ips, {})
   network_interfaces        = local.network_interfaces

@@ -156,6 +156,76 @@ variable "virtual_machines" {
       product   = "vmseries-flex"
     })
     boot_diagnostics_storage_account_uri = optional(string)
+
+    # Managed identity for the firewall VM (used for bootstrap-from-blob,
+    # Key Vault access, monitoring). SystemAssigned by default.
+    identity = optional(object({
+      type         = optional(string, "SystemAssigned")
+      identity_ids = optional(list(string), [])
+    }), { type = "SystemAssigned" })
+
+    # PAN-OS bootstrap. `mode`:
+    #   "none"              - no custom_data (default)
+    #   "azure-file-share"  - classic Azure Files bootstrap. Needs
+    #                         storage_account_name + storage_account_key.
+    #                         NOTE: the key is rendered into custom_data and
+    #                         therefore into Terraform state.
+    #   "custom-data"       - supply the init-cfg / userdata text directly in
+    #                         `custom_data` (or `init_cfg_content`); the pattern
+    #                         base64-encodes it. No storage key in state.
+    bootstrap = optional(object({
+      mode                 = optional(string, "none")
+      storage_account_name = optional(string)
+      storage_account_key  = optional(string)
+      file_share_name      = optional(string, "bootstrap")
+      share_directory      = optional(string, "None")
+      custom_data          = optional(string)
+      init_cfg_content     = optional(string)
+    }), { mode = "none" })
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.virtual_machines) :
+      contains(["none", "azure-file-share", "custom-data"], try(vm.bootstrap.mode, "none"))
+    ])
+    error_message = "virtual_machines[*].bootstrap.mode must be none, azure-file-share, or custom-data."
+  }
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.virtual_machines) :
+      try(vm.bootstrap.mode, "none") != "azure-file-share" ? true :
+      (try(vm.bootstrap.storage_account_name, null) != null && try(vm.bootstrap.storage_account_key, null) != null)
+    ])
+    error_message = "bootstrap.mode = azure-file-share requires bootstrap.storage_account_name and bootstrap.storage_account_key."
+  }
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.virtual_machines) :
+      try(vm.bootstrap.mode, "none") != "custom-data" ? true :
+      (try(vm.bootstrap.custom_data, null) != null || try(vm.bootstrap.init_cfg_content, null) != null)
+    ])
+    error_message = "bootstrap.mode = custom-data requires bootstrap.custom_data or bootstrap.init_cfg_content."
+  }
+}
+
+variable "bootstrap_share_layout" {
+  description = <<-EOT
+    Directory / file layout to lay down inside bootstrap file shares, keyed by
+    share name (must also appear in bootstrap_storage_account.file_shares).
+    Default creates the four PAN-OS bootstrap folders. Provide `files` to upload
+    an init-cfg.txt / bootstrap.xml from a local path or inline content.
+  EOT
+  type = map(object({
+    directories = optional(list(string), ["config", "content", "license", "software"])
+    files = optional(map(object({
+      path        = optional(string) # directory within the share, e.g. "config"
+      source_path = optional(string) # local file to upload
+      content     = optional(string) # inline content (mutually exclusive with source_path)
+    })), {})
   }))
   default = {}
 }

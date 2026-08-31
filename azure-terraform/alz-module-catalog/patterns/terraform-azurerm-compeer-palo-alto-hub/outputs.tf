@@ -18,9 +18,19 @@ output "virtual_machine_ids" {
   value       = { for key, vm in azurerm_linux_virtual_machine.this : key => vm.id }
 }
 
+output "virtual_machine_identity_principal_ids" {
+  description = "System-assigned identity principal IDs for the firewall VMs, keyed by input key."
+  value       = { for key, vm in azurerm_linux_virtual_machine.this : key => try(vm.identity[0].principal_id, null) }
+}
+
 output "bootstrap_storage_account_id" {
   description = "Bootstrap storage account ID when configured."
   value       = try(module.bootstrap_storage[0].id, null)
+}
+
+output "bootstrap_storage_share_ids" {
+  description = "Bootstrap file share resource IDs keyed by share name."
+  value       = { for key, share in azurerm_storage_share.bootstrap : key => share.id }
 }
 
 output "marketplace_agreement_id" {
