@@ -29,7 +29,7 @@ variable "local_auth_enabled" {
 variable "public_network_access_enabled" {
   type        = bool
   description = "Whether public network access is allowed for autiomation account."
-  default     = true
+  default     = false
 }
 
 variable "tags" {

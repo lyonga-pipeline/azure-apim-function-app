@@ -21,9 +21,9 @@ variable "capacity" {
 }
 
 variable "public_network_access" {
-  description = "Whether public network access is allowed. Defaults to Enabled."
+  description = "Whether public network access is allowed. Defaults to Disabled."
   type        = string
-  default     = "Enabled"
+  default     = "Disabled"
 }
 
 variable "sku" {

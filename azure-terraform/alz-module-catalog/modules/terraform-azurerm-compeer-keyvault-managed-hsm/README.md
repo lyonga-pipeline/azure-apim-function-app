@@ -23,6 +23,8 @@ Outputs: `key_vault_hsm_id`, `key_vault_hsm_uri`, security-domain encrypted data
 
 ## Migration
 
+- `public_network_access_enabled` default changed **`true` -> `false`** (private by default). An HSM behind a Private Endpoint is the intended posture.
+
 `network_acls` changed from `list(object)` to a single optional `object` (the provider block is singular). `security_domain_key_vault_certificate_ids` + `security_domain_quorum` must now be set together (precondition) or left unset.
 
 ## Tests

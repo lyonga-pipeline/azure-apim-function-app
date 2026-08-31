@@ -41,9 +41,9 @@ variable "soft_delete_retention_days" {
 }
 
 variable "public_network_access_enabled" {
-  description = "Whether traffic from public networks is permitted. Defaults to true. Changing this forces a new resource to be created."
+  description = "Whether traffic from public networks is permitted. Private by default. Changing this forces a new resource to be created."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "network_acls" {

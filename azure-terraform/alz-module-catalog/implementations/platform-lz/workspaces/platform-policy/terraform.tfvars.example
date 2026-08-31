@@ -12,4 +12,25 @@ policy = {
   custom_policy_set_definitions       = {}
   management_group_policy_assignments = {}
   subscription_policy_assignments     = {}
+
+  # Private-only connectivity guardrail. See the platform-policy pattern README
+  # for the full call-out / app-migration playbook. Audit first, then Deny.
+  private_only_connectivity = {
+    enabled              = false
+    management_group_key = "compeer"
+    effect               = "Audit"
+    enforce              = true
+    allowed_public_ip_resource_group_names = [
+      "rg-conn-palo-alto",
+      "rg-conn-bastion",
+      "rg-conn-route-server",
+      "rg-hybrid-gateway",
+    ]
+    not_scopes               = []
+    include_builtin_baseline = false
+    builtin_policy_definition_ids = {
+      # Verify each GUID against the tenant before enabling:
+      #   az policy definition list --query "[?contains(displayName,'disable public network access')]"
+    }
+  }
 }

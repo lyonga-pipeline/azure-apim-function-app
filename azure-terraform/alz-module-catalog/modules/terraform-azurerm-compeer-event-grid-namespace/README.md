@@ -22,6 +22,8 @@ Outputs: namespace `id` and topic/subscription IDs. No secrets output.
 
 ## Migration
 
+- `public_network_access` default changed **`"Enabled"` -> `"Disabled"`** (private by default). Set `"Enabled"` explicitly if the namespace must be public.
+
 No breaking changes. A stray `gitignore` file was removed.
 
 ## Tests

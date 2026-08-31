@@ -27,6 +27,8 @@ in state). Prefer managed identity over the DSC keys where possible.
 
 ## Migration
 
+- `public_network_access_enabled` default changed **`true` -> `false`** (private by default). Pair with a Private Endpoint, or set `true` explicitly.
+
 No breaking changes. Interface unchanged.
 
 ## Tests

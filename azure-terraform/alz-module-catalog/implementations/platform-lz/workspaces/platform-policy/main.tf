@@ -33,4 +33,5 @@ module "policy" {
   custom_policy_set_definitions       = try(var.policy.custom_policy_set_definitions, {})
   management_group_policy_assignments = try(var.policy.management_group_policy_assignments, {})
   subscription_policy_assignments     = try(var.policy.subscription_policy_assignments, {})
+  private_only_connectivity           = try(var.policy.private_only_connectivity, {})
 }

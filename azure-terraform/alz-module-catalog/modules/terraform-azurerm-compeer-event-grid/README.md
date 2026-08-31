@@ -21,6 +21,8 @@ Outputs: topic `id` / `endpoint` and per-subscription IDs. Access keys are not o
 
 ## Migration
 
+- `public_network_access_enabled` default changed **`true` -> `false`** (private by default, per the private-only connectivity guardrail). Set it explicitly to `true` for an internet-facing topic.
+
 No breaking changes. Dead commented-out `data.tf` and the legacy `test/` fixture were removed.
 
 ## Tests
