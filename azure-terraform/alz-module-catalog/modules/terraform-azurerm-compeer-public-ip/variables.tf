@@ -1,33 +1,50 @@
 variable "name" {
-  type = string
+  description = "Public IP name. Changing this forces a new resource."
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
 }
 
 variable "location" {
-  type = string
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
 }
 
 variable "allocation_method" {
-  type    = string
-  default = "Static"
+  description = "Static or Dynamic. Standard SKU requires Static."
+  type        = string
+  default     = "Static"
+
+  validation {
+    condition     = contains(["Static", "Dynamic"], var.allocation_method)
+    error_message = "allocation_method must be Static or Dynamic."
+  }
 }
 
 variable "sku" {
-  type    = string
-  default = "Standard"
+  description = "Basic or Standard."
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard"], var.sku)
+    error_message = "sku must be Basic or Standard."
+  }
 }
 
 variable "sku_tier" {
-  type    = string
-  default = "Regional"
+  description = "Regional or Global."
+  type        = string
+  default     = "Regional"
 }
 
 variable "ip_version" {
-  type    = string
-  default = "IPv4"
+  description = "IPv4 or IPv6."
+  type        = string
+  default     = "IPv4"
 }
 
 variable "edge_zone" {
@@ -46,8 +63,9 @@ variable "domain_name_label_scope" {
 }
 
 variable "idle_timeout_in_minutes" {
-  type    = number
-  default = 4
+  description = "TCP idle timeout (4-30)."
+  type        = number
+  default     = 4
 }
 
 variable "public_ip_prefix_id" {
@@ -61,8 +79,9 @@ variable "reverse_fqdn" {
 }
 
 variable "ddos_protection_mode" {
-  type    = string
-  default = null
+  description = "Disabled, Enabled, or VirtualNetworkInherited."
+  type        = string
+  default     = null
 }
 
 variable "ddos_protection_plan_id" {
@@ -76,8 +95,9 @@ variable "ip_tags" {
 }
 
 variable "zones" {
-  type    = list(string)
-  default = []
+  description = "Availability zones for a zone-redundant Standard IP."
+  type        = list(string)
+  default     = []
 }
 
 variable "timeouts" {
@@ -91,6 +111,7 @@ variable "timeouts" {
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the public IP."
+  type        = map(string)
+  default     = {}
 }

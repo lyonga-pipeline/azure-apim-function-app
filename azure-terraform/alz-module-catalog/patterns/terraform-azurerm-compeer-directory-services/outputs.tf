@@ -34,8 +34,16 @@ output "diagnostic_setting_ids" {
   value = { for key, value in module.vm_diagnostics : key => value.id }
 }
 
+output "ad_ds_role_install_extension_ids" {
+  value = { for key, value in azurerm_virtual_machine_extension.ad_ds_role_install : key => value.id }
+}
+
 output "domain_join_extension_ids" {
   value = { for key, value in module.domain_join : key => value.id }
+}
+
+output "ad_ds_promotion_extension_ids" {
+  value = { for key, value in azurerm_virtual_machine_extension.ad_ds_promotion : key => value.id }
 }
 
 output "role_assignment_ids" {

@@ -1,34 +1,24 @@
 output "id" {
+  description = "Resource ID of the route table."
   value       = azurerm_route_table.rt.id
-  description = "The route table configuration ID."
 }
 
 output "name" {
+  description = "Name of the route table."
   value       = azurerm_route_table.rt.name
-  description = "The name of the route table."
 }
 
 output "resource_group_name" {
+  description = "Resource group containing the route table."
   value       = azurerm_route_table.rt.resource_group_name
-  description = "The name of the resource group in which to create the route table."
 }
 
 output "location" {
+  description = "Azure region of the route table."
   value       = azurerm_route_table.rt.location
-  description = "The location/region where the route table is created."
 }
 
-output "routes" {
-  value       = azurerm_route_table.rt.route
-  description = "Blocks containing configuration of each route."
-}
-
-output "subnets" {
+output "subnet_ids" {
+  description = "Subnet IDs currently associated with this route table (managed externally)."
   value       = azurerm_route_table.rt.subnets
-  description = "List of the ids of the subnets configured to the route table."
-}
-
-output "tags" {
-  value       = azurerm_route_table.rt.tags
-  description = "The tags assigned to the resource."
 }

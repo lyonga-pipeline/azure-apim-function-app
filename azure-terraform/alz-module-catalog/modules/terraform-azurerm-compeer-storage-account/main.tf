@@ -259,6 +259,33 @@ resource "azurerm_storage_account" "this" {
     }
   }
 
+  lifecycle {
+    precondition {
+      condition     = !var.sftp_enabled || var.is_hns_enabled
+      error_message = "sftp_enabled requires is_hns_enabled = true."
+    }
+
+    precondition {
+      condition = var.customer_managed_key == null ? true : (
+        (try(var.customer_managed_key.key_vault_key_id, null) != null) !=
+        (try(var.customer_managed_key.managed_hsm_key_id, null) != null)
+      )
+      error_message = "customer_managed_key must configure exactly one of key_vault_key_id or managed_hsm_key_id."
+    }
+
+    precondition {
+      condition = var.customer_managed_key == null ? true : (
+        try(var.customer_managed_key.user_assigned_identity_id, null) != null
+      )
+      error_message = "customer_managed_key requires user_assigned_identity_id."
+    }
+
+    precondition {
+      condition     = !var.nfsv3_enabled || var.is_hns_enabled
+      error_message = "nfsv3_enabled requires is_hns_enabled = true."
+    }
+  }
+
   timeouts {
     create = try(var.timeouts.create, null)
     update = try(var.timeouts.update, null)

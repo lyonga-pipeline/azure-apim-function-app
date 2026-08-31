@@ -113,6 +113,44 @@ variable "domain_controllers" {
         enabled  = optional(bool, true)
       })), {})
     }), {})
+    ad_ds_role_install = optional(object({
+      enabled                  = optional(bool, false)
+      name                     = optional(string, "install-ad-dns")
+      features                 = optional(list(string), ["AD-Domain-Services", "DNS"])
+      include_management_tools = optional(bool, true)
+      script_version           = optional(string, "v1")
+      type_handler_version     = optional(string, "1.10")
+      timeouts = optional(object({
+        create = optional(string)
+        update = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
+    }), {})
+    ad_ds_promotion = optional(object({
+      enabled                      = optional(bool, false)
+      name                         = optional(string, "promote-to-dc")
+      domain_name                  = optional(string)
+      domain_admin_username        = optional(string)
+      domain_admin_password_key    = optional(string)
+      safe_mode_admin_password_key = optional(string)
+      site_name                    = optional(string)
+      features                     = optional(list(string), ["AD-Domain-Services", "DNS"])
+      include_management_tools     = optional(bool, true)
+      install_dns                  = optional(bool, true)
+      no_global_catalog            = optional(bool, false)
+      critical_replication_only    = optional(bool, false)
+      no_reboot_on_completion      = optional(bool, true)
+      force                        = optional(bool, true)
+      script_version               = optional(string, "v1")
+      type_handler_version         = optional(string, "1.10")
+      timeouts = optional(object({
+        create = optional(string)
+        update = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
+    }), {})
     domain_join = optional(object({
       enabled              = optional(bool, false)
       name                 = optional(string, "domain-join")
@@ -126,7 +164,7 @@ variable "domain_controllers" {
     }))
   }))
   default     = {}
-  description = "Domain controller VM infrastructure only. AD DS promotion, DNS forwarders, and AD Sites configuration remain outside Terraform unless explicitly approved."
+  description = "Domain controller VM infrastructure with optional AD DS role-install and promotion extensions. AD promotion, DNS forwarders, and AD Sites configuration should remain outside Terraform unless explicitly approved by the AD/platform owners."
 }
 
 variable "admin_passwords" {
@@ -139,6 +177,13 @@ variable "admin_passwords" {
 variable "domain_join_passwords" {
   type        = map(string)
   description = "Sensitive domain-join passwords keyed by domain controller key or domain_join.domain_password_key."
+  sensitive   = true
+  default     = {}
+}
+
+variable "ad_ds_promotion_passwords" {
+  type        = map(string)
+  description = "Sensitive AD DS promotion passwords keyed by domain controller key or ad_ds_promotion password keys. Used only when ad_ds_promotion.enabled is true."
   sensitive   = true
   default     = {}
 }

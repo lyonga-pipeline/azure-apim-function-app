@@ -1,16 +1,25 @@
-variable "name" { type = string }
-variable "scope" { type = string }
+variable "name" {
+  description = "Name of the custom role. Changing this forces a new resource."
+  type        = string
+}
+variable "scope" {
+  description = "Scope at which the role definition is created (management group, subscription, or resource group ID)."
+  type        = string
+}
 variable "description" {
-  type    = string
-  default = null
+  description = "Description of the custom role."
+  type        = string
+  default     = null
 }
 variable "role_definition_id" {
-  type    = string
-  default = null
+  description = "Optional fixed GUID for the role. Leave null to let Azure generate one."
+  type        = string
+  default     = null
 }
 variable "assignable_scopes" {
-  type    = list(string)
-  default = null
+  description = "Scopes the role can be assigned at. Defaults to [scope] when null."
+  type        = list(string)
+  default     = null
 }
 variable "permissions" {
   type = map(object({

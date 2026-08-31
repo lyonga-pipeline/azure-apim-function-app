@@ -1,42 +1,28 @@
-# Subnet Route Table Association Module
+# terraform-azurerm-compeer-subnet-route-table-association
 
-This module associates a route table with a subnet without coupling route ownership to VNet or subnet creation.
+Associates one route table to one subnet (`azurerm_subnet_route_table_association`).
+Both IDs are caller-supplied. Kept as a single-association module (not `for_each`
+over subnets) so removing one subnet's association never re-indexes unrelated
+ones — compose with `for_each` at the pattern layer.
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Notes |
+|---|---|---|
+| `subnet_id` | string | ForceNew |
+| `route_table_id` | string | update in place |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Subnet-to-route-table association is separate from VNet and route-table creation so different platform workspaces can own each boundary safely.
+`id`.
 
-## What Is Better
+## Lifecycle contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Routing lifecycle | Route table association can be embedded in the networking module. | Association is explicit. |
-| Operations | Routes and subnet address spaces are governed differently. | The root composes route tables and subnets using IDs. |
-| Environment variance | NP and prod may use different routing patterns. | Environment roots decide which route table applies. |
+`route_table_id` change → update in place; `subnet_id` change → replace. Only one
+route table per subnet.
 
-## Design Intent
+State exposure: none.
 
-This module owns:
+## Tests
 
-- Subnet to route table association
-
-Use companion modules for:
-
-- `virtual-network`
-- `route-table`
-
-## Why This Matters
-
-Routing decisions can affect connectivity and security. Separating the association prevents hidden changes inside a broad networking module.
-
+`terraform test` (offline): create.

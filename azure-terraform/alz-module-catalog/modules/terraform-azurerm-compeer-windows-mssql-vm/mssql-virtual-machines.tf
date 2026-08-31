@@ -1,47 +1,5 @@
-resource "azurerm_windows_virtual_machine" "windows_vm" {
-  admin_username                                         = var.admin_username
-  admin_password                                         = var.admin_password
-  location                                               = var.location
-  resource_group_name                                    = var.resource_group_name
-  name                                                   = var.virtual_machine_name
-  network_interface_ids                                  = [azurerm_network_interface.nic.id]
-  size                                                   = var.virtual_machine_size
-  bypass_platform_safety_checks_on_user_schedule_enabled = var.bypass_platform_safety_checks_on_user_schedule_enabled
-
-  dynamic "os_disk" {
-    for_each = var.os_disk != null ? [var.os_disk] : []
-    content {
-      name                 = os_disk.value.name
-      caching              = os_disk.value.caching
-      storage_account_type = os_disk.value.storage_account_type
-      disk_size_gb         = lookup(os_disk.value, "disk_size_gb", 80)
-    }
-  }
-
-  dynamic "source_image_reference" {
-    for_each = var.source_image_reference != null ? [var.source_image_reference] : []
-    content {
-      publisher = source_image_reference.value.publisher
-      offer     = source_image_reference.value.offer
-      sku       = source_image_reference.value.sku
-      version   = source_image_reference.value.version
-    }
-  }
-
-  dynamic "identity" {
-    for_each = var.managed_identity_type != null ? [1] : []
-    content {
-      type         = var.managed_identity_type
-      identity_ids = var.managed_identity_type == "UserAssigned" || var.managed_identity_type == "SystemAssigned, UserAssigned" ? var.managed_identity_ids : null
-    }
-  }
-
-  tags = var.tags
-}
-
 resource "azurerm_mssql_virtual_machine" "mssql_virtual_machine" {
-  depends_on         = [azurerm_windows_virtual_machine.windows_vm, azurerm_virtual_machine_data_disk_attachment.data_disk_attachment]
-  virtual_machine_id = azurerm_windows_virtual_machine.windows_vm.id
+  virtual_machine_id = var.virtual_machine_id
   sql_license_type   = var.sql_license_type
 
   dynamic "auto_backup" {
@@ -167,11 +125,11 @@ resource "azurerm_mssql_virtual_machine" "mssql_virtual_machine" {
   }
 
   lifecycle {
-    ignore_changes = [
-      auto_backup,
-      storage_configuration,
-      sql_connectivity_port,
-      sql_connectivity_type
-    ]
+    precondition {
+      condition = var.sql_connectivity_type == "LOCAL" || (
+        var.sql_connectivity_update_username != null && var.sql_connectivity_update_password != null
+      )
+      error_message = "sql_connectivity_update_username and sql_connectivity_update_password are required when sql_connectivity_type is PRIVATE or PUBLIC."
+    }
   }
 }

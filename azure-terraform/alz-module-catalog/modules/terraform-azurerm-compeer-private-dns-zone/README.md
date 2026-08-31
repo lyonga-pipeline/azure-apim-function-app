@@ -1,30 +1,43 @@
-# Private DNS Zone Module
+# terraform-azurerm-compeer-private-dns-zone
 
-This module manages private DNS zones as shared networking resources.
+Private DNS **zones** keyed by a stable logical key (`azurerm_private_dns_zone`
+via `for_each`). VNet links and records are separate lifecycle domains
+(`private-dns-vnet-link`, `private-dns-a-record`).
 
-## Reusability and Extensibility
+## Usage
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+```hcl
+module "zones" {
+  source = "../terraform-azurerm-compeer-private-dns-zone"
+  tags   = module.tags.tags
+  zones = {
+    kv   = { name = "privatelink.vaultcore.azure.net",  resource_group_name = module.rg.name }
+    blob = { name = "privatelink.blob.core.windows.net", resource_group_name = module.rg.name }
+  }
+}
+```
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Inputs
 
-Module-specific extension points: Private DNS zones are keyed and output as both simple ID/name maps and richer objects for cross-workspace composition.
+`zones` — `map(object({ name, resource_group_name, tags? }))`, zone name
+validated. `tags` — merged onto every zone.
 
-## What Is Better
+## Outputs
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| DNS ownership | Private DNS can be hidden inside private endpoint modules. | DNS zones are explicit shared resources. |
-| Reuse | Multiple private endpoints and VNets can use the same zone. | Zone lifecycle is independent from endpoint lifecycle. |
+`ids`, `names`, `resource_group_names`, `zones` (composite) — keyed by input key.
 
-## Design Intent
+## Lifecycle contract
 
-Use this module for private DNS zones. Use `private-dns-vnet-link` for VNet links and `private-endpoint` for service endpoint connectivity.
+`tags` → update in place. `name` / `resource_group_name` → **replace** that zone.
+Adding / removing a map key affects only that zone. Private DNS zones are durable
+— routine upgrades must not recreate them.
 
+State exposure: none.
+
+## Migration
+
+Interface unchanged (1 consumer). Added zone-name validation and descriptions.
+
+## Tests
+
+`terraform test` (offline): create, zone-name validation.

@@ -1,20 +1,33 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
+variable "name" {
+  description = "VM name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
 variable "vm_size" {
-  type    = string
-  default = "Standard_D2s_v5"
+  description = "VM SKU size."
+  type        = string
+  default     = "Standard_D2s_v5"
 }
 variable "network_interface_ids" {
-  type = list(string)
+  description = "NIC resource IDs to attach. First is primary. NICs are caller-owned."
+  type        = list(string)
 }
 variable "admin_username" {
-  type    = string
-  default = "azureadmin"
+  description = "Local administrator username."
+  type        = string
+  default     = "azureadmin"
 }
 variable "admin_password" {
-  type      = string
-  sensitive = true
+  description = "Local administrator password. Stored in state - protect the backend."
+  type        = string
+  sensitive   = true
   validation {
     condition = (
       length(var.admin_password) >= 14 &&
@@ -27,22 +40,27 @@ variable "admin_password" {
   }
 }
 variable "computer_name" {
-  type    = string
-  default = null
+  description = "Windows computer name (<=15 chars). Defaults to a sanitised prefix of name."
+  type        = string
+  default     = null
 }
 variable "availability_set_id" {
-  type    = string
-  default = null
+  description = "Availability set to place the VM in. Mutually exclusive with zone."
+  type        = string
+  default     = null
 }
 variable "zone" {
-  type    = string
-  default = null
+  description = "Availability zone. Mutually exclusive with availability_set_id. Changing this forces a new resource."
+  type        = string
+  default     = null
 }
 variable "source_image_id" {
-  type    = string
-  default = null
+  description = "Managed image / shared image ID. Mutually exclusive with source_image_reference."
+  type        = string
+  default     = null
 }
 variable "source_image_reference" {
+  description = "Marketplace image reference. Mutually exclusive with source_image_id."
   type = object({
     publisher = string
     offer     = string
@@ -52,6 +70,7 @@ variable "source_image_reference" {
   default = null
 }
 variable "plan" {
+  description = "Marketplace plan for images that require one."
   type = object({
     name      = string
     publisher = string
@@ -60,50 +79,67 @@ variable "plan" {
   default = null
 }
 variable "license_type" {
-  type    = string
-  default = "Windows_Server"
+  description = "Windows_Server, Windows_Client, or None (hybrid benefit)."
+  type        = string
+  default     = "Windows_Server"
 }
 variable "timezone" {
-  type    = string
-  default = "UTC"
+  description = "VM timezone."
+  type        = string
+  default     = "UTC"
 }
 variable "provision_vm_agent" {
-  type    = bool
-  default = true
+  description = "Install the Azure VM agent."
+  type        = bool
+  default     = true
 }
 variable "allow_extension_operations" {
-  type    = bool
-  default = true
+  description = "Allow VM extension operations."
+  type        = bool
+  default     = true
 }
-variable "enable_automatic_updates" {
-  type    = bool
-  default = true
+variable "automatic_updates_enabled" {
+  description = "Enable Windows automatic updates."
+  type        = bool
+  default     = true
 }
 variable "patch_mode" {
-  type    = string
-  default = "AutomaticByPlatform"
+  description = "Manual, AutomaticByOS, or AutomaticByPlatform."
+  type        = string
+  default     = "AutomaticByPlatform"
+
+  validation {
+    condition     = contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.patch_mode)
+    error_message = "patch_mode must be Manual, AutomaticByOS, or AutomaticByPlatform."
+  }
 }
 variable "patch_assessment_mode" {
-  type    = string
-  default = "AutomaticByPlatform"
+  description = "ImageDefault or AutomaticByPlatform."
+  type        = string
+  default     = "AutomaticByPlatform"
 }
 variable "hotpatching_enabled" {
-  type    = bool
-  default = false
+  description = "Enable hotpatching (requires AutomaticByPlatform patch mode + VM agent)."
+  type        = bool
+  default     = false
 }
 variable "secure_boot_enabled" {
-  type    = bool
-  default = true
+  description = "Enable Secure Boot (Trusted Launch)."
+  type        = bool
+  default     = true
 }
 variable "vtpm_enabled" {
-  type    = bool
-  default = true
+  description = "Enable vTPM (Trusted Launch)."
+  type        = bool
+  default     = true
 }
 variable "encryption_at_host_enabled" {
-  type    = bool
-  default = true
+  description = "Encrypt VM disks and cache at the host."
+  type        = bool
+  default     = true
 }
 variable "identity" {
+  description = "Optional managed identity."
   type = object({
     type         = string
     identity_ids = optional(list(string), [])
@@ -111,21 +147,24 @@ variable "identity" {
   default = null
 }
 variable "boot_diagnostics" {
+  description = "Boot diagnostics. null disables; {} uses Azure-managed storage."
   type = object({
     storage_account_uri = optional(string)
   })
   default = null
 }
 variable "additional_capabilities" {
+  description = "Additional VM capabilities (e.g. ultra_ssd_enabled)."
   type = object({
     ultra_ssd_enabled = optional(bool, false)
   })
   default = null
 }
 variable "os_disk" {
+  description = "OS disk configuration."
   type = object({
-    caching                   = string
-    storage_account_type      = string
+    caching                   = string # None | ReadOnly | ReadWrite
+    storage_account_type      = string # Standard_LRS | StandardSSD_LRS | Premium_LRS | ...
     disk_size_gb              = optional(number)
     name                      = optional(string)
     write_accelerator_enabled = optional(bool)
@@ -137,6 +176,18 @@ variable "os_disk" {
   }
 }
 variable "tags" {
-  type    = map(string)
+  description = "Tags applied to the VM."
+  type        = map(string)
+  default     = {}
+}
+
+variable "timeouts" {
+  description = "Optional custom Terraform operation timeouts for the Windows VM. Omitted values retain provider defaults."
+  type = object({
+    create = optional(string)
+    read   = optional(string)
+    update = optional(string)
+    delete = optional(string)
+  })
   default = {}
 }

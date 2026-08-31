@@ -66,12 +66,12 @@ resource "azurerm_windows_web_app" "windows_web_app" {
         for_each = site_config.value.auto_heal_setting != null ? [site_config.value.auto_heal_setting] : []
         content {
           dynamic "action" {
-            for_each = site_config.value.auto_heal_setting.value.action != null ? [site_config.value.auto_heal_setting.value.action] : []
+            for_each = auto_heal_setting.value.action != null ? [auto_heal_setting.value.action] : []
             content {
               action_type                    = lookup(action.value, "action_type", null)
               minimum_process_execution_time = lookup(action.value, "minimum_process_execution_time", null)
               dynamic "custom_action" {
-                for_each = site_config.value.auto_heal_setting.value.action.value.custom_action != null ? [site_config.value.auto_heal_setting.value.action.value.custom_action] : []
+                for_each = auto_heal_setting.value.action.value.custom_action != null ? [auto_heal_setting.value.action.value.custom_action] : []
                 content {
                   executable = lookup(custom_action.value, "executable", null)
                   parameters = lookup(custom_action.value, "parameters", null)
@@ -80,18 +80,18 @@ resource "azurerm_windows_web_app" "windows_web_app" {
             }
           }
           dynamic "trigger" {
-            for_each = site_config.value.auto_heal_setting.value.trigger != null ? [site_config.value.auto_heal_setting.value.trigger] : []
+            for_each = auto_heal_setting.value.trigger != null ? [auto_heal_setting.value.trigger] : []
             content {
               private_memory_kb = lookup(trigger.value, "private_memory_kb", null)
               dynamic "requests" {
-                for_each = site_config.value.auto_heal_setting.value.trigger.value.requests != null ? [site_config.value.auto_heal_setting.value.trigger.value.requests] : []
+                for_each = trigger.value.requests != null ? [trigger.value.requests] : []
                 content {
                   count    = lookup(requests.value, "count", null)
                   interval = lookup(requests.value, "interval", null)
                 }
               }
               dynamic "slow_request" {
-                for_each = site_config.value.auto_heal_setting.value.trigger.value.slow_request != null ? [site_config.value.auto_heal_setting.value.trigger.value.slow_request] : []
+                for_each = trigger.value.slow_request != null ? [trigger.value.slow_request] : []
                 content {
                   count      = lookup(slow_request.value, "count", null)
                   interval   = lookup(slow_request.value, "interval", null)
@@ -99,7 +99,7 @@ resource "azurerm_windows_web_app" "windows_web_app" {
                 }
               }
               dynamic "slow_request_with_path" {
-                for_each = site_config.value.auto_heal_setting.value.trigger.value.slow_request_with_path != null ? [site_config.value.auto_heal_setting.value.trigger.value.slow_request_with_path] : []
+                for_each = trigger.value.slow_request_with_path != null ? [trigger.value.slow_request_with_path] : []
                 content {
                   count      = lookup(slow_request_with_path.value, "count", null)
                   interval   = lookup(slow_request_with_path.value, "interval", null)
@@ -108,7 +108,7 @@ resource "azurerm_windows_web_app" "windows_web_app" {
                 }
               }
               dynamic "status_code" {
-                for_each = site_config.value.auto_heal_setting.value.trigger.value.status_code != null ? [site_config.value.auto_heal_setting.value.trigger.value.status_code] : []
+                for_each = trigger.value.status_code != null ? [trigger.value.status_code] : []
                 content {
                   count             = lookup(status_code.value, "count", null)
                   interval          = lookup(status_code.value, "interval", null)
@@ -237,7 +237,7 @@ resource "azurerm_windows_web_app" "windows_web_app" {
   dynamic "connection_string" {
     for_each = var.connection_string
     content {
-      name  = connection_string.value.name
+      name  = connection_string.key
       type  = connection_string.value.type
       value = connection_string.value.value
     }
@@ -256,7 +256,7 @@ resource "azurerm_windows_web_app" "windows_web_app" {
         for_each = logs.value.application_logs != null ? [logs.value.application_logs] : []
         content {
           dynamic "azure_blob_storage" {
-            for_each = logs.value.application_logs.value.azure_blob_storage != null ? [logs.value.application_logs.value.azure_blob_storage] : []
+            for_each = application_logs.value.azure_blob_storage != null ? [application_logs.value.azure_blob_storage] : []
             content {
               level             = azure_blob_storage.value.level
               retention_in_days = azure_blob_storage.value.retention_in_days
@@ -272,14 +272,14 @@ resource "azurerm_windows_web_app" "windows_web_app" {
         for_each = logs.value.http_logs != null ? [logs.value.http_logs] : []
         content {
           dynamic "azure_blob_storage" {
-            for_each = logs.value.http_logs.value.azure_blob_storage != null ? [logs.value.http_logs.value.azure_blob_storage] : []
+            for_each = http_logs.value.azure_blob_storage != null ? [http_logs.value.azure_blob_storage] : []
             content {
               retention_in_days = azure_blob_storage.value.retention_in_days
               sas_url           = azure_blob_storage.value.sas_url
             }
           }
           dynamic "file_system" {
-            for_each = logs.value.http_logs.value.file_system != null ? [logs.value.http_logs.value.file_system] : []
+            for_each = http_logs.value.file_system != null ? [http_logs.value.file_system] : []
             content {
               retention_in_days = file_system.value.retention_in_days
               retention_in_mb   = file_system.value.retention_in_mb
@@ -306,14 +306,5 @@ resource "azurerm_windows_web_app" "windows_web_app" {
       type         = lookup(storage_account.value, "type", null)
       mount_path   = lookup(storage_account.value, "mount_path", null)
     }
-  }
-  lifecycle {
-    ignore_changes = [
-      tags["hidden-link: /app-insights-resource-id"], # This hidden tag is created by Azure when App Insights settings are defined
-      app_settings["BUILD_ID"],
-      app_settings["RELEASE_ENVIRONMENT"],
-      app_settings["RELEASE_ID"],
-      app_settings["RELEASE_NAME"]
-    ]
   }
 }

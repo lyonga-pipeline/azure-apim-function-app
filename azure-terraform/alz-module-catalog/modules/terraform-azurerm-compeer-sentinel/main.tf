@@ -1,3 +1,7 @@
+# ============================================================================
+# CAPABILITY/PATTERN MODULE: Sentinel onboarding is separate from Log Analytics workspace ownership.
+# ============================================================================
+
 resource "azurerm_sentinel_log_analytics_workspace_onboarding" "this" {
   count = var.enabled ? 1 : 0
 

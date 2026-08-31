@@ -1,12 +1,12 @@
 resource "azurerm_windows_virtual_machine" "windows_vm" {
-  admin_username           = var.admin_username
-  admin_password           = var.admin_password
-  location                 = var.location
-  resource_group_name      = var.resource_group_name
-  name                     = var.virtual_machine_name
-  network_interface_ids    = [azurerm_network_interface.nic.id]
-  size                     = var.virtual_machine_size
-  enable_automatic_updates = var.enable_automatic_updates
+  admin_username            = var.admin_username
+  admin_password            = var.admin_password
+  location                  = var.location
+  resource_group_name       = var.resource_group_name
+  name                      = var.virtual_machine_name
+  network_interface_ids     = [azurerm_network_interface.nic.id]
+  size                      = var.virtual_machine_size
+  automatic_updates_enabled = var.automatic_updates_enabled
   #availability_set_id      = var.enable_availability_set ? element(concat(azurerm_availability_set.availability.*.id, [""]), 0) : null
   availability_set_id = var.availability_set_id != null ? var.availability_set_id : (var.enable_availability_set ? element(concat(azurerm_availability_set.availability.*.id, [""]), 0) : null)
 

@@ -1,18 +1,38 @@
-# Key Vault Secret Module
+# terraform-azurerm-compeer-key-vault-secret
 
-This companion module manages Key Vault secrets separately from the Key Vault resource.
+Key Vault **secrets** only, created in a caller-owned vault. The vault, its
+access policy / RBAC, private endpoints and diagnostics are owned elsewhere
+(`keyvault`, `role-assignments`, `private-endpoint`, `diagnostic-settings`).
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Secret lifecycle | Secrets are often expected to be added to the vault module or handled manually. | Secrets have their own module and can change without changing the vault lifecycle. |
-| Ownership | Vault owners and application secret owners can become mixed together. | Application roots can manage application-owned secrets while the platform owns the vault. |
-| Reuse | Different apps often require different secret sets. | Uses a focused resource contract that can be repeated or wrapped by workload patterns. |
+- `secrets` is a `map(object)` keyed by a caller-stable logical name. The key is
+  the identity Terraform tracks — renaming a key destroys and recreates that
+  secret; the Azure secret `name` is a separate attribute.
+- Each entry: `name`, `value` (sensitive), optional `content_type`,
+  `not_before_date`, `expiration_date`, `tags`.
+- `key_vault_id` is required and injected by the caller.
 
-## Design Intent
+## Lifecycle
 
-Use this module when Terraform should manage a secret value or secret metadata. Do not place long-lived application secret rotation policy inside the core `key-vault` module.
+| Change | Effect |
+|---|---|
+| Add / remove a map key | Creates / destroys just that secret |
+| `value`, `content_type`, `tags`, dates | In-place update, new secret version |
+| `name` on an entry | Replace (new Azure secret) |
+| `key_vault_id` | Replace all secrets |
 
-For production usage, secret values should normally come from secure pipeline variables, HCP variable sets, or another approved secret source rather than committed tfvars.
+## State exposure
 
+Secret **values are stored in Terraform state** even though the input is
+`sensitive`. Use an approved secret-delivery path for production secrets.
+Outputs: `ids` (map key -> secret resource ID). No secret values are output.
+
+## Migration
+
+No breaking changes. Interface unchanged.
+
+## Tests
+
+`terraform test` (`tests/defaults.tftest.hcl`) — create, no-op replan, add/remove
+a map key. Run with `mock_provider`.

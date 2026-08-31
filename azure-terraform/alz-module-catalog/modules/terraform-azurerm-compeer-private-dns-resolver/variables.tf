@@ -1,7 +1,19 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
-variable "virtual_network_id" { type = string }
+variable "name" {
+  description = "Resource name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
+variable "virtual_network_id" {
+  description = "ID of the caller-owned virtual network."
+  type        = string
+}
 variable "inbound_endpoints" {
   type = map(object({
     subnet_id                    = string
@@ -47,6 +59,7 @@ variable "forwarding_ruleset_vnet_links" {
   default = {}
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

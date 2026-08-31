@@ -1,50 +1,48 @@
-# Virtual Network Module
+# terraform-azurerm-compeer-virtual-network
 
-This module manages virtual networks and subnets with stable map-based subnet keys.
+The **canonical** VNet + subnets module (used by both the hub connectivity and
+workload-spoke patterns). Subnets are a `map(object)` keyed by name — adding or
+removing a subnet never re-creates the others. NSGs, route tables, DDoS plans,
+DNS zones and peerings are owned by their dedicated modules and passed in by ID.
 
-## Reusability and Extensibility
+`networking` is the equivalent legacy-named module (also maintained).
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+## Inputs (selected)
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `address_space` | list(string) | — | ≥1 CIDR (validated); adding prefixes is in-place |
+| `subnets` | map(object) | `{}` | key = subnet name; `optional()` for endpoints, delegations (map), policies, ip_address_pool, timeouts |
+| `dns_servers` | list(string) | `null` | update in place |
+| `ddos_protection_plan_id` + `enable_ddos_protection_plan` | string / bool | `null` / `true` | update in place |
+| `encryption` | object | `null` | validated enforcement |
+| `flow_timeout_in_minutes` | number | `null` | validated 4-30 |
+| `private_endpoint_vnet_policies` | string | `null` | Disabled \| Basic |
 
-Module-specific extension points: VNet settings, DDoS attachment, DNS servers, encryption, flow timeout, VNet policies, subnets, delegations, service endpoints, IP pools, and subnet timeouts are configurable with stable subnet keys.
+## Outputs
 
-## What Is Better
+`id`, `name`, `resource_group_name`, `location`, `guid`, `address_space`,
+`dns_servers`, `subnet_ids`, `subnet_names`, `subnets` (composite).
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Subnet modeling | Subnets are often modeled as ordered lists or embedded inside broad landing-zone modules. | Uses `map(object(...))` for subnets so each subnet has a stable key and less plan churn. |
-| Ownership | Network, subnet attachments, NSGs, routes, and private DNS can be bundled together. | VNet and subnets are kept separate from NSG, route table, NAT, and DNS associations. |
-| Outputs | App modules need service-specific subnet IDs. | Outputs a `subnet_ids` map keyed by subnet name. |
+## Lifecycle contract
 
-## Design Intent
+| Change | Result |
+|---|---|
+| `tags`, `dns_servers`, `ddos_protection_plan_id`, add a CIDR, `flow_timeout_in_minutes` | **update in place** |
+| add / remove a `subnets` key | create / destroy **only that subnet** |
+| change a subnet's prefixes / endpoints / delegations / policies | update in place on that subnet |
+| `name`, `resource_group_name`, `location`, `edge_zone` | **replace** |
 
-This module owns:
+State exposure: none.
 
-- Virtual network resource
-- Subnet resources
-- Address spaces and DNS server configuration
-- Service endpoints and delegations per subnet
+## Migration
 
-Use companion modules for:
+Interface unchanged (2 consumers). Added `address_space` non-empty and
+`flow_timeout_in_minutes` range validation; input descriptions. (Fixed the
+`encryption` validation null-deref in an earlier sweep.)
 
-- `network-security-group`
-- `nsg-subnet-association`
-- `route-table`
-- `subnet-route-table-association`
-- `nat-gateway-subnet-association`
-- `vnet-peering`
-- `private-dns-vnet-link`
+## Tests
 
-## Why This Matters
-
-Virtual network lifecycle and attachment lifecycle are often owned by different teams. Keeping associations separate prevents broad network modules from becoming the place where every application-specific decision is hidden.
-
+`terraform test` (offline): create, additive subnet add, empty-address_space
+rejection.

@@ -1,64 +1,42 @@
-## Requirements
+# terraform-azurerm-compeer-vnet-peering
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 3.11, < 4.0 |
-
-## Providers
-
-| Name | Version |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >= 3.11, < 4.0 |
-
-## Modules
-
-No modules.
-
-## Resources
-
-| Name | Type |
-|------|------|
-| [azurerm_virtual_network_peering.peering](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
+One `azurerm_virtual_network_peering` (one direction). Compose two instances
+(hub→spoke and spoke→hub) at the pattern layer, each with the right provider
+alias. Non-standard input names (`peering_name`, `rg_name`, `vnet_name`) are kept
+for interface stability (3 consumers).
 
 ## Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_allow_forwarded_traffic"></a> [allow\_forwarded\_traffic](#input\_allow\_forwarded\_traffic) | Option allow\_forwarded\_traffic for the vnet to peer. Controls if forwarded traffic from VMs in the remote virtual network is allowed. Defaults to false. https://www.terraform.io/docs/providers/azurerm/r/virtual_network_peering.html#allow_forwarded_traffic | `bool` | n/a | yes |
-| <a name="input_allow_gateway_transit"></a> [allow\_gateway\_transit](#input\_allow\_gateway\_transit) | Option allow\_gateway\_transit for the vnet to peer. Controls gatewayLinks can be used in the remote virtual networkΓÇÖs link to the local virtual network. https://www.terraform.io/docs/providers/azurerm/r/virtual_network_peering.html#allow_gateway_transit | `bool` | n/a | yes |
-| <a name="input_allow_virtual_network_access"></a> [allow\_virtual\_network\_access](#input\_allow\_virtual\_network\_access) | Option allow\_virtual\_network\_access for the vnet to peer. Controls if the VMs in the remote virtual network can access VMs in the local virtual network. Defaults to false. https://www.terraform.io/docs/providers/azurerm/r/virtual_network_peering.html#allow_virtual_network_access | `bool` | n/a | yes |
-| <a name="input_peering_name"></a> [peering\_name](#input\_peering\_name) | Name of Vnet peering | `string` | n/a | yes |
-| <a name="input_remote_virtual_network_id"></a> [remote\_virtual\_network\_id](#input\_remote\_virtual\_network\_id) | The full Azure resource ID of the remote virtual network. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_rg_name"></a> [rg\_name](#input\_rg\_name) | Resource Group name for the resource | `string` | n/a | yes |
-| <a name="input_use_remote_gateways"></a> [use\_remote\_gateways](#input\_use\_remote\_gateways) | Option use\_remote\_gateway for the vnet to peer. Controls if remote gateways can be used on the local virtual network. https://www.terraform.io/docs/providers/azurerm/r/virtual_network_peering.html#use_remote_gateways | `bool` | n/a | yes |
-| <a name="input_vnet_name"></a> [vnet\_name](#input\_vnet\_name) | Virtual Network name for the resource | `string` | n/a | yes |
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `peering_name` | string | — | ForceNew |
+| `rg_name` / `vnet_name` | string | — | the *local* side; ForceNew |
+| `remote_virtual_network_id` | string | — | ForceNew |
+| `allow_virtual_network_access` | bool | `false` | update in place |
+| `allow_forwarded_traffic` | bool | `false` | update in place |
+| `allow_gateway_transit` | bool | `false` | update in place (hub side) |
+| `use_remote_gateways` | bool | `false` | update in place (spoke side) |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_peering_allow_forwarded_traffic"></a> [peering\_allow\_forwarded\_traffic](#output\_peering\_allow\_forwarded\_traffic) | Whether the forwarded traffic is allowed. |
-| <a name="output_peering_allow_gateway_transit"></a> [peering\_allow\_gateway\_transit](#output\_peering\_allow\_gateway\_transit) | Whether gateway transit is allowed. |
-| <a name="output_peering_allow_virtual_network_access"></a> [peering\_allow\_virtual\_network\_access](#output\_peering\_allow\_virtual\_network\_access) | Whether the virtual network access is allowed. |
-| <a name="output_peering_id"></a> [peering\_id](#output\_peering\_id) | The ID of the virtual network peering. |
-| <a name="output_peering_name"></a> [peering\_name](#output\_peering\_name) | The name of the virtual network peering. |
-| <a name="output_peering_remote_virtual_network_id"></a> [peering\_remote\_virtual\_network\_id](#output\_peering\_remote\_virtual\_network\_id) | The ID of the remote virtual network that is being peered. |
-| <a name="output_peering_resource_group_name"></a> [peering\_resource\_group\_name](#output\_peering\_resource\_group\_name) | The resource group where the virtual network peering is defined. |
-| <a name="output_peering_use_remote_gateways"></a> [peering\_use\_remote\_gateways](#output\_peering\_use\_remote\_gateways) | Whether remote gateways are used. |
-| <a name="output_peering_virtual_network_name"></a> [peering\_virtual\_network\_name](#output\_peering\_virtual\_network\_name) | The name of the virtual network that is being peered. |
+`id`, `name` (+ legacy `peering_*` aliases), `peering_resource_group_name`,
+`peering_virtual_network_name`, `peering_remote_virtual_network_id`, and each
+`allow_*` / `use_remote_gateways` value.
 
-## Reusability and Extensibility
+## Lifecycle contract
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+All `allow_*` / `use_remote_gateways` flags → **update in place**. `peering_name`,
+`rg_name`, `vnet_name`, `remote_virtual_network_id` → **replace**. Peering is a
+durable link — do not let upgrades recreate it (that briefly drops connectivity).
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+State exposure: none.
 
-Module-specific extension points: Peerings are keyed and expose direction-specific flags so hub-spoke, spoke-spoke, and cross-subscription patterns can reuse the same module.
+## Migration
+
+`allow_virtual_network_access` / `allow_forwarded_traffic` / `allow_gateway_transit`
+/ `use_remote_gateways` changed from **required** to `default = false` (safe:
+existing callers pass them explicitly).
+
+## Tests
+
+`terraform test` (offline): flag defaults, hub gateway-transit.

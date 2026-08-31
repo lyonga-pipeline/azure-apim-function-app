@@ -1,18 +1,37 @@
-# Bastion Host Module
+# terraform-azurerm-compeer-bastion-host
 
-This module manages Azure Bastion as a reusable privileged-access component.
+A single `azurerm_bastion_host`. The `AzureBastionSubnet` and its Standard Static
+Public IP are caller-owned and passed in by ID.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `bastion_subnet_id` | string | — | must be an `AzureBastionSubnet`; ForceNew |
+| `public_ip_id` | string | — | externally managed Standard Static PIP |
+| `sku` | string | `Standard` | validated Basic/Standard/Premium; ForceNew |
+| `tunneling_enabled` / `file_copy_enabled` / `ip_connect_enabled` / ... | bool | see vars | Basic SKU rejects the advanced flags (precondition) |
+| `scale_units` | number | `2` | Standard/Premium only |
+| `zones` | list(string) | — | |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Existing or module-created public IPs, Bastion SKU features, diagnostics, zones, and timeouts are exposed so privileged-access patterns can choose their posture.
+`id`, `name`, `dns_name`, `virtual_network_id`, `public_ip_id`.
+
+## Lifecycle contract
+
+`copy_paste_enabled`, `file_copy_enabled`, `tunneling_enabled`, `scale_units`,
+`tags` → **update in place** (Standard/Premium). `sku`, `bastion_subnet_id`,
+`public_ip_id`, `name`/`rg`/`location` → **replace**.
+
+State exposure: none.
+
+## Migration
+
+Interface unchanged (1 consumer). Added `sku` validation and descriptions.
+
+## Tests
+
+`terraform test` (offline): Standard defaults, Basic-with-tunneling precondition,
+bad-SKU rejection.

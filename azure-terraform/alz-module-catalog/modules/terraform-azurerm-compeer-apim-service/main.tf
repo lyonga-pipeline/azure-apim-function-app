@@ -1,14 +1,15 @@
 locals {
+  # Insecure protocols are disabled unless the caller explicitly re-enables one.
   security_defaults = {
-    enable_backend_ssl30  = false
-    enable_backend_tls10  = false
-    enable_backend_tls11  = false
-    enable_frontend_ssl30 = false
-    enable_frontend_tls10 = false
-    enable_frontend_tls11 = false
+    backend_ssl30_enabled  = false
+    backend_tls10_enabled  = false
+    backend_tls11_enabled  = false
+    frontend_ssl30_enabled = false
+    frontend_tls10_enabled = false
+    frontend_tls11_enabled = false
   }
-  effective_security  = merge(local.security_defaults, var.security == null ? {} : var.security)
-  effective_protocols = merge({ enable_http2 = true }, var.protocols == null ? {} : var.protocols)
+  effective_security  = merge(local.security_defaults, var.security == null ? {} : { for k, v in var.security : k => v if v != null })
+  effective_protocols = merge({ http2_enabled = true }, var.protocols == null ? {} : { for k, v in var.protocols : k => v if v != null })
 }
 
 resource "azurerm_api_management" "this" {
@@ -40,20 +41,30 @@ resource "azurerm_api_management" "this" {
   dynamic "security" {
     for_each = [local.effective_security]
     content {
-      enable_backend_ssl30                                = try(security.value.enable_backend_ssl30, null)
-      enable_backend_tls10                                = try(security.value.enable_backend_tls10, null)
-      enable_backend_tls11                                = try(security.value.enable_backend_tls11, null)
-      enable_frontend_ssl30                               = try(security.value.enable_frontend_ssl30, null)
-      enable_frontend_tls10                               = try(security.value.enable_frontend_tls10, null)
-      enable_frontend_tls11                               = try(security.value.enable_frontend_tls11, null)
+      backend_ssl30_enabled                               = try(security.value.backend_ssl30_enabled, null)
+      backend_tls10_enabled                               = try(security.value.backend_tls10_enabled, null)
+      backend_tls11_enabled                               = try(security.value.backend_tls11_enabled, null)
+      frontend_ssl30_enabled                              = try(security.value.frontend_ssl30_enabled, null)
+      frontend_tls10_enabled                              = try(security.value.frontend_tls10_enabled, null)
+      frontend_tls11_enabled                              = try(security.value.frontend_tls11_enabled, null)
       tls_ecdhe_ecdsa_with_aes128_cbc_sha_ciphers_enabled = try(security.value.tls_ecdhe_ecdsa_with_aes128_cbc_sha_ciphers_enabled, null)
+      tls_ecdhe_ecdsa_with_aes256_cbc_sha_ciphers_enabled = try(security.value.tls_ecdhe_ecdsa_with_aes256_cbc_sha_ciphers_enabled, null)
+      tls_ecdhe_rsa_with_aes128_cbc_sha_ciphers_enabled   = try(security.value.tls_ecdhe_rsa_with_aes128_cbc_sha_ciphers_enabled, null)
+      tls_ecdhe_rsa_with_aes256_cbc_sha_ciphers_enabled   = try(security.value.tls_ecdhe_rsa_with_aes256_cbc_sha_ciphers_enabled, null)
+      tls_rsa_with_aes128_cbc_sha256_ciphers_enabled      = try(security.value.tls_rsa_with_aes128_cbc_sha256_ciphers_enabled, null)
+      tls_rsa_with_aes128_cbc_sha_ciphers_enabled         = try(security.value.tls_rsa_with_aes128_cbc_sha_ciphers_enabled, null)
+      tls_rsa_with_aes128_gcm_sha256_ciphers_enabled      = try(security.value.tls_rsa_with_aes128_gcm_sha256_ciphers_enabled, null)
+      tls_rsa_with_aes256_cbc_sha256_ciphers_enabled      = try(security.value.tls_rsa_with_aes256_cbc_sha256_ciphers_enabled, null)
+      tls_rsa_with_aes256_cbc_sha_ciphers_enabled         = try(security.value.tls_rsa_with_aes256_cbc_sha_ciphers_enabled, null)
+      tls_rsa_with_aes256_gcm_sha384_ciphers_enabled      = try(security.value.tls_rsa_with_aes256_gcm_sha384_ciphers_enabled, null)
+      triple_des_ciphers_enabled                          = try(security.value.triple_des_ciphers_enabled, null)
     }
   }
 
   dynamic "protocols" {
     for_each = [local.effective_protocols]
     content {
-      enable_http2 = try(protocols.value.enable_http2, null)
+      http2_enabled = try(protocols.value.http2_enabled, null)
     }
   }
 
@@ -76,6 +87,16 @@ resource "azurerm_api_management" "this" {
           text             = try(terms_of_service.value.text, null)
         }
       }
+    }
+  }
+
+  dynamic "timeouts" {
+    for_each = length([for v in values(var.timeouts) : v if v != null]) > 0 ? [var.timeouts] : []
+    content {
+      create = timeouts.value.create
+      read   = timeouts.value.read
+      update = timeouts.value.update
+      delete = timeouts.value.delete
     }
   }
 

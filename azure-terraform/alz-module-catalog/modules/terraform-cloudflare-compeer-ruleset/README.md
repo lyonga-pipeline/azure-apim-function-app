@@ -1,33 +1,36 @@
 # terraform-cloudflare-compeer-ruleset
 
-Creates a Cloudflare ruleset at account or zone scope.
+A single Cloudflare ruleset (`cloudflare_ruleset`), for provider v4 — a phase
+entrypoint plus its ordered rules.
 
-## Catalog Fixes
+## Contract
 
-- `rules` is now a list, matching the module description and Cloudflare ruleset behavior.
-- `matched_data.public_key` is read from the `matched_data` block rather than the sibling `headers` iterator.
-- Cache key query-string exclusions are supported through `action_parameters.cache_key.custom_key.query_string.exclude`.
+- Required: `ruleset_kind`, `ruleset_name`, `ruleset_phase`.
+- Scope: set **exactly one** of `zone_id` or `cloudflare_account_id` (enforced by
+  a precondition). `account_id` is suppressed automatically when `zone_id` is
+  set.
+- `rules` is a `list(object)` — order is significant to Cloudflare, so this is a
+  list, not a map. Each rule has `expression`, `action`, optional `description`,
+  `enabled`, `ref`, and an `action_parameters` object.
 
-## Example
+## Lifecycle
 
-```hcl
-module "managed_rules" {
-  source = "./modules/terraform-cloudflare-compeer-ruleset"
+| Change | Effect |
+|---|---|
+| `rules` add/remove/reorder/retune, `ruleset_name`, `description` | In-place update |
+| `ruleset_kind`, `ruleset_phase`, scope (`zone_id` / `account_id`) | Replace |
 
-  zone_id       = var.cloudflare_zone_id
-  ruleset_kind  = "zone"
-  ruleset_name  = "waf-baseline"
-  ruleset_phase = "http_request_firewall_managed"
+## State exposure
 
-  rules = [
-    {
-      expression  = "true"
-      action      = "execute"
-      description = "Execute managed WAF baseline"
-      action_parameters = {
-        id = "efb7b8c949ac4650a09736fc376e9aee"
-      }
-    }
-  ]
-}
-```
+Outputs: ruleset `id`. No secrets.
+
+## Migration
+
+No breaking changes to inputs. The resource now sets `account_id` / `zone_id`
+mutually exclusively and a precondition rejects setting both; the dead Azure
+`data.tf` / empty `locals.tf` / pipeline YAML were removed.
+
+## Tests
+
+`terraform test` (`mock_provider`) — zone-scoped create, and both-scopes
+rejection.

@@ -1,292 +1,154 @@
 variable "resource_group_name" {
-  description = "Name of the resource group to place the VM's."
+  description = "Resource group. Changing this forces a new resource."
   type        = string
 }
-
-variable "resource_group_location" {
-  type        = string
-  description = "Location of the resource group to place the VM."
-  default     = "northcentralus"
-}
-
-variable "subnet_id" {
-  description = "ID of the subnet where the VM's reside."
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
   type        = string
 }
-
-variable "nic_name" {
-  description = "Name of the network interface."
+variable "name" {
+  description = "VM name. Changing this forces a new resource."
   type        = string
-  default     = null
 }
-
-variable "dns_servers" {
-  description = "List of dns servers to use for network interface"
+variable "vm_size" {
+  description = "VM SKU size."
+  type        = string
+  default     = "Standard_D2s_v5"
+}
+variable "network_interface_ids" {
+  description = "NIC resource IDs to attach (first is primary). NICs are caller-owned."
   type        = list(string)
-  default     = []
 }
-
-variable "ip_forwarding_enabled" {
-  description = "Should IP Forwarding be enabled? Defaults to false."
-  type        = bool
-  default     = false
-}
-
-variable "accelerated_networking_enabled" {
-  description = "Should Accelerated Networking be enabled? Defaults to false."
-  default     = false
-}
-
-variable "internal_dns_name_label" {
-  description = "The (relative) DNS Name used for internal communications between Virtual Machines in the same Virtual Network."
-  type        = string
-  default     = null
-}
-
-variable "private_ip_address_allocation_type" {
-  description = "The allocation method used for the Private IP Address. Possible values are Dynamic and Static."
-  type        = string
-  default     = "Dynamic"
-}
-
-variable "private_ip_address" {
-  description = "The Static IP Address which should be used. This is valid only when `private_ip_address_allocation` is set to `Static` "
-  type        = list(string)
-  default     = null
-}
-
-variable "ip_configuration_name" {
-  description = "Name for the NIC IP configuration setting."
-  type        = string
-  default     = null
-}
-
-variable "virtual_machine_name" {
-  description = "The name of the virtual machine."
-  type        = string
-}
-
-variable "virtual_machine_size" {
-  description = "The Virtual Machine SKU for the Virtual Machine. Refer: https://learn.microsoft.com/en-us/azure/virtual-machines/sizes to know more on different sizes available."
-  type        = string
-  default     = "Standard_A2_v2"
-}
-
 variable "admin_username" {
-  description = "The username of the local administrator used for the Virtual Machine."
+  description = "Local administrator username."
   type        = string
+  default     = "azureadmin"
 }
-
 variable "admin_password" {
-  description = "The Password which should be used for the local-administrator on this Virtual Machine"
+  description = "Local admin password. Required only when disable_password_authentication = false. Stored in state."
   type        = string
   sensitive   = true
   default     = null
-
-  validation {
-    condition     = var.disable_password_authentication || var.admin_password != null
-    error_message = "Set admin_password when disable_password_authentication is false."
-  }
 }
-
 variable "disable_password_authentication" {
-  description = "Should Password Authentication be disabled on this Virtual Machine? Defaults to true."
+  description = "Disable password auth and require SSH keys (recommended)."
+  type        = bool
+  default     = true
+  sensitive   = true
+}
+variable "admin_ssh_keys" {
+  description = "SSH public keys keyed by a stable logical name; required when password auth is disabled."
+  type        = map(object({ username = optional(string), public_key = string }))
+  default     = {}
+}
+variable "computer_name" {
+  description = "OS hostname. Defaults to name."
+  type        = string
+  default     = null
+}
+variable "availability_set_id" {
+  description = "Availability set. Mutually exclusive with zone."
+  type        = string
+  default     = null
+}
+variable "zone" {
+  description = "Availability zone. Mutually exclusive with availability_set_id. ForceNew."
+  type        = string
+  default     = null
+}
+variable "source_image_id" {
+  description = "Image ID. Mutually exclusive with source_image_reference."
+  type        = string
+  default     = null
+}
+variable "source_image_reference" {
+  description = "Marketplace image reference. Mutually exclusive with source_image_id."
+  type        = object({ publisher = string, offer = string, sku = string, version = string })
+  default     = null
+}
+variable "plan" {
+  description = "Marketplace plan for images that require one."
+  type        = object({ name = string, publisher = string, product = string })
+  default     = null
+}
+variable "os_disk" {
+  description = "OS disk configuration."
+  type        = object({ caching = string, storage_account_type = string, name = optional(string), disk_encryption_set_id = optional(string), disk_size_gb = optional(number), write_accelerator_enabled = optional(bool) })
+  default     = { caching = "ReadWrite", storage_account_type = "Premium_LRS" }
+}
+variable "identity" {
+  description = "Optional managed identity."
+  type        = object({ type = string, identity_ids = optional(list(string), []) })
+  default     = null
+}
+variable "boot_diagnostics" {
+  description = "Boot diagnostics. null disables; {} uses Azure-managed storage."
+  type        = object({ storage_account_uri = optional(string) })
+  default     = null
+}
+variable "provision_vm_agent" {
+  description = "Install the Azure VM agent."
   type        = bool
   default     = true
 }
-
-variable "admin_ssh_key_data" {
-  description = "Specify the path to an existing SSH public key, or supply the public key value directly."
+variable "allow_extension_operations" {
+  description = "Allow VM extension operations."
+  type        = bool
+  default     = true
+}
+variable "patch_mode" {
+  description = "ImageDefault or AutomaticByPlatform."
   type        = string
-  sensitive   = true
-  default     = null
+  default     = "ImageDefault"
 
   validation {
-    condition     = !var.disable_password_authentication || var.admin_ssh_key_data != null
-    error_message = "Set admin_ssh_key_data when disable_password_authentication is true."
+    condition     = contains(["ImageDefault", "AutomaticByPlatform"], var.patch_mode)
+    error_message = "patch_mode must be ImageDefault or AutomaticByPlatform."
   }
 }
-
-variable "source_image_id" {
-  description = "The ID of an Image which each Virtual Machine should be based on"
-  type        = string
-}
-
-variable "custom_data" {
-  description = "Base64 encoded file of a bash script that gets run once by cloud-init upon VM creation"
-  type        = string
-  default     = null
-}
-
-variable "enable_encryption_at_host" {
-  description = " Should all of the disks (including the temp disk) attached to this Virtual Machine be encrypted by enabling Encryption at Host?"
-  type        = bool
-  default     = false
-}
-
-variable "availability_zone" {
-  description = "The Zone in which this Virtual Machine should be created. Conflicts with availability set and shouldn't use both"
-  type        = string
-  default     = null
-}
-
-variable "patch_mode" {
-  description = "Specifies the mode of in-guest patching to this Linux Virtual Machine. Possible values are `Manual`, `AutomaticByOS` and `AutomaticByPlatform`"
-  default     = "AutomaticByOS"
-}
-
 variable "patch_assessment_mode" {
-  description = "Specifies the mode of in-guest patch assessment to this Linux Virtual Machine. Possible values are `ImageDefault` and `AutomaticByPlatform`"
+  description = "ImageDefault or AutomaticByPlatform."
+  type        = string
   default     = "ImageDefault"
 }
-
-variable "source_image_reference" {
-  description = "Provide a search on the image based on the details."
-  type = object({
-    publisher = string
-    offer     = string
-    sku       = string
-    version   = string
-  })
-  default = null
-}
-
-variable "os_disk_storage_account_type" {
-  description = "The Type of Storage Account which should back this the Internal OS Disk. Possible values are `Standard_LRS`, `StandardSSD_LRS`, `Premium_LRS`, `StandardSSD_ZRS` and `Premium_ZRS`. Changing this forces a new resource to be created."
-  type        = string
-  default     = "StandardSSD_LRS"
-}
-
-variable "os_disk_caching" {
-  description = "The Type of Caching which should be used for the Internal OS Disk. Possible values are `None`, `ReadOnly` and `ReadWrite`."
-  type        = string
-  default     = "ReadWrite"
-}
-
-variable "disk_encryption_set_id" {
-  description = "The ID of the Disk Encryption Set which should be used to Encrypt this OS Disk. Conflicts with `secure_vm_disk_encryption_set_id`."
-  type        = string
-  default     = null
-}
-
-variable "disk_size_gb" {
-  description = "The Size of the Internal OS Disk in GB, if you wish to vary from the size used in the image this Virtual Machine is sourced from."
-  type        = number
-  default     = null
-}
-
-variable "enable_os_disk_write_accelerator" {
-  description = "Should Write Accelerator be Enabled for this OS Disk?"
+variable "encryption_at_host_enabled" {
+  description = "Encrypt VM disks and cache at the host."
   type        = bool
-  default     = false
-}
-
-variable "os_disk_name" {
-  description = "The name which should be used for the Internal OS Disk. Changing this forces a new resource to be created."
-  type        = string
   default     = null
 }
-
-variable "managed_identity_type" {
-  description = "Specifies the type of Managed Service Identity that should be configured on this Linux Virtual Machine. Possible values are `SystemAssigned`, `UserAssigned`, `SystemAssigned, UserAssigned` (to enable both)."
-  type        = string
-  default     = null
-}
-
-variable "managed_identity_ids" {
-  description = "Specifies a list of User Assigned Managed Identity IDs to be assigned to this Linux Virtual Machine."
-  type        = list(string)
-  default     = null
-}
-
-variable "enable_availability_set" {
-  description = "Whether to create availability set for the VM?"
+variable "secure_boot_enabled" {
+  description = "Enable Secure Boot (Trusted Launch)."
   type        = bool
-  default     = true
+  default     = null
 }
-
-variable "availability_set_name" {
-  description = "Availability set name."
+variable "vtpm_enabled" {
+  description = "Enable vTPM (Trusted Launch)."
+  type        = bool
+  default     = null
+}
+variable "license_type" {
+  description = "RHEL_BYOS, SLES_BYOS, or None."
   type        = string
   default     = null
 }
-
-variable "platform_fault_domain_count" {
-  description = "Specifies the number of fault domains that are used"
-  type        = number
-  default     = 3
+variable "user_data" {
+  description = "Base64 user data."
+  type        = string
+  default     = null
 }
-
-variable "platform_update_domain_count" {
-  description = "Specifies the number of update domains that are used"
-  type        = number
-  default     = 5
+variable "custom_data" {
+  description = "Base64 cloud-init custom data. Stored in state."
+  type        = string
+  default     = null
+  sensitive   = true
 }
-
-variable "managed_availability_set" {
-  description = "Specifies whether the availability set is managed or not."
-  type        = bool
-  default     = true
-}
-
-variable "data_disks" {
-  description = "Managed Data Disks for azure virtual machine"
-  type = list(object({
-    name                 = string
-    storage_account_type = string
-    disk_size_gb         = number
-    create_option        = string
-  }))
-  default = []
-}
-
 variable "tags" {
-  description = "A map of tags to add to all resources"
+  description = "Tags applied to the VM."
   type        = map(string)
   default     = {}
 }
-
-variable "user_data" {
-  description = "The Base64-Encoded User Data which should be used for this Virtual Machine."
-  type        = string
-  default     = null
-}
-
-variable "enable_ad_join" {
-  type        = bool
-  description = "Whether to enable AD join."
-  default     = false
-}
-
-variable "active_directory_domain" {
-  description = "Name of the Active Directory domain to join."
-  type        = string
-}
-
-variable "ou_path" {
-  description = "An organizational unit (OU) within an Active Directory to place the virtual machines."
-  type        = string
-  default     = null
-}
-
-variable "active_directory_username" {
-  description = "Username of an account with permissions to bind machines to the Active Directory Domain."
-  type        = string
-
-}
-
-variable "active_directory_password" {
-  description = "Password of the account with permissions to bind machines to the Active Directory Domain."
-  type        = string
-  sensitive   = true
-}
-
-variable "plan" {
-  description = "Specifies the plan information for a marketplace image."
-  type = object({
-    name      = string
-    publisher = string
-    product   = string
-  })
-  default = null
+variable "timeouts" {
+  description = "Optional resource operation timeouts."
+  type        = object({ create = optional(string), read = optional(string), update = optional(string), delete = optional(string) })
+  default     = {}
 }

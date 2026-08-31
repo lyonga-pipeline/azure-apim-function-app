@@ -7,10 +7,4 @@ resource "azurerm_availability_set" "availability" {
   platform_update_domain_count = var.platform_update_domain_count
   managed                      = var.managed_availability_set
   tags                         = merge({ "ResourceName" = local.availability_set_name }, var.avs_tags)
-
-  lifecycle {
-    ignore_changes = [
-      tags,
-    ]
-  }
 }

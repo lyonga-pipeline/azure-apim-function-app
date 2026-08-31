@@ -1,4 +1,7 @@
-variable "key_vault_id" { type = string }
+variable "key_vault_id" {
+  description = "Resource ID of the existing Key Vault."
+  type        = string
+}
 variable "secrets" {
   type = map(object({
     value           = string
@@ -7,9 +10,11 @@ variable "secrets" {
     expiration_date = optional(string)
     tags            = optional(map(string), {})
   }))
-  default = {}
+  default   = {}
+  sensitive = true
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

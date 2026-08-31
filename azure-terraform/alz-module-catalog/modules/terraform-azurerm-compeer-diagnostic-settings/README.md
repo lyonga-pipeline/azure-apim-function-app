@@ -1,35 +1,38 @@
-# Diagnostic Settings Module
+# terraform-azurerm-compeer-diagnostic-settings
 
-This companion module manages Azure Monitor diagnostic settings for any supported target resource.
+A single `azurerm_monitor_diagnostic_setting` for one target resource. **The
+platform's canonical diagnostics module** — every pattern composes it with a
+per-resource `for_each`. Interface is a frozen contract.
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` | string | — | |
+| `target_resource_id` | string | — | ForceNew |
+| `log_analytics_workspace_id` / `storage_account_id` / `eventhub_authorization_rule_id` / `partner_solution_id` | string | `null` | **≥1 required** (precondition) |
+| `log_analytics_destination_type` | string | `null` | `AzureDiagnostics` \| `Dedicated` (validated) |
+| `logs` | map(object) | `{}` | each entry sets exactly one of `category` / `category_group` (validated) |
+| `metrics` | map(object) | `{}` | `{category, enabled?=true}` |
+| `timeouts` | object | `{}` | passthrough |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: The module is target-resource agnostic and supports keyed log and metric categories plus Log Analytics, Storage, Event Hub, partner, destination-type, and timeout options.
+`id`, `name`, `target_resource_id`, `destinations` (composite).
 
-## What Is Better
+## Lifecycle contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Observability lifecycle | Diagnostics can be embedded into every base resource module. | Diagnostics are managed separately so telemetry routing can change independently. |
-| Routing | Log Analytics, Storage, Event Hub, and partner destinations can vary by environment. | Destination IDs are explicit inputs rather than hidden inside base modules. |
-| Drift handling | Reviewed patterns showed diagnostic `ignore_changes` workarounds. | This module keeps diagnostic routing visible in plan output by default. |
+`logs`, `metrics`, destinations, `log_analytics_destination_type` → **update in
+place**. `target_resource_id` → **replace**. Adding / removing a `logs` /
+`metrics` map key changes only that category on the setting.
 
-## Design Intent
+State exposure: none.
 
-Use this module to attach logs and metrics to platform or workload resources after the base resource exists.
+## Migration
 
-## Why This Matters
+Interface unchanged (9 consumers). Only tests + docs added.
 
-Telemetry routing is often owned by operations or platform observability teams. Keeping diagnostics separate avoids changing the base resource module every time logging destinations or retention expectations change.
+## Tests
 
+`terraform test` (offline): create (2 logs + 1 metric), no-destination precondition,
+log category/category_group exclusivity, destination-type validation.

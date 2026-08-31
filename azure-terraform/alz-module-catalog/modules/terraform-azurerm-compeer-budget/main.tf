@@ -1,10 +1,12 @@
 locals {
-  budget_scope_type = var.scope_type != null ? var.scope_type : (
-    var.create_for_management_group ? "management_group" : (
-      var.create_for_subscription ? "subscription" : (
-        var.create_for_rg ? "resource_group" : "resource_group"
-      )
-    )
+  # null => no budget is created (true no-op). Otherwise the caller's explicit
+  # scope_type, or an inferred scope from the legacy create_for_* toggles.
+  budget_scope_type = coalesce(
+    var.scope_type,
+    var.create_for_management_group ? "management_group" : null,
+    var.create_for_subscription ? "subscription" : null,
+    var.create_for_rg ? "resource_group" : null,
+    "none",
   )
 
   budget_name       = var.budget_name != null ? var.budget_name : var.rg_budget_name

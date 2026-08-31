@@ -40,14 +40,14 @@ resource "azurerm_api_management_api" "api" {
   dynamic "oauth2_authorization" {
     for_each = var.oauth2_authorization != null ? [var.oauth2_authorization] : []
     content {
-      authorization_server_name = azurerm_api_management_authorization_server.apim_authorization_server.name
+      authorization_server_name = oauth2_authorization.value.authorization_server_name
       scope                     = lookup(oauth2_authorization.value, "scope", null)
     }
   }
   dynamic "openid_authentication" {
     for_each = var.openid_authentication != null ? [var.openid_authentication] : []
     content {
-      openid_provider_name         = azurerm_api_management_openid_connect_provider.apim_openid_connect_provider.name
+      openid_provider_name         = openid_authentication.value.openid_provider_name
       bearer_token_sending_methods = lookup(openid_authentication.value, "bearer_token_sending_methods", null)
     }
   }

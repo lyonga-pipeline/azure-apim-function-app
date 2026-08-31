@@ -1,6 +1,15 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
+variable "name" {
+  description = "Resource name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
 variable "sku" {
   type    = string
   default = "Standard"
@@ -10,6 +19,7 @@ variable "threat_intelligence_mode" {
   default = "Alert"
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

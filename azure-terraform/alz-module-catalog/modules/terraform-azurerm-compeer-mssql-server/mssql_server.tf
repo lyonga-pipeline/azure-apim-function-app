@@ -15,14 +15,14 @@ resource "azurerm_mssql_server" "mssql_server" {
   tags                                         = var.tags
 
   dynamic "identity" {
-    for_each = var.identity != {} ? [var.identity] : []
+    for_each = var.identity == null ? [] : [var.identity]
     content {
       type         = identity.value.type
-      identity_ids = lookup(identity.value, "identity_ids", null)
+      identity_ids = try(identity.value.identity_ids, null)
     }
   }
   dynamic "azuread_administrator" {
-    for_each = var.azuread_administrator != {} ? [var.azuread_administrator] : []
+    for_each = var.azuread_administrator == null ? [] : [var.azuread_administrator]
     content {
       login_username              = azuread_administrator.value.login_username
       object_id                   = azuread_administrator.value.object_id

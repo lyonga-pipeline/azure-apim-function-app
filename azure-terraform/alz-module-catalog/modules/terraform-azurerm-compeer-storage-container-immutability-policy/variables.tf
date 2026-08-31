@@ -1,5 +1,9 @@
-variable "storage_container_resource_manager_id" { type = string }
-variable "immutability_period_in_days" { type = number }
+variable "storage_container_resource_manager_id" {
+  type = string
+}
+variable "immutability_period_in_days" {
+  type = number
+}
 variable "locked" {
   type    = bool
   default = false

@@ -1,6 +1,15 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
+variable "name" {
+  description = "Resource name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
 variable "firewall_policy_id" {
   type    = string
   default = null
@@ -9,7 +18,7 @@ variable "force_firewall_policy_association" {
   type    = bool
   default = false
 }
-variable "enable_http2" {
+variable "http2_enabled" {
   type    = bool
   default = true
 }
@@ -217,6 +226,7 @@ variable "request_routing_rules" {
   default = {}
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

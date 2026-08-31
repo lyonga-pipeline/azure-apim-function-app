@@ -1,11 +1,23 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
+variable "name" {
+  description = "Resource name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
 variable "type" {
   type    = string
   default = "ExpressRoute"
 }
-variable "virtual_network_gateway_id" { type = string }
+variable "virtual_network_gateway_id" {
+  description = "ID of the VPN/ExpressRoute gateway."
+  type        = string
+}
 variable "express_route_circuit_id" {
   type    = string
   default = null
@@ -108,6 +120,7 @@ variable "timeouts" {
   default = {}
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the resource."
+  type        = map(string)
+  default     = {}
 }

@@ -1,20 +1,29 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# terraform-azurerm-compeer-event-grid-namespace
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+An Event Grid namespace (MQTT / pull delivery) and optional namespace topics / subscriptions.
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+## Contract
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+- Resource: `azurerm_eventgrid_namespace` (namespace).
+- Inputs are explicitly typed; optional blocks are `optional(object(...))` and repeatables are `map(object(...))` keyed by a caller-stable name.
+- Adjacent resource-group / network / RBAC / diagnostic capabilities are composed externally.
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Lifecycle
+
+| Change | Effect |
+|---|---|
+| `capacity`, `topic_spaces_configuration`, `inbound_ip_rules`, `public_network_access`, `tags` | In-place update |
+| `sku` | In-place where Azure allows, otherwise Replace |
+| `namespace_name`, `resource_group_name`, `location` | Replace |
+
+## State exposure
+
+Outputs: namespace `id` and topic/subscription IDs. No secrets output.
+
+## Migration
+
+No breaking changes. A stray `gitignore` file was removed.
+
+## Tests
+
+`terraform test` (`tests/defaults.tftest.hcl`, `mock_provider`) — create and attribute wiring; validation failures where the module adds `validation` / `precondition` rules.

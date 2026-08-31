@@ -18,6 +18,13 @@ resource "azurerm_public_ip" "this" {
   zones                   = var.zones
   tags                    = var.tags
 
+  lifecycle {
+    precondition {
+      condition     = var.sku != "Standard" || var.allocation_method == "Static"
+      error_message = "Standard SKU public IPs must use Static allocation."
+    }
+  }
+
   timeouts {
     create = try(var.timeouts.create, null)
     update = try(var.timeouts.update, null)

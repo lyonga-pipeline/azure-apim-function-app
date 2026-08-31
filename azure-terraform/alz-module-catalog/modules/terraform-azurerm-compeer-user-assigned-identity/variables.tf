@@ -1,16 +1,20 @@
 variable "name" {
-  type = string
+  description = "Name of the user-assigned managed identity. Changing this forces a new resource."
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
 }
 
 variable "location" {
-  type = string
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the identity."
+  type        = map(string)
+  default     = {}
 }

@@ -1,78 +1,79 @@
+variable "storage_data_lake_gen2_filesystem_id" {
+  description = "ID of an externally managed ADLS Gen2 filesystem the workspace roots at."
+  type        = string
+}
+
 variable "resource_group_name" {
-  description = "The name of the resource group"
+  description = "Name of the resource group the workspace is created in."
   type        = string
 }
 
 variable "location" {
-  description = "The location/region to keep all your network resources.'"
-}
-
-variable "storage_account_name" {
-  description = "The name of the storage account"
+  description = "Azure region for the workspace."
   type        = string
 }
-
-variable "data_lake_gen2_fs_name" {
-  description = "The name of the gen2 file system"
-  type        = string
-}
-
-/* variable "key_vault_name" {
-  description = "The name of the key vault"
-  type        = string
-}
-
-variable "key_name" {
-  description = "The name of the key in the key vault"
-  type        = string
-} */
 
 variable "synapse_workspace_name" {
-  description = "The name of the Synapse workspace"
+  description = "Name of the Synapse workspace."
   type        = string
 }
 
 variable "sql_admin_login" {
-  description = "The login name for SQL administrator"
+  description = "SQL administrator login name."
   type        = string
 }
 
 variable "sql_admin_password" {
-  description = "The password for SQL administrator"
+  description = "SQL administrator password. Stored in Terraform state - protect the backend accordingly."
   type        = string
+  sensitive   = true
 }
 
-/* variable "customer_managed_key_name" {
-  description = "The name of the customer-managed key"
-  type        = string
-} */
-
-variable "aad_admin_login" {
-  description = "The login name for Azure AD administrator"
-  type        = string
-}
-
-variable "aad_admin_object_id" {
-  description = "The object ID for Azure AD administrator"
-  type        = string
-}
-
-variable "aad_admin_tenant_id" {
-  description = "The tenant ID for Azure AD administrator"
-  type        = string
-}
-
-variable "tags" {
-  description = "A map of tags to add to all resources"
-  type        = map(string)
+variable "aad_admin" {
+  description = <<-EOT
+    Optional Entra ID administrator for the workspace. null means the module does
+    not manage the directory administrator (it can be set out of band or by a
+    companion). Managed via azurerm_synapse_workspace_aad_admin.
+  EOT
+  type = object({
+    login     = string
+    object_id = string
+    tenant_id = string
+  })
+  default = null
 }
 
 variable "synapse_workspace_identity" {
-  description = "Synapse Workspace Identity Type"
+  description = "Managed identity type for the workspace (SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned)."
   type        = string
+  default     = "SystemAssigned"
+
+  validation {
+    condition     = contains(["SystemAssigned", "UserAssigned", "SystemAssigned, UserAssigned"], var.synapse_workspace_identity)
+    error_message = "synapse_workspace_identity must be SystemAssigned, UserAssigned, or 'SystemAssigned, UserAssigned'."
+  }
 }
 
-variable "synapse_workspace_key_active" {
-  description = "Whether Synapse Workspace key needs to activated"
+variable "managed_virtual_network_enabled" {
+  description = "Whether to create the workspace inside a managed virtual network."
   type        = bool
+  default     = true
+}
+
+variable "public_network_access_enabled" {
+  description = "Whether the workspace is reachable from public networks. Defaults closed; use the private-endpoint companion."
+  type        = bool
+  default     = false
+}
+
+variable "data_exfiltration_protection_enabled" {
+  description = "Enable workspace data exfiltration protection."
+  type        = bool
+  default     = null
+}
+
+variable "tags" {
+  description = "Tags applied to the workspace."
+  type        = map(string)
+  default     = {}
 }

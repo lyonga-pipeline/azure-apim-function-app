@@ -43,7 +43,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
       websockets_enabled                            = lookup(site_config.value, "websockets_enabled", null)
       worker_count                                  = lookup(site_config.value, "worker_count", null)
       dynamic "application_stack" {
-        for_each = lookup(site_config.value, "application_stack", null)
+        for_each = site_config.value.application_stack == null ? [] : site_config.value.application_stack
         content {
           docker_image_name        = lookup(application_stack.value, "docker_image_name", null)
           docker_registry_url      = lookup(application_stack.value, "docker_registry_url", null)
@@ -60,27 +60,27 @@ resource "azurerm_linux_web_app" "linux_web_app" {
         }
       }
       dynamic "auto_heal_setting" {
-        for_each = lookup(site_config.value, "auto_heal_setting", null)
+        for_each = site_config.value.auto_heal_setting == null ? [] : site_config.value.auto_heal_setting
         content {
           dynamic "action" {
-            for_each = lookup(site_config.value.auto_heal_setting.value, "action", null)
+            for_each = auto_heal_setting.value.action == null ? [] : auto_heal_setting.value.action
             content {
               action_type                    = lookup(action.value, "action_type", null)
               minimum_process_execution_time = lookup(action.value, "minimum_process_execution_time", null)
             }
           }
           dynamic "trigger" {
-            for_each = lookup(site_config.value.auto_heal_setting.value, "trigger", null)
+            for_each = auto_heal_setting.value.trigger == null ? [] : auto_heal_setting.value.trigger
             content {
               dynamic "requests" {
-                for_each = lookup(site_config.value.auto_heal_setting.value.trigger.value, "requests", null)
+                for_each = trigger.value.requests == null ? [] : trigger.value.requests
                 content {
                   count    = lookup(requests.value, "count", null)
                   interval = lookup(requests.value, "interval", null)
                 }
               }
               dynamic "slow_request" {
-                for_each = lookup(site_config.value.auto_heal_setting.value.trigger.value, "slow_request", null)
+                for_each = trigger.value.slow_request == null ? [] : trigger.value.slow_request
                 content {
                   count      = lookup(slow_request.value, "count", null)
                   interval   = lookup(slow_request.value, "interval", null)
@@ -88,7 +88,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
                 }
               }
               dynamic "status_code" {
-                for_each = lookup(site_config.value.auto_heal_setting.value.trigger.value, "status_code", null)
+                for_each = trigger.value.status_code == null ? [] : trigger.value.status_code
                 content {
                   count             = lookup(status_code.value, "count", null)
                   interval          = lookup(status_code.value, "interval", null)
@@ -103,14 +103,14 @@ resource "azurerm_linux_web_app" "linux_web_app" {
         }
       }
       dynamic "cors" {
-        for_each = lookup(site_config.value, "cors", [])
+        for_each = site_config.value.cors == null ? [] : [site_config.value.cors]
         content {
           allowed_origins     = cors.value.allowed_origins
           support_credentials = lookup(cors.value, "support_credentials", false)
         }
       }
       dynamic "ip_restriction" {
-        for_each = lookup(site_config.value, "ip_restriction", [])
+        for_each = site_config.value.ip_restriction == null ? [] : site_config.value.ip_restriction
         content {
           action                    = ip_restriction.value.action
           ip_address                = ip_restriction.value.ip_address
@@ -119,7 +119,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
           service_tag               = ip_restriction.value.service_tag
           virtual_network_subnet_id = ip_restriction.value.virtual_network_subnet_id
           dynamic "headers" {
-            for_each = ip_restriction.value.headers ? [ip_restriction.value.headers] : []
+            for_each = ip_restriction.value.headers == null ? [] : [ip_restriction.value.headers]
             content {
               x_azure_fdid      = headers.value.x_azure_fdid
               x_fd_health_probe = headers.value.x_fd_health_probe
@@ -130,7 +130,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
         }
       }
       dynamic "scm_ip_restriction" {
-        for_each = lookup(site_config.value, "scm_ip_restriction", [])
+        for_each = site_config.value.scm_ip_restriction == null ? [] : site_config.value.scm_ip_restriction
         content {
           action                    = scm_ip_restriction.value.action
           ip_address                = scm_ip_restriction.value.ip_address
@@ -139,7 +139,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
           service_tag               = scm_ip_restriction.value.service_tag
           virtual_network_subnet_id = scm_ip_restriction.value.virtual_network_subnet_id
           dynamic "headers" {
-            for_each = scm_ip_restriction.value.headers ? [scm_ip_restriction.value.headers] : []
+            for_each = scm_ip_restriction.value.headers == null ? [] : [scm_ip_restriction.value.headers]
             content {
               x_azure_fdid      = headers.value.x_azure_fdid
               x_fd_health_probe = headers.value.x_fd_health_probe
@@ -162,7 +162,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
       token_store_enabled            = lookup(auth_settings.value, "token_store_enabled", false)
       unauthenticated_client_action  = lookup(auth_settings.value, "unauthenticated_client_action", "RedirectToLoginPage")
       dynamic "active_directory" {
-        for_each = lookup(auth_settings.value, "active_directory", null)
+        for_each = auth_settings.value.active_directory == null ? [] : auth_settings.value.active_directory
         content {
           client_id                  = active_directory.value.client_id
           allowed_audiences          = lookup(active_directory.value, "allowed_audiences", null)
@@ -171,7 +171,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
         }
       }
       dynamic "microsoft" {
-        for_each = lookup(auth_settings.value, "microsoft", null)
+        for_each = auth_settings.value.microsoft == null ? [] : auth_settings.value.microsoft
         content {
           client_id                  = microsoft.value.client_id
           client_secret              = lookup(microsoft.value, "client_secret", null)
@@ -188,7 +188,7 @@ resource "azurerm_linux_web_app" "linux_web_app" {
       storage_account_url = backup.value.storage_account_url
       enabled             = backup.value.enabled
       dynamic "schedule" {
-        for_each = lookup(backup.value, "schedule", null)
+        for_each = backup.value.schedule == null ? [] : backup.value.schedule
         content {
           frequency_interval       = schedule.value.frequency_interval
           frequency_unit           = schedule.value.frequency_unit
@@ -200,9 +200,9 @@ resource "azurerm_linux_web_app" "linux_web_app" {
     }
   }
   dynamic "connection_string" {
-    for_each = var.connection_string != null ? [var.connection_string] : []
+    for_each = var.connection_string
     content {
-      name  = connection_string.value.name
+      name  = connection_string.key
       type  = connection_string.value.type
       value = connection_string.value.value
     }
@@ -220,11 +220,11 @@ resource "azurerm_linux_web_app" "linux_web_app" {
       detailed_error_messages = lookup(logs.value, "detailed_error_messages", null)
       failed_request_tracing  = lookup(logs.value, "failed_request_tracing", null)
       dynamic "application_logs" {
-        for_each = lookup(logs.value, "application_logs", null)
+        for_each = logs.value.application_logs == null ? [] : logs.value.application_logs
         content {
           file_system_level = application_logs.value.file_system_level
           dynamic "azure_blob_storage" {
-            for_each = lookup(logs.value.application_logs.value, "azure_blob_storage", null)
+            for_each = application_logs.value.azure_blob_storage == null ? [] : application_logs.value.azure_blob_storage
             content {
               level             = azure_blob_storage.value.level
               retention_in_days = azure_blob_storage.value.retention_in_days
@@ -234,17 +234,17 @@ resource "azurerm_linux_web_app" "linux_web_app" {
         }
       }
       dynamic "http_logs" {
-        for_each = lookup(logs.value, "http_logs", null)
+        for_each = logs.value.http_logs == null ? [] : logs.value.http_logs
         content {
           dynamic "azure_blob_storage" {
-            for_each = lookup(logs.value.http_logs.value, "azure_blob_storage", null)
+            for_each = http_logs.value.azure_blob_storage == null ? [] : http_logs.value.azure_blob_storage
             content {
               retention_in_days = azure_blob_storage.value.retention_in_days
               sas_url           = azure_blob_storage.value.sas_url
             }
           }
           dynamic "file_system" {
-            for_each = lookup(logs.value.http_logs.value, "file_system", null)
+            for_each = http_logs.value.file_system == null ? [] : http_logs.value.file_system
             content {
               retention_in_days = file_system.value.retention_in_days
               retention_in_mb   = file_system.value.retention_in_mb

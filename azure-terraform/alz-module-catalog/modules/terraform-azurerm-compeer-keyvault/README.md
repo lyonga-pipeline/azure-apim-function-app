@@ -1,52 +1,71 @@
-# Azure Key Vault
+# terraform-azurerm-compeer-keyvault
 
-This module creates a reusable Azure Key Vault resource. It models the vault lifecycle and commonly required vault-level configuration; consuming patterns decide how the vault is combined with private endpoints, diagnostics, RBAC assignments, secrets, keys, and certificates.
+Azure Key Vault (the vault resource only). Data-plane objects, private endpoints,
+diagnostics and RBAC are composed by their dedicated modules:
+`key-vault-secret`, `key-vault-key`, `key-vault-certificate`, `private-endpoint`,
+`diagnostic-settings`, `role-assignments`.
 
-## ALZ catalog upgrade notes
+This is the module currently used by the platform patterns. Its interface is a
+stable contract — new capability is added only through backward-compatible
+optional inputs.
 
-This catalog copy keeps the Compeer module file layout and upgrades the implementation for enterprise landing-zone use:
+## Usage
 
-- Uses `rbac_authorization_enabled` with a deprecated compatibility input for `enable_rbac_authorization`.
-- Defaults purge protection to enabled and soft-delete retention to 90 days.
-- Allows explicit `tenant_id`, defaulting to the active provider tenant when omitted.
-- Supports keyed access policies through `access_policies_by_key` while keeping the previous `access_policies` list for compatibility.
-- Models network ACLs as a single object with private-first defaults.
-- Adds optional certificate contacts and composition-ready outputs for name, URI, tenant, SKU, location, resource group, RBAC mode, and private endpoint subresource names.
+```hcl
+module "vault" {
+  source              = "../terraform-azurerm-compeer-keyvault"
+  name                = "kv-plat-identity-prod"
+  resource_group_name = module.rg.name
+  location            = "eastus2"
+  tenant_id           = var.tenant_id
+  tags                = module.tags.tags
+}
+```
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` | string | — | ForceNew; validated against the Azure name rule |
+| `resource_group_name` / `location` / `tenant_id` | string | — | first two ForceNew |
+| `sku_name` | string | `standard` | `standard` \| `premium`; update in place |
+| `soft_delete_retention_days` | number | `90` | 7-90; ForceNew on decrease |
+| `purge_protection_enabled` | bool | `true` | one-way: cannot be disabled once on |
+| `public_network_access_enabled` | bool | `false` | update in place |
+| `rbac_authorization_enabled` | bool | `true` | update in place; toggling switches the auth model |
+| `access_policies` | list(object) | `[]` | used only when RBAC off; keyed internally by object_id |
+| `access_policies_by_key` | map(object) | `{}` | used only when RBAC off; stable keys |
+| `network_acls` | object \| null | `{}` | `{}` = deny-by-default; `null` omits the block |
+| `enabled_for_*` | bool | `false` | update in place |
+| `contacts` | list(object) | `[]` | certificate contacts |
+| `timeouts` | object | `{}` | passthrough |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Vault settings, RBAC or access-policy mode, network ACLs, contacts, tenant selection, and timeouts are configurable while keys, secrets, certificates, private endpoints, diagnostics, and RBAC stay composable companion concerns.
+`id`, `name`, `vault_uri`, `resource_group_name`, `tenant_id`,
+`rbac_authorization_enabled`, `private_endpoint_subresource_name` (`"vault"`).
 
-## Requirements
+## Lifecycle contract
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 4.42, < 5.0 |
+| Change | Result |
+|---|---|
+| `sku_name`, `public_network_access_enabled`, `enabled_for_*`, `network_acls`, `contacts`, `tags`, `access_policies*` | **update in place** |
+| `rbac_authorization_enabled` toggle | update in place (switches auth model - plan carefully) |
+| lower `soft_delete_retention_days` | **replace** |
+| `name`, `resource_group_name`, `location`, `tenant_id` | **replace** (ForceNew) |
+| `purge_protection_enabled` true -> false | rejected by Azure |
 
----
+State exposure: none directly. Secrets/keys created via the companion modules
+land in Terraform state - protect the backend.
 
-## Composition Boundary
+## Migration
 
-Use companion modules for:
+The redesigned baseline had briefly changed `access_policies` to a map, dropped
+`access_policies_by_key`, and made `contacts` a map. This module **restores** the
+original list/map contract, so callers on the pre-redesign interface need no
+changes. `network_acls` default is `{}` (deny-by-default, bypass `AzureServices`).
 
-- `keyvault-assets`
-- `key-vault-secret`
-- `key-vault-key`
-- `key-vault-certificate`
-- `private-endpoint`
-- `diagnostic-settings`
-- `role-assignments`
+## Tests
 
-Pattern and root modules should apply enterprise policy choices, such as RBAC-first authorization, private endpoint placement, diagnostics, and role assignments. This base module exposes valid Key Vault capabilities through optional typed inputs so new use cases do not require forking the module.
+`terraform test` (offline, `mock_provider`): secure defaults, list+keyed access
+policy merge, retention validation, RBAC-off precondition.

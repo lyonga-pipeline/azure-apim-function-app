@@ -1,5 +1,37 @@
-# Compeer Cloudflare Zero Trust Tunnel
+# terraform-cloudflare-compeer-zero-trust-tunnel
 
-Reusable Cloudflare Tunnel module for external-app publication. It models the tunnel, remote ingress configuration, optional DNS records, optional Access applications, and optional Access policies.
+**Pattern module** (provider v4): a Cloudflare Zero Trust tunnel
+(`cloudflare_zero_trust_tunnel_cloudflared`) with its configuration, DNS
+records, and optional Access applications + policies composed together.
 
-The tunnel secret is a separate sensitive input because changing it replaces the tunnel. Keep it in HCP Terraform sensitive variables or an approved secret store. The module appends a terminal `http_status:404` catch-all rule to every tunnel configuration.
+## Contract
+
+- Required: `account_id`, `name`, `tunnel_secret` (sensitive, base64).
+- `ingress_rules` is an ordered list; a catch-all rule using
+  `catch_all_service` is always appended.
+- `dns_records`, `access_applications`, `access_policies` are keyed
+  `map(object)` and default to `{}` — nothing extra is created when omitted.
+- **Interface is consumed** by downstream patterns; changes are additive.
+
+## Lifecycle
+
+| Change | Effect |
+|---|---|
+| `ingress_rules`, `dns_records` add/remove, `access_applications` / `access_policies` add/remove/retune | In-place update |
+| `name` | In-place update |
+| `account_id`, `tunnel_secret` | Replace the tunnel (and its dependents) |
+
+## State exposure
+
+`tunnel_secret` is stored in Terraform state, and the tunnel token is derived
+from it. Outputs: tunnel `id`, `cname`, and maps of the created application /
+policy IDs.
+
+## Migration
+
+No breaking changes. Interface unchanged.
+
+## Tests
+
+`terraform test` (`mock_provider`) — create the tunnel, and "no Access resources
+by default".

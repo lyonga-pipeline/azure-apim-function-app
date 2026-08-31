@@ -1,3 +1,7 @@
+# ============================================================================
+# PATTERN MODULE: tunnel, configuration, DNS and access policy resources are composed here intentionally.
+# ============================================================================
+
 resource "cloudflare_zero_trust_tunnel_cloudflared" "this" {
   account_id = var.account_id
   name       = var.name

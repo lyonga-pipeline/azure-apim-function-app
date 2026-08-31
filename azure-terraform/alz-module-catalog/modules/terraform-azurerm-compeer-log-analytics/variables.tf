@@ -23,6 +23,11 @@ variable "log_analytics_retention_in_days" {
   description = "The workspace data retetion in days. Possible values range between 30 and 730."
   type        = number
   default     = 180
+
+  validation {
+    condition     = var.log_analytics_retention_in_days == null ? true : ((var.log_analytics_retention_in_days >= 30 && var.log_analytics_retention_in_days <= 730) || var.log_analytics_retention_in_days == 7)
+    error_message = "retention_in_days must be 7 (Free) or 30-730."
+  }
 }
 
 variable "log_analytics_daily_quota_gb" {
@@ -94,3 +99,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# Backward-compatible access contract additions.
+# These inputs allow the module to model current AzureRM networking semantics,
+# including Azure Network Security Perimeter, without immediately removing the
+# legacy internet_*_enabled variables.

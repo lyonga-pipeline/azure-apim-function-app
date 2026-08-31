@@ -87,9 +87,14 @@ variable "service_management_reference" {
 }
 
 variable "sign_in_audience" {
-  description = "The Microsoft account types that are supported for the current application."
+  description = "The Microsoft account types supported for the application."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.sign_in_audience == null ? true : contains(["AzureADMyOrg", "AzureADMultipleOrgs", "AzureADandPersonalMicrosoftAccount", "PersonalMicrosoftAccount"], var.sign_in_audience)
+    error_message = "sign_in_audience must be AzureADMyOrg, AzureADMultipleOrgs, AzureADandPersonalMicrosoftAccount, or PersonalMicrosoftAccount."
+  }
 }
 
 variable "support_url" {
@@ -117,36 +122,43 @@ variable "tags" {
 }
 
 variable "api" {
-  description = "API configuration for the Azure AD application."
-  type = list(object({
-    known_client_applications = list(string)
-    mapped_claims_enabled     = bool
-    oauth2_permission_scope = list(object({
+  description = "API configuration for the application. null omits the api block."
+  type = object({
+    known_client_applications      = optional(list(string), [])
+    mapped_claims_enabled          = optional(bool, false)
+    requested_access_token_version = optional(number, 2)
+    oauth2_permission_scope = optional(map(object({
       admin_consent_description  = string
       admin_consent_display_name = string
-      enabled                    = bool
       id                         = string
-      type                       = string
-      user_consent_description   = string
-      user_consent_display_name  = string
-      value                      = string
-    }))
-    requested_access_token_version = number
-  }))
-  default = []
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "User")
+      user_consent_description   = optional(string)
+      user_consent_display_name  = optional(string)
+      value                      = optional(string)
+    })), {})
+  })
+  default = null
 }
 
 variable "app_role" {
-  description = "App Role configuration for the Azure AD application."
-  type = list(object({
+  description = "App roles keyed by a stable logical key (the id must be a stable UUID)."
+  type = map(object({
     allowed_member_types = list(string)
     description          = string
     display_name         = string
-    enabled              = bool
     id                   = string
-    value                = string
+    enabled              = optional(bool, true)
+    value                = optional(string)
   }))
-  default = []
+  default = {}
+
+  validation {
+    condition = alltrue([for r in values(var.app_role) : alltrue([
+      for t in r.allowed_member_types : contains(["User", "Application"], t)
+    ])])
+    error_message = "app_role.allowed_member_types entries must be User or Application."
+  }
 }
 
 variable "optional_claims" {
@@ -179,23 +191,23 @@ variable "optional_claims" {
 }
 
 variable "public_client" {
-  description = "Public Client configuration for the Azure AD application."
-  type = list(object({
+  description = "Public client (mobile/desktop) configuration. null omits the block."
+  type = object({
     redirect_uris = list(string)
-  }))
-  default = []
+  })
+  default = null
 }
 
 variable "required_resource_access" {
-  description = "Configuration for required resource access"
-  type = list(object({
+  description = "Required resource access (API permissions) keyed by the target resource app id or a logical name."
+  type = map(object({
     resource_app_id = string
     resource_access = list(object({
       id   = string
       type = string
     }))
   }))
-  default = []
+  default = {}
 }
 
 variable "single_page_application" {
@@ -212,40 +224,10 @@ variable "web" {
     homepage_url  = optional(string)
     logout_url    = optional(string)
     redirect_uris = list(string)
-    implicit_grant = object({
+    implicit_grant = optional(object({
       access_token_issuance_enabled = optional(bool)
       id_token_issuance_enabled     = optional(bool)
-    })
+    }))
   })
   default = null
-}
-
-variable "client_secret_dispaly_name" {
-  description = "A display name for the password. Changing this field forces a new resource to be created."
-  type        = string
-  default     = null
-}
-
-variable "end_date" {
-  description = "The end date until which the password is valid, formatted as an RFC3339 date string (e.g. 2018-01-01T01:02:03Z). Changing this field forces a new resource to be created."
-  type        = string
-  default     = null
-}
-
-variable "end_date_relative" {
-  description = "A relative duration for which the password is valid until, for example 240h (10 days) or 2400h30m. Changing this field forces a new resource to be created."
-  type        = string
-  default     = null
-}
-
-variable "rotate_when_changed" {
-  description = "A map of arbitrary key/value pairs that will force recreation of the password when they change, enabling password rotation based on external conditions such as a rotating timestamp. Changing this forces a new resource to be created."
-  type        = map(string)
-  default     = {}
-}
-
-variable "start_date" {
-  description = "The start date from which the password is valid, formatted as an RFC3339 date string (e.g. 2018-01-01T01:02:03Z). If this isn't specified, the current date is used. Changing this field forces a new resource to be created."
-  type        = string
-  default     = null
 }

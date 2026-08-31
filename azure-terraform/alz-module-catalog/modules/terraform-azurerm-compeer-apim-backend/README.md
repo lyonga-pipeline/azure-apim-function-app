@@ -1,47 +1,28 @@
-# Azure API Management Backend
+# terraform-azurerm-compeer-apim-backend
 
-The azurerm_api_management_backend resource allows you to manage backend config within an Azure API Management service.
+A single backend registration in an existing API Management service.
 
-## Requirements
+## Contract
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >=3.11, < 4.0 |
+- Resource: `azurerm_api_management_backend` (backend).
+- Inputs are explicitly typed; optional blocks are `optional(object(...))` and repeatables are `map(object(...))` keyed by a caller-stable name.
+- Adjacent resource-group / network / RBAC / diagnostic capabilities are composed externally.
 
-## Providers
+## Lifecycle
 
-| Name | Version |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >=3.11, < 4.0 |
+| Change | Effect |
+|---|---|
+| `url`, `protocol`, `description`, `title`, `resource_id`, `credentials`, `proxy`, `tls` blocks | In-place update |
+| `name`, `apim_name`, `resource_group_name` | Replace |
 
-## Modules
+## State exposure
 
-No modules.
+Outputs: `id`, `name`. `credentials`/`proxy` may carry secrets supplied by the caller; those values enter Terraform state.
 
-## Resources
+## Migration
 
-| Name | Type |
-|------|------|
-| [azurerm_api_management_backend.apim_backend](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/api_management_backend) | resource |
+No breaking changes. `credentials`/`proxy` objects are not marked `sensitive` so they can drive `dynamic` blocks; pass bare secret strings through a sensitive wrapper.
 
-## Inputs
+## Tests
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_apim_backend_name"></a> [apim\_backend\_name](#input\_apim\_backend\_name) | The name of the API Management backend. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_apim_backend_protocol"></a> [apim\_backend\_protocol](#input\_apim\_backend\_protocol) | The protocol used by the backend host. Possible values are http or soap. | `string` | n/a | yes |
-| <a name="input_apim_backend_url"></a> [apim\_backend\_url](#input\_apim\_backend\_url) | The URL of the backend host. | `string` | n/a | yes |
-| <a name="input_apim_name"></a> [apim\_name](#input\_apim\_name) | The Name of the API Management Service where this backend should be created. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The Name of the Resource Group where the API Management Service exists. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_apim_backend_description"></a> [apim\_backend\_description](#input\_apim\_backend\_description) | The description of the backend. | `string` | `null` | no |
-| <a name="input_apim_backend_resource_id"></a> [apim\_backend\_resource\_id](#input\_apim\_backend\_resource\_id) | The management URI of the backend host in an external system. This URI can be the ARM Resource ID of Logic Apps, Function Apps or API Apps, or the management endpoint of a Service Fabric cluster. | `string` | `null` | no |
-| <a name="input_apim_backend_title"></a> [apim\_backend\_title](#input\_apim\_backend\_title) | The title of the backend. | `string` | `null` | no |
-| <a name="input_credentials"></a> [credentials](#input\_credentials) | A credentials block as documented below. | ```object({ authorization = optional(object({ parameter = optional(string) scheme = optional(string) })) certificate = optional(list(string)) header = optional(map(string)) query = optional(map(string)) })``` | `null` | no |
-| <a name="input_proxy"></a> [proxy](#input\_proxy) | A proxy block as documented below. | ```object({ password = optional(string) url = string username = string })``` | `null` | no |
-| <a name="input_service_fabric_cluster"></a> [service\_fabric\_cluster](#input\_service\_fabric\_cluster) | A service\_fabric\_cluster block as documented below. | ```object({ management_endpoints = list(string) max_partition_resolution_retries = number client_certificate_thumbprint = optional(string) client_certificate_id = optional(string) server_certificate_thumbprints = optional(list(string)) server_x509_name = optional(object({ issuer_certificate_thumbprint = string name = string })) })``` | `null` | no |
-| <a name="input_tls"></a> [tls](#input\_tls) | A tls block as documented below. | ```object({ validate_certificate_chain = optional(bool) validate_certificate_name = optional(bool) })``` | `null` | no |
-
-## Outputs
-
-No outputs.
+`terraform test` (`tests/defaults.tftest.hcl`, `mock_provider`) — create and attribute wiring; validation failures where the module adds `validation` / `precondition` rules.

@@ -67,7 +67,7 @@ resource "azurerm_windows_function_app" "windows_function_app" {
           service_tag               = ip_restriction.value.service_tag
           virtual_network_subnet_id = ip_restriction.value.virtual_network_subnet_id
           dynamic "headers" {
-            for_each = site_config.value.ip_restriction.value.headers != null ? [site_config.value.ip_restriction.value.headers] : []
+            for_each = ip_restriction.value.headers != null ? [ip_restriction.value.headers] : []
             content {
               x_azure_fdid      = headers.value.x_azure_fdid
               x_fd_health_probe = headers.value.x_fd_health_probe
@@ -87,7 +87,7 @@ resource "azurerm_windows_function_app" "windows_function_app" {
           service_tag               = scm_ip_restriction.value.service_tag
           virtual_network_subnet_id = scm_ip_restriction.value.virtual_network_subnet_id
           dynamic "headers" {
-            for_each = site_config.value.scm_ip_restriction.value.headers != null ? [site_config.value.scm_ip_restriction.value.headers] : []
+            for_each = scm_ip_restriction.value.headers != null ? [scm_ip_restriction.value.headers] : []
             content {
               x_azure_fdid      = headers.value.x_azure_fdid
               x_fd_health_probe = headers.value.x_fd_health_probe
@@ -172,7 +172,7 @@ resource "azurerm_windows_function_app" "windows_function_app" {
   dynamic "connection_string" {
     for_each = var.connection_string
     content {
-      name  = connection_string.value.name
+      name  = connection_string.key
       type  = connection_string.value.type
       value = connection_string.value.value
     }
@@ -201,9 +201,5 @@ resource "azurerm_windows_function_app" "windows_function_app" {
       type         = lookup(storage_account.value, "type", null)
       mount_path   = lookup(storage_account.value, "mount_path", null)
     }
-  }
-
-  lifecycle {
-    ignore_changes = [app_settings, functions_extension_version, storage_account_access_key, tags]
   }
 }

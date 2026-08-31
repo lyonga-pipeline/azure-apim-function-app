@@ -5,6 +5,7 @@ resource "azurerm_container_group" "container" {
   os_type             = var.os_type
   ip_address_type     = var.ip_address_type
   subnet_ids          = var.ip_address_type == "Private" ? var.subnet_ids : []
+  tags                = var.tags
 
   dynamic "container" {
     for_each = var.container_info
@@ -28,7 +29,7 @@ resource "azurerm_container_group" "container" {
   }
 
   dynamic "dns_config" {
-    for_each = var.dns_config
+    for_each = length(var.dns_config) > 0 ? { for k in [keys(var.dns_config)[0]] : k => var.dns_config[k] } : {}
 
     content {
       nameservers    = dns_config.value.nameservers

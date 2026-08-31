@@ -1,140 +1,118 @@
-/**
-## Creating Azure Key Vault Secret
-*/
-resource "azurerm_key_vault_secret" "secret" {
-  count           = var.create_secret ? 1 : 0
-  name            = var.secret_name
-  value           = var.secret_value
-  key_vault_id    = var.key_vault_id
-  content_type    = var.secret_content_type
-  tags            = var.secret_tags
-  not_before_date = var.secret_not_before_date
-  expiration_date = var.secret_expiration_date
+# Bulk Key Vault data-plane assets (secrets, keys, certificates) for one vault.
+# For assets with independent rotation/ownership lifecycles, use the dedicated
+# key-vault-secret / key-vault-key / key-vault-certificate modules instead.
 
-  dynamic "lifecycle" {
-    for_each = var.secret_lifecycle != null ? [var.secret_lifecycle] : []
-    content {
-      ignore_changes = secret_lifecycle.value.ignore_changes
-    }
-  }
+resource "azurerm_key_vault_secret" "secret" {
+  for_each = var.secrets
+
+  name            = coalesce(try(each.value.name, null), each.key)
+  value           = each.value.value
+  key_vault_id    = var.key_vault_id
+  content_type    = try(each.value.content_type, null)
+  not_before_date = try(each.value.not_before_date, null)
+  expiration_date = try(each.value.expiration_date, null)
+  tags            = try(each.value.tags, {})
 }
 
-/**
-## Creating Azure Key Vault Key
-*/
 resource "azurerm_key_vault_key" "key" {
-  count           = var.create_key ? 1 : 0
-  name            = var.key_name
+  for_each = var.keys
+
+  name            = coalesce(try(each.value.name, null), each.key)
   key_vault_id    = var.key_vault_id
-  key_type        = var.key_type
-  key_size        = var.key_size
-  curve           = var.key_curve
-  key_opts        = var.key_opts
-  not_before_date = var.key_not_before_date
-  expiration_date = var.key_expiration_date
-  tags            = var.key_tags
+  key_type        = each.value.key_type
+  key_size        = try(each.value.key_size, null)
+  curve           = try(each.value.curve, null)
+  key_opts        = each.value.key_opts
+  not_before_date = try(each.value.not_before_date, null)
+  expiration_date = try(each.value.expiration_date, null)
+  tags            = try(each.value.tags, {})
 
   dynamic "rotation_policy" {
-    for_each = var.key_rotation_policy != null ? [var.key_rotation_policy] : []
-
+    for_each = try(each.value.rotation_policy, null) == null ? [] : [each.value.rotation_policy]
     content {
-      expire_after         = rotation_policy.value.expire_after
-      notify_before_expiry = rotation_policy.value.notify_before_expiry
-
+      expire_after         = try(rotation_policy.value.expire_after, null)
+      notify_before_expiry = try(rotation_policy.value.notify_before_expiry, null)
       dynamic "automatic" {
-        for_each = rotation_policy.value.automatic_rotation != null ? [rotation_policy.value.automatic_rotation] : []
-
+        for_each = try(rotation_policy.value.automatic, null) == null ? [] : [rotation_policy.value.automatic]
         content {
-          time_after_creation = automatic.value.time_after_creation
-          time_before_expiry  = automatic.value.time_before_expiry
+          time_after_creation = try(automatic.value.time_after_creation, null)
+          time_before_expiry  = try(automatic.value.time_before_expiry, null)
         }
       }
     }
   }
 }
 
-/**
-## Creating Azure Key Vault Import Certificate
-*/
-resource "azurerm_key_vault_certificate" "import_certificate" {
-  count        = var.import_certificate ? 1 : 0
-  name         = var.import_certificate_name
-  key_vault_id = var.key_vault_id
+resource "azurerm_key_vault_certificate" "certificate" {
+  for_each = var.certificates
 
-  /**
-Please note that filebase64() is a Terraform function that reads a file and encodes its content as base64.
-So you should provide the path to the certificate file in contents, not the actual contents of the file.
-*/
+  name         = coalesce(try(each.value.name, null), each.key)
+  key_vault_id = var.key_vault_id
+  tags         = try(each.value.tags, {})
+
   dynamic "certificate" {
-    for_each = var.import_certificate_block != null ? [var.import_certificate_block] : []
-
+    for_each = try(each.value.import, null) == null ? [] : [each.value.import]
     content {
-      contents = filebase64(certificate.value.contents)
-      password = certificate.value.password
+      contents = certificate.value.contents
+      password = try(certificate.value.password, null)
     }
   }
 
-  tags = var.import_certificate_tags
-}
+  dynamic "certificate_policy" {
+    for_each = try(each.value.policy, null) == null ? [] : [each.value.policy]
+    content {
+      issuer_parameters {
+        name = certificate_policy.value.issuer_parameters.name
+      }
 
-/**
-## Creating Azure Key Vault Generate Certificate
-*/
-resource "azurerm_key_vault_certificate" "generate_certificate" {
-  count        = var.generate_certificate ? 1 : 0
-  name         = var.certificate_name
-  key_vault_id = var.key_vault_id
-  certificate_policy {
-    dynamic "issuer_parameters" {
-      for_each = [var.certificate_policy.issuer_parameters]
-      content {
-        name = issuer_parameters.value.name
+      key_properties {
+        curve      = try(certificate_policy.value.key_properties.curve, null)
+        exportable = certificate_policy.value.key_properties.exportable
+        key_size   = try(certificate_policy.value.key_properties.key_size, null)
+        key_type   = certificate_policy.value.key_properties.key_type
+        reuse_key  = certificate_policy.value.key_properties.reuse_key
       }
-    }
-    dynamic "key_properties" {
-      for_each = [var.certificate_policy.key_properties]
-      content {
-        curve      = key_properties.value.curve ## Specifies the curve to use when creating an EC key
-        exportable = key_properties.value.exportable
-        key_size   = key_properties.value.key_size
-        key_type   = key_properties.value.key_type
-        reuse_key  = key_properties.value.reuse_key
-      }
-    }
-    dynamic "lifetime_action" {
-      for_each = var.certificate_policy.lifetime_action != null ? var.certificate_policy.lifetime_action : []
-      content {
-        action {
-          action_type = lifetime_action.value.action.action_type
-        }
-        trigger {
-          days_before_expiry = lifetime_action.value.trigger.days_before_expiry
+
+      dynamic "lifetime_action" {
+        for_each = try(certificate_policy.value.lifetime_actions, [])
+        content {
+          action { action_type = lifetime_action.value.action_type }
+          trigger {
+            days_before_expiry  = try(lifetime_action.value.days_before_expiry, null)
+            lifetime_percentage = try(lifetime_action.value.lifetime_percentage, null)
+          }
         }
       }
-    }
-    dynamic "secret_properties" {
-      for_each = [var.certificate_policy.secret_properties]
-      content {
-        content_type = secret_properties.value.content_type
+
+      secret_properties {
+        content_type = certificate_policy.value.secret_properties.content_type
       }
-    }
-    dynamic "x509_certificate_properties" {
-      for_each = [var.certificate_policy.x509_certificate_properties] != null ? [var.certificate_policy.x509_certificate_properties] : []
-      content {
-        extended_key_usage = x509_certificate_properties.value.extended_key_usage
-        key_usage          = x509_certificate_properties.value.key_usage
-        subject            = x509_certificate_properties.value.subject
-        validity_in_months = x509_certificate_properties.value.validity_in_months
-        dynamic "subject_alternative_names" {
-          for_each = x509_certificate_properties.value.subject_alternative_names != null ? [x509_certificate_properties.value.subject_alternative_names] : []
-          content {
-            dns_names = subject_alternative_names.value.dns_names != null ? subject_alternative_names.value.dns_names : []
-            emails    = subject_alternative_names.value.emails != null ? subject_alternative_names.value.emails : []
-            upns      = subject_alternative_names.value.upns != null ? subject_alternative_names.value.upns : []
+
+      dynamic "x509_certificate_properties" {
+        for_each = try(certificate_policy.value.x509_certificate_properties, null) == null ? [] : [certificate_policy.value.x509_certificate_properties]
+        content {
+          extended_key_usage = try(x509_certificate_properties.value.extended_key_usage, null)
+          key_usage          = x509_certificate_properties.value.key_usage
+          subject            = x509_certificate_properties.value.subject
+          validity_in_months = x509_certificate_properties.value.validity_in_months
+
+          dynamic "subject_alternative_names" {
+            for_each = try(x509_certificate_properties.value.subject_alternative_names, null) == null ? [] : [x509_certificate_properties.value.subject_alternative_names]
+            content {
+              dns_names = try(subject_alternative_names.value.dns_names, null)
+              emails    = try(subject_alternative_names.value.emails, null)
+              upns      = try(subject_alternative_names.value.upns, null)
+            }
           }
         }
       }
     }
   }
-  tags = var.certificate_tags
+
+  lifecycle {
+    precondition {
+      condition     = (try(each.value.import, null) == null) != (try(each.value.policy, null) == null)
+      error_message = "Each certificate must configure exactly one of import or policy."
+    }
+  }
 }

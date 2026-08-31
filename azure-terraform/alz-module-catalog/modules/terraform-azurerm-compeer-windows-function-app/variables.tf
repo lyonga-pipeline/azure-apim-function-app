@@ -123,6 +123,7 @@ variable "storage_uses_managed_identity" {
 variable "storage_account_access_key" {
   description = " The access key which will be used to access the backend storage account for the Function App. Conflicts with storage_uses_managed_identity."
   type        = string
+  sensitive   = true
   default     = null
 }
 
@@ -218,7 +219,12 @@ variable "site_config" {
       }))
     }))
   }))
-  default = []
+  default = [{}]
+
+  validation {
+    condition     = length(var.site_config) == 1
+    error_message = "site_config must contain exactly one block ([{...}]); it maps to the required singleton site_config block."
+  }
 }
 
 variable "auth_settings" {
@@ -265,13 +271,12 @@ variable "backup" {
 }
 
 variable "connection_string" {
-  description = "One or more Connection string configuration"
-  type = list(object({
-    name  = string
+  description = "App connection strings, keyed by connection-string name (the map key becomes the Azure connection_string name)."
+  type = map(object({
     type  = string
     value = string
   }))
-  default = []
+  default = {}
 }
 
 variable "identity" {

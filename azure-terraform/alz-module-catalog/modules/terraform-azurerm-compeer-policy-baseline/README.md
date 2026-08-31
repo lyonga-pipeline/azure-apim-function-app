@@ -1,5 +1,29 @@
-# Compeer Policy Baseline
+# terraform-azurerm-compeer-policy-baseline
 
-Creates custom policy definitions, initiatives, assignments, and controlled exemptions for the ALZ baseline.
+Custom policy/policy-set definitions and their MG/subscription/RG assignments + exemptions, all keyed maps. Empty input = no-op.
 
-Use this module for Azure Policy controls. HCP OPA policies can remain advisory while Azure Policy assignments are introduced as audit, modify, deny, or DeployIfNotExists controls by environment and management group.
+## Contract
+
+Inputs are explicitly typed; repeatable configuration uses `map(object)` with
+caller-stable keys. See `variables.tf` for the full surface and `outputs.tf`
+for composition-ready IDs/attributes.
+
+## Lifecycle
+
+Configuration changes update in place unless the Azure resource marks the field
+ForceNew (name / location / scope / parent). Adding or removing a map key affects
+only that entry. Durable/state-bearing resources (workspaces, vaults, budgets,
+management groups) must not be recreated by routine module upgrades.
+
+State exposure: only where a secret input or sensitive output is documented in
+`variables.tf` / `outputs.tf`.
+
+## Migration
+
+versions.tf standardised; descriptions and value validation added; `x == null || x.attr`
+validation patterns fixed. Interface preserved for any consumed module.
+
+## Tests
+
+`terraform test` (offline, `mock_provider`): create / no-op, and key
+validations & preconditions where present.

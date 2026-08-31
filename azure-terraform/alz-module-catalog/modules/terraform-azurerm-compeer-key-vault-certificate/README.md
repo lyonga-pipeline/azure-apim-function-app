@@ -1,16 +1,34 @@
-# Key Vault Certificate Module
+# terraform-azurerm-compeer-key-vault-certificate
 
-This companion module manages Key Vault certificates separately from the Key Vault resource.
+Key Vault **certificates** only (self-signed / issuer-issued policy, or import),
+created in a caller-owned vault. Vault, RBAC, private endpoints and diagnostics
+are owned elsewhere.
 
-## What Is Better
+## Contract
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Certificate lifecycle | Certificate lifecycle can be hidden inside the vault module. | Certificates are managed as separate data-plane objects. |
-| Ownership | Platform vault ownership and app certificate ownership can become mixed. | Workload roots can manage only the certificates they own. |
-| Reuse | Different apps and domains need different certificate policies. | Certificate configuration is composed only where needed. |
+- `certificates` is a `map(object)` keyed by a caller-stable logical name.
+- Each entry carries either a `certificate` (import) block or a
+  `certificate_policy` block, plus optional `tags`.
+- `key_vault_id` is required and injected by the caller.
 
-## Design Intent
+## Lifecycle
 
-Use this module for certificates that belong to application or platform workloads. Use `app-service-certificate-binding`, `app-service-custom-hostname-binding`, or APIM/App Gateway companion modules for service-specific certificate attachment.
+| Change | Effect |
+|---|---|
+| Add / remove a map key | Creates / destroys just that certificate |
+| `tags` | In-place update |
+| `certificate_policy`, `certificate`, `name` | Replace (new certificate) |
+| `key_vault_id` | Replace all certificates |
 
+## State exposure
+
+Imported PFX/PEM contents and passwords are held in Terraform state. Prefer
+policy-issued certificates. Outputs: `ids` (map key -> certificate resource ID).
+
+## Migration
+
+No breaking changes. Interface unchanged.
+
+## Tests
+
+`terraform test` — create, no-op replan, add/remove a map key.

@@ -1,46 +1,45 @@
-# User Assigned Identity Module
+# terraform-azurerm-compeer-user-assigned-identity
 
-This module creates user-assigned managed identities that can be shared by applications, private resources, Key Vault references, and automation patterns.
+A single user-assigned managed identity (`azurerm_user_assigned_identity`).
+Federated credentials and role assignments are companion concerns
+(`role-assignments`, a federated-credential module).
 
-## Reusability and Extensibility
+## Usage
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+```hcl
+module "workload_identity" {
+  source              = "../terraform-azurerm-compeer-user-assigned-identity"
+  name                = "id-orders-prod"
+  resource_group_name = module.rg.name
+  location            = "eastus2"
+  tags                = module.tags.tags
+}
+```
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Inputs
 
-Module-specific extension points: Identities are keyed and output with principal, client, and tenant attributes for reusable RBAC, CMK, workload identity, and automation patterns.
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | - | all ForceNew |
+| `tags` | map(string) | `{}` | update in place |
 
-## What Is Better
+## Outputs
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Identity lifecycle | Identities can be created inside each workload module. | Identity lifecycle is explicit and reusable. |
-| Access assignment | Identity creation and role assignment can be mixed. | This module creates identity only; `role-assignments` grants access. |
-| Reuse | The same identity may be used by app, storage, Key Vault, or APIM integration. | Outputs provide stable identity IDs for composition. |
+`id`, `name`, `client_id`, `principal_id`, `tenant_id`.
 
-## Design Intent
+## Lifecycle contract
 
-This module owns:
+`tags` update in place; `name` / `resource_group_name` / `location` **replace**
+(Azure ForceNew). `principal_id` / `client_id` are stable for the life of the
+identity - safe to reference from role assignments.
 
-- User-assigned managed identity creation
-- Tags and identity outputs
+State exposure: none.
 
-Use companion modules for:
+## Migration
 
-- `role-assignments`
-- `function-app`
-- `web-app`
-- `key-vault`
-- `storage-account-customer-managed-key`
+Interface unchanged (2 consumers). Added input/output descriptions plus `name`
+and `tenant_id` outputs.
 
-## Why This Matters
+## Tests
 
-Identity is a shared security primitive. Creating it separately prevents workload modules from hiding access boundaries or recreating identities unnecessarily.
-
+`terraform test` (offline): create.

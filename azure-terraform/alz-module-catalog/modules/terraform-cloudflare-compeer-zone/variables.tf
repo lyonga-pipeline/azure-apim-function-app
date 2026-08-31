@@ -30,7 +30,7 @@ variable "zone_plan" {
   description = "The name of the commercial plan to apply to the zone."
   type        = string
   validation {
-    condition     = can(index(["free", "lite", "pro", "pro_plus", "business", "enterprise", "partners_free", "partners_pro", "partners_business", "partners_enterprise"], var.zone_plan))
+    condition     = var.zone_plan == null ? true : contains(["free", "lite", "pro", "pro_plus", "business", "enterprise", "partners_free", "partners_pro", "partners_business", "partners_enterprise"], var.zone_plan)
     error_message = "The zone plan is not valid."
   }
   default = null

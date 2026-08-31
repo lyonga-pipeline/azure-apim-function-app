@@ -1,18 +1,30 @@
-# Virtual Network Gateway Module
+# terraform-azurerm-compeer-virtual-network-gateway
 
-This module manages Azure virtual network gateways for hybrid connectivity patterns.
+A single `azurerm_virtual_network_gateway` (VPN or ExpressRoute). GatewaySubnet
+and the PIP(s) are caller-owned. Connections are a separate module.
 
-## Reusability and Extensibility
+## Inputs (selected)
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `name` / `resource_group_name` / `location` | string | — | ForceNew |
+| `type` | string | `ExpressRoute` | `Vpn` \| `ExpressRoute`; ForceNew |
+| `sku` | string | `ErGw1AZ` | update in place (resize) where the platform allows |
+| `vpn_type` | string | `RouteBased` | ForceNew |
+| `ip_configurations` | map(object) | — | `{public_ip_address_id, subnet_id, private_ip_address_allocation?}` |
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Gateway type, SKU, active-active, BGP, IP configs, NAT rules, custom routes, policy groups, and timeouts remain configurable for hybrid connectivity patterns.
+`id`, `name`, `bgp_settings`, public IPs.
+
+## Lifecycle contract
+
+`sku` (resize), `bgp_settings`, `tags` → **update in place** (mostly). `type` /
+`vpn_type` / `ip_configurations` subnet → **replace**. A gateway takes ~30-45 min
+to create — never recreate one on a routine upgrade.
+
+State exposure: none.
+
+## Tests
+
+`terraform test` (offline): create (ExpressRoute default).

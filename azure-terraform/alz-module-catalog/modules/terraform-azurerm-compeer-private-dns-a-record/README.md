@@ -1,15 +1,29 @@
-# Private DNS A Record Module
+# terraform-azurerm-compeer-private-dns-a-record
 
-This companion module manages private DNS A records separately from private DNS zones and private endpoints.
+Private DNS A records (`azurerm_private_dns_a_record`) keyed by a stable logical
+key. The zone is referenced by name — zone creation is a separate module.
 
-## What Is Better
+## Inputs
 
-| Area | Reviewed Configuration Pattern | Improved Module Pattern |
-| --- | --- | --- |
-| Record lifecycle | A records can be hidden inside endpoint or DNS zone modules. | Records are explicit DNS data-plane objects. |
-| Ownership | Some environments auto-register records while others require manual records. | Application roots can compose explicit records only when needed. |
+`records` — `map(object({ name, zone_name, resource_group_name, ttl?=300,
+records=list(string), tags? }))`. `ttl` and non-empty `records` are validated.
 
-## Design Intent
+## Outputs
 
-Use this module for explicitly managed private DNS A records. Prefer private endpoint DNS zone groups when that is the approved enterprise pattern.
+`ids`, `names`, `fqdns` — keyed by input key.
 
+## Lifecycle contract
+
+`ttl`, `records`, `tags` → **update in place**. `name` / `zone_name` /
+`resource_group_name` → **replace** that record. Adding / removing a key affects
+only that record.
+
+State exposure: none.
+
+## Migration
+
+Added `ttl` / non-empty-`records` validation and `names` / `fqdns` outputs.
+
+## Tests
+
+`terraform test` (offline): create with default TTL, empty-records rejection.

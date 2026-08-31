@@ -1,18 +1,28 @@
-# Compeer Route Server
+# terraform-azurerm-compeer-route-server
 
-Adds Azure Route Server and optional BGP peer connections for dynamic routing with network virtual appliances. Use only when the routing design calls for BGP exchange instead of static UDRs.
+Azure Route Servers (`azurerm_route_server`) + their BGP connections, both keyed
+maps so adding a server or a peer never touches the others. RouteServerSubnet and
+the Standard Static PIP are caller-owned.
 
-## Reusability and Extensibility
+## Inputs
 
-This module is designed as a reusable resource building block for Compeer platform and workload patterns:
+`route_servers` — `map(object({ name, resource_group_name, location, sku?,
+subnet_id, public_ip_address_id, branch_to_branch_traffic_enabled?, tags?,
+timeouts?, bgp_connections?=map(object({ name, peer_asn, peer_ip, ... })) }))`.
 
-- Resource-scoped ownership: the module models the Azure resource boundary, not a single application, environment, or landing-zone root.
-- Pattern-ready interface: enterprise decisions such as naming, network placement, diagnostics, RBAC, private endpoints, and policy posture stay in the consuming pattern or root.
-- Optional capability surface: optional Azure features are exposed through typed inputs, objects, maps, and empty defaults so consumers can enable them without forking the module.
-- Stable identity for repeatable configuration: repeatable nested configuration uses keyed maps where identity matters, reducing unrelated replacement when an item is added or removed.
-- Lifecycle-aware defaults: inputs favor provider-supported in-place updates and avoid generated names, positional indexes, or hidden defaults that create unnecessary replacement.
-- Composition-ready outputs: IDs, names, endpoint details, and other downstream attributes are exported so dependent modules and HCP workspaces do not need to reconstruct implementation details.
-- Backward-compatible growth: new capabilities should be added with optional inputs and sensible defaults; breaking input or output changes should be versioned deliberately.
-- Validation focus: consumers should test create, no-change plan, in-place updates, optional feature add/remove, expected replacement cases, and destroy behavior before broad reuse.
+## Outputs
 
-Module-specific extension points: Route servers and BGP connections are keyed, with subnet/public-IP references, branch-to-branch traffic, tags, and timeouts configurable per instance.
+`ids`, `names`, `resource_group_names`, `route_servers` (composite),
+`bgp_connection_ids`, `bgp_connections` — keyed by input / generated key.
+
+## Lifecycle contract
+
+`branch_to_branch_traffic_enabled`, `tags`, BGP-connection add/remove → **update
+in place** / per-connection. `name`, `subnet_id`, `public_ip_address_id`, `sku` →
+**replace** that route server.
+
+State exposure: none.
+
+## Tests
+
+`terraform test` (offline): create.

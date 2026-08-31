@@ -4,7 +4,7 @@ resource "azurerm_application_gateway" "this" {
   resource_group_name               = var.resource_group_name
   firewall_policy_id                = var.firewall_policy_id
   force_firewall_policy_association = var.force_firewall_policy_association
-  enable_http2                      = var.enable_http2
+  http2_enabled                     = var.http2_enabled
   tags                              = var.tags
 
   dynamic "identity" {

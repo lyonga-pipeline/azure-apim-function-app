@@ -1,60 +1,80 @@
-# Azure Private DNS Zones and Virtunal Network Link
+# terraform-azurerm-compeer-private-dns
 
-This modules create Private DNS Zones and Virtual Network Link
+Manages a **set** of Azure Private DNS zones and their VNet links. Use this when
+one owner (typically the connectivity hub) manages all the `privatelink.*` zones
+for an estate. For a single independently-owned zone use
+`terraform-azurerm-compeer-private-dns-zone` +
+`terraform-azurerm-compeer-private-dns-vnet-link`.
 
----
+Ownership boundary: zones and links only. Record sets are owned by
+`terraform-azurerm-compeer-private-dns-a-record` and friends.
 
-## Requirements
+## Usage
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >=3.11, < 4.0 |
+```hcl
+module "private_dns" {
+  source              = "../terraform-azurerm-compeer-private-dns"
+  resource_group_name = module.rg.name
+  tags                = module.tags.tags
 
----
-
-## Providers
-
-| Name | Version |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >=3.11, < 4.0 |
-
----
-
-## Modules
-
-No modules.
-
----
-
-## Resources
-
-| Name | Type |
-|------|------|
-| [azurerm_private_dns_zone.private_dns_zone](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.private_dns_zone_virtual_network_link](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
-
----
+  zones = {
+    "privatelink.vaultcore.azure.net"  = {}
+    "privatelink.blob.core.windows.net" = {}
+    "privatelink.database.windows.net" = {
+      vnet_links = {
+        hub = { virtual_network_id = module.hub.id }
+      }
+    }
+  }
+}
+```
 
 ## Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_name"></a> [name](#input\_name) | The name of the Private DNS Zone. Must be a valid domain name. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Specifies the resource group where the resource exists. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_virtual_network_id"></a> [virtual\_network\_id](#input\_virtual\_network\_id) | The ID of the Virtual Network that should be linked to the DNS Zone. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_vnet_link_name"></a> [vnet\_link\_name](#input\_vnet\_link\_name) | The name of the Private DNS Zone Virtual Network Link. Changing this forces a new resource to be created. | `string` | n/a | yes |
-| <a name="input_private_dns_zone_tags"></a> [private\_dns\_zone\_tags](#input\_private\_dns\_zone\_tags) | value | `map(string)` | `{}` | no |
-| <a name="input_registration_enabled"></a> [registration\_enabled](#input\_registration\_enabled) | Is auto-registration of virtual machine records in the virtual network in the Private DNS zone enabled? | `bool` | `false` | no |
-| <a name="input_soa_record"></a> [soa\_record](#input\_soa\_record) | value | ```list(object({ email = string expire_time = optional(number) minimum_ttl = optional(number) refresh_time = optional(number) retry_time = optional(number) ttl = optional(number) tags = optional(map(string)) }))``` | `[]` | no |
-| <a name="input_vnet_link_tags"></a> [vnet\_link\_tags](#input\_vnet\_link\_tags) | A mapping of tags to assign to the resource. | `map(string)` | `{}` | no |
-
----
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `resource_group_name` | string | — | default RG for zones/links |
+| `zones` | map(object) | `{}` | key = zone name; per-zone `resource_group_name`, `tags`, `soa_record`, `vnet_links` (map keyed by logical name) |
+| `tags` | map(string) | `{}` | merged onto every zone and link |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_private_dns_zone_id"></a> [private\_dns\_zone\_id](#output\_private\_dns\_zone\_id) | The Private DNS Zone ID. |
-| <a name="output_private_dns_zone_virtual_network_link"></a> [private\_dns\_zone\_virtual\_network\_link](#output\_private\_dns\_zone\_virtual\_network\_link) | The ID of the Private DNS Zone Virtual Network Link. |
+`zone_ids` (name→id), `zone_names`, `zones` (name→{id,name,number_of_record_sets}),
+`vnet_link_ids` ("zone/link"→id).
+
+## Lifecycle contract
+
+| Change | Result |
+|---|---|
+| add / remove a key in `zones` | create / destroy **only that zone** (stable keys) |
+| add / remove a `vnet_links` entry under a zone | create / destroy **only that link** (composite `zone/link` key) |
+| `tags`, `soa_record` fields, `registration_enabled` | **update in place** |
+| rename a zone key, or change a link's `virtual_network_id` | **replace** that zone / link (Azure ForceNew) |
+| `resource_group_name` on an existing zone/link | **replace** |
+
+State exposure: none.
+
+## Migration from the pre-hardening contract
+
+Single-zone → multi-zone. No compatibility shims.
+
+| Old | New |
+|---|---|
+| `var.private_dns_zone_name` | a key in `var.zones` |
+| `var.private_dns_zone_tags` | `var.zones[<name>].tags` or module-level `var.tags` |
+| `var.soa_record` (list) | `var.zones[<name>].soa_record` (single object) |
+| `output.private_dns_zone_id` | `output.zone_ids[<name>]` |
+| `output.private_dns_zone_name` | `output.zone_names[<name>]` |
+
+`moved` blocks are required to preserve state:
+
+```hcl
+moved {
+  from = azurerm_private_dns_zone.private_dns_zone
+  to   = azurerm_private_dns_zone.this["privatelink.vaultcore.azure.net"]
+}
+```
+
+## Tests
+
+`terraform test` (offline): create, additive zone add, validation rejection.

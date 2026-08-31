@@ -1,10 +1,28 @@
-variable "name" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
-variable "address_space" { type = list(string) }
+variable "name" {
+  description = "VNet name. Changing this forces a new resource."
+  type        = string
+}
+variable "resource_group_name" {
+  description = "Resource group. Changing this forces a new resource."
+  type        = string
+}
+variable "location" {
+  description = "Azure region. Changing this forces a new resource."
+  type        = string
+}
+variable "address_space" {
+  description = "VNet address space (one or more CIDRs)."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.address_space) > 0
+    error_message = "address_space must contain at least one CIDR."
+  }
+}
 variable "dns_servers" {
-  type    = list(string)
-  default = null
+  description = "Custom DNS servers. null keeps Azure-provided DNS."
+  type        = list(string)
+  default     = null
 }
 variable "bgp_community" {
   type    = string
@@ -15,22 +33,32 @@ variable "edge_zone" {
   default = null
 }
 variable "flow_timeout_in_minutes" {
-  type    = number
-  default = null
+  description = "Connection flow timeout in minutes (4-30)."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.flow_timeout_in_minutes == null ? true : (var.flow_timeout_in_minutes >= 4 && var.flow_timeout_in_minutes <= 30)
+    error_message = "flow_timeout_in_minutes must be between 4 and 30."
+  }
 }
 variable "private_endpoint_vnet_policies" {
-  type    = string
-  default = null
+  description = "Private Endpoint VNet policy mode (Disabled or Basic)."
+  type        = string
+  default     = null
 }
 variable "ddos_protection_plan_id" {
-  type    = string
-  default = null
+  description = "Externally managed DDoS plan to associate. null = none."
+  type        = string
+  default     = null
 }
 variable "enable_ddos_protection_plan" {
-  type    = bool
-  default = true
+  description = "Whether the DDoS association is enabled (only used with ddos_protection_plan_id)."
+  type        = bool
+  default     = true
 }
 variable "subnets" {
+  description = "Subnets keyed by name. Adding/removing a key never re-creates unrelated subnets."
   type = map(object({
     address_prefixes                              = list(string)
     service_endpoints                             = optional(list(string), [])
@@ -61,6 +89,11 @@ variable "encryption" {
     enforcement = string
   })
   default = null
+
+  validation {
+    condition     = var.encryption == null ? true : contains(["AllowUnencrypted", "DropUnencrypted"], var.encryption.enforcement)
+    error_message = "encryption.enforcement must be AllowUnencrypted or DropUnencrypted."
+  }
 }
 variable "ip_address_pools" {
   type = map(object({
@@ -79,6 +112,7 @@ variable "timeouts" {
   default = {}
 }
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags applied to the VNet."
+  type        = map(string)
+  default     = {}
 }

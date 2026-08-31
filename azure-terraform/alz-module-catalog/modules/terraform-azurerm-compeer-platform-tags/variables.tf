@@ -1,6 +1,11 @@
 variable "environment" {
   type        = string
-  description = "Environment tag value such as np1, np2, np3, prod, shared."
+  description = "Environment tag value: np1, np2, np3, prod, or shared."
+
+  validation {
+    condition     = contains(["np1", "np2", "np3", "prod", "shared"], var.environment)
+    error_message = "environment must be np1, np2, np3, prod, or shared."
+  }
 }
 
 variable "application" {
@@ -46,26 +51,19 @@ variable "cost_center" {
 
 variable "data_classification" {
   type        = string
-  description = "Data classification tag."
+  description = "Data classification tag: public, internal, confidential, or restricted."
   default     = "confidential"
+
+  validation {
+    condition     = contains(["public", "internal", "confidential", "restricted"], var.data_classification)
+    error_message = "data_classification must be public, internal, confidential, or restricted."
+  }
 }
 
 variable "compliance_boundary" {
   type        = string
   description = "Compliance boundary or regulatory domain."
   default     = "finserv"
-}
-
-variable "creation_date_utc" {
-  type        = string
-  description = "Optional immutable creation timestamp. Prefer setting once and then ignoring drift."
-  default     = null
-}
-
-variable "last_modified_utc" {
-  type        = string
-  description = "Optional external last modified timestamp. Prefer managing outside Terraform."
-  default     = null
 }
 
 variable "additional_tags" {

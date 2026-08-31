@@ -1,36 +1,68 @@
-variable "route_table_name" {
-  description = "Name of Vnet peering"
+variable "name" {
+  description = "Name of the route table. Changing this forces a new resource."
   type        = string
 }
 
 variable "location" {
+  description = "Azure region the route table is created in."
   type        = string
-  description = "The location/region where the route table is created."
 }
 
 variable "resource_group_name" {
-  description = "Resource Group name for the resource"
+  description = "Resource group the route table is created in."
   type        = string
 }
 
-variable "subnet_ids" {
-  description = "List of Subnet IDs to associate Route Table"
-  type        = list(string)
+variable "bgp_route_propagation_enabled" {
+  description = "Whether routes learned by BGP on the associated gateway propagate into this table."
+  type        = bool
+  default     = true
 }
 
 variable "routes" {
-  type        = list(map(string))
-  description = "List of objects that represent the configuration of each route."
-  /*ROUTES = [{ name = "", address_prefix = "", next_hop_type = "", next_hop_in_ip_address = "" }]*/
-}
+  description = <<-EOT
+    Routes keyed by route name (the map key is the Azure route name). Adding or
+    removing a key affects only that route, never the others.
+  EOT
+  type = map(object({
+    address_prefix         = string
+    next_hop_type          = string
+    next_hop_in_ip_address = optional(string)
+  }))
+  default = {}
 
-variable "bgp_route_propagation_enabled" {
-  type        = bool
-  description = "Boolean flag which controls propagation of routes learned by BGP on that route table."
+  validation {
+    condition = alltrue([
+      for r in values(var.routes) : contains(
+        ["VirtualNetworkGateway", "VnetLocal", "Internet", "VirtualAppliance", "None"],
+        r.next_hop_type
+      )
+    ])
+    error_message = "route next_hop_type must be one of VirtualNetworkGateway, VnetLocal, Internet, VirtualAppliance, None."
+  }
+
+  validation {
+    condition = alltrue([
+      for r in values(var.routes) :
+      (r.next_hop_type == "VirtualAppliance") == (try(r.next_hop_in_ip_address, null) != null)
+    ])
+    error_message = "next_hop_in_ip_address is required iff next_hop_type is VirtualAppliance."
+  }
 }
 
 variable "tags" {
+  description = "Tags applied to the route table."
   type        = map(string)
   default     = {}
-  description = "A mapping of tags to assign to the resource."
+}
+
+variable "timeouts" {
+  description = "Optional resource operation timeouts."
+  type = object({
+    create = optional(string)
+    read   = optional(string)
+    update = optional(string)
+    delete = optional(string)
+  })
+  default = {}
 }

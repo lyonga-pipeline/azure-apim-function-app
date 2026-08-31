@@ -11,7 +11,7 @@ resource "azurerm_key_vault_managed_hardware_security_module" "managed_hsm" {
   purge_protection_enabled                  = var.purge_protection_enabled
   soft_delete_retention_days                = var.soft_delete_retention_days
   public_network_access_enabled             = var.public_network_access_enabled
-  security_domain_key_vault_certificate_ids = var.security_domain_key_vault_certificate_ids
+  security_domain_key_vault_certificate_ids = length(var.security_domain_key_vault_certificate_ids) > 0 ? var.security_domain_key_vault_certificate_ids : null
   security_domain_quorum                    = var.security_domain_quorum
   dynamic "network_acls" {
     for_each = var.network_acls != null ? [var.network_acls] : []
@@ -21,4 +21,11 @@ resource "azurerm_key_vault_managed_hardware_security_module" "managed_hsm" {
     }
   }
   tags = var.tags
+
+  lifecycle {
+    precondition {
+      condition     = (length(var.security_domain_key_vault_certificate_ids) > 0) == (var.security_domain_quorum != null)
+      error_message = "Set security_domain_key_vault_certificate_ids and security_domain_quorum together, or set neither."
+    }
+  }
 }

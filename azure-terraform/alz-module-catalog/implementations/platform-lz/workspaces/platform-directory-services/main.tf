@@ -51,16 +51,17 @@ module "directory_services" {
     azurerm = azurerm
   }
 
-  subscription_id       = var.subscription_id
-  location              = var.location
-  environment           = var.environment
-  platform_tags         = merge(var.platform_tags, try(var.directory_services.platform_tags, {}))
-  resource_group        = try(var.directory_services.resource_group, null)
-  domain_controllers    = local.domain_controllers
-  admin_passwords       = var.admin_passwords
-  domain_join_passwords = var.domain_join_passwords
-  role_assignments      = try(var.directory_services.role_assignments, {})
-  management_locks      = try(var.directory_services.management_locks, {})
-  additional_scopes     = try(var.directory_services.additional_scopes, {})
-  operational_contracts = try(var.directory_services.operational_contracts, {})
+  subscription_id           = var.subscription_id
+  location                  = var.location
+  environment               = var.environment
+  platform_tags             = merge(var.platform_tags, try(var.directory_services.platform_tags, {}))
+  resource_group            = try(var.directory_services.resource_group, null)
+  domain_controllers        = local.domain_controllers
+  admin_passwords           = var.admin_passwords
+  domain_join_passwords     = var.domain_join_passwords
+  ad_ds_promotion_passwords = var.ad_ds_promotion_passwords
+  role_assignments          = try(var.directory_services.role_assignments, {})
+  management_locks          = try(var.directory_services.management_locks, {})
+  additional_scopes         = try(var.directory_services.additional_scopes, {})
+  operational_contracts     = try(var.directory_services.operational_contracts, {})
 }

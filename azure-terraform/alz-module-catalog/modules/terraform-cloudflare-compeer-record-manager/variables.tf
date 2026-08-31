@@ -67,12 +67,53 @@ variable "value" {
 
 variable "data" {
   description = "Map of attributes that constitute the record value. Conflicts with 'value'"
-  type        = map(any)
-  default     = {}
+  type = object({
+    algorithm         = optional(number)
+    altitude          = optional(number)
+    certificate       = optional(string)
+    digest            = optional(string)
+    digest_type       = optional(number)
+    fingerprint       = optional(string)
+    flags             = optional(string)
+    key_tag           = optional(number)
+    latitude_degrees  = optional(number)
+    latitude_minutes  = optional(number)
+    latitude_seconds  = optional(number)
+    longitude_degrees = optional(number)
+    longitude_minutes = optional(number)
+    longitude_seconds = optional(number)
+    matching_type     = optional(number)
+    name              = optional(string)
+    order             = optional(number)
+    port              = optional(number)
+    precision_horz    = optional(number)
+    precision_vert    = optional(number)
+    preference        = optional(number)
+    priority          = optional(number)
+    protocol          = optional(number)
+    public_key        = optional(string)
+    regexp            = optional(string)
+    replacement       = optional(string)
+    selector          = optional(number)
+    service           = optional(string)
+    size              = optional(number)
+    tag               = optional(string)
+    target            = optional(string)
+    type              = optional(number)
+    usage             = optional(number)
+    value             = optional(string)
+    weight            = optional(number)
+  })
+  default = {}
 }
 
 variable "timeouts" {
   description = "Timeout values for resources."
-  type        = map(any)
-  default     = {}
+  type = object({
+    create = optional(string)
+    read   = optional(string)
+    update = optional(string)
+    delete = optional(string)
+  })
+  default = {}
 }
