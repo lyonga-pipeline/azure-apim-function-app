@@ -1,0 +1,66 @@
+tenant_id                 = "00000000-0000-0000-0000-000000000000"
+execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+tfe_organization          = "Compeer-Financial-Services"
+governance_workspace_name = "platform-governance"
+
+onboarding = {
+  enabled                  = true
+  root_management_group_id = "Compeer-Financial-Services" # tenant root group
+
+  default_tags = {
+    managed_by = "terraform"
+  }
+
+  # Applied at subscription scope to EVERY onboarded subscription
+  # (unless a subscription sets apply_baseline_rbac = false).
+  baseline_role_assignments = {
+    platform_operations = {
+      role_definition_name = "Contributor"
+      principal_id         = "11111111-1111-1111-1111-111111111111" # platform-ops group objectId
+      principal_type       = "Group"
+      description          = "Platform operations standing access"
+    }
+    security_readers = {
+      role_definition_name = "Reader"
+      principal_id         = "22222222-2222-2222-2222-222222222222" # security group objectId
+      principal_type       = "Group"
+    }
+    break_glass = {
+      role_definition_name = "Owner"
+      principal_id         = "33333333-3333-3333-3333-333333333333" # break-glass group objectId
+      principal_type       = "Group"
+      description          = "Emergency access - monitored"
+    }
+  }
+
+  subscriptions = {
+    corp_app_alpha = {
+      subscription_id             = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+      target_management_group_key = "corp"
+      display_name                = "corp-app-alpha-prod"
+      workload                    = "Production"
+      app_role_assignments = {
+        alpha_team_contributor = {
+          role_definition_name = "Contributor"
+          principal_id         = "44444444-4444-4444-4444-444444444444"
+          principal_type       = "Group"
+          description          = "App Alpha delivery team"
+        }
+      }
+    }
+
+    sandbox_alpha = {
+      subscription_id             = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+      target_management_group_key = "sandbox"
+      workload                    = "DevTest"
+      apply_baseline_rbac         = false # sandbox gets its own lighter RBAC
+      app_role_assignments = {
+        sandbox_owner = {
+          role_definition_name = "Owner"
+          principal_id         = "55555555-5555-5555-5555-555555555555"
+          principal_type       = "Group"
+        }
+      }
+    }
+  }
+}

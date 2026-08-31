@@ -1,3 +1,15 @@
+# =============================================================================
+# ⛔ NOT DEPLOYED — reference only.
+#
+# Compeer subscriptions are created by the CSP partner, not by Terraform. This
+# pattern creates subscriptions (azurerm_subscription) and only works under an
+# EA/MCA billing account. It is retained for the day that billing model changes.
+#
+# Live placement + RBAC of CSP-created subscriptions is done by the
+# `subscription-onboarding` pattern. The `platform-subscriptions` implementation
+# is hard-disabled and must stay disabled.
+# =============================================================================
+
 locals {
   billing_account_name     = trimspace(var.billing_account_name == null ? "" : var.billing_account_name)
   billing_profile_name     = trimspace(var.billing_profile_name == null ? "" : var.billing_profile_name)

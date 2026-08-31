@@ -1,3 +1,16 @@
+# =============================================================================
+# ⛔ NOT DEPLOYED. Compeer subscriptions are created by the CSP partner, not by
+# Terraform. This workspace drives the `subscription-vending` pattern (which
+# CREATES subscriptions) and is kept only for a future EA/MCA billing model.
+#
+# `var.subscription_vending` defaults to enabled = false / vending_enabled =
+# false and MUST stay that way. Do not create an HCP Terraform workspace from
+# this directory.
+#
+# Live work: `platform-subscription-onboarding` (places CSP-created
+# subscriptions into their management group and applies baseline + app RBAC).
+# =============================================================================
+
 data "tfe_outputs" "governance" {
   count        = var.use_tfe_outputs ? 1 : 0
   organization = var.tfe_organization

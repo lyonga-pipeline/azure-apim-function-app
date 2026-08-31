@@ -1,5 +1,19 @@
 # Subscription Vending
 
+> ## ⛔ NOT DEPLOYED — reference only
+>
+> At Compeer, subscriptions are **provisioned by the CSP partner**, not by
+> Terraform. New subscriptions appear under the Tenant Root Group and are then
+> placed and RBAC'd by the
+> [`subscription-onboarding`](../terraform-azurerm-compeer-subscription-onboarding)
+> pattern.
+>
+> This pattern (which *creates* subscriptions via `azurerm_subscription`) is kept
+> for reference and for the day Compeer moves to an EA/MCA billing model where
+> Terraform-driven vending is possible. **Do not wire it into a live workspace.**
+> The `platform-subscriptions` implementation is hard-disabled
+> (`enabled = false`, `vending_enabled = false`) and must stay that way.
+
 This root vends Azure subscriptions and places them under the approved landing-zone management group hierarchy. It intentionally stays separate from `global-governance` so subscription billing lifecycle, management group and policy lifecycle, and workload deployment lifecycle can be operated independently.
 
 ## What It Does
