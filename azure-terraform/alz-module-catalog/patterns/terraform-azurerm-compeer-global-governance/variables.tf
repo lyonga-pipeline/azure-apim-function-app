@@ -179,6 +179,9 @@ variable "policy_baseline" {
     required_tag_names        = optional(list(string))
     assign_security_benchmark = optional(bool, true)
     not_scopes                = optional(list(string), [])
+    # Resource groups carved out of deny-public-PaaS / secure-storage - the
+    # documented exception path (e.g. the Palo Alto bootstrap RG). Keep short.
+    exempt_resource_group_names = optional(list(string), [])
   })
   default = {}
 

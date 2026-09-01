@@ -111,3 +111,21 @@ acceptance, the bootstrap process, and routing ownership are approved.
 
 `terraform test` - 2 firewalls / 2 LBs / 6 NICs, both bootstrap modes rendered,
 the four bootstrap directories, and the file-share-without-key rejection.
+
+## Bootstrap storage / Key Vault network posture
+
+The firewalls reach bootstrap storage over SMB from the mgmt NIC, and Key Vault
+for cert auth via managed identity. Both stay **private**:
+
+- `bootstrap_storage_account.network_rules` &mdash; `default_action = "Deny"` +
+  `allowed_subnet_keys = ["palo_alto_management"]` (a **service endpoint**, not a
+  public endpoint). `public_network_access_enabled = true` is only the
+  service-endpoint requirement; the account is firewalled to that one subnet.
+- `bootstrap_key_vault` &mdash; `network.mode = "private"` + a `private_endpoint`
+  block. The firewall VM identities get `Key Vault Certificates User` +
+  `Secrets User` automatically.
+
+If a genuine public path is unavoidable, `network.mode = "selected"` (KV) or a
+non-empty `network_rules` (storage) &mdash; the modules then **require** a Deny +
+IP/subnet allow-list. Pair it with a policy carve-out / exemption. See
+[`GUARDRAIL-EXCEPTIONS.md`](../../GUARDRAIL-EXCEPTIONS.md).

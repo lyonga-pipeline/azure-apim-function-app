@@ -58,5 +58,19 @@ resource "azurerm_key_vault" "keyvault" {
       condition     = var.rbac_authorization_enabled || length(local.access_policies) > 0
       error_message = "When rbac_authorization_enabled is false, configure at least one access policy (access_policies or access_policies_by_key)."
     }
+
+    # A "public" vault must still be firewalled to an explicit allow-list.
+    # Guardrail exception path: pair with an RG carve-out or a policy exemption.
+    precondition {
+      condition = !var.public_network_access_enabled ? true : (
+        var.network_acls != null &&
+        var.network_acls.default_action == "Deny" &&
+        (
+          length(try(var.network_acls.ip_rules, [])) > 0 ||
+          length(try(var.network_acls.virtual_network_subnet_ids, [])) > 0
+        )
+      )
+      error_message = "public_network_access_enabled = true requires network_acls with default_action = \"Deny\" and at least one ip_rules / virtual_network_subnet_ids entry."
+    }
   }
 }

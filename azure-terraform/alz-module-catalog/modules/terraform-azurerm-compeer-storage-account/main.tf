@@ -284,6 +284,22 @@ resource "azurerm_storage_account" "this" {
       condition     = !var.nfsv3_enabled || var.is_hns_enabled
       error_message = "nfsv3_enabled requires is_hns_enabled = true."
     }
+
+    # A "public" account must still be firewalled to an explicit allow-list -
+    # never open to the internet. Guardrail exception path: pair this with an
+    # RG carve-out or a policy exemption (see the private-only guardrail docs).
+    precondition {
+      condition = !var.public_network_access_enabled ? true : (
+        var.network_rules != null &&
+        var.network_rules.default_action == "Deny" &&
+        (
+          length(try(var.network_rules.ip_rules, [])) > 0 ||
+          length(try(var.network_rules.virtual_network_subnet_ids, [])) > 0 ||
+          length(try(var.network_rules.private_link_access, {})) > 0
+        )
+      )
+      error_message = "public_network_access_enabled = true requires network_rules with default_action = \"Deny\" and at least one ip_rules / virtual_network_subnet_ids / private_link_access entry."
+    }
   }
 
   timeouts {

@@ -243,3 +243,38 @@ variable "bootstrap_share_layout" {
   default = {}
 }
 
+
+variable "bootstrap_key_vault" {
+  description = <<-EOT
+    Optional Key Vault for firewall cert authentication / Panorama secrets. The
+    firewall VM managed identities are granted "Key Vault Certificates User" +
+    "Key Vault Secrets User" automatically.
+
+    Default network posture is PRIVATE. `network.mode = "selected"` opens
+    public access to an IP / subnet allow-list (documented exception only - the
+    keyvault module rejects an empty allow-list).
+  EOT
+  type = object({
+    name                       = string
+    tenant_id                  = string
+    sku_name                   = optional(string, "premium")
+    purge_protection_enabled   = optional(bool, true)
+    soft_delete_retention_days = optional(number, 90)
+    network = optional(object({
+      mode               = optional(string, "private")
+      allowed_ip_ranges  = optional(list(string), [])
+      allowed_subnet_ids = optional(list(string), [])
+    }), {})
+    private_endpoint = optional(object({
+      name                 = string
+      subnet_id            = string
+      private_dns_zone_ids = optional(list(string), [])
+    }))
+  })
+  default = null
+
+  validation {
+    condition     = var.bootstrap_key_vault == null ? true : contains(["private", "selected"], try(var.bootstrap_key_vault.network.mode, "private"))
+    error_message = "bootstrap_key_vault.network.mode must be private or selected."
+  }
+}

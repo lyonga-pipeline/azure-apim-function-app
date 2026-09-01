@@ -37,3 +37,12 @@ output "marketplace_agreement_id" {
   description = "Palo Alto VM-Series image agreement ID when managed by this pattern."
   value       = try(azurerm_marketplace_agreement.palo_alto[0].id, null)
 }
+
+output "bootstrap_key_vault_id" {
+  description = "Bootstrap Key Vault ID when configured."
+  value       = try(module.bootstrap_key_vault[0].id, null)
+}
+
+output "bootstrap_key_vault_uri" {
+  value = try(module.bootstrap_key_vault[0].vault_uri, null)
+}

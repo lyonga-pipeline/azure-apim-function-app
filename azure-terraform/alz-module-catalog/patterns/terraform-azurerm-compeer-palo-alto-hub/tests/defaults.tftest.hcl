@@ -164,3 +164,33 @@ run "rejects_file_share_self_service_without_bootstrap_storage" {
 
   expect_failures = [terraform_data.bootstrap_contract]
 }
+
+run "bootstrap_key_vault_private_and_rbac" {
+  command = plan
+
+  variables {
+    bootstrap_key_vault = {
+      name      = "kv-pan-bootstrap"
+      tenant_id = "22222222-2222-2222-2222-222222222222"
+      network   = { mode = "private" }
+      private_endpoint = {
+        name      = "pep-kv-pan"
+        subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/private_endpoints"
+      }
+    }
+  }
+
+  assert {
+    condition     = local.bkv_public == false
+    error_message = "private mode should not open public access"
+  }
+  assert {
+    condition     = length(module.bootstrap_key_vault) == 1 && length(module.bootstrap_key_vault_private_endpoint) == 1
+    error_message = "bootstrap KV + its private endpoint not created"
+  }
+  # 2 firewalls x (certs + secrets) = 4 RBAC assignments
+  assert {
+    condition     = length(module.bootstrap_key_vault_rbac.ids) == 4
+    error_message = "firewall MIs not granted KV cert/secret access"
+  }
+}

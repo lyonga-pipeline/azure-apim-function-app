@@ -42,6 +42,52 @@ locals {
       })
     )
   }
+
+  # Resolve subnet_key -> subnet_id for the bootstrap storage service endpoint
+  # and the bootstrap Key Vault private endpoint. `network_rules.allowed_subnet_keys`
+  # / `network.allowed_subnet_keys` in tfvars resolve against the connectivity output.
+  _bsa    = try(var.palo_alto.bootstrap_storage_account, try(var.palo_alto.bootstrap, null))
+  _bsa_nr = try(local._bsa.network_rules, null)
+  bootstrap_storage_account = local._bsa == null ? null : {
+    name                            = local._bsa.name
+    account_replication_type        = try(local._bsa.account_replication_type, "ZRS")
+    public_network_access_enabled   = try(local._bsa.public_network_access_enabled, false)
+    shared_access_key_enabled       = try(local._bsa.shared_access_key_enabled, true)
+    default_to_oauth_authentication = try(local._bsa.default_to_oauth_authentication, false)
+    file_shares                     = try(local._bsa.file_shares, {})
+    network_rules = local._bsa_nr == null ? null : {
+      default_action = try(local._bsa_nr.default_action, "Deny")
+      bypass         = try(local._bsa_nr.bypass, ["AzureServices"])
+      ip_rules       = try(local._bsa_nr.ip_rules, [])
+      virtual_network_subnet_ids = concat(
+        try(local._bsa_nr.virtual_network_subnet_ids, []),
+        [for k in try(local._bsa_nr.allowed_subnet_keys, []) : local.connectivity_outputs.subnet_ids[k]],
+      )
+    }
+  }
+
+  _bkv    = try(var.palo_alto.bootstrap_key_vault, null)
+  _bkv_pe = try(local._bkv.private_endpoint, null)
+  bootstrap_key_vault = local._bkv == null ? null : {
+    name                       = local._bkv.name
+    tenant_id                  = local._bkv.tenant_id
+    sku_name                   = try(local._bkv.sku_name, "premium")
+    purge_protection_enabled   = try(local._bkv.purge_protection_enabled, true)
+    soft_delete_retention_days = try(local._bkv.soft_delete_retention_days, 90)
+    network = {
+      mode              = try(local._bkv.network.mode, "private")
+      allowed_ip_ranges = try(local._bkv.network.allowed_ip_ranges, [])
+      allowed_subnet_ids = concat(
+        try(local._bkv.network.allowed_subnet_ids, []),
+        [for k in try(local._bkv.network.allowed_subnet_keys, []) : local.connectivity_outputs.subnet_ids[k]],
+      )
+    }
+    private_endpoint = local._bkv_pe == null ? null : {
+      name                 = local._bkv_pe.name
+      subnet_id            = coalesce(try(local._bkv_pe.subnet_id, null), try(local.connectivity_outputs.subnet_ids[local._bkv_pe.subnet_key], null))
+      private_dns_zone_ids = try(local._bkv_pe.private_dns_zone_ids, [])
+    }
+  }
 }
 
 module "palo_alto" {
@@ -55,7 +101,8 @@ module "palo_alto" {
   resource_group_name       = local.resource_group_name
   location                  = var.location
   tags                      = merge(var.tags, try(var.palo_alto.tags, {}))
-  bootstrap_storage_account = try(var.palo_alto.bootstrap_storage_account, try(var.palo_alto.bootstrap, null))
+  bootstrap_storage_account = local.bootstrap_storage_account
+  bootstrap_key_vault       = local.bootstrap_key_vault
   bootstrap_share_layout    = try(var.palo_alto.bootstrap_share_layout, {})
   marketplace_agreement     = try(var.palo_alto.marketplace_agreement, { enabled = false })
   public_ips                = try(var.palo_alto.public_ips, {})

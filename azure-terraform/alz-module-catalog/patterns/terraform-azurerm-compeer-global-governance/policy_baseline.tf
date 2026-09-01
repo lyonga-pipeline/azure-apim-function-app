@@ -26,6 +26,11 @@ locals {
     "recovery", "cost_center", "data_classification", "compliance_boundary",
   ])
   pb_assign_mcsb = try(local.pb.assign_security_benchmark, true)
+  # Resource groups carved out of deny-public-PaaS / secure-storage - the
+  # documented exception path for e.g. the Palo Alto bootstrap RG. Resources in
+  # these RGs still get diagnostics + Defender; they just don't trip the
+  # public-network-access deny. Keep this list short and reviewed.
+  pb_exempt_rgs = try(local.pb.exempt_resource_group_names, [])
   # Microsoft Cloud Security Benchmark - stable built-in initiative ID.
   pb_mcsb_id = "/providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8"
 
@@ -35,7 +40,14 @@ locals {
     allowedValues = ["Audit", "Deny", "Disabled"]
     metadata      = { displayName = "Effect" }
   }
-  _pb_meta = { category = "Compeer Landing Zone", version = "1.1.0" }
+  _pb_exempt_rgs_param = {
+    type         = "Array"
+    defaultValue = []
+    metadata     = { displayName = "Exempt resource group names" }
+  }
+  # `not { resourceGroup in ... }` clause added to the deny-public rules.
+  _pb_rg_not_exempt = { not = { field = "resourceGroup", in = "[parameters('exemptResourceGroups')]" } }
+  _pb_meta          = { category = "Compeer Landing Zone", version = "1.1.0" }
 
   pb_definitions = { for k, v in local.pb_definitions_all : k => v if local.pb_enabled }
   pb_definitions_all = {
@@ -81,14 +93,20 @@ locals {
     "cmp-deny-public-paas" = {
       display_name         = "Compeer - Deny public network access for sensitive PaaS"
       management_group_key = local.pb_mg_key
-      description          = "Denies public network exposure for common sensitive PaaS resources."
+      description          = "Denies public network exposure for common sensitive PaaS resources, except in explicitly exempt resource groups."
       metadata             = local._pb_meta
-      parameters           = { effect = local._pb_effect_param }
+      parameters = {
+        effect               = local._pb_effect_param
+        exemptResourceGroups = local._pb_exempt_rgs_param
+      }
       policy_rule = {
-        if = { anyOf = [
-          { allOf = [{ field = "type", equals = "Microsoft.Storage/storageAccounts" }, { field = "Microsoft.Storage/storageAccounts/publicNetworkAccess", notEquals = "Disabled" }] },
-          { allOf = [{ field = "type", equals = "Microsoft.KeyVault/vaults" }, { field = "Microsoft.KeyVault/vaults/publicNetworkAccess", notEquals = "Disabled" }] },
-          { allOf = [{ field = "type", equals = "Microsoft.Web/sites" }, { field = "Microsoft.Web/sites/publicNetworkAccess", notEquals = "Disabled" }] },
+        if = { allOf = [
+          local._pb_rg_not_exempt,
+          { anyOf = [
+            { allOf = [{ field = "type", equals = "Microsoft.Storage/storageAccounts" }, { field = "Microsoft.Storage/storageAccounts/publicNetworkAccess", notEquals = "Disabled" }] },
+            { allOf = [{ field = "type", equals = "Microsoft.KeyVault/vaults" }, { field = "Microsoft.KeyVault/vaults/publicNetworkAccess", notEquals = "Disabled" }] },
+            { allOf = [{ field = "type", equals = "Microsoft.Web/sites" }, { field = "Microsoft.Web/sites/publicNetworkAccess", notEquals = "Disabled" }] },
+          ] },
         ] }
         then = { effect = "[parameters('effect')]" }
       }
@@ -96,11 +114,15 @@ locals {
     "cmp-secure-storage" = {
       display_name         = "Compeer - Enforce secure storage account baseline"
       management_group_key = local.pb_mg_key
-      description          = "Requires HTTPS-only storage, TLS 1.2+, and no blob public access."
+      description          = "Requires HTTPS-only storage, TLS 1.2+, and no blob public access, except in explicitly exempt resource groups."
       metadata             = local._pb_meta
-      parameters           = { effect = local._pb_effect_param }
+      parameters = {
+        effect               = local._pb_effect_param
+        exemptResourceGroups = local._pb_exempt_rgs_param
+      }
       policy_rule = {
         if = { allOf = [
+          local._pb_rg_not_exempt,
           { field = "type", equals = "Microsoft.Storage/storageAccounts" },
           { anyOf = [
             { field = "Microsoft.Storage/storageAccounts/supportsHttpsTrafficOnly", notEquals = true },
@@ -167,7 +189,11 @@ locals {
         policy_definition_key = "cmp-deny-public-paas"
         enforce               = local.pb_enforce
         not_scopes            = local.pb_not_scopes
-        parameters            = { effect = { value = local.pb_effect } }
+        parameters = {
+          effect               = { value = local.pb_effect }
+          exemptResourceGroups = { value = local.pb_exempt_rgs }
+        }
+        non_compliance_messages = { default = { content = "Disable public network access (private endpoint / service endpoint + Deny). Documented exceptions must be in an approved exempt resource group." } }
       }
       "cmp-secure-storage" = {
         name                  = "cmp-secure-storage"
@@ -176,7 +202,10 @@ locals {
         policy_definition_key = "cmp-secure-storage"
         enforce               = local.pb_enforce
         not_scopes            = local.pb_not_scopes
-        parameters            = { effect = { value = local.pb_effect } }
+        parameters = {
+          effect               = { value = local.pb_effect }
+          exemptResourceGroups = { value = local.pb_exempt_rgs }
+        }
       }
       "cmp-deny-public-ip" = {
         name                  = "cmp-deny-pip"

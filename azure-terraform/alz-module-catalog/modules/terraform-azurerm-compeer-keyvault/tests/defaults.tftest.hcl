@@ -73,3 +73,27 @@ run "rejects_rbac_off_without_policies" {
 
   expect_failures = [azurerm_key_vault.keyvault]
 }
+
+run "public_requires_firewall_allowlist" {
+  command = plan
+
+  variables {
+    public_network_access_enabled = true
+    network_acls                  = { bypass = "AzureServices", default_action = "Deny" } # no ip_rules / subnets
+  }
+
+  expect_failures = [azurerm_key_vault.keyvault]
+}
+
+run "public_with_allowlist_ok" {
+  command = plan
+
+  variables {
+    public_network_access_enabled = true
+    network_acls = {
+      bypass                     = "AzureServices"
+      default_action             = "Deny"
+      virtual_network_subnet_ids = ["/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/palo-mgmt"]
+    }
+  }
+}

@@ -46,5 +46,14 @@ governance = {
     allowed_locations    = ["centralus", "eastus2"] # eastus2 = future DR
     # required_tag_names defaults to the platform-tags frozen key set
     assign_security_benchmark = true
+
+    # Documented exception path: RGs carved out of deny-public-PaaS /
+    # secure-storage. Resources here still get diagnostics + Defender - they
+    # just don't trip the public-network-access deny. Keep this short + reviewed;
+    # the Palo bootstrap storage should normally use a service endpoint instead
+    # and NOT need this.
+    exempt_resource_group_names = [
+      # "rg-conn-palo-bootstrap",
+    ]
   }
 }
