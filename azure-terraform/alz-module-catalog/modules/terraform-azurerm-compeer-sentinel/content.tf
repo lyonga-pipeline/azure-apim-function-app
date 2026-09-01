@@ -76,7 +76,7 @@ locals {
 }
 
 resource "azurerm_sentinel_alert_rule_scheduled" "this" {
-  for_each = var.enabled ? local.scheduled_rules : {}
+  for_each = { for k, v in local.scheduled_rules : k => v if var.enabled }
 
   name                       = each.key
   log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
