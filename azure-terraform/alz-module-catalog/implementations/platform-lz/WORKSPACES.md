@@ -1,10 +1,27 @@
 # Platform Workspace Catalog
 
+## Execution model
+
+These roots are **VCS-driven HCP Terraform workspaces** — one HCP workspace per
+directory here, connected to `main` with the workspace's working directory set to
+that path (runbook §1.1). There is intentionally **no `cloud {}` / `backend`
+block** in the code: state, execution, and the org/project binding are configured
+in HCP, and plan/apply are authoritative there.
+
+Do not run `terraform apply` locally against these roots (runbook §16). Local
+`terraform init -backend=false` + `validate` + `test` is the offline check; the
+CI pipeline (`.azuredevops/alz-validate.yml`) runs it on every PR.
+
+Auth is HCP dynamic credentials / workload-identity federation to Azure — no
+long-lived client secrets. Deployment identities are split at least by
+governance/policy, connectivity, identity, and management.
+
 ## Deployment Order
 
-1. `platform-governance` -> HCP workspace `platform-governance`
-2. `platform-subscriptions` -> HCP workspace `platform-subscriptions`
-3. `platform-policy` -> HCP workspace `platform-policy`
+1. `platform-governance` -> HCP workspace `platform-governance` (MG hierarchy + `policy_baseline` in Audit)
+2. `platform-subscription-onboarding` -> HCP workspace `platform-subscription-onboarding` (place CSP-created subscriptions into their MG + baseline RBAC)
+   - `platform-subscriptions` is **NOT DEPLOYED** — retained for a future EA/MCA billing model only.
+3. `platform-policy` -> HCP workspace `platform-policy` (exemptions, RG-scope assignments, DeployIfNotExists remediation, private-only guardrail; needs the Log Analytics workspace from step 4)
 4. `platform-management` -> HCP workspace `platform-management`
 5. `platform-connectivity` -> HCP workspace `platform-connectivity`
 6. `platform-identity-security` -> HCP workspace `platform-identity-security`
@@ -17,6 +34,8 @@
 13. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
 14. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
 
+`platform-policy` step 3 can also run late (after step 4) — its DeployIfNotExists
+remediation reads `log_analytics_workspace_id` from `platform-management`.
 Steps 6 through 11 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
 
 ## Output Contracts
@@ -25,6 +44,14 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 
 - `management_group_ids`
 - `custom_role_definition_ids`
+- `role_assignment_ids`
+
+`platform-subscription-onboarding` publishes:
+
+- `subscription_placement_ids`
+- `onboarded_subscription_ids`
+- `onboarded_subscription_resource_ids`
+- `baseline_role_assignment_ids`
 
 `platform-policy` publishes:
 
@@ -32,14 +59,10 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 - `custom_policy_set_definition_ids`
 - `management_group_policy_assignment_ids`
 - `subscription_policy_assignment_ids`
-
-`platform-subscriptions` publishes:
-
-- `vended_subscription_ids`
-- `platform_management_subscription_id`
-- `platform_connectivity_subscription_id`
-- `platform_identity_subscription_id`
-- `platform_security_subscription_id`
+- `resource_group_policy_assignment_ids`
+- `policy_exemption_ids`
+- `remediation_assignment_ids`
+- `remediation_assignment_principal_ids`
 
 `platform-management` publishes:
 
@@ -52,6 +75,8 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 - `platform_key_vault_uris`
 - `platform_key_vault_private_endpoint_ids`
 - `recovery_services_vault_ids`
+- `backup_policy_vm_ids` (keyed `<vault>.<tier>`)
+- `backup_policy_file_share_ids`
 - `data_collection_endpoint_ids`
 - `data_collection_rule_ids`
 - `data_collection_rule_association_ids`

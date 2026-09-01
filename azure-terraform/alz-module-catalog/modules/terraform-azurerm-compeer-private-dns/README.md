@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-private-dns
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-private-dns-zone`](../terraform-azurerm-compeer-private-dns-zone) instead** (keyed multi-zone; consumed by platform-connectivity). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Manages a **set** of Azure Private DNS zones and their VNet links. Use this when
 one owner (typically the connectivity hub) manages all the `privatelink.*` zones
 for an estate. For a single independently-owned zone use

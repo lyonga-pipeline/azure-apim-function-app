@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-key-vault
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-keyvault`](../terraform-azurerm-compeer-keyvault) instead** (the consumed vault module (3 pattern consumers)). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Azure Key Vault (vault resource only). Same capability as
 `terraform-azurerm-compeer-keyvault`; this variant uses a keyed
 `access_policies` map (stable identity) and has no current pattern consumers, so

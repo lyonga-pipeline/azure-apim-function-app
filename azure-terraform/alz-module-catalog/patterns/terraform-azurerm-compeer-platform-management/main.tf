@@ -493,6 +493,9 @@ module "sentinel" {
   enabled                    = local.sentinel_enabled
   log_analytics_workspace_id = module.log_analytics.id
   approved_data_connectors   = try(var.sentinel.approved_data_connectors, {})
+  data_connectors            = try(var.sentinel.data_connectors, {})
+  include_default_rules      = try(var.sentinel.include_default_rules, true)
+  scheduled_alert_rules      = try(var.sentinel.scheduled_alert_rules, {})
 }
 
 resource "azurerm_monitor_diagnostic_setting" "subscription_activity_log" {

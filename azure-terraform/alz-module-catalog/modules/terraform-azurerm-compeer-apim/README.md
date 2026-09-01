@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-apim
 
+> **⚠ Duplicate pair with [`terraform-azurerm-compeer-apim-service`](../terraform-azurerm-compeer-apim-service).** Both wrap `azurerm_api_management` and are 0-consumer. Consolidate to one before a workload adopts either.
+
+
 Azure API Management **service** (the `azurerm_api_management` resource only).
 APIs, backends, named values, identity providers, products, policies and
 diagnostics are composed by the companion modules (`apim-api`, `apim-backend`,

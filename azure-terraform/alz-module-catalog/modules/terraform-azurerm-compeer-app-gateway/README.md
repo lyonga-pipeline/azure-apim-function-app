@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-app-gateway
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-application-gateway`](../terraform-azurerm-compeer-application-gateway) instead** (fully typed, tested). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Azure Application Gateway (resource module). WAF policy is passed by ID
 (`firewall_policy_id`); diagnostics are composed via
 `terraform-azurerm-compeer-diagnostic-settings` at the pattern layer.

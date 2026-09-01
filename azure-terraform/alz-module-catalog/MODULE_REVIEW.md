@@ -106,3 +106,38 @@ The catalog should only call a module Ready when:
 4. the module is not just a placeholder or README-only scaffold.
 
 This is the rule that keeps the row status honest and prevents the earlier false `Ready` labeling.
+
+---
+
+## 2026 update — platform-assembly gaps closed
+
+Following the enterprise-ALZ gap review:
+
+- **Policy** — `global-governance` ships `policy_baseline` (6 deny/audit policies +
+  MCSB, Audit-first) as code; `platform-policy` gained exemptions (all 3 scopes),
+  RG-scope assignments, and a `remediation` DeployIfNotExists bundle. The
+  stand-alone **`policy-baseline` module is RETIRED** — use the `platform-policy`
+  pattern.
+- **Backup** — `recovery-services-vault` gained `backup_policy_vm` /
+  `backup_policy_file_share` (per criticality tier); `directory-services` enrols
+  DC VMs via `dc_backup`.
+- **Private endpoints** — `workload-spoke` gained a generic `private_endpoints`
+  map (was Key-Vault-only).
+- **Private DNS** — `platform-connectivity` ships a `privatelink_zones.tf`
+  catalogue (~45 keys) driven by `privatelink_zone_catalogue`.
+- **Sentinel** — the `sentinel` module gained Terraform-owned data connectors +
+  scheduled analytics rules, incl. the mandatory Palo-Alto CEF forwarding-health
+  rule.
+- **Alerts** — `platform-management` gained `platform_alerts` (metric alerts +
+  Service Health).
+- **Naming** — new `terraform-azurerm-compeer-naming` module (CAF abbreviations).
+- **Subnet <-> route-table / NSG** — `virtual-network` subnet object accepts
+  `route_table_key` / `nsg_key`; connectivity + workload-spoke derive the
+  association maps from them.
+- **Duplicate modules** — `app-gateway`, `key-vault`, `networking`,
+  `route-tables`, `private-dns`, `actiongroup` carry a "non-canonical, use X"
+  banner. `apim` / `apim-service` flagged as a duplicate pair to consolidate.
+- **CI** — `.github/workflows/alz-catalog-ci.yml` (fmt / validate / test / tflint
+  / checkov / gitleaks) + `.tflint.hcl`.
+- **subscription-vending** — retired; `subscription-onboarding` places
+  CSP-created subscriptions and applies baseline RBAC.

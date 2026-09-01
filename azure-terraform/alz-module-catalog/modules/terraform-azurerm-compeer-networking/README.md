@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-networking
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-virtual-network`](../terraform-azurerm-compeer-virtual-network) instead** (the consumed VNet module). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Virtual Network + subnets. This is a **resource module**: it owns the VNet and
 its subnets and nothing else. Resource groups, DDoS protection plans, Network
 Watcher, NSGs, route tables, private DNS zones and peerings are owned by their

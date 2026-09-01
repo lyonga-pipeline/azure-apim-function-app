@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-actiongroup
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-action-group`](../terraform-azurerm-compeer-action-group) instead** (hyphenated; consumed by platform-management). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Azure Monitor Action Group. Interface is **identical** to
 `terraform-azurerm-compeer-action-group` (the redesign converged them); both are
 kept and maintained to the same standard. See that module's README for the full

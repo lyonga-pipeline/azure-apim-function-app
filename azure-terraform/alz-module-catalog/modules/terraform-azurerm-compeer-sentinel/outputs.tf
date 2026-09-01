@@ -17,3 +17,8 @@ output "data_connector_contract" {
   description = "Approved Sentinel connector target state."
   value       = terraform_data.data_connector_contract.output
 }
+
+output "scheduled_alert_rule_ids" {
+  description = "Scheduled analytics rule IDs keyed by rule name."
+  value       = { for k, v in azurerm_sentinel_alert_rule_scheduled.this : k => v.id }
+}

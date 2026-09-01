@@ -216,3 +216,11 @@ output "defender_plan_ids" {
 output "defender_soc_posture" {
   value = terraform_data.defender_soc_posture_contract.output
 }
+
+output "platform_metric_alert_ids" {
+  value = { for k, v in module.platform_metric_alerts : k => v.id }
+}
+
+output "service_health_alert_id" {
+  value = try(azurerm_monitor_activity_log_alert.service_health[0].id, null)
+}

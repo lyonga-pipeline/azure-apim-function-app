@@ -653,8 +653,11 @@ variable "sentinel" {
       enabled        = optional(bool, false)
       notes          = optional(string)
     })), {})
+    data_connectors       = optional(any, {})
+    include_default_rules = optional(bool, true)
+    scheduled_alert_rules = optional(any, {})
   })
-  description = "Microsoft Sentinel onboarding and approved data connector target-state contract."
+  description = "Microsoft Sentinel onboarding, Terraform-owned data connectors, and scheduled analytics rules (incl. the Palo Alto CEF forwarding-health rule)."
   default     = {}
 }
 
@@ -822,4 +825,22 @@ variable "defender_soc_posture" {
   })
   description = "No-cost posture contract for Defender/SOC readiness. This documents intent without enabling paid Defender, Sentinel, or data-collection resources by default."
   default     = {}
+}
+
+variable "platform_alerts" {
+  description = <<-EOT
+    Platform baseline alerts routed to the platform action group. `metric_alerts`
+    is a map keyed by name (each: name, scopes, criteria/dynamic_criteria,
+    severity, ...). Service Health activity-log alerts are on by default.
+  EOT
+  type = object({
+    enabled                     = optional(bool, false)
+    additional_action_group_ids = optional(list(string), [])
+    service_health_enabled      = optional(bool, true)
+    service_health_name         = optional(string)
+    service_health_events       = optional(list(string))
+    service_health_locations    = optional(list(string))
+    metric_alerts               = optional(any, {})
+  })
+  default = {}
 }

@@ -98,6 +98,15 @@ output "recovery_services_vault_ids" {
   value = try(module.management[0].recovery_services_vault_ids, {})
 }
 
+output "backup_policy_vm_ids" {
+  description = "VM backup policy IDs keyed <vault>.<tier> - feed to workload / directory-services patterns."
+  value       = try(module.management[0].backup_policy_vm_ids, {})
+}
+
+output "backup_policy_file_share_ids" {
+  value = try(module.management[0].backup_policy_file_share_ids, {})
+}
+
 output "recovery_services_vault_names" {
   value = try(module.management[0].recovery_services_vault_names, {})
 }

@@ -1,5 +1,8 @@
 # terraform-azurerm-compeer-route-tables
 
+> **⚠ Non-canonical — use [`terraform-azurerm-compeer-route-table`](../terraform-azurerm-compeer-route-table) instead** (singular; used by the connectivity + workload-spoke patterns). This module is kept working for backward compatibility; do not pick it for new work.
+
+
 Route table + its routes. Subnet association is a separate lifecycle domain,
 owned by `terraform-azurerm-compeer-subnet-route-table-association`.
 
