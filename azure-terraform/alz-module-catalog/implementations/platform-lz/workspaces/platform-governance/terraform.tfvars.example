@@ -4,19 +4,23 @@ location                  = "centralus"
 
 governance = {
   enabled = true
+
+  # Top of the new landing zone (runbook §2.1). The existing legacy LZ
+  # (compeer-mg) is NOT recreated here.
   management_groups = {
-    platform             = { display_name = "platform-mg", parent_key = "root" }
+    enterprise           = { display_name = "compeer-enterprise-mg", parent_key = "root" }
+    platform             = { display_name = "platform-mg", parent_key = "enterprise" }
     security             = { display_name = "security-mg", parent_key = "platform" }
     identity             = { display_name = "identity-mg", parent_key = "platform" }
     management           = { display_name = "management-mg", parent_key = "platform" }
     connectivity         = { display_name = "connectivity-mg", parent_key = "platform" }
-    workloads            = { display_name = "workloads-mg", parent_key = "root" }
+    workloads            = { display_name = "workloads-mg", parent_key = "enterprise" }
     internal_apps        = { display_name = "internal-apps-mg", parent_key = "workloads" }
     external_apps        = { display_name = "external-apps-mg", parent_key = "workloads" }
     regulated_apps       = { display_name = "regulated-apps-mg", parent_key = "workloads" }
     shared_services      = { display_name = "shared-services-mg", parent_key = "workloads" }
-    sandbox              = { display_name = "sandbox-mg", parent_key = "workloads" }
-    decommissioned       = { display_name = "decommissioned-mg", parent_key = "workloads" }
+    sandbox              = { display_name = "sandbox-mg", parent_key = "enterprise" }
+    decommissioned       = { display_name = "decommissioned-mg", parent_key = "enterprise" }
     internal_apps_dev    = { display_name = "internal-apps-dev-mg", parent_key = "internal_apps" }
     internal_apps_test   = { display_name = "internal-apps-test-mg", parent_key = "internal_apps" }
     internal_apps_prod   = { display_name = "internal-apps-prod-mg", parent_key = "internal_apps" }
@@ -29,5 +33,18 @@ governance = {
     shared_services_dev  = { display_name = "shared-services-dev-mg", parent_key = "shared_services" }
     shared_services_test = { display_name = "shared-services-test-mg", parent_key = "shared_services" }
     shared_services_prod = { display_name = "shared-services-prod-mg", parent_key = "shared_services" }
+  }
+
+  # Deny/audit baseline (runbook §2.4). Starts in Audit - promote to Deny per
+  # policy after the false-positive review and once the exemption path
+  # (platform-policy workspace) is live.
+  policy_baseline = {
+    enabled              = true
+    management_group_key = "enterprise"
+    effect               = "Audit"
+    enforce              = true
+    allowed_locations    = ["centralus", "eastus2"] # eastus2 = future DR
+    # required_tag_names defaults to the platform-tags frozen key set
+    assign_security_benchmark = true
   }
 }

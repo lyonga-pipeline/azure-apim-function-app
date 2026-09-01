@@ -160,3 +160,35 @@ variable "management_group_budgets" {
   description = "Management-group FinOps budget guardrails."
   default     = {}
 }
+
+variable "policy_baseline" {
+  description = <<-EOT
+    Built-in Compeer deny/audit policy baseline (see policy_baseline.tf). When
+    enabled, ships allowed-regions, required-tags, deny-public-PaaS,
+    secure-storage, restrict-public-IP, private-SQL policies + the Microsoft
+    Cloud Security Benchmark assignment, all at management_group_key.
+
+    effect defaults to "Audit" - promote to "Deny" per policy after review.
+  EOT
+  type = object({
+    enabled                   = optional(bool, false)
+    management_group_key      = optional(string)
+    effect                    = optional(string, "Audit")
+    enforce                   = optional(bool, true)
+    allowed_locations         = optional(list(string), ["centralus"])
+    required_tag_names        = optional(list(string))
+    assign_security_benchmark = optional(bool, true)
+    not_scopes                = optional(list(string), [])
+  })
+  default = {}
+
+  validation {
+    condition     = try(var.policy_baseline.effect, "Audit") == null ? true : contains(["Audit", "Deny", "Disabled"], var.policy_baseline.effect)
+    error_message = "policy_baseline.effect must be Audit, Deny, or Disabled."
+  }
+
+  validation {
+    condition     = !try(var.policy_baseline.enabled, false) ? true : try(var.policy_baseline.management_group_key, null) != null
+    error_message = "policy_baseline.enabled requires policy_baseline.management_group_key (the top landing-zone MG catalog key)."
+  }
+}

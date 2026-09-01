@@ -32,6 +32,12 @@ variable "governance_workspace_name" {
   default     = "platform-governance"
 }
 
+variable "management_workspace_name" {
+  description = "Workspace that publishes log_analytics_workspace_id (used by DINE remediation)."
+  type        = string
+  default     = "platform-management"
+}
+
 variable "management_group_ids" {
   description = "Explicit management group IDs. These override or extend governance workspace outputs."
   type        = map(string)

@@ -1,5 +1,13 @@
 # terraform-azurerm-compeer-policy-baseline
 
+> **⛔ RETIRED — use the `platform-policy` pattern instead.**
+> `patterns/terraform-azurerm-compeer-platform-policy` now covers everything this
+> module did — custom definitions/initiatives, MG / subscription / **resource-group**
+> assignments, policy **exemptions** (all three scopes), plus the
+> `private_only_connectivity` guardrail and the `remediation` (DeployIfNotExists)
+> bundle. This module is kept for reference / state-import only; do not compose it
+> in new work.
+
 Custom policy/policy-set definitions and their MG/subscription/RG assignments + exemptions, all keyed maps. Empty input = no-op.
 
 ## Contract

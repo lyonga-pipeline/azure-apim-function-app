@@ -22,4 +22,5 @@ module "governance" {
   custom_role_definitions             = try(var.governance.custom_role_definitions, {})
   role_assignments                    = try(var.governance.role_assignments, {})
   management_group_budgets            = try(var.governance.management_group_budgets, {})
+  policy_baseline                     = try(var.governance.policy_baseline, {})
 }

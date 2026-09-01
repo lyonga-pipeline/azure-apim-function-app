@@ -16,7 +16,23 @@ The root supports both individual Azure Policy definitions and policy set defini
 
 The checked-in management-group scaffold matches the current go-live diagram for the new enterprise tree: 25 management group entries under `compeer-enterprise-mg`. That includes platform, workloads, internal apps, external apps, regulated apps, shared services, sandbox, and decommissioned branches. The existing `compeer-mg` branch shown outside this tree is treated as an existing landing-zone path and is not created by this root.
 
-The checked-in workload assignments use `Deny` for the high-confidence net-new controls: approved regions, required enterprise tags, public PaaS access, storage security, public IP creation, and public SQL network access. Existing/legacy workloads should be remediated or placed outside the blocking scope before they are attached to this guardrail set.
+### Policy baseline (`var.policy_baseline`)
+
+The deny/audit baseline is shipped as code in `policy_baseline.tf` and toggled
+with `var.policy_baseline` — set `enabled = true` and `management_group_key`
+(the top LZ MG catalog key). It creates six custom policies (allowed regions,
+required tags, deny-public-PaaS, secure storage, restrict public IP, private
+SQL) plus the Microsoft Cloud Security Benchmark assignment.
+
+**`effect` defaults to `Audit`** (runbook §2.4). Promote to `Deny` per policy
+only after the false-positive review and once the exemption path
+(`platform-policy` workspace) is live. `var.custom_policy_definitions` /
+`var.management_group_policy_assignments` still work for anything hand-authored
+on top. DeployIfNotExists remediation, exemptions, and RG-scoped assignments
+live in the `platform-policy` pattern, not here.
+
+The earlier checked-in `terraform.tfvars` (now `.example`) used `Deny` directly;
+prefer `policy_baseline` with Audit-first for a fresh deployment.
 
 This root is expected to pass the current OPA landing-zone workload policy because it deploys governance controls rather than workload/PaaS resources. Use Azure Policy for runtime guardrails and OPA for plan-time review of workload/platform deployment plans.
 

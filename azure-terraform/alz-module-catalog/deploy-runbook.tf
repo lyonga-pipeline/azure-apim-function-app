@@ -291,17 +291,27 @@ The target design requires:
   - Panorama remains central firewall policy/routing/NAT management
   - Palo Alto logs must reach Sentinel through Panorama/syslog path
 
-RECOMMENDED TERRAFORM DEPLOYMENT
---------------------------------
-Use the current Palo Alto Networks Azure module family:
-  PaloAltoNetworks/swfw-modules/azurerm
+TERRAFORM DEPLOYMENT  [DECISION 2026 - Network Architect]
+--------------------------------------------------------
+DECIDED: Compeer builds the VM-Series appliance with a CUSTOM composition using
+the Marketplace *image* (azurerm_marketplace_agreement + source_image_reference
++ plan), NOT the Marketplace solution template and NOT the vendor
+PaloAltoNetworks/swfw-modules registry module.
 
-Do NOT start new implementation on the archived:
-  terraform-azurerm-vmseries-modules
+Rationale: the custom pattern expresses Compeer's exact requirement set
+(2 firewalls, Trust ILB + a second Sunstream ILB, additional dataplane NICs for
+Sunstream, private-only edge, HCP-driven bootstrap) directly, instead of
+composing the vendor module and then bolting on the deltas.
 
-Use vendor submodules/patterns where they meet the architecture instead of
-rebuilding the Palo Alto appliance from raw azurerm_linux_virtual_machine,
-NIC, and LB resources.
+Implemented by: patterns/terraform-azurerm-compeer-palo-alto-hub
+  - azurerm_linux_virtual_machine (for_each) + network-interface + load-balancer
+    modules
+  - azurerm_marketplace_agreement for the image licence
+  - storage-account + azurerm_storage_share(_directory/_file) for bootstrap
+  - custom_data bootstrap: azure-file-share OR custom-data mode
+
+Do NOT reintroduce the swfw-modules vendor module or the archived
+terraform-azurerm-vmseries-modules.
 
 5.1 Programmatically accept Azure Marketplace terms
 ---------------------------------------------------
@@ -347,10 +357,12 @@ Target:
   platform-cus-prod-fw-01
   platform-cus-prod-fw-02
 
-Use:
-  module "vmseries" {
-    source  = "PaloAltoNetworks/swfw-modules/azurerm//modules/vmseries"
-    version = "<PIN_APPROVED_VERSION>"
+Use (per the 2026 decision above - custom composition, Marketplace image):
+  module "palo_alto" {
+    source = "../../patterns/terraform-azurerm-compeer-palo-alto-hub"
+    # virtual_machines = { fw1 = {...}, fw2 = {...} }  -> azurerm_linux_virtual_machine
+    # network_interfaces / load_balancers as map(object)
+    # marketplace_agreement.enabled = true            -> image licence only
     ...
   }
 
@@ -1081,8 +1093,9 @@ Use narrow/lifecycle-aligned modules:
     -> VNet/subnets/base NSG outputs
 
   palo-alto-vmseries-pattern
-    -> vendor module composition, marketplace agreement, bootstrap, Azure LBs,
-       Azure route integration
+    -> CUSTOM composition (Marketplace image, NOT vendor module / NOT solution
+       template): azurerm_linux_virtual_machine + NICs + Azure LBs, marketplace
+       agreement, bootstrap storage/files, Azure route integration
     -> NOT Panorama operational policy
 
   expressroute

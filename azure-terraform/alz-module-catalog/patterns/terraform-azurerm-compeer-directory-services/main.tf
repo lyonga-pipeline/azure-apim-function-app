@@ -1,3 +1,27 @@
+# =============================================================================
+# ⚠ DEVIATION — TEMPORARY, PENDING AD-TEAM CONFIRMATION
+#
+# deploy-runbook.tf §7.2 / §15 state that AD DS role install and domain
+# promotion are NOT Terraform-owned (preferred tooling: Ansible / PowerShell
+# DSC), and that domain-admin secrets never flow through Terraform variables.
+#
+# This pattern currently DOES drive both, via:
+#   - azurerm_virtual_machine_extension.ad_ds_role_install  (PowerShell)
+#   - azurerm_virtual_machine_extension.ad_ds_promotion      (PowerShell)
+#   - var.ad_ds_promotion_passwords  -> lands in Terraform state
+#
+# This is a TEMPORARY bridge so the DCs can stand up end-to-end. Before
+# production authorization, the AD team must confirm one of:
+#   (a) accept this as an approved deviation (record the exception), OR
+#   (b) set every `ad_ds_role_install.enabled` / `ad_ds_promotion.enabled` to
+#       false and hand promotion to the approved Ansible / DSC pipeline. The
+#       VM / NIC / disk / diagnostics / lock resources below stay Terraform-owned
+#       either way.
+#
+# TODO(ad-team): confirm (a) or (b); if (b), also remove
+#                var.ad_ds_promotion_passwords and the related validations.
+# =============================================================================
+
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 

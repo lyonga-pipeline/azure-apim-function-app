@@ -104,3 +104,71 @@ variable "private_only_connectivity" {
     error_message = "When private_only_connectivity.enabled, set exactly one of management_group_key or management_group_id."
   }
 }
+
+variable "resource_group_policy_assignments" {
+  type        = any
+  description = "Resource-group-scoped Azure Policy assignments (exceptions, workload-specific guardrails)."
+  default     = {}
+}
+
+variable "policy_exemptions" {
+  description = <<-EOT
+    Policy exemptions keyed by exemption name. Each: scope_type
+    (management_group | subscription | resource_group), the matching scope id
+    (or management_group_key), policy_assignment_id OR policy_assignment_key
+    (a key into this pattern's own assignments), exemption_category
+    (Waiver | Mitigated), optional expires_on, description,
+    policy_definition_reference_ids.
+  EOT
+  type = map(object({
+    scope_type                      = string
+    management_group_id             = optional(string)
+    management_group_key            = optional(string)
+    subscription_id                 = optional(string)
+    resource_group_id               = optional(string)
+    policy_assignment_id            = optional(string)
+    policy_assignment_key           = optional(string)
+    exemption_category              = optional(string, "Waiver")
+    display_name                    = optional(string)
+    description                     = optional(string)
+    expires_on                      = optional(string)
+    metadata                        = optional(any)
+    policy_definition_reference_ids = optional(list(string))
+  }))
+  default = {}
+
+  validation {
+    condition     = alltrue([for e in values(var.policy_exemptions) : contains(["management_group", "subscription", "resource_group"], e.scope_type)])
+    error_message = "policy_exemptions[*].scope_type must be management_group, subscription, or resource_group."
+  }
+
+  validation {
+    condition     = alltrue([for e in values(var.policy_exemptions) : contains(["Waiver", "Mitigated"], try(e.exemption_category, "Waiver"))])
+    error_message = "policy_exemptions[*].exemption_category must be Waiver or Mitigated."
+  }
+}
+
+variable "remediation" {
+  description = <<-EOT
+    Opt-in DeployIfNotExists / Modify remediation bundle (see remediation.tf).
+    Assignments get a SystemAssigned identity + location and run at
+    management_group_key. Built-in policy/initiative IDs are caller-supplied
+    (verify with `az policy definition list`) - see the pattern README.
+  EOT
+  type = object({
+    enabled                    = optional(bool, false)
+    management_group_key       = optional(string)
+    location                   = optional(string)
+    log_analytics_workspace_id = optional(string)
+    dine_assignments = optional(map(object({
+      policy_definition_id = string
+      display_name         = optional(string)
+      description          = optional(string)
+      enforce              = optional(bool, true)
+      not_scopes           = optional(list(string))
+      inject_law           = optional(bool, false)
+      parameters           = optional(any, {})
+    })), {})
+  })
+  default = {}
+}

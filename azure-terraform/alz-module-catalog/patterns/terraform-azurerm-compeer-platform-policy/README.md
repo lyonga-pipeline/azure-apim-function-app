@@ -109,3 +109,59 @@ and drive the non-compliance list down before enforcing.
 
 The Cloudflare side (what the tunnels expose, what is deployed, what must change)
 is a separate review — owned outside this repo.
+
+---
+
+## Policy split: governance vs. platform-policy
+
+| Concern | Workspace | Mechanism |
+|---|---|---|
+| MG hierarchy | `platform-governance` | `global-governance` pattern |
+| Deny/audit **baseline** definitions + assignments | `platform-governance` | `global-governance` `policy_baseline` (Audit-first) |
+| Microsoft Cloud Security Benchmark | `platform-governance` | `policy_baseline.assign_security_benchmark` |
+| **Promote** a baseline policy to Deny | `platform-governance` | flip `policy_baseline.effect` (per policy once split out) |
+| **Exemptions** (all 3 scopes) | **`platform-policy`** | `var.policy_exemptions` |
+| RG-scoped assignments | **`platform-policy`** | `var.resource_group_policy_assignments` |
+| **DeployIfNotExists remediation** | **`platform-policy`** | `var.remediation` (needs identity + Log Analytics) |
+| Private-only connectivity guardrail | **`platform-policy`** | `var.private_only_connectivity` |
+
+The old `policy-baseline` module is retired — this pattern is the single home for
+exemptions and remediation.
+
+## Exemptions
+
+Every `policy_exemptions` entry sets `scope_type`
+(`management_group` / `subscription` / `resource_group`), the matching scope id
+(or `management_group_key`), and either a full `policy_assignment_id` or a
+`policy_assignment_key` (a key into this pattern's own assignment maps).
+`exemption_category` is `Waiver` or `Mitigated`; set `expires_on` for
+time-boxed waivers. An exemption path must exist before any policy is promoted
+to `Deny` (runbook §2.4).
+
+## DeployIfNotExists remediation (`var.remediation`)
+
+DINE / Modify assignments make the landing zone self-healing. They need a
+`SystemAssigned` identity and a `location`, and run **after**
+`platform-management` has created the Log Analytics workspace. Built-in policy /
+initiative IDs are **caller-supplied and tenant-verifiable** — confirm each with:
+
+```bash
+az policy definition list \
+  --query "[?policyRule.then.effect=='DeployIfNotExists'].{name:displayName,id:id}" -o table
+```
+
+Recommended starting set (verify IDs first):
+
+| Purpose | Built-in policy (display name) |
+|---|---|
+| Activity logs → Log Analytics | *Configure Azure Activity logs to stream to specified Log Analytics workspace* — set `inject_law = true` |
+| Resource diagnostics → Log Analytics | the per-resource-type *Deploy Diagnostic Settings for … to Log Analytics workspace* set, or the ALZ `Deploy-*-DiagnosticSettings` custom initiative |
+| Defender for Cloud plans | *Configure Microsoft Defender for Cloud plans* (initiative) or the per-plan `Deploy-MDFC-*` policies |
+| AMA + DCR on VMs | *Configure Windows/Linux machines to run Azure Monitor Agent* + *…association to Data Collection Rule* |
+| Private DNS zone group on private endpoints | *Deploy - Configure private DNS zone group for …* (one per service, pass `privateDnsZoneId`) |
+| VM backup | *Configure backup on virtual machines … to an existing recovery services vault* (pass `vaultLocation` + `backupPolicyId`) |
+
+After apply, grant each assignment's `remediation_assignment_principal_ids` the
+role its DINE policy requires (usually Contributor on the target scope, or
+Log Analytics Contributor / Monitoring Contributor), then create a remediation
+task.

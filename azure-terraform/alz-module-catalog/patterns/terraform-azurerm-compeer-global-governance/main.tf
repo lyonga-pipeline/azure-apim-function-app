@@ -136,7 +136,7 @@ locals {
 }
 
 resource "azurerm_policy_definition" "this" {
-  for_each = var.custom_policy_definitions
+  for_each = merge(var.custom_policy_definitions, local.pb_definitions)
 
   name                = each.key
   display_name        = each.value.display_name
@@ -196,7 +196,7 @@ module "role_assignments" {
 }
 
 resource "azurerm_management_group_policy_assignment" "this" {
-  for_each = var.management_group_policy_assignments
+  for_each = merge(var.management_group_policy_assignments, local.pb_assignments)
 
   name                = try(each.value.name, each.key)
   management_group_id = local.management_group_scope_ids[each.value.management_group_key]
