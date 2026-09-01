@@ -136,6 +136,22 @@ output "recovery_services_vault_diagnostic_setting_ids" {
   value = { for key, value in module.recovery_services_vault_diagnostics : key => value.id }
 }
 
+output "backup_policy_vm_ids" {
+  description = "VM backup policy IDs keyed `<vault_key>.<tier>` (feed to workload / DC patterns for protected-item enrolment)."
+  value = merge([
+    for vkey, v in module.recovery_services_vaults :
+    { for tier, id in v.backup_policy_vm_ids : "${vkey}.${tier}" => id }
+  ]...)
+}
+
+output "backup_policy_file_share_ids" {
+  description = "File share backup policy IDs keyed `<vault_key>.<tier>`."
+  value = merge([
+    for vkey, v in module.recovery_services_vaults :
+    { for tier, id in v.backup_policy_file_share_ids : "${vkey}.${tier}" => id }
+  ]...)
+}
+
 output "data_collection_endpoint_ids" {
   value = { for key, value in module.data_collection_endpoints : key => value.id }
 }

@@ -379,6 +379,8 @@ variable "recovery_services_vaults" {
       alerts_for_critical_operation_failures_enabled = optional(bool)
       email_notifications_for_site_recovery_enabled  = optional(bool)
     }))
+    backup_policy_vm         = optional(any, {})
+    backup_policy_file_share = optional(any, {})
     timeouts = optional(object({
       create = optional(string)
       update = optional(string)

@@ -52,6 +52,8 @@ variable "hub_vnet" {
       private_endpoint_network_policies             = optional(string, "Enabled")
       private_link_service_network_policies_enabled = optional(bool, true)
       sharing_scope                                 = optional(string)
+      route_table_key                               = optional(string)
+      nsg_key                                       = optional(string)
       delegations = optional(map(object({
         name    = string
         actions = optional(list(string), [])
@@ -750,4 +752,16 @@ variable "diagnostic_settings" {
     ])
     error_message = "Each diagnostic setting must set exactly one of target_resource_id or target_key."
   }
+}
+
+variable "privatelink_zone_catalogue" {
+  description = "Short keys from privatelink_zones.tf (blob, keyvault, sql, acr, monitor, ...) - each adds its Azure Private Link DNS zone(s) to private_dns_zones, linked to the hub. Only list what the platform onboards."
+  type        = list(string)
+  default     = []
+}
+
+variable "privatelink_zone_region" {
+  description = "Region token for region-templated privatelink zones (sql_mi, aks, batch, backup). Defaults to var.location."
+  type        = string
+  default     = null
 }

@@ -57,3 +57,8 @@ output "management_lock_ids" {
 output "operational_contracts" {
   value = module.operational_contracts.contracts
 }
+
+output "dc_backup_protected_vm_ids" {
+  description = "Backup protected-item IDs for enrolled domain controllers."
+  value       = { for k, v in azurerm_backup_protected_vm.dc : k => v.id }
+}

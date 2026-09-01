@@ -83,4 +83,5 @@ module "workload_spoke" {
   subnet_nsg_associations         = try(var.workload_spoke.subnet_nsg_associations, {})
   route_tables                    = try(var.workload_spoke.route_tables, {})
   subnet_route_table_associations = try(var.workload_spoke.subnet_route_table_associations, {})
+  private_endpoints               = try(var.workload_spoke.private_endpoints, {})
 }

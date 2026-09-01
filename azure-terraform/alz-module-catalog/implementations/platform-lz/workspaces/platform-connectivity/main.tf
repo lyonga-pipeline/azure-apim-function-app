@@ -61,6 +61,8 @@ module "connectivity" {
   local_network_gateways          = try(var.connectivity.local_network_gateways, {})
   network_watcher_flow_logs       = try(var.connectivity.network_watcher_flow_logs, {})
   private_dns_zones               = try(var.connectivity.private_dns_zones, {})
+  privatelink_zone_catalogue      = try(var.connectivity.privatelink_zone_catalogue, [])
+  privatelink_zone_region         = try(var.connectivity.privatelink_zone_region, var.location)
   role_assignments                = try(var.connectivity.role_assignments, {})
   management_locks                = try(var.connectivity.management_locks, {})
   diagnostic_settings             = try(var.connectivity.diagnostic_settings, {})

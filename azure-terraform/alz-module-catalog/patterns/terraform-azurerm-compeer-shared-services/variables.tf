@@ -64,6 +64,11 @@ variable "subnet_route_table_associations" {
   default = {}
 }
 
+variable "private_endpoints" {
+  type    = any
+  default = {}
+}
+
 variable "hub_connection" {
   type    = any
   default = null

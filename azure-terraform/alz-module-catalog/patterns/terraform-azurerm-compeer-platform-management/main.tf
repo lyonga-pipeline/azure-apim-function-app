@@ -142,6 +142,8 @@ module "recovery_services_vaults" {
   identity                           = try(each.value.identity, null)
   encryption                         = try(each.value.encryption, null)
   monitoring                         = try(each.value.monitoring, null)
+  backup_policy_vm                   = try(each.value.backup_policy_vm, {})
+  backup_policy_file_share           = try(each.value.backup_policy_file_share, {})
   timeouts                           = try(each.value.timeouts, {})
   tags                               = module.tags.tags
 }

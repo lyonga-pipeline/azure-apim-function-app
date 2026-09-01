@@ -70,9 +70,22 @@ module "network_security_groups" {
   tags = module.tags.tags
 }
 
+locals {
+  derived_nsg_associations = {
+    for k, s in var.spoke_vnet.subnets : k => { subnet_key = k, nsg_key = s.nsg_key }
+    if try(s.nsg_key, null) != null
+  }
+  derived_route_table_associations = {
+    for k, s in var.spoke_vnet.subnets : k => { subnet_key = k, route_table_key = s.route_table_key }
+    if try(s.route_table_key, null) != null
+  }
+  effective_nsg_associations         = merge(local.derived_nsg_associations, var.subnet_nsg_associations)
+  effective_route_table_associations = merge(local.derived_route_table_associations, var.subnet_route_table_associations)
+}
+
 module "subnet_nsg_associations" {
   source   = "../../modules/terraform-azurerm-compeer-nsg-subnet-association"
-  for_each = var.subnet_nsg_associations
+  for_each = local.effective_nsg_associations
 
   subnet_id                 = module.spoke_vnet.subnet_ids[each.value.subnet_key]
   network_security_group_id = module.network_security_groups[each.value.nsg_key].id
@@ -92,7 +105,7 @@ module "route_tables" {
 
 module "subnet_route_table_associations" {
   source   = "../../modules/terraform-azurerm-compeer-subnet-route-table-association"
-  for_each = var.subnet_route_table_associations
+  for_each = local.effective_route_table_associations
 
   subnet_id      = module.spoke_vnet.subnet_ids[each.value.subnet_key]
   route_table_id = module.route_tables[each.value.route_table_key].id
@@ -306,4 +319,37 @@ module "diagnostic_settings" {
   partner_solution_id = try(each.value.partner_solution_id, null)
   logs                = each.value.logs
   metrics             = each.value.metrics
+}
+
+# Generic workload private endpoints (deploy-runbook.tf §10.9). Each entry
+# targets a caller-owned resource (`private_connection_resource_id`) or a
+# same-workload resource by id, on a spoke subnet, with a DNS zone group.
+module "private_endpoints" {
+  source   = "../../modules/terraform-azurerm-compeer-private-endpoint"
+  for_each = var.private_endpoints
+
+  name                          = each.value.name
+  custom_network_interface_name = try(each.value.custom_network_interface_name, null)
+  resource_group_name           = module.resource_group.name
+  location                      = module.resource_group.location
+  edge_zone                     = try(each.value.edge_zone, null)
+  subnet_id = coalesce(
+    try(each.value.subnet_id, null),
+    try(module.spoke_vnet.subnet_ids[each.value.subnet_key], null),
+    try(module.spoke_vnet.subnet_ids["private_endpoints"], null),
+  )
+  private_service_connections = [{
+    name                           = coalesce(try(each.value.private_service_connection_name, null), "${each.value.name}-psc")
+    is_manual_connection           = try(each.value.is_manual_connection, false)
+    private_connection_resource_id = each.value.private_connection_resource_id
+    subresource_names              = each.value.subresource_names
+    request_message                = try(each.value.request_message, null)
+  }]
+  private_dns_zone_group = length(try(each.value.private_dns_zone_ids, [])) == 0 ? [] : [{
+    name                 = coalesce(try(each.value.private_dns_zone_group_name, null), "default")
+    private_dns_zone_ids = each.value.private_dns_zone_ids
+  }]
+  ip_configurations = try(each.value.ip_configurations, [])
+  timeouts          = try(each.value.timeouts, {})
+  tags              = module.tags.tags
 }

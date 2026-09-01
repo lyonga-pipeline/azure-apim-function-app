@@ -77,3 +77,8 @@ output "management_lock_ids" {
 output "diagnostic_setting_ids" {
   value = { for key, value in module.diagnostic_settings : key => value.id }
 }
+
+output "private_endpoint_ids" {
+  description = "Workload private endpoint IDs keyed by input key."
+  value       = { for k, v in module.private_endpoints : k => v.id }
+}

@@ -20,4 +20,5 @@ module "shared_services" {
   subnet_nsg_associations         = var.subnet_nsg_associations
   route_tables                    = var.route_tables
   subnet_route_table_associations = var.subnet_route_table_associations
+  private_endpoints               = var.private_endpoints
 }

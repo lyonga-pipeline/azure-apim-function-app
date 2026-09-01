@@ -26,17 +26,25 @@ connectivity = {
   }
   hub_vnet = {
     name          = "vnet-hub-prod-centralus-001"
-    address_space = ["10.0.0.0/16"]
-    dns_servers   = []
+    address_space = ["10.0.0.0/16"] # REPLACE with approved IPAM allocation
+    dns_servers   = []              # set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6)
+    # Every subnet a downstream workspace resolves by subnet_key must exist here
+    # (runbook §4.1 - the hub pattern owns all subnets). route_table_key /
+    # nsg_key wire the association from one place.
     subnets = {
-      GatewaySubnet        = { address_prefixes = ["10.0.0.64/27"] }
-      RouteServerSubnet    = { address_prefixes = ["10.0.0.96/27"] }
-      AzureBastionSubnet   = { address_prefixes = ["10.0.0.128/26"] }
-      app_integration      = { address_prefixes = ["10.0.1.0/24"] }
-      private_endpoints    = { address_prefixes = ["10.0.2.0/24"] }
-      palo_alto_management = { address_prefixes = ["10.0.3.0/24"] }
-      palo_alto_untrusted  = { address_prefixes = ["10.0.4.0/24"] }
-      palo_alto_trusted    = { address_prefixes = ["10.0.5.0/24"] }
+      GatewaySubnet          = { address_prefixes = ["10.0.0.0/27"] }
+      RouteServerSubnet      = { address_prefixes = ["10.0.0.64/27"] }
+      AzureBastionSubnet     = { address_prefixes = ["10.0.0.128/26"] }
+      palo_alto_management   = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt" }
+      palo_alto_untrusted    = { address_prefixes = ["10.0.1.64/26"] }
+      palo_alto_trusted      = { address_prefixes = ["10.0.1.128/26"] }
+      palo_alto_ha           = { address_prefixes = ["10.0.1.192/26"] }
+      cloudflare_connectors  = { address_prefixes = ["10.0.2.0/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
+      domain_controllers     = { address_prefixes = ["10.0.2.64/26"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }
+      dns_resolver_inbound   = { address_prefixes = ["10.0.2.128/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
+      dns_resolver_outbound  = { address_prefixes = ["10.0.2.144/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
+      private_endpoints      = { address_prefixes = ["10.0.3.0/24"], route_table_key = "to_firewall" }
+      app_integration        = { address_prefixes = ["10.0.4.0/24"], route_table_key = "to_firewall" }
     }
   }
   ddos_protection_plan = {
@@ -63,22 +71,39 @@ connectivity = {
     tunneling_enabled  = true
     ip_connect_enabled = true
   }
-  network_security_groups         = {}
-  subnet_nsg_associations         = {}
-  route_tables                    = {}
-  subnet_route_table_associations = {}
-  public_ips                      = {}
-  route_server_public_ips         = {}
-  route_servers                   = {}
-  load_balancers                  = {}
-  network_watchers                = {}
-  local_network_gateways          = {}
-  network_watcher_flow_logs       = {}
-  private_dns_zones = {
-    app_service   = { name = "privatelink.azurewebsites.net", registration_enabled = false, link_to_hub = true }
-    key_vault     = { name = "privatelink.vaultcore.azure.net", registration_enabled = false, link_to_hub = true }
-    storage_blob  = { name = "privatelink.blob.core.windows.net", registration_enabled = false, link_to_hub = true }
-    storage_queue = { name = "privatelink.queue.core.windows.net", registration_enabled = false, link_to_hub = true }
-    storage_file  = { name = "privatelink.file.core.windows.net", registration_enabled = false, link_to_hub = true }
+  network_security_groups = {
+    palo_mgmt          = { name = "nsg-hub-palo-mgmt", rules = {} }   # restrict to approved mgmt sources
+    connectors         = { name = "nsg-hub-connectors", rules = {} }
+    domain_controllers = { name = "nsg-hub-dc", rules = {} }          # AD port matrix per runbook §7.3
   }
+  subnet_nsg_associations = {} # derived from subnet.nsg_key above
+
+  # UDR that forces spoke / connector / DC / PE / app-integration traffic to the
+  # Palo Alto Trust ILB frontend (runbook §4.2, §5.5). Replace the appliance IP.
+  route_tables = {
+    to_firewall = {
+      bgp_route_propagation_enabled = false
+      routes = {
+        default = { name = "to-firewall", address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.0.1.132" }
+      }
+    }
+  }
+  subnet_route_table_associations = {} # derived from subnet.route_table_key above
+
+  public_ips                = {}
+  route_server_public_ips   = {}
+  route_servers             = {}
+  load_balancers            = {}
+  network_watchers          = {}
+  local_network_gateways    = {}
+  network_watcher_flow_logs = {}
+
+  # Canonical private-link DNS zones - list only the services the platform
+  # onboards (runbook §7.4). See privatelink_zones.tf for the full key list.
+  privatelink_zone_catalogue = [
+    "blob", "file", "queue", "table", "dfs",
+    "keyvault", "app_service", "app_config",
+    "sql", "servicebus", "eventgrid", "acr", "monitor",
+  ]
+  private_dns_zones = {} # hand-authored zones on top of the catalogue
 }

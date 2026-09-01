@@ -83,4 +83,5 @@ module "shared_services" {
   subnet_nsg_associations         = try(var.shared_services.subnet_nsg_associations, {})
   route_tables                    = try(var.shared_services.route_tables, {})
   subnet_route_table_associations = try(var.shared_services.subnet_route_table_associations, {})
+  private_endpoints               = try(var.shared_services.private_endpoints, {})
 }

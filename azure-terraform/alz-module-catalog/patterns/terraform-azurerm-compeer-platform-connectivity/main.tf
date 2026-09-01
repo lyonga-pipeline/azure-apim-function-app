@@ -92,9 +92,25 @@ module "network_security_groups" {
   tags = module.tags.tags
 }
 
+locals {
+  # Associations declared inline on the subnet (subnet.route_table_key /
+  # subnet.nsg_key) plus any in the explicit maps. Inline keys are
+  # "<subnet>" so an explicit entry for the same subnet overrides.
+  derived_nsg_associations = {
+    for k, s in var.hub_vnet.subnets : k => { subnet_key = k, nsg_key = s.nsg_key }
+    if try(s.nsg_key, null) != null
+  }
+  derived_route_table_associations = {
+    for k, s in var.hub_vnet.subnets : k => { subnet_key = k, route_table_key = s.route_table_key }
+    if try(s.route_table_key, null) != null
+  }
+  effective_nsg_associations         = merge(local.derived_nsg_associations, var.subnet_nsg_associations)
+  effective_route_table_associations = merge(local.derived_route_table_associations, var.subnet_route_table_associations)
+}
+
 module "subnet_nsg_associations" {
   source   = "../../modules/terraform-azurerm-compeer-nsg-subnet-association"
-  for_each = var.subnet_nsg_associations
+  for_each = local.effective_nsg_associations
 
   subnet_id                 = module.hub_vnet.subnet_ids[each.value.subnet_key]
   network_security_group_id = module.network_security_groups[each.value.nsg_key].id
@@ -114,7 +130,7 @@ module "route_tables" {
 
 module "subnet_route_table_associations" {
   source   = "../../modules/terraform-azurerm-compeer-subnet-route-table-association"
-  for_each = var.subnet_route_table_associations
+  for_each = local.effective_route_table_associations
 
   subnet_id      = module.hub_vnet.subnet_ids[each.value.subnet_key]
   route_table_id = module.route_tables[each.value.route_table_key].id
@@ -193,7 +209,7 @@ module "private_dns_zones" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-zone"
 
   zones = {
-    for key, zone in var.private_dns_zones : key => {
+    for key, zone in local.effective_private_dns_zones : key => {
       name                = zone.name
       resource_group_name = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
       tags                = module.tags.tags
@@ -206,7 +222,7 @@ module "private_dns_hub_links" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
 
   links = {
-    for key, zone in var.private_dns_zones : key => {
+    for key, zone in local.effective_private_dns_zones : key => {
       name                  = "lnk-${key}-${var.environment}-hub"
       resource_group_name   = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
       private_dns_zone_name = module.private_dns_zones.names[key]

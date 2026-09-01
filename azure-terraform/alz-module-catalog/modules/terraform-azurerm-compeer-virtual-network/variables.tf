@@ -67,6 +67,10 @@ variable "subnets" {
     private_endpoint_network_policies             = optional(string, "Enabled")
     private_link_service_network_policies_enabled = optional(bool, true)
     sharing_scope                                 = optional(string)
+    # Composition hints - not used by this module; a pattern reads them to
+    # build subnet <-> route-table / NSG associations from one place.
+    route_table_key = optional(string)
+    nsg_key         = optional(string)
     delegations = optional(map(object({
       name    = string
       actions = optional(list(string), [])

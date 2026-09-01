@@ -56,6 +56,8 @@ variable "spoke_vnet" {
       private_endpoint_network_policies             = optional(string, "Enabled")
       private_link_service_network_policies_enabled = optional(bool, true)
       sharing_scope                                 = optional(string)
+      route_table_key                               = optional(string)
+      nsg_key                                       = optional(string)
       delegations = optional(map(object({
         name    = string
         actions = optional(list(string), [])
@@ -381,4 +383,40 @@ variable "diagnostic_settings" {
     ])
     error_message = "Each diagnostic setting must set exactly one of target_resource_id or target_key."
   }
+}
+
+variable "private_endpoints" {
+  description = <<-EOT
+    Workload private endpoints keyed by a caller-stable name. Each targets a
+    resource by `private_connection_resource_id` with `subresource_names`
+    (e.g. ["blob"], ["vault"], ["sqlServer"]), lands on a spoke subnet
+    (`subnet_key`, default "private_endpoints"), and links `private_dns_zone_ids`.
+  EOT
+  type = map(object({
+    name                            = string
+    private_connection_resource_id  = string
+    subresource_names               = list(string)
+    subnet_key                      = optional(string)
+    subnet_id                       = optional(string)
+    private_dns_zone_ids            = optional(list(string), [])
+    private_dns_zone_group_name     = optional(string)
+    private_service_connection_name = optional(string)
+    custom_network_interface_name   = optional(string)
+    is_manual_connection            = optional(bool, false)
+    request_message                 = optional(string)
+    edge_zone                       = optional(string)
+    ip_configurations = optional(list(object({
+      name               = string
+      private_ip_address = string
+      subresource_name   = optional(string)
+      member_name        = optional(string)
+    })), [])
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }), {})
+  }))
+  default = {}
 }

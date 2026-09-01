@@ -253,3 +253,22 @@ variable "operational_contracts" {
   description = "No-resource operational controls, such as AD promotion, DNS cutover, and backup evidence contracts."
   default     = {}
 }
+
+variable "dc_backup" {
+  description = <<-EOT
+    Enrol domain-controller VMs into an existing recovery-services vault
+    (backup policies are created by platform-management). `vault_name` +
+    `vault_resource_group_name` identify the vault; `default_backup_policy_id`
+    is used unless a controller overrides it. Keys of `protected_controllers`
+    must match `domain_controllers` keys.
+  EOT
+  type = object({
+    vault_name                = string
+    vault_resource_group_name = string
+    default_backup_policy_id  = string
+    protected_controllers = map(object({
+      backup_policy_id = optional(string)
+    }))
+  })
+  default = null
+}

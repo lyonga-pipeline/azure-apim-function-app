@@ -395,3 +395,15 @@ module "operational_contracts" {
 
   contracts = var.operational_contracts
 }
+
+# Tier-0 backup enrolment (deploy-runbook.tf §12: DCs "must be covered by an
+# AD-aware recovery procedure"). Backup POLICIES live in the platform-management
+# recovery-services vault; this pattern enrols the DC VMs against one.
+resource "azurerm_backup_protected_vm" "dc" {
+  for_each = var.dc_backup == null ? {} : var.dc_backup.protected_controllers
+
+  resource_group_name = var.dc_backup.vault_resource_group_name
+  recovery_vault_name = var.dc_backup.vault_name
+  source_vm_id        = module.domain_controllers[each.key].id
+  backup_policy_id    = coalesce(try(each.value.backup_policy_id, null), var.dc_backup.default_backup_policy_id)
+}

@@ -78,3 +78,39 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "backup_policy_vm" {
+  description = "VM backup policies keyed by a caller-stable tier name (tier0, standard, ...)."
+  type = map(object({
+    name                           = string
+    policy_type                    = optional(string, "V2")
+    timezone                       = optional(string, "UTC")
+    instant_restore_retention_days = optional(number)
+    backup = object({
+      frequency     = string
+      time          = string
+      hour_interval = optional(number)
+      hour_duration = optional(number)
+      weekdays      = optional(list(string))
+    })
+    retention_daily   = optional(object({ count = number }))
+    retention_weekly  = optional(object({ count = number, weekdays = list(string) }))
+    retention_monthly = optional(object({ count = number, weekdays = optional(list(string)), weeks = optional(list(string)), days = optional(list(number)), include_last_days = optional(bool) }))
+    retention_yearly  = optional(object({ count = number, months = list(string), weekdays = optional(list(string)), weeks = optional(list(string)), days = optional(list(number)), include_last_days = optional(bool) }))
+  }))
+  default = {}
+}
+
+variable "backup_policy_file_share" {
+  description = "Azure Files backup policies keyed by tier name."
+  type = map(object({
+    name              = string
+    timezone          = optional(string, "UTC")
+    backup            = object({ frequency = string, time = string })
+    retention_daily   = object({ count = number })
+    retention_weekly  = optional(object({ count = number, weekdays = list(string) }))
+    retention_monthly = optional(object({ count = number, weekdays = list(string), weeks = list(string) }))
+    retention_yearly  = optional(object({ count = number, weekdays = list(string), weeks = list(string), months = list(string) }))
+  }))
+  default = {}
+}
