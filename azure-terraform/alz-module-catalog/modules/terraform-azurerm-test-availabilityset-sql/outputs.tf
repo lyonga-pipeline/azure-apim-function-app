@@ -1,5 +1,6 @@
 output "sql_virtual_machine_group_id" {
-  value = azurerm_mssql_virtual_machine.mssql_virtual_machine.id
+  description = "Resource ID of the SQL virtual machine (test fixture)."
+  value       = azurerm_mssql_virtual_machine.mssql_virtual_machine.id
 }
 
 output "principal_id" {

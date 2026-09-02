@@ -1,17 +1,41 @@
-output "id" { value = azurerm_virtual_network.this.id }
-output "name" { value = azurerm_virtual_network.this.name }
-output "resource_group_name" { value = azurerm_virtual_network.this.resource_group_name }
-output "location" { value = azurerm_virtual_network.this.location }
-output "guid" { value = azurerm_virtual_network.this.guid }
-output "address_space" { value = azurerm_virtual_network.this.address_space }
-output "dns_servers" { value = azurerm_virtual_network.this.dns_servers }
+output "id" {
+  description = "Resource ID of the virtual network."
+  value       = azurerm_virtual_network.this.id
+}
+output "name" {
+  description = "Name of the virtual network."
+  value       = azurerm_virtual_network.this.name
+}
+output "resource_group_name" {
+  description = "Name of the resource group containing the virtual network (read from the created VNet, for downstream composition)."
+  value       = azurerm_virtual_network.this.resource_group_name
+}
+output "location" {
+  description = "Azure region of the virtual network."
+  value       = azurerm_virtual_network.this.location
+}
+output "guid" {
+  description = "Immutable GUID of the virtual network."
+  value       = azurerm_virtual_network.this.guid
+}
+output "address_space" {
+  description = "Address space (CIDR list) of the virtual network."
+  value       = azurerm_virtual_network.this.address_space
+}
+output "dns_servers" {
+  description = "Custom DNS servers configured on the virtual network (empty means Azure-provided DNS)."
+  value       = azurerm_virtual_network.this.dns_servers
+}
 output "subnet_ids" {
-  value = { for key, value in azurerm_subnet.this : key => value.id }
+  description = "Map of caller-supplied subnet key to subnet resource ID. Consumers reference subnets by key, never by hardcoded name or ID."
+  value       = { for key, value in azurerm_subnet.this : key => value.id }
 }
 output "subnet_names" {
-  value = { for key, value in azurerm_subnet.this : key => value.name }
+  description = "Map of caller-supplied subnet key to Azure subnet name."
+  value       = { for key, value in azurerm_subnet.this : key => value.name }
 }
 output "subnets" {
+  description = "Map of caller-supplied subnet key to subnet attributes (id, name, address_prefixes, resource_group_name, virtual_network_name)."
   value = {
     for key, value in azurerm_subnet.this : key => {
       id                   = value.id

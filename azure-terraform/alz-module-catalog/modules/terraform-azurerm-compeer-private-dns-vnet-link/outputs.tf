@@ -1,10 +1,13 @@
 output "ids" {
-  value = { for key, value in azurerm_private_dns_zone_virtual_network_link.this : key => value.id }
+  description = "Map of caller-supplied key to private DNS zone virtual network link resource ID."
+  value       = { for key, value in azurerm_private_dns_zone_virtual_network_link.this : key => value.id }
 }
 output "names" {
-  value = { for key, value in azurerm_private_dns_zone_virtual_network_link.this : key => value.name }
+  description = "Map of caller-supplied key to virtual network link name."
+  value       = { for key, value in azurerm_private_dns_zone_virtual_network_link.this : key => value.name }
 }
 output "links" {
+  description = "Map of caller-supplied key to link attributes (id, name, private_dns_zone_name, virtual_network_id)."
   value = {
     for key, value in azurerm_private_dns_zone_virtual_network_link.this : key => {
       id                    = value.id

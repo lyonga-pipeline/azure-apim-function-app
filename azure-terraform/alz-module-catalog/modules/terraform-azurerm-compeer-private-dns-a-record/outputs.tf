@@ -1,5 +1,6 @@
 output "ids" {
-  value = { for key, value in azurerm_private_dns_a_record.this : key => value.id }
+  description = "Map of caller-supplied key to A record resource ID."
+  value       = { for key, value in azurerm_private_dns_a_record.this : key => value.id }
 }
 
 output "names" {

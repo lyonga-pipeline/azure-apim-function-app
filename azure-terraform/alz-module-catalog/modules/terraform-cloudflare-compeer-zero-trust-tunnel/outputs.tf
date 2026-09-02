@@ -1,32 +1,40 @@
 output "id" {
-  value = cloudflare_zero_trust_tunnel_cloudflared.this.id
+  description = "ID of the Cloudflare Zero Trust tunnel."
+  value       = cloudflare_zero_trust_tunnel_cloudflared.this.id
 }
 
 output "name" {
-  value = cloudflare_zero_trust_tunnel_cloudflared.this.name
+  description = "Name of the Cloudflare Zero Trust tunnel."
+  value       = cloudflare_zero_trust_tunnel_cloudflared.this.name
 }
 
 output "cname" {
-  value = cloudflare_zero_trust_tunnel_cloudflared.this.cname
+  description = "CNAME target for the tunnel, used in DNS records that route traffic through it."
+  value       = cloudflare_zero_trust_tunnel_cloudflared.this.cname
 }
 
 output "tunnel_token" {
-  value     = cloudflare_zero_trust_tunnel_cloudflared.this.tunnel_token
-  sensitive = true
+  description = "Token used by cloudflared to run this tunnel (sensitive)."
+  value       = cloudflare_zero_trust_tunnel_cloudflared.this.tunnel_token
+  sensitive   = true
 }
 
 output "config_id" {
-  value = cloudflare_zero_trust_tunnel_cloudflared_config.this.id
+  description = "ID of the tunnel configuration resource."
+  value       = cloudflare_zero_trust_tunnel_cloudflared_config.this.id
 }
 
 output "dns_record_ids" {
-  value = { for key, value in cloudflare_record.this : key => value.id }
+  description = "Map of caller-supplied key to Cloudflare DNS record ID routed through the tunnel."
+  value       = { for key, value in cloudflare_record.this : key => value.id }
 }
 
 output "access_application_ids" {
-  value = { for key, value in cloudflare_zero_trust_access_application.this : key => value.id }
+  description = "Map of caller-supplied key to Cloudflare Access application ID."
+  value       = { for key, value in cloudflare_zero_trust_access_application.this : key => value.id }
 }
 
 output "access_policy_ids" {
-  value = { for key, value in cloudflare_zero_trust_access_policy.this : key => value.id }
+  description = "Map of caller-supplied key to Cloudflare Access policy ID."
+  value       = { for key, value in cloudflare_zero_trust_access_policy.this : key => value.id }
 }

@@ -8,7 +8,11 @@ Standard applied per module (from `Enterprise_Terraform_Module_Architecture_Revi
 - Every input explicitly typed; no `any` / `map(any)`; optional nested blocks as `optional(object(...))`, repeatables as `map(object(...))` with caller-stable keys.
 - `validation` blocks for enumerated / bounded inputs; `sensitive = true` on bare secret strings (not on objects feeding `for_each`).
 - No blanket `ignore_changes`; no hidden Resource Group / shared-infra creation.
-- Stable outputs: at least `id` + `name` + attributes a downstream module needs.
+- Stable outputs: at least `id` + `name` + attributes a downstream module needs;
+  **`description` on every output**; `for_each` resources expose caller-keyed maps
+  (`subnet_ids["<key>"]`, `*_ids`) so consumers never hardcode a name or ID;
+  identity `principal_id` / `tenant_id` are `try(...[0]..., null)` null-safe;
+  no raw resource-object outputs. See "Phase 5" below.
 - `timeouts` passthrough where the provider resource supports it.
 - README: contract summary + **lifecycle matrix** (which input changes update-in-place vs replace) + state-exposure note + migration notes for any breaking change.
 - `tests/*.tftest.hcl`: plan-mode `run` blocks with synthetic fixture values (create, no-op, mutate, optional-block add/remove).
@@ -287,5 +291,45 @@ module README matrix but not executed offline.
   Marketplace *agreement* (image licence) kept; Marketplace *solution template*
   not used. 2-VM / 2-LB / Sunstream example in the workspace tfvars. tests (2)
   pass.
+
+## Phase 5 — output contract cleanup (all 104 modules)
+
+Design principle 8 ("stable, composition-ready outputs; consumers should not
+reconstruct IDs or reach into implementation details") swept across the whole
+catalog.
+
+- **`description` added to every output** — ~40 modules had descriptionless
+  outputs (e.g. `virtual-network`, `keyvault`/`key-vault`, `load-balancer`,
+  `public-ip`, `service-bus`, `azure-firewall`, `automation-account`,
+  `role-definition`, `private-dns-*`, `monitor-data-collection-*`,
+  `zero-trust-tunnel`). Now 104/104 fully described.
+- **Stable `id` / `name` on every single-resource module** — modules that only
+  exposed a prefixed alias (`app_config_id`, `data_factory_id`,
+  `application_insights_id`, `eventgrid_id`, `synapse_workspace_id`,
+  `mssql_database_id`, `service_plan_id`, `key_vault_hsm_id`, `api_id`,
+  `openid_id`, `onboarding_id`, `zone_id`, `record_resource_id`,
+  `budget_id`, `data_lake_gen2_fs_id`) gained a canonical `id` (and `name`
+  where the resource has one). Prefixed names kept as documented aliases —
+  **additive, non-breaking**.
+- **Null-safe identity outputs** — `event-grid` / `event-grid-system-topic`
+  `principal_id` switched to `try(...identity[0].principal_id, null)` so they
+  don't crash when no managed identity is configured. `app-configuration` and
+  `event-grid-namespace` gained `identity_principal_id`.
+- **`for_each` map outputs confirmed** across the catalogue — every collection
+  module already keys its `*_ids` maps by the caller's stable key
+  (`subnet_ids`, `backend_pool_ids`, `inbound_endpoint_ids`, `ids`, …). No
+  hardcoded resource names or IDs anywhere in a consumer.
+- File hygiene: `apim-backend` outputs moved from `main.tf` → `outputs.tf`;
+  `event-grid-namespace/output.tf` → `outputs.tf`.
+- **`networking` module `resource_group_name` output** (the reported concern):
+  correct and kept. It reads `azurerm_virtual_network.vnet.resource_group_name`
+  — the RG *of the created VNet*, a standard composition output — not a
+  reference to any RG-creation logic (the module creates no RG). Its
+  `subnet_ids` map is exactly the "reference by key, never hardcode" pattern.
+  The canonical replacement `virtual-network` module carries the same shape.
+
+Verification: `terraform fmt` clean; **104/104 `terraform validate`**; all
+changed modules that ship tests pass `terraform test` (no assertion touched a
+changed output).
 
 **Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.

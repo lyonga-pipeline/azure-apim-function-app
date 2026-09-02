@@ -12,3 +12,8 @@ output "record_metadata" {
   description = "A key-value map of string metadata Cloudflare associates with the record."
   value       = cloudflare_record.record.metadata
 }
+
+output "id" {
+  description = "ID of the Cloudflare DNS record. Stable alias for record_resource_id."
+  value       = cloudflare_record.record.id
+}

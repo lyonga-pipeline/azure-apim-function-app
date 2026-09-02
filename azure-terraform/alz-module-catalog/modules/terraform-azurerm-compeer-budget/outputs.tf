@@ -27,3 +27,8 @@ output "management_group_budget_id" {
   description = "Management group budget ID when scope_type is management_group."
   value       = try(azurerm_consumption_budget_management_group.this[0].id, null)
 }
+
+output "id" {
+  description = "Resource ID of the created budget, whichever scope. Stable alias for budget_id."
+  value       = try(azurerm_consumption_budget_resource_group.this[0].id, azurerm_consumption_budget_subscription.this[0].id, azurerm_consumption_budget_management_group.this[0].id, null)
+}
