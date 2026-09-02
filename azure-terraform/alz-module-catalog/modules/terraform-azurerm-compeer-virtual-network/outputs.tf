@@ -6,10 +6,10 @@ output "name" {
   description = "Name of the virtual network."
   value       = azurerm_virtual_network.this.name
 }
-output "resource_group_name" {
-  description = "Name of the resource group containing the virtual network (read from the created VNet, for downstream composition)."
-  value       = azurerm_virtual_network.this.resource_group_name
-}
+# NOTE: no `resource_group_name` output. This module consumes the RG name as an
+# input; it does not own the resource group. The RG identity is published by the
+# resource-group module, and the connectivity/spoke composition layer assembles
+# the consumer-facing network bundle (RG name + VNet id/name + subnet_ids).
 output "location" {
   description = "Azure region of the virtual network."
   value       = azurerm_virtual_network.this.location
@@ -35,13 +35,12 @@ output "subnet_names" {
   value       = { for key, value in azurerm_subnet.this : key => value.name }
 }
 output "subnets" {
-  description = "Map of caller-supplied subnet key to subnet attributes (id, name, address_prefixes, resource_group_name, virtual_network_name)."
+  description = "Map of caller-supplied subnet key to subnet attributes (id, name, address_prefixes, virtual_network_name)."
   value = {
     for key, value in azurerm_subnet.this : key => {
       id                   = value.id
       name                 = value.name
       address_prefixes     = value.address_prefixes
-      resource_group_name  = value.resource_group_name
       virtual_network_name = value.virtual_network_name
     }
   }

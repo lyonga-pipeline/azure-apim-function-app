@@ -321,12 +321,24 @@ catalog.
   hardcoded resource names or IDs anywhere in a consumer.
 - File hygiene: `apim-backend` outputs moved from `main.tf` → `outputs.tf`;
   `event-grid-namespace/output.tf` → `outputs.tf`.
-- **`networking` module `resource_group_name` output** (the reported concern):
-  correct and kept. It reads `azurerm_virtual_network.vnet.resource_group_name`
-  — the RG *of the created VNet*, a standard composition output — not a
-  reference to any RG-creation logic (the module creates no RG). Its
-  `subnet_ids` map is exactly the "reference by key, never hardcode" pattern.
-  The canonical replacement `virtual-network` module carries the same shape.
+- **`resource_group_name` output REMOVED from `virtual-network` and
+  `networking`** (the reported concern, resolved on the ownership-contract
+  argument). These modules receive the RG name as an *input* — they do not own
+  the resource group — so re-emitting it made the VNet module a pass-through
+  source for a value it isn't authoritative for, and a needless transit
+  dependency in the graph. (The current Microsoft AVM `virtual-network` module
+  likewise does **not** expose a dedicated `resource_group_name` output.)
+  - RG identity is published by the **`resource-group` module** (`name`, `id`).
+  - The **composition layer** assembles the consumer-facing network bundle:
+    `platform-connectivity` and `workload-spoke` both already output
+    `hub_resource_group_name` / `spoke_resource_group_name` (from
+    `module.resource_group.name`) alongside `hub_virtual_network_id`,
+    `..._name`, and `subnet_ids`.
+  - Also dropped `resource_group_name` from the per-entry `subnets` map in
+    `virtual-network` (same rationale; `virtual_network_name` kept — the module
+    owns that VNet). No consumers referenced either.
+  - `subnet_ids` map is unchanged — the "reference by key, never hardcode"
+    pattern.
 
 Verification: `terraform fmt` clean; **104/104 `terraform validate`**; all
 changed modules that ship tests pass `terraform test` (no assertion touched a

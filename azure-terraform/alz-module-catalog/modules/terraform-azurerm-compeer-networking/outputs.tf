@@ -8,11 +8,9 @@ output "name" {
   value       = azurerm_virtual_network.vnet.name
 }
 
-output "resource_group_name" {
-  description = "Resource group containing the virtual network."
-  value       = azurerm_virtual_network.vnet.resource_group_name
-}
-
+# NOTE: no `resource_group_name` output. This module consumes the RG name as an
+# input; it does not own the resource group. Get the RG identity from the
+# resource-group module, and the network bundle from the composition layer.
 output "location" {
   description = "Azure region of the virtual network."
   value       = azurerm_virtual_network.vnet.location
