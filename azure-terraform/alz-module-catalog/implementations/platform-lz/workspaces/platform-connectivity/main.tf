@@ -38,12 +38,14 @@ module "connectivity" {
     azurerm = azurerm
   }
 
-  subscription_id                 = var.subscription_id
-  location                        = var.location
-  environment                     = var.environment
-  platform_tags                   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}))
-  resource_group                  = try(var.connectivity.resource_group, null)
-  hub_vnet                        = try(var.connectivity.hub_vnet, null)
+  subscription_id = var.subscription_id
+  location        = var.location
+  environment     = var.environment
+  platform_tags   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}))
+  # Default names come from the naming module (Appendix F); anything set in
+  # tfvars overrides via merge().
+  resource_group                  = merge({ name = local.std_names.resource_group }, try(var.connectivity.resource_group, {}))
+  hub_vnet                        = merge({ name = local.std_names.hub_vnet }, try(var.connectivity.hub_vnet, null) == null ? {} : var.connectivity.hub_vnet)
   ddos_protection_plan            = try(var.connectivity.ddos_protection_plan, { enabled = false })
   palo_alto                       = try(var.connectivity.palo_alto, { enabled = false })
   dns_resolution                  = try(var.connectivity.dns_resolution, { enabled = false })

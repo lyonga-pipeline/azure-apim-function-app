@@ -1,9 +1,20 @@
-# CAF-style deterministic naming. `names` gives `<abbr>-<org>-<workload>-<env>-<region>-<instance>`
-# per resource type; `names_nodash` gives the compacted form for resources that
-# disallow separators (storage accounts, key vaults, ...).
+# =============================================================================
+# Codified implementation of the target Landing Zone naming standard
+# (design doc Appendix F / Section 10.4). ONE explicit pattern per resource
+# type - the token order deliberately differs between rows, so this is not a
+# single generic formula.
+#
+# Pure utility: no providers, no resources, no data sources. It only computes
+# strings and validates them. Resource ownership and lifecycle stay entirely
+# with the consuming modules.
+#
+# Any change that alters an ALREADY-PUBLISHED name is a BREAKING change (it can
+# force resource replacement downstream) - bump the module major version.
+# =============================================================================
 
 locals {
-  region_short_builtin = {
+  # Approved Azure region -> short code. Extend only via a versioned change.
+  region_codes = {
     centralus      = "cus"
     eastus         = "eus"
     eastus2        = "eus2"
@@ -14,64 +25,79 @@ locals {
     northcentralus = "ncus"
     westcentralus  = "wcus"
     canadacentral  = "cnc"
+    canadaeast     = "cne"
     uksouth        = "uks"
+    ukwest         = "ukw"
     westeurope     = "weu"
     northeurope    = "neu"
   }
-  region_short = merge(local.region_short_builtin, var.region_short_overrides)
-  rs           = lookup(local.region_short, lower(var.region), lower(var.region))
-  s            = var.separator
 
-  # resource type -> abbreviation (Microsoft CAF recommended abbreviations)
-  abbr = {
-    resource_group           = "rg"
-    virtual_network          = "vnet"
-    subnet                   = "snet"
-    network_security_group   = "nsg"
-    route_table              = "rt"
-    public_ip                = "pip"
-    load_balancer            = "lb"
-    nat_gateway              = "ng"
-    private_endpoint         = "pep"
-    network_interface        = "nic"
-    firewall                 = "afw"
-    bastion_host             = "bas"
-    vpn_gateway              = "vpng"
-    expressroute_gateway     = "ergw"
-    local_network_gateway    = "lgw"
-    virtual_wan              = "vwan"
-    key_vault                = "kv"
-    storage_account          = "st"
-    log_analytics            = "log"
-    app_insights             = "appi"
-    automation_account       = "aa"
-    recovery_services_vault  = "rsv"
-    data_collection_endpoint = "dce"
-    data_collection_rule     = "dcr"
-    action_group             = "ag"
-    app_service_plan         = "asp"
-    app_service              = "app"
-    function_app             = "func"
-    api_management           = "apim"
-    application_gateway      = "agw"
-    container_registry       = "cr"
-    aks_cluster              = "aks"
-    sql_server               = "sql"
-    sql_database             = "sqldb"
-    cosmos_db                = "cosmos"
-    redis                    = "redis"
-    service_bus              = "sb"
-    event_grid_topic         = "evgt"
-    event_hub_namespace      = "evhns"
-    user_assigned_identity   = "id"
-    managed_hsm              = "hsm"
-    private_dns_resolver     = "dnspr"
+  # Normalised tokens. Lowercase + trim everywhere the standard is lowercase;
+  # Entra group tokens keep their required casing.
+  region = local.region_codes[lower(trimspace(var.region))]
+  env    = lower(trimspace(var.environment))
+
+  domain      = var.domain == null ? null : lower(trimspace(var.domain))
+  purpose     = var.purpose == null ? null : lower(trimspace(var.purpose))
+  destination = var.destination == null ? null : lower(trimspace(var.destination))
+  resource    = var.resource == null ? null : lower(trimspace(var.resource))
+  appcode     = var.appcode == null ? null : lower(trimspace(var.appcode))
+  wl_name     = var.name == null ? null : lower(trimspace(var.name))
+  policy      = var.policy == null ? null : lower(trimspace(var.policy))
+  scope       = var.scope == null ? null : lower(trimspace(var.scope))
+  instance    = format("%02d", var.instance)
+  entra_dom   = var.entra_domain == null ? null : upper(trimspace(var.entra_domain))
+  entra_role  = var.entra_role == null ? null : trimspace(var.entra_role)
+
+  names = {
+    # ---- Management groups (fixed tokens; domain-scoped ones need `domain`) ----
+    mg_enterprise                  = "compeer-enterprise-mg"
+    mg_platform                    = "platform-mg"
+    mg_workloads                   = "workloads-mg"
+    mg_sandbox                     = "sandbox-mg"
+    mg_decommissioned              = "decommissioned-mg"
+    mg_workload_domain             = local.domain == null ? null : "${local.domain}-mg"
+    mg_workload_domain_environment = local.domain == null ? null : "${local.domain}-${local.env}-mg"
+
+    # ---- Subscriptions ----
+    subscription_platform     = "sub-platform-${local.env}-${local.region}"
+    subscription_identity     = "sub-identity-${local.env}-${local.region}"
+    subscription_connectivity = "sub-connectivity-${local.env}-${local.region}"
+    subscription_management   = "sub-management-${local.env}-${local.region}"
+    subscription_workload     = local.wl_name == null ? null : "sub-workload-${local.wl_name}-${local.env}-${local.region}"
+
+    # ---- Networking ----
+    hub_vnet    = "platform-${local.region}-${local.env}-hub-vnet"
+    shared_vnet = "platform-${local.region}-${local.env}-shared-vnet"
+    subnet      = local.purpose == null ? null : "${local.env}-${local.purpose}-subnet"
+    nsg         = local.purpose == null ? null : "${local.region}-${local.env}-${local.purpose}-nsg"
+    route_table = local.destination == null ? null : "${local.region}-${local.env}-${local.destination}-rt"
+    public_ip   = local.resource == null ? null : "${local.region}-${local.env}-${local.resource}-pip"
+
+    # ---- Firewall / edge ----
+    firewall_vm          = "platform-${local.region}-${local.env}-fw-${local.instance}"
+    firewall_ilb         = "platform-${local.region}-${local.env}-fw-ilb"
+    expressroute_gateway = "platform-${local.region}-${local.env}-ergw"
+    vpn_gateway          = "platform-${local.region}-${local.env}-vpngw"
+    cloudflare_connector = "platform-${local.region}-${local.env}-cf-connector-${local.instance}"
+
+    # ---- Observability / recovery ----
+    log_analytics_workspace = "${local.region}-${local.env}-loganalytics-workspace"
+    monitor_workspace       = "platform-${local.region}-${local.env}-monitor"
+    recovery_services_vault = "platform-${local.region}-${local.env}-rsv"
+
+    # ---- Key Vault / Resource Group ----
+    key_vault               = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-vault"
+    platform_resource_group = "platform-${local.region}-${local.env}-rg"
+
+    # ---- Policy ----
+    policy_initiative = (local.domain == null || local.purpose == null) ? null : "initiative-${local.domain}-${local.purpose}"
+    policy_assignment = (local.policy == null || local.scope == null) ? null : "assign-${local.policy}-${local.scope}"
+
+    # ---- Entra ID ----
+    entra_security_group = (local.entra_dom == null || local.entra_role == null) ? null : "AZ-${local.entra_dom}-${local.entra_role}"
+
+    # ---- Private DNS ----
+    private_dns_zone = local.domain == null ? null : "${local.domain}-pdns"
   }
-
-  base        = join(local.s, compact([var.org, var.workload, var.environment, local.rs, var.instance]))
-  base_nodash = lower(replace("${var.org}${var.workload}${var.environment}${local.rs}${var.instance}", "-", ""))
-
-  names = { for k, a in local.abbr : k => "${a}${local.s}${local.base}" }
-  # No-separator form, truncated to 24 (storage account max); dedupe with instance.
-  names_nodash = { for k, a in local.abbr : k => substr(lower("${a}${local.base_nodash}"), 0, 24) }
 }

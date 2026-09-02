@@ -203,6 +203,14 @@ Minimum policy themes:
   - approved SKUs/images
   - naming where technically enforceable
 
+  The naming standard itself (design-doc Appendix F / Section 10.4) is codified
+  in the `terraform-azurerm-compeer-naming` module - one explicit pattern per
+  resource type, pure/provider-less. Each composition root calls it from a
+  `naming.tf` (reference wiring: `implementations/.../platform-connectivity`)
+  and passes the resulting names into the patterns; tfvars can still override a
+  specific name. Name outputs are a frozen interface - a rename is a breaking
+  major-version bump.
+
 ===============================================================================
 3. MANAGEMENT / OBSERVABILITY FOUNDATION - alz-management
 ===============================================================================

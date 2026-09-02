@@ -130,7 +130,14 @@ Following the enterprise-ALZ gap review:
   rule.
 - **Alerts** — `platform-management` gained `platform_alerts` (metric alerts +
   Service Health).
-- **Naming** — new `terraform-azurerm-compeer-naming` module (CAF abbreviations).
+- **Naming** — `terraform-azurerm-compeer-naming` is the codified implementation
+  of design-doc Appendix F: one explicit pattern per resource type (not a
+  generic formula), pure/provider-less, per-token optional inputs, targeted
+  length rules (no universal truncation), region + environment validated
+  centrally. Consumed via a `naming.tf` in each composition root (reference
+  wiring in `platform-connectivity`); patterns/resource modules still take an
+  explicit `name`. Name outputs are a frozen interface — a rename is a breaking
+  major bump.
 - **Subnet <-> route-table / NSG** — `virtual-network` subnet object accepts
   `route_table_key` / `nsg_key`; connectivity + workload-spoke derive the
   association maps from them.

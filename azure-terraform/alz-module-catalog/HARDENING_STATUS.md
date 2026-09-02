@@ -344,4 +344,35 @@ Verification: `terraform fmt` clean; **104/104 `terraform validate`**; all
 changed modules that ship tests pass `terraform test` (no assertion touched a
 changed output).
 
+## Phase 6 — naming module = codified Appendix F
+
+`terraform-azurerm-compeer-naming` rewritten from a single generic
+`<abbr>-<org>-<workload>-<env>-<region>-<instance>` formula into the **explicit
+per-resource-type implementation of design-doc Appendix F** (token order differs
+per row).
+
+- Pure / provider-less (no `required_providers`, no resources/data sources).
+- `region` + `environment` required and **validated centrally** (approved region
+  short-code table + environment enum live in the module). Every other token
+  (`domain`, `purpose`, `destination`, `resource`, `appcode`, `name`, `policy`,
+  `scope`, `instance`, `entra_domain`, `entra_role`) optional — a name whose
+  tokens aren't all supplied is `null`, so a wrong reference fails fast.
+- One flat output per Appendix F row (`hub_vnet`, `firewall_vm`, `nsg`,
+  `key_vault`, `subscription_platform`, `mg_workload_domain_environment`,
+  `entra_security_group`, `policy_assignment`, …).
+- Normalises `lower(trimspace())`; `entra_domain` upper-cased, `entra_role` case
+  preserved (`AZ-PLT-Admins`).
+- **No universal truncation** — length/charset rules are output preconditions
+  only where the resource needs them (Key Vault 3–24, RSV 2–50, LAW 4–63).
+- Consumed via a **`naming.tf` in the composition root** — reference wiring added
+  to `platform-connectivity` (`module.naming` → `local.std_names` →
+  `merge()`-ed into the pattern's `resource_group` / `hub_vnet` so tfvars still
+  overrides). Patterns and resource modules keep taking an explicit `name`; they
+  never call the naming module.
+- Name outputs are a **frozen interface** — any change to an already-published
+  name is a breaking major-version bump (forces resource replacement).
+- tests: 7 `run` blocks — every pattern, token-absent `null`, normalisation,
+  region/env rejection, Key Vault 24-char guard. validate + test pass;
+  `platform-connectivity` workspace validates with the wiring.
+
 **Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.
