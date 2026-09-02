@@ -51,12 +51,12 @@ module "connectivity" {
   dns_resolution                  = try(var.connectivity.dns_resolution, { enabled = false })
   private_dns_resolver            = try(var.connectivity.private_dns_resolver, { enabled = false })
   bastion                         = local.bastion
-  network_security_groups         = try(var.connectivity.network_security_groups, {})
+  network_security_groups         = local.std_maps.network_security_groups
   subnet_nsg_associations         = try(var.connectivity.subnet_nsg_associations, {})
-  route_tables                    = try(var.connectivity.route_tables, {})
+  route_tables                    = local.std_maps.route_tables
   subnet_route_table_associations = try(var.connectivity.subnet_route_table_associations, {})
-  public_ips                      = try(var.connectivity.public_ips, {})
-  route_server_public_ips         = try(var.connectivity.route_server_public_ips, {})
+  public_ips                      = local.std_maps.public_ips
+  route_server_public_ips         = local.std_maps.route_server_public_ips
   route_servers                   = try(var.connectivity.route_servers, {})
   load_balancers                  = try(var.connectivity.load_balancers, {})
   network_watchers                = try(var.connectivity.network_watchers, {})

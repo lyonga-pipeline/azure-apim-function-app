@@ -79,9 +79,9 @@ module "shared_services" {
   management_locks                = try(var.shared_services.management_locks, {})
   diagnostic_settings             = try(var.shared_services.diagnostic_settings, {})
   additional_scopes               = try(var.shared_services.additional_scopes, {})
-  network_security_groups         = try(var.shared_services.network_security_groups, {})
+  network_security_groups         = local.std_maps.network_security_groups
   subnet_nsg_associations         = try(var.shared_services.subnet_nsg_associations, {})
-  route_tables                    = try(var.shared_services.route_tables, {})
+  route_tables                    = local.std_maps.route_tables
   subnet_route_table_associations = try(var.shared_services.subnet_route_table_associations, {})
-  private_endpoints               = try(var.shared_services.private_endpoints, {})
+  private_endpoints               = local.std_maps.private_endpoints
 }

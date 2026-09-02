@@ -394,18 +394,36 @@ per row).
   normalisation, region/env rejection, Key Vault 24-char guard. validate + test
   pass; all 8 wired workspaces validate.
 
+### Phase 6 — per-key names wired
+
+`network_security_groups`, `route_tables`, `public_ips`,
+`route_server_public_ips` (connectivity) and `network_security_groups`,
+`route_tables`, `private_endpoints` (shared-services + workload-spoke) now get
+their default name from a per-key naming-module instance:
+
+```hcl
+module "naming_nsg" {
+  source   = ".../terraform-azurerm-compeer-naming"
+  for_each = try(var.connectivity.network_security_groups, {})
+  region = var.location  environment = var.environment  purpose = each.key
+}
+# then: merge({ name = module.naming_nsg[k].nsg }, v)  -- tfvars still wins
+```
+
+The map key carries the F token (`purpose` for NSG, `destination` for route
+table, `resource` for PIP / private endpoint). All wired workspaces validate.
+
 ### Phase 6 — still open
 
-- **Per-key names** (`network_security_groups`, `route_tables`, subnets,
-  `public_ips`, `network_interfaces` maps in connectivity + the spokes) still
-  come from tfvars. To standardise them the workspace needs
-  `module "naming" { for_each = <the map> ; purpose = each.key }` (one instance
-  per key) feeding `merge({ name = ... }, each.value)`. Deferred — larger
-  surface, and the F patterns (`<region>-<env>-<purpose>-nsg` etc.) need a
-  per-key token decision.
-- `platform-palo-alto` firewall VM / NIC / LB / public-IP names — the pattern
-  takes them as keyed maps; same per-key wiring as above.
-- `domain_controller_vm` adapted pattern (`platform-<region>-<env>-dc-0<n>`)
+- **`platform-palo-alto`** firewall VM / NIC / LB / public-IP names — deferred:
+  the workspace has no `environment` variable, and VM/NIC names are ForceNew, so
+  this waits for the "Palo hub approved for deployment" gate. Add `environment`
+  + the same per-key wiring then.
+- **Subnets are not renamed.** Reserved names (`GatewaySubnet`,
+  `AzureBastionSubnet`, `RouteServerSubnet`, `AzureFirewallSubnet`, …) are an
+  Azure hard constraint. Subnet name = the operator's map key; the `naming.nsg`
+  / `.subnet` outputs exist if a non-reserved subnet wants one.
+- **`domain_controller_vm`** adapted pattern (`platform-<region>-<env>-dc-0<n>`)
   differs from the current `AZR-SRV-ADDS-01` convention — an AD-team-visible
   rename; not wired into `platform-directory-services` yet, pending their
   sign-off (tracks with the existing A2 DC-promotion deviation).

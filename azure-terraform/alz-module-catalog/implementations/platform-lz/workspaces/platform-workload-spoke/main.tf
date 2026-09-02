@@ -79,9 +79,9 @@ module "workload_spoke" {
   management_locks                = try(var.workload_spoke.management_locks, {})
   diagnostic_settings             = try(var.workload_spoke.diagnostic_settings, {})
   additional_scopes               = try(var.workload_spoke.additional_scopes, {})
-  network_security_groups         = try(var.workload_spoke.network_security_groups, {})
+  network_security_groups         = local.std_maps.network_security_groups
   subnet_nsg_associations         = try(var.workload_spoke.subnet_nsg_associations, {})
-  route_tables                    = try(var.workload_spoke.route_tables, {})
+  route_tables                    = local.std_maps.route_tables
   subnet_route_table_associations = try(var.workload_spoke.subnet_route_table_associations, {})
-  private_endpoints               = try(var.workload_spoke.private_endpoints, {})
+  private_endpoints               = local.std_maps.private_endpoints
 }
