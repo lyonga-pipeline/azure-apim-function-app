@@ -69,8 +69,8 @@ module "workload_spoke" {
   location                        = var.location
   environment                     = var.environment
   workload_tags                   = merge(var.workload_tags, try(var.workload_spoke.workload_tags, try(var.workload_spoke.platform_tags, {})))
-  resource_group                  = try(var.workload_spoke.resource_group, null)
-  spoke_vnet                      = try(var.workload_spoke.spoke_vnet, null)
+  resource_group                  = merge({ name = local.std_names.resource_group }, try(var.workload_spoke.resource_group, {}))
+  spoke_vnet                      = merge({ name = local.std_names.spoke_vnet }, try(var.workload_spoke.spoke_vnet, null) == null ? {} : var.workload_spoke.spoke_vnet)
   hub_connection                  = local.hub_connection
   private_dns_zone_links          = local.private_dns_zone_links
   workload_identity               = try(var.workload_spoke.workload_identity, { enabled = false })

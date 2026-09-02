@@ -55,7 +55,7 @@ module "cloudflare_connectors" {
   location                     = var.location
   environment                  = var.environment
   platform_tags                = merge(var.platform_tags, try(var.cloudflare_connectors.platform_tags, {}))
-  resource_group               = try(var.cloudflare_connectors.resource_group, null)
+  resource_group               = merge({ name = local.std_names.resource_group }, try(var.cloudflare_connectors.resource_group, {}))
   connectors                   = local.connectors
   admin_passwords              = var.admin_passwords
   custom_data_by_key           = var.custom_data_by_key

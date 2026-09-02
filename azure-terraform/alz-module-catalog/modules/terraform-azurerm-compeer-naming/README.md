@@ -51,6 +51,35 @@ Terraform stops, which is the intended behaviour.
 | `instance` | no (default 1) | `firewall_vm`, `cloudflare_connector` (zero-padded) |
 | `entra_domain`, `entra_role` | no | `entra_security_group` (`AZ-<DOMAIN>-<Role>`) |
 
+## Outputs
+
+Verbatim Appendix F rows: `mg_enterprise/platform/workloads/sandbox/decommissioned`,
+`mg` + `mg_environment` (`<domain>-mg` / `<domain>-<env>-mg`, for any node token),
+`subscription_platform/identity/connectivity/management/workload`,
+`hub_vnet`, `shared_vnet`, `subnet`, `nsg`, `route_table`, `public_ip`,
+`firewall_vm`, `firewall_ilb`, `expressroute_gateway`, `vpn_gateway`,
+`cloudflare_connector`, `log_analytics_workspace`, `monitor_workspace`,
+`recovery_services_vault`, `key_vault`, `platform_resource_group`,
+`policy_initiative`, `policy_assignment`, `entra_security_group`,
+`private_dns_zone`, `region_short`.
+
+**ADAPTED** (closest F relative, marked in the output description) — for rows the
+table doesn't carry:
+
+| Output | Adapted from | Pattern |
+|---|---|---|
+| `resource_group` | platform RG | `platform-<region>-<env>[-<purpose>]-rg` (per-capability) |
+| `workload_resource_group` | `mg_environment` | `<domain>-<env>-rg` |
+| `workload_vnet` | `shared_vnet` | `<domain>-<region>-<env>-vnet` |
+| `subscription_scoped` | platform subs | `sub-<purpose>-<env>-<region>` |
+| `automation_account` / `action_group` | `monitor_workspace` | `platform-<region>-<env>-{aa,ag}` |
+| `bastion` / `nat_gateway` / `route_server` / `ddos_protection_plan` / `private_dns_resolver` | `monitor_workspace` | `platform-<region>-<env>-{bas,natgw,rtsrv,ddos,dnspr}` |
+| `network_interface` / `private_endpoint` | `public_ip` | `<region>-<env>-<resource>-{nic,pe}` |
+| `domain_controller_vm` | `firewall_vm` | `platform-<region>-<env>-dc-0<n>` |
+| `expressroute_circuit` / `expressroute_connection` / `vpn_local_network_gateway` / `vpn_connection` | the gateway rows | `platform-<region>-<env>-{erc,erconn,lng,vpnconn}` |
+| `storage_account` | no-separator resource | `st<purpose><region><env>` (lower, ≤24) |
+| `user_assigned_identity` | `key_vault` | `<purpose>-<region>-<env>-id` |
+
 ## Rules baked in
 
 - Approved region short codes (`centralus` &rarr; `cus`, &hellip;) and the

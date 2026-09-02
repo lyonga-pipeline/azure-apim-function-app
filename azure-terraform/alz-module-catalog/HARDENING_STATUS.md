@@ -364,15 +364,50 @@ per row).
   preserved (`AZ-PLT-Admins`).
 - **No universal truncation** — length/charset rules are output preconditions
   only where the resource needs them (Key Vault 3–24, RSV 2–50, LAW 4–63).
-- Consumed via a **`naming.tf` in the composition root** — reference wiring added
-  to `platform-connectivity` (`module.naming` → `local.std_names` →
-  `merge()`-ed into the pattern's `resource_group` / `hub_vnet` so tfvars still
-  overrides). Patterns and resource modules keep taking an explicit `name`; they
-  never call the naming module.
+- **Adapted rows** (per the standard owner: "anything not in the list, adjust to
+  a closely related resource"): `resource_group` (per-capability platform RG,
+  `platform-<region>-<env>-<purpose>-rg`), `workload_resource_group`
+  (`<domain>-<env>-rg`), `workload_vnet`, `subscription_scoped`,
+  `automation_account`, `action_group`, `bastion`, `nat_gateway`,
+  `route_server`, `ddos_protection_plan`, `private_dns_resolver`,
+  `network_interface`, `private_endpoint`, `domain_controller_vm`,
+  `expressroute_circuit/_connection`, `vpn_local_network_gateway`,
+  `vpn_connection`, `storage_account`, `user_assigned_identity`. Each output's
+  description names the F row it was adapted from. `mg` + `mg_environment`
+  generalise `<domain>-mg` to any node token (platform child, workload domain,
+  sandbox/decommissioned child).
+- Consumed via a **`naming.tf` in the composition root** — wiring added to
+  **8 workspaces**: `platform-connectivity` (RG + `hub_vnet`),
+  `platform-management`, `platform-identity-security`,
+  `platform-hybrid-connectivity`, `platform-directory-services`,
+  `platform-cloudflare-connectors` (per-capability RG),
+  `platform-shared-services` + `platform-workload-spoke` (RG + spoke VNet from
+  a new `workload_domain` variable). `module.naming` → `local.std_names` →
+  `merge()`-ed into the pattern inputs so tfvars still overrides. Patterns and
+  resource modules keep taking an explicit `name`; they never call the module.
+- `platform-governance` MG names, `platform-policy` / `platform-subscription-
+  onboarding` names are **already Appendix-F-compliant or system-generated** in
+  the examples — no wiring needed.
 - Name outputs are a **frozen interface** — any change to an already-published
   name is a breaking major-version bump (forces resource replacement).
-- tests: 7 `run` blocks — every pattern, token-absent `null`, normalisation,
-  region/env rejection, Key Vault 24-char guard. validate + test pass;
-  `platform-connectivity` workspace validates with the wiring.
+- tests: 8 `run` blocks — every verbatim + adapted pattern, token-absent `null`,
+  normalisation, region/env rejection, Key Vault 24-char guard. validate + test
+  pass; all 8 wired workspaces validate.
+
+### Phase 6 — still open
+
+- **Per-key names** (`network_security_groups`, `route_tables`, subnets,
+  `public_ips`, `network_interfaces` maps in connectivity + the spokes) still
+  come from tfvars. To standardise them the workspace needs
+  `module "naming" { for_each = <the map> ; purpose = each.key }` (one instance
+  per key) feeding `merge({ name = ... }, each.value)`. Deferred — larger
+  surface, and the F patterns (`<region>-<env>-<purpose>-nsg` etc.) need a
+  per-key token decision.
+- `platform-palo-alto` firewall VM / NIC / LB / public-IP names — the pattern
+  takes them as keyed maps; same per-key wiring as above.
+- `domain_controller_vm` adapted pattern (`platform-<region>-<env>-dc-0<n>`)
+  differs from the current `AZR-SRV-ADDS-01` convention — an AD-team-visible
+  rename; not wired into `platform-directory-services` yet, pending their
+  sign-off (tracks with the existing A2 DC-promotion deviation).
 
 **Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.

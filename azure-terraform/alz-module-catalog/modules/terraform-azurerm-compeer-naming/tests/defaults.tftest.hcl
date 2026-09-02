@@ -120,6 +120,64 @@ run "token_dependent_names" {
   }
 }
 
+run "adapted_names" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    purpose     = "connectivity"
+    domain      = "internal-apps"
+    resource    = "fw"
+    instance    = 3
+  }
+
+  assert {
+    condition     = output.resource_group == "platform-cus-prod-connectivity-rg"
+    error_message = "per-capability RG pattern"
+  }
+  assert {
+    condition     = output.workload_resource_group == "internal-apps-prod-rg"
+    error_message = "workload RG pattern"
+  }
+  assert {
+    condition     = output.workload_vnet == "internal-apps-cus-prod-vnet"
+    error_message = "workload vnet pattern"
+  }
+  assert {
+    condition     = output.mg == "internal-apps-mg" && output.mg_environment == "internal-apps-prod-mg"
+    error_message = "generic mg patterns"
+  }
+  assert {
+    condition     = output.automation_account == "platform-cus-prod-aa" && output.action_group == "platform-cus-prod-ag"
+    error_message = "automation / action group adapted patterns"
+  }
+  assert {
+    condition     = output.bastion == "platform-cus-prod-bas" && output.nat_gateway == "platform-cus-prod-natgw" && output.ddos_protection_plan == "platform-cus-prod-ddos"
+    error_message = "hub service adapted patterns"
+  }
+  assert {
+    condition     = output.domain_controller_vm == "platform-cus-prod-dc-03"
+    error_message = "DC VM adapted pattern (instance 3 -> 03)"
+  }
+  assert {
+    condition     = output.network_interface == "cus-prod-fw-nic" && output.private_endpoint == "cus-prod-fw-pe"
+    error_message = "nic / pe adapted patterns"
+  }
+  assert {
+    condition     = output.subscription_scoped == "sub-connectivity-prod-cus"
+    error_message = "scoped subscription adapted pattern"
+  }
+  assert {
+    condition     = output.storage_account == "stconnectivitycusprod" && length(output.storage_account) <= 24
+    error_message = "storage account no-dash <=24"
+  }
+  assert {
+    condition     = output.user_assigned_identity == "connectivity-cus-prod-id"
+    error_message = "user-assigned identity adapted pattern"
+  }
+}
+
 run "entra_and_policy_casing" {
   command = apply
 

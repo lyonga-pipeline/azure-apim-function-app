@@ -48,7 +48,7 @@ module "identity" {
   location                   = var.location
   environment                = var.environment
   platform_tags              = merge(var.platform_tags, try(var.identity.platform_tags, {}))
-  resource_group             = try(var.identity.resource_group, null)
+  resource_group             = merge({ name = local.std_names.resource_group }, try(var.identity.resource_group, {}))
   platform_identities        = try(var.identity.platform_identities, {})
   key_vault                  = try(var.identity.key_vault, null)
   key_vault_private_endpoint = local.key_vault_private_endpoint

@@ -14,7 +14,7 @@ module "management" {
   location                              = var.location
   environment                           = var.environment
   platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}))
-  resource_group                        = try(var.management.resource_group, null)
+  resource_group                        = merge({ name = local.std_names.resource_group }, try(var.management.resource_group, {}))
   log_analytics                         = try(var.management.log_analytics, null)
   action_group                          = try(var.management.action_group, null)
   platform_storage_accounts             = try(var.management.platform_storage_accounts, {})

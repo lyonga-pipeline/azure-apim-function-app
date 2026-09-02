@@ -55,7 +55,7 @@ module "directory_services" {
   location                  = var.location
   environment               = var.environment
   platform_tags             = merge(var.platform_tags, try(var.directory_services.platform_tags, {}))
-  resource_group            = try(var.directory_services.resource_group, null)
+  resource_group            = merge({ name = local.std_names.resource_group }, try(var.directory_services.resource_group, {}))
   domain_controllers        = local.domain_controllers
   admin_passwords           = var.admin_passwords
   domain_join_passwords     = var.domain_join_passwords

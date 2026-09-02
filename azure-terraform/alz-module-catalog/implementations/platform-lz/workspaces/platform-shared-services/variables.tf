@@ -78,3 +78,9 @@ variable "shared_services" {
     enabled = false
   }
 }
+
+variable "workload_domain" {
+  description = "Workload-tier domain token for Appendix F naming (RG, VNet)."
+  type        = string
+  default     = "shared-services"
+}

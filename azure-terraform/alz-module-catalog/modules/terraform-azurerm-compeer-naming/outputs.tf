@@ -37,12 +37,20 @@ output "mg_decommissioned" {
   description = "Decommissioned management group. Pattern: decommissioned-mg."
   value       = local.names.mg_decommissioned
 }
+output "mg" {
+  description = "Any <name>-mg management group (needs `domain` as the node token: security, identity, internal-apps, ...). Pattern: <domain>-mg."
+  value       = local.names.mg
+}
+output "mg_environment" {
+  description = "Any <name>-<env>-mg management group (needs `domain`). Pattern: <domain>-<env>-mg."
+  value       = local.names.mg_environment
+}
 output "mg_workload_domain" {
-  description = "Workload-domain management group (needs `domain`). Pattern: <domain>-mg."
+  description = "Alias of `mg` kept for older callers. Pattern: <domain>-mg."
   value       = local.names.mg_workload_domain
 }
 output "mg_workload_domain_environment" {
-  description = "Domain+environment management group (needs `domain`). Pattern: <domain>-<env>-mg."
+  description = "Alias of `mg_environment` kept for older callers. Pattern: <domain>-<env>-mg."
   value       = local.names.mg_workload_domain_environment
 }
 
@@ -66,6 +74,10 @@ output "subscription_management" {
 output "subscription_workload" {
   description = "Workload subscription (needs `name`). Pattern: sub-workload-<name>-<env>-<region>."
   value       = local.names.subscription_workload
+}
+output "subscription_scoped" {
+  description = "ADAPTED (closest: the platform subscription rows). Generic scoped subscription (needs `purpose`: security, sandbox-ops, decommissioned, ...). Pattern: sub-<purpose>-<env>-<region>."
+  value       = local.names.subscription_scoped
 }
 
 # ---- Networking ----
@@ -93,6 +105,38 @@ output "public_ip" {
   description = "Public IP (needs `resource`). Pattern: <region>-<env>-<resource>-pip."
   value       = local.names.public_ip
 }
+output "workload_vnet" {
+  description = "ADAPTED (closest: shared_vnet / hub_vnet). Workload spoke VNet (needs `domain`). Pattern: <domain>-<region>-<env>-vnet."
+  value       = local.names.workload_vnet
+}
+output "network_interface" {
+  description = "ADAPTED (closest: public_ip). NIC (needs `resource`). Pattern: <region>-<env>-<resource>-nic."
+  value       = local.names.network_interface
+}
+output "private_endpoint" {
+  description = "ADAPTED (closest: public_ip). Private endpoint (needs `resource`). Pattern: <region>-<env>-<resource>-pe."
+  value       = local.names.private_endpoint
+}
+output "nat_gateway" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-natgw."
+  value       = local.names.nat_gateway
+}
+output "route_server" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-rtsrv."
+  value       = local.names.route_server
+}
+output "ddos_protection_plan" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-ddos."
+  value       = local.names.ddos_protection_plan
+}
+output "private_dns_resolver" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-dnspr."
+  value       = local.names.private_dns_resolver
+}
+output "bastion" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-bas."
+  value       = local.names.bastion
+}
 
 # ---- Firewall / edge ----
 output "firewall_vm" {
@@ -115,6 +159,26 @@ output "cloudflare_connector" {
   description = "Cloudflare Tunnel connector. Pattern: platform-<region>-<env>-cf-connector-0<n> (from `instance`)."
   value       = local.names.cloudflare_connector
 }
+output "expressroute_circuit" {
+  description = "ADAPTED (closest: expressroute_gateway). Pattern: platform-<region>-<env>-erc."
+  value       = local.names.expressroute_circuit
+}
+output "expressroute_connection" {
+  description = "ADAPTED (closest: expressroute_gateway). Pattern: platform-<region>-<env>-erconn."
+  value       = local.names.expressroute_connection
+}
+output "vpn_local_network_gateway" {
+  description = "ADAPTED (closest: vpn_gateway). Pattern: platform-<region>-<env>-lng."
+  value       = local.names.vpn_local_network_gateway
+}
+output "vpn_connection" {
+  description = "ADAPTED (closest: vpn_gateway). Pattern: platform-<region>-<env>-vpnconn."
+  value       = local.names.vpn_connection
+}
+output "domain_controller_vm" {
+  description = "ADAPTED (closest: firewall_vm). Domain controller VM. Pattern: platform-<region>-<env>-dc-0<n> (from `instance`)."
+  value       = local.names.domain_controller_vm
+}
 
 # ---- Observability / recovery ----
 output "log_analytics_workspace" {
@@ -129,6 +193,14 @@ output "log_analytics_workspace" {
 output "monitor_workspace" {
   description = "Azure Monitor workspace. Pattern: platform-<region>-<env>-monitor."
   value       = local.names.monitor_workspace
+}
+output "automation_account" {
+  description = "ADAPTED (closest: monitor_workspace / recovery_services_vault). Pattern: platform-<region>-<env>-aa."
+  value       = local.names.automation_account
+}
+output "action_group" {
+  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-ag."
+  value       = local.names.action_group
 }
 output "recovery_services_vault" {
   description = "Recovery Services vault. Pattern: platform-<region>-<env>-rsv."
@@ -156,8 +228,24 @@ output "key_vault" {
   }
 }
 output "platform_resource_group" {
-  description = "Platform resource group. Pattern: platform-<region>-<env>-rg."
+  description = "Platform resource group (no capability). Pattern: platform-<region>-<env>-rg."
   value       = local.names.platform_resource_group
+}
+output "resource_group" {
+  description = "ADAPTED (F has one platform RG row). Per-capability platform RG when `purpose` is set, else the plain platform RG. Pattern: platform-<region>-<env>[-<purpose>]-rg."
+  value       = local.names.resource_group
+}
+output "workload_resource_group" {
+  description = "ADAPTED (closest: mg_environment). Workload spoke RG (needs `domain`). Pattern: <domain>-<env>-rg."
+  value       = local.names.workload_resource_group
+}
+output "storage_account" {
+  description = "ADAPTED (no-separator resource). Needs `purpose`. Pattern: st<purpose><region><env>, lower-cased, truncated to 24. Not guaranteed globally unique - caller adds a suffix if needed."
+  value       = local.names.storage_account
+}
+output "user_assigned_identity" {
+  description = "ADAPTED (closest: key_vault). Needs `purpose`. Pattern: <purpose>-<region>-<env>-id."
+  value       = local.names.user_assigned_identity
 }
 
 # ---- Policy ----

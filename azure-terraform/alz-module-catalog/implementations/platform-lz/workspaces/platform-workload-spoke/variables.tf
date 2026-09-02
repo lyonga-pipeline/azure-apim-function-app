@@ -78,3 +78,9 @@ variable "workload_spoke" {
     enabled = false
   }
 }
+
+variable "workload_domain" {
+  description = "Workload domain token for Appendix F naming (RG, VNet), e.g. internal-apps."
+  type        = string
+  default     = "internal-apps"
+}
