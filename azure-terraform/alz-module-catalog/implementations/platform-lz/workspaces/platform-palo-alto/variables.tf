@@ -52,3 +52,9 @@ variable "palo_alto_bootstrap_storage_keys" {
   sensitive   = true
   default     = {}
 }
+
+variable "environment" {
+  description = "Environment token for Appendix F naming (prod | uat | test | dev | np | sandbox | shared)."
+  type        = string
+  default     = "prod"
+}

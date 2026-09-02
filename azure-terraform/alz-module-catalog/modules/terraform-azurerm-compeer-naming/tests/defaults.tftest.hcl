@@ -176,6 +176,10 @@ run "adapted_names" {
     condition     = output.user_assigned_identity == "connectivity-cus-prod-id"
     error_message = "user-assigned identity adapted pattern"
   }
+  assert {
+    condition     = output.load_balancer == "platform-cus-prod-connectivity-ilb"
+    error_message = "load balancer adapted pattern"
+  }
 }
 
 run "entra_and_policy_casing" {

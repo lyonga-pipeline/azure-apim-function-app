@@ -179,6 +179,10 @@ output "domain_controller_vm" {
   description = "ADAPTED (closest: firewall_vm). Domain controller VM. Pattern: platform-<region>-<env>-dc-0<n> (from `instance`)."
   value       = local.names.domain_controller_vm
 }
+output "load_balancer" {
+  description = "ADAPTED (closest: firewall_ilb). Internal load balancer (needs `purpose`). Pattern: platform-<region>-<env>-<purpose>-ilb."
+  value       = local.names.load_balancer
+}
 
 # ---- Observability / recovery ----
 output "log_analytics_workspace" {

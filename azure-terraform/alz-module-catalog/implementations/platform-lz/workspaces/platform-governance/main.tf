@@ -12,7 +12,7 @@ module "governance" {
 
   subscription_id                     = var.execution_subscription_id
   root_management_group_id            = try(var.governance.root_management_group_id, null)
-  management_groups                   = try(var.governance.management_groups, {})
+  management_groups                   = local.std_management_groups
   subscription_placements             = try(var.governance.subscription_placements, {})
   policy_assignment_location          = try(var.governance.policy_assignment_location, var.location)
   custom_policy_definitions           = try(var.governance.custom_policy_definitions, {})

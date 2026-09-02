@@ -22,3 +22,9 @@ variable "governance" {
     management_groups = {}
   }
 }
+
+variable "environment" {
+  description = "Environment token, required by the naming module (MG names take the env from their key, not this)."
+  type        = string
+  default     = "prod"
+}

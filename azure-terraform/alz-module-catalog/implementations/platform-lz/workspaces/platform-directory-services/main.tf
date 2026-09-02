@@ -26,7 +26,10 @@ locals {
   log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
 
   domain_controllers = {
-    for key, controller in try(var.directory_services.domain_controllers, {}) : key => merge(controller, {
+    for key, controller in try(var.directory_services.domain_controllers, {}) : key => merge({
+      name     = module.naming_dc[key].domain_controller_vm
+      nic_name = module.naming_dc[key].network_interface
+      }, controller, {
       subnet_id = coalesce(
         try(controller.subnet_id, null),
         try(local.connectivity_outputs.subnet_ids[controller.subnet_key], null),

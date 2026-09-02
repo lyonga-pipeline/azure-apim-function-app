@@ -100,8 +100,10 @@ locals {
     bastion              = "platform-${local.region}-${local.env}-bas"
 
     # ---- Firewall / edge ----
-    firewall_vm          = "platform-${local.region}-${local.env}-fw-${local.instance}"
-    firewall_ilb         = "platform-${local.region}-${local.env}-fw-ilb"
+    firewall_vm  = "platform-${local.region}-${local.env}-fw-${local.instance}"
+    firewall_ilb = "platform-${local.region}-${local.env}-fw-ilb"
+    # ADAPTED: internal load balancer, keyed (closest: firewall_ilb). Needs `purpose`.
+    load_balancer        = local.purpose == null ? null : "platform-${local.region}-${local.env}-${local.purpose}-ilb"
     expressroute_gateway = "platform-${local.region}-${local.env}-ergw"
     vpn_gateway          = "platform-${local.region}-${local.env}-vpngw"
     cloudflare_connector = "platform-${local.region}-${local.env}-cf-connector-${local.instance}"

@@ -385,14 +385,14 @@ per row).
   a new `workload_domain` variable). `module.naming` → `local.std_names` →
   `merge()`-ed into the pattern inputs so tfvars still overrides. Patterns and
   resource modules keep taking an explicit `name`; they never call the module.
-- `platform-governance` MG names, `platform-policy` / `platform-subscription-
-  onboarding` names are **already Appendix-F-compliant or system-generated** in
-  the examples — no wiring needed.
+- `platform-policy` / `platform-subscription-onboarding` names are operator-
+  authored assignment/subscription keys, already Appendix-F-shaped in the
+  examples — no wiring needed.
 - Name outputs are a **frozen interface** — any change to an already-published
   name is a breaking major-version bump (forces resource replacement).
 - tests: 8 `run` blocks — every verbatim + adapted pattern, token-absent `null`,
   normalisation, region/env rejection, Key Vault 24-char guard. validate + test
-  pass; all 8 wired workspaces validate.
+  pass; all wired workspaces validate.
 
 ### Phase 6 — per-key names wired
 
@@ -413,19 +413,30 @@ module "naming_nsg" {
 The map key carries the F token (`purpose` for NSG, `destination` for route
 table, `resource` for PIP / private endpoint). All wired workspaces validate.
 
-### Phase 6 — still open
+### Phase 6 — remaining workspaces wired (final pass)
 
-- **`platform-palo-alto`** firewall VM / NIC / LB / public-IP names — deferred:
-  the workspace has no `environment` variable, and VM/NIC names are ForceNew, so
-  this waits for the "Palo hub approved for deployment" gate. Add `environment`
-  + the same per-key wiring then.
+- **`platform-palo-alto`** — added an `environment` variable and `naming.tf`;
+  firewall VMs (`firewall_vm`, instance from the map key's trailing digit), NICs
+  (`network_interface`), load balancers (adapted `load_balancer`
+  `platform-<region>-<env>-<key>-ilb`), and public IPs (`public_ip`) all get
+  their default name per-key, `merge()`-ed so tfvars wins. Workspace stays
+  disabled until the Palo hub build is approved (VM/NIC names are ForceNew).
+- **`platform-governance`** — `management_groups` display names now come from
+  `module.naming_mg[key].mg` (`<key-dashed>-mg`), with the LZ root as the one
+  fixed exception (`compeer-enterprise-mg`). The env-scoped nodes
+  (`internal_apps_dev` → `internal-apps-dev-mg`) fall out of the key. tfvars
+  `display_name` still overrides.
+- **`platform-directory-services`** — DC VM + NIC names default from
+  `module.naming_dc` (`domain_controller_vm` / `network_interface`). Marked a
+  **DEVIATION** in `naming.tf` (differs from `AZR-SRV-ADDS-01`); wired as a
+  default only, `computer_name` (NetBIOS ≤15) deliberately left to tfvars.
+  Tracks the A2 DC-promotion sign-off.
 - **Subnets are not renamed.** Reserved names (`GatewaySubnet`,
   `AzureBastionSubnet`, `RouteServerSubnet`, `AzureFirewallSubnet`, …) are an
   Azure hard constraint. Subnet name = the operator's map key; the `naming.nsg`
   / `.subnet` outputs exist if a non-reserved subnet wants one.
-- **`domain_controller_vm`** adapted pattern (`platform-<region>-<env>-dc-0<n>`)
-  differs from the current `AZR-SRV-ADDS-01` convention — an AD-team-visible
-  rename; not wired into `platform-directory-services` yet, pending their
-  sign-off (tracks with the existing A2 DC-promotion deviation).
+- New module output: `load_balancer` (adapted from `firewall_ilb`). tests: 8
+  `run` blocks (adapted_names covers it). All 15 workspaces + 15/16 patterns
+  validate (`network-peering` unchanged — validates only via its impl wrapper).
 
 **Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.
