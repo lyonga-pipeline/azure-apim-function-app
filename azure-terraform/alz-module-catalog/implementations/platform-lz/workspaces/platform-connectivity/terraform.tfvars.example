@@ -35,7 +35,9 @@ connectivity = {
       GatewaySubnet          = { address_prefixes = ["10.0.0.0/27"] }
       RouteServerSubnet      = { address_prefixes = ["10.0.0.64/27"] }
       AzureBastionSubnet     = { address_prefixes = ["10.0.0.128/26"] }
-      palo_alto_management   = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt" }
+      # service_endpoints let the bootstrap storage account / Key Vault firewall
+      # to this subnet without a public endpoint (see GUARDRAIL-EXCEPTIONS.md).
+      palo_alto_management = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
       palo_alto_untrusted    = { address_prefixes = ["10.0.1.64/26"] }
       palo_alto_trusted      = { address_prefixes = ["10.0.1.128/26"] }
       palo_alto_ha           = { address_prefixes = ["10.0.1.192/26"] }
