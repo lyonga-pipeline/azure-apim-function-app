@@ -21,16 +21,23 @@ variable "environment" {
 
 variable "platform_tags" {
   type = object({
-    application         = string
-    business_owner      = string
-    source_repo         = string
-    terraform_workspace = string
-    recovery_tier       = string
-    cost_center         = string
-    data_classification = string
-    compliance_boundary = string
-    additional_tags     = optional(map(string), {})
+    application           = optional(string)
+    owner                 = optional(string)
+    source_repo           = optional(string)
+    created_on            = optional(string)
+    criticality_tier      = optional(string)
+    data_classification   = optional(string)
+    lifecycle_state       = optional(string)
+    cost_center           = optional(string)
+    gl_category           = optional(string)
+    application_component = optional(string)
+    modified_on           = optional(string)
+    created_by            = optional(string)
+    dr_tier               = optional(string)
+    expiration_date       = optional(string)
+    additional_tags       = optional(map(string), {})
   })
+  default = {}
 }
 
 variable "resource_group" {

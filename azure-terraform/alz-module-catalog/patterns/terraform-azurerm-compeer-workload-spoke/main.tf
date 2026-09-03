@@ -1,16 +1,22 @@
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
-  environment         = var.environment
-  application         = var.workload_tags.application
-  business_owner      = var.workload_tags.business_owner
-  source_repo         = var.workload_tags.source_repo
-  terraform_workspace = var.workload_tags.terraform_workspace
-  recovery_tier       = var.workload_tags.recovery_tier
-  cost_center         = var.workload_tags.cost_center
-  data_classification = var.workload_tags.data_classification
-  compliance_boundary = var.workload_tags.compliance_boundary
-  additional_tags     = var.workload_tags.additional_tags
+  environment           = var.environment
+  application           = var.workload_tags.application
+  owner                 = var.workload_tags.owner
+  source_repo           = var.workload_tags.source_repo
+  created_on            = var.workload_tags.created_on
+  criticality_tier      = var.workload_tags.criticality_tier
+  data_classification   = var.workload_tags.data_classification
+  lifecycle_state       = var.workload_tags.lifecycle_state
+  cost_center           = var.workload_tags.cost_center
+  gl_category           = var.workload_tags.gl_category
+  application_component = var.workload_tags.application_component
+  modified_on           = var.workload_tags.modified_on
+  created_by            = var.workload_tags.created_by
+  dr_tier               = var.workload_tags.dr_tier
+  expiration_date       = var.workload_tags.expiration_date
+  additional_tags       = var.workload_tags.additional_tags
 }
 
 module "resource_group" {
