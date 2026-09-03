@@ -439,4 +439,33 @@ table, `resource` for PIP / private endpoint). All wired workspaces validate.
   `run` blocks (adapted_names covers it). All 15 workspaces + 15/16 patterns
   validate (`network-peering` unchanged — validates only via its impl wrapper).
 
+## Phase 7 — platform-tags rebuilt to the enterprise tag schema
+
+`terraform-azurerm-compeer-platform-tags` re-authored to the design-doc tag
+tables. **Every tag is an optional input (null default)** — the module defines
+the whole vocabulary and a caller sets only the tags it has values for; the
+output map drops the rest.
+
+| Category | Tags | Required |
+|---|---|---|
+| Operational | `environment`, `application`, `owner`, `source_repo`, `created_on` | Mandatory |
+| Governance | `criticality_tier`, `data_classification`, `lifecycle_state` | Mandatory |
+| Financial | `cost_center`, `gl_category` | Mandatory |
+| Operational | `application_component`, `modified_on` | Optional |
+| Operational / Governance | `created_by`, `dr_tier` | Conditional |
+| Governance | `expiration_date` | Sandbox / temporary / POC / exception only |
+
+- New output `missing_mandatory` — the Required=Yes tags a caller didn't supply;
+  the module never fails on a missing tag, but a caller can `precondition` on
+  this list to enforce them.
+- `data_classification` validation kept (null-tolerant).
+- **Breaking:** `business_owner`→`owner`, `recovery_tier`→`dr_tier`;
+  `terraform_workspace` / `compliance_boundary` removed (use `additional_tags`);
+  `data_classification` no longer defaults to `confidential`. Emitted key names
+  changed to the doc (`env`→`environment`, `bt_owner`→`owner`, …).
+- Consumers updated: 8 pattern + 8 workspace `platform_tags` / `workload_tags`
+  variables → all-optional object with `default {}`; 7 pattern `module "tags"`
+  calls; 8 example tfvars blocks. platform-tags + naming modules pass tests;
+  15/15 workspaces + 15/16 patterns validate.
+
 **Provider mirror also carries:** `tfe`, `random`, `tls`, `null`, `local`.
