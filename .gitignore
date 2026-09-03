@@ -14,3 +14,6 @@ azure-terraform/alz-module-catalog/modules-fully-redesigned.zip
 # Reusable modules must not commit a dependency lock file - only root
 # configurations (patterns / implementations run as workspaces) should.
 azure-terraform/alz-module-catalog/modules/**/.terraform.lock.hcl
+
+# Office lock files
+~$*
