@@ -36,14 +36,17 @@ platform_tags = {
 directory_services = {
   enabled = false
 
-  resource_group = {
-    name = "rg-platform-directory-services-prod"
-  }
+  resource_group = {}
 
   domain_controllers = {
     # Replace subnet_key, private IPs, zone placement, image SKU, and sizing with
     # approved values from IPAM, AD, Windows, and architecture owners before
     # enabling this workspace.
+    #
+    # DC VM `name` / `computer_name` are kept explicit here on purpose: they use
+    # the established AD server convention (AZR-SRV-ADDS-0N), which the AD team
+    # owns. The naming module's adapted default is platform-<region>-<env>-dc-0N;
+    # drop the `name` lines below to switch to it once AD signs off (tracks A2).
     dc01 = {
       name                           = "AZR-SRV-ADDS-01"
       computer_name                  = "AZR-SRV-ADDS-01"

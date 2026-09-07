@@ -33,12 +33,9 @@ platform_tags = {
 }
 
 connectivity = {
-  enabled = true
-  resource_group = {
-    name = "rg-platform-connectivity-prod"
-  }
+  enabled        = true
+  resource_group = {}
   hub_vnet = {
-    name          = "vnet-hub-prod-centralus-001"
     address_space = ["10.0.0.0/16"] # REPLACE with approved IPAM allocation
     dns_servers   = []              # set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6)
     # Every subnet a downstream workspace resolves by subnet_key must exist here
@@ -64,7 +61,6 @@ connectivity = {
   }
   ddos_protection_plan = {
     enabled             = false
-    name                = "ddos-platform-prod-001"
     enable_for_hub_vnet = true
   }
   dns_resolution = {
@@ -80,16 +76,16 @@ connectivity = {
   }
   bastion = {
     enabled            = false
-    name               = "bas-platform-prod-001"
     subnet_key         = "AzureBastionSubnet"
     sku                = "Standard"
     tunneling_enabled  = true
     ip_connect_enabled = true
   }
+  # names come from the naming module: <region>-<env>-<key>-nsg
   network_security_groups = {
-    palo_mgmt          = { name = "nsg-hub-palo-mgmt", rules = {} } # restrict to approved mgmt sources
-    connectors         = { name = "nsg-hub-connectors", rules = {} }
-    domain_controllers = { name = "nsg-hub-dc", rules = {} } # AD port matrix per runbook §7.3
+    palo_mgmt          = { rules = {} } # restrict to approved mgmt sources
+    connectors         = { rules = {} }
+    domain_controllers = { rules = {} } # AD port matrix per runbook §7.3
   }
   subnet_nsg_associations = {} # derived from subnet.nsg_key above
 

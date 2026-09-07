@@ -36,9 +36,7 @@ platform_tags = {
 cloudflare_connectors = {
   enabled = false
 
-  resource_group = {
-    name = "rg-platform-cloudflare-connectors-prod"
-  }
+  resource_group = {}
 
   connectors = {}
 

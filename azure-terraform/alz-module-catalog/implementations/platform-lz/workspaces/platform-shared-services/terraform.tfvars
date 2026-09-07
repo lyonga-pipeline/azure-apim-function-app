@@ -36,12 +36,9 @@ platform_tags = {
 shared_services = {
   enabled = false
 
-  resource_group = {
-    name = "rg-platform-shared-services-prod"
-  }
+  resource_group = {}
 
   spoke_vnet = {
-    name          = "platform-cus-prod-shared-vnet"
     address_space = ["10.255.0.0/24"]
     subnets = {
       private_endpoints = {

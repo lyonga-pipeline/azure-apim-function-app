@@ -49,8 +49,8 @@ module "identity" {
   environment                = var.environment
   platform_tags              = merge(var.platform_tags, try(var.identity.platform_tags, {}))
   resource_group             = merge({ name = local.std_names.resource_group }, try(var.identity.resource_group, {}))
-  platform_identities        = try(var.identity.platform_identities, {})
-  key_vault                  = try(var.identity.key_vault, null)
+  platform_identities        = local.identity_platform_identities
+  key_vault                  = try(var.identity.key_vault, null) == null ? null : merge({ name = local.std_names.key_vault }, var.identity.key_vault)
   key_vault_private_endpoint = local.key_vault_private_endpoint
   log_analytics_workspace_id = local.log_analytics_workspace_id
   diagnostics                = try(var.identity.diagnostics, null)

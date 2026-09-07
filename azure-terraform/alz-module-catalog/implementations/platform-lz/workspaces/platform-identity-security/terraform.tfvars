@@ -34,15 +34,13 @@ platform_tags = {
 }
 
 identity = {
-  enabled = true
-  resource_group = {
-    name = "rg-platform-identity-prod"
-  }
+  enabled        = true
+  resource_group = {}
+  # names from the naming module: <key>-<region>-<env>-id
   platform_identities = {
-    automation = { name = "id-platform-automation-prod-001" }
+    automation = {}
   }
   key_vault = {
-    name                       = "kv-platform-prod-001"
     sku_name                   = "standard"
     soft_delete_retention_days = 90
     purge_protection_enabled   = true
@@ -50,7 +48,6 @@ identity = {
   }
   key_vault_private_endpoint_from_connectivity = {
     enabled = false
-    name    = "pe-kv-platform-prod-001"
   }
   diagnostics = {
     logs = {

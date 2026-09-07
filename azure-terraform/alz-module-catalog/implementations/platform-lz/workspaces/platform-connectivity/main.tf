@@ -15,6 +15,7 @@ locals {
   log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
 
   bastion = merge(
+    { name = local.std_names.bastion },
     try(var.connectivity.bastion, { enabled = false }),
     (
       try(var.connectivity.bastion.enabled, false) &&
@@ -45,8 +46,8 @@ module "connectivity" {
   # Default names come from the naming module (Appendix F); anything set in
   # tfvars overrides via merge().
   resource_group                  = merge({ name = local.std_names.resource_group }, try(var.connectivity.resource_group, {}))
-  hub_vnet                        = merge({ name = local.std_names.hub_vnet }, try(var.connectivity.hub_vnet, null) == null ? {} : var.connectivity.hub_vnet)
-  ddos_protection_plan            = try(var.connectivity.ddos_protection_plan, { enabled = false })
+  hub_vnet                        = merge({ name = local.std_names.hub_vnet }, try(var.connectivity.hub_vnet, {}))
+  ddos_protection_plan            = merge({ name = local.std_names.ddos_protection_plan }, try(var.connectivity.ddos_protection_plan, { enabled = false }))
   palo_alto                       = try(var.connectivity.palo_alto, { enabled = false })
   dns_resolution                  = try(var.connectivity.dns_resolution, { enabled = false })
   private_dns_resolver            = try(var.connectivity.private_dns_resolver, { enabled = false })

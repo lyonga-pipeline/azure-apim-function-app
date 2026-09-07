@@ -70,7 +70,7 @@ module "shared_services" {
   environment                     = var.environment
   platform_tags                   = merge(var.platform_tags, try(var.shared_services.platform_tags, {}))
   resource_group                  = merge({ name = local.std_names.resource_group }, try(var.shared_services.resource_group, {}))
-  spoke_vnet                      = merge({ name = local.std_names.shared_vnet }, try(var.shared_services.spoke_vnet, null) == null ? {} : var.shared_services.spoke_vnet)
+  spoke_vnet                      = merge({ name = local.std_names.shared_vnet }, try(var.shared_services.spoke_vnet, {}))
   hub_connection                  = local.hub_connection
   private_dns_zone_links          = local.private_dns_zone_links
   platform_identity               = try(var.shared_services.platform_identity, { enabled = false })

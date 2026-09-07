@@ -54,8 +54,11 @@ module "naming_rs_pip" {
 
 locals {
   std_names = {
-    resource_group = module.naming.resource_group # platform-<region>-<env>-connectivity-rg
-    hub_vnet       = module.naming.hub_vnet       # platform-<region>-<env>-hub-vnet
+    resource_group       = module.naming.resource_group       # platform-<region>-<env>-connectivity-rg
+    hub_vnet             = module.naming.hub_vnet             # platform-<region>-<env>-hub-vnet
+    ddos_protection_plan = module.naming.ddos_protection_plan # platform-<region>-<env>-ddos
+    bastion              = module.naming.bastion              # platform-<region>-<env>-bas
+    private_dns_resolver = module.naming.private_dns_resolver # platform-<region>-<env>-dnspr
   }
 
   std_maps = {

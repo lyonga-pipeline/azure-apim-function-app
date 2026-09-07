@@ -34,12 +34,9 @@ workload_tags = {
 }
 
 workload_spoke = {
-  enabled = false
-  resource_group = {
-    name = "rg-internal-apps-prod"
-  }
+  enabled        = false
+  resource_group = {}
   spoke_vnet = {
-    name          = "vnet-internal-apps-prod-centralus-001"
     address_space = ["10.10.0.0/16"]
     subnets = {
       app_integration   = { address_prefixes = ["10.10.1.0/24"] }

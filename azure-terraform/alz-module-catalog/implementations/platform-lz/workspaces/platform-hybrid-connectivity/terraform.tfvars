@@ -33,10 +33,8 @@ platform_tags = {
 }
 
 hybrid_connectivity = {
-  enabled = true
-  resource_group = {
-    name = "rg-platform-hybrid-prod"
-  }
+  enabled        = true
+  resource_group = {}
   expressroute_posture = {
     enabled                   = false
     onpremises_required       = true
