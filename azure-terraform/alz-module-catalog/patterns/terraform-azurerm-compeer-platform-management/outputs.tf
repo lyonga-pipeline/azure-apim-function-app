@@ -83,7 +83,7 @@ output "platform_key_vault_uris" {
 }
 
 output "platform_key_vault_private_endpoint_subresources" {
-  value = { for key, value in module.platform_key_vaults : key => value.private_endpoint_ready_subresource_names }
+  value = { for key, value in module.platform_key_vaults : key => [value.private_endpoint_subresource_name] }
 }
 
 output "platform_key_vault_diagnostic_setting_ids" {

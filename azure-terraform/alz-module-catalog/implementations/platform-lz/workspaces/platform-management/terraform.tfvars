@@ -3,7 +3,18 @@
 # Auth is NOT set here:
 #   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
 #   subscription_id -> this workspace's Terraform-category variable in HCP
-# The azurerm provider reads both from those Terraform variables.
+#
+# Resource NAMES are NOT set here either - they come from the naming module
+# (naming.tf -> design-doc Appendix F). Add a `name = "..."` to any block below
+# ONLY to grandfather an existing resource; otherwise leave it out and the
+# standard name is used:
+#   resource group            platform-<region>-<env>-management-rg
+#   log analytics             <region>-<env>-loganalytics-workspace
+#   action group              platform-<region>-<env>-ag
+#   key vault (key "platform")  platform-<region>-<env>-vault
+#   storage account (key "audit")  staudit<region><env>
+#   recovery services vault   platform-<region>-<env>-rsv
+#   diagnostic settings       diag-<observed resource>-law
 #
 
 location    = "centralus"
@@ -19,35 +30,23 @@ platform_tags = {
   lifecycle_state     = "active"
   cost_center         = "CC-0000"
   gl_category         = "cloud-infrastructure"
-  # optional / conditional - set where you have a value
-  # application_component = "..."
-  # modified_on           = "2026-01-01"
-  # created_by            = "terraform"
-  dr_tier = "standard"
-  # expiration_date      = "2026-12-31"   # sandbox / temporary / POC only
-  additional_tags = {
-    created_by = "terraform"
-  }
+  created_by          = "terraform"
+  dr_tier             = "standard"
 }
 
 management = {
-  enabled = true
-  resource_group = {
-    name = "rg-platform-management-prod"
-  }
+  enabled        = true
+  resource_group = {}
   log_analytics = {
-    name              = "law-platform-prod-001"
     retention_in_days = 365
     daily_quota_gb    = 5
   }
   action_group = {
-    name       = "ag-platform-ops-prod"
     short_name = "platops"
     receivers  = {}
   }
   platform_storage_accounts = {
     audit = {
-      name                              = "stplatprodaudit001"
       account_replication_type          = "ZRS"
       public_network_access_enabled     = false
       shared_access_key_enabled         = false
@@ -57,7 +56,6 @@ management = {
   }
   platform_storage_diagnostics = {
     audit = {
-      name                = "diag-stplatprodaudit001-law"
       storage_account_key = "audit"
       metrics = {
         transaction = { category = "Transaction" }
@@ -66,7 +64,6 @@ management = {
   }
   platform_key_vaults = {
     platform = {
-      name                          = "kv-platform-prod-001"
       sku_name                      = "standard"
       rbac_authorization_enabled    = true
       purge_protection_enabled      = true
@@ -79,7 +76,6 @@ management = {
   }
   platform_key_vault_diagnostics = {
     platform = {
-      name          = "diag-kv-platform-prod-001-law"
       key_vault_key = "platform"
       logs = {
         audit = { category = "AuditEvent" }
@@ -92,13 +88,11 @@ management = {
   platform_key_vault_private_endpoints = {}
   recovery_services_vaults = {
     platform = {
-      name              = "rsv-platform-prod-001"
       storage_mode_type = "ZoneRedundant"
     }
   }
   recovery_services_vault_diagnostics = {
     platform = {
-      name                        = "diag-rsv-platform-prod-001-law"
       recovery_services_vault_key = "platform"
       logs = {
         all = { category_group = "allLogs" }

@@ -15,16 +15,16 @@ module "management" {
   environment                           = var.environment
   platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}))
   resource_group                        = merge({ name = local.std_names.resource_group }, try(var.management.resource_group, {}))
-  log_analytics                         = try(var.management.log_analytics, null)
-  action_group                          = try(var.management.action_group, null)
-  platform_storage_accounts             = try(var.management.platform_storage_accounts, {})
-  platform_storage_diagnostics          = try(var.management.platform_storage_diagnostics, {})
+  log_analytics                         = try(var.management.log_analytics, null) == null ? null : merge({ name = local.std_names.log_analytics_workspace }, var.management.log_analytics)
+  action_group                          = try(var.management.action_group, null) == null ? null : merge({ name = local.std_names.action_group }, var.management.action_group)
+  platform_storage_accounts             = local.mgmt_storage_accounts
+  platform_storage_diagnostics          = local.mgmt_storage_diagnostics
   platform_storage_private_endpoints    = try(var.management.platform_storage_private_endpoints, {})
-  platform_key_vaults                   = try(var.management.platform_key_vaults, {})
-  platform_key_vault_diagnostics        = try(var.management.platform_key_vault_diagnostics, {})
+  platform_key_vaults                   = local.mgmt_key_vaults
+  platform_key_vault_diagnostics        = local.mgmt_key_vault_diagnostics
   platform_key_vault_private_endpoints  = try(var.management.platform_key_vault_private_endpoints, {})
-  recovery_services_vaults              = try(var.management.recovery_services_vaults, {})
-  recovery_services_vault_diagnostics   = try(var.management.recovery_services_vault_diagnostics, {})
+  recovery_services_vaults              = local.mgmt_recovery_vaults
+  recovery_services_vault_diagnostics   = local.mgmt_recovery_vault_diagnostics
   data_collection_endpoints             = try(var.management.data_collection_endpoints, {})
   data_collection_rules                 = try(var.management.data_collection_rules, {})
   data_collection_rule_associations     = try(var.management.data_collection_rule_associations, {})
