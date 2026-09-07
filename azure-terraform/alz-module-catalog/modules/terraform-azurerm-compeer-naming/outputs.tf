@@ -16,6 +16,93 @@ output "all" {
   value       = local.names
 }
 
+output "discriminator" {
+  description = "The resolved root discriminator (component for platform, appcode|domain for workload)."
+  value       = local.disc
+}
+
+output "stem" {
+  description = "The <disc>-<region>-<env> stem used by the keyed rows."
+  value       = local.stem
+}
+
+# ---- Keyed collections: <resource>_names = { <map key> => <name> } ---------
+
+output "key_vault_names" {
+  description = "Key Vault name per key_vault_keys entry. Pattern: <disc>-<region>-<env>-<key>-kv (<=24)."
+  value       = local.keyed.key_vault
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.key_vault) : length(n) >= 3 && length(n) <= 24 && can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", n))])
+    error_message = "Key Vault names must be 3-24 chars: ${jsonencode({ for k, n in local.keyed.key_vault : k => "${n} (${length(n)})" if length(n) > 24 || length(n) < 3 })}. Key Vault map keys must be short - budget is 24 - len('${local.disc_abbr}-${local.region}-${local.env}--kv') = ${24 - length("${local.disc_abbr}-${local.region}-${local.env}--kv")} chars for the key."
+  }
+}
+
+output "storage_account_names" {
+  description = "Storage account name per storage_account_keys entry. Pattern: st<disc><key><region><env>[<4hex>], lower, <=24."
+  value       = local.keyed.storage_account
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.storage_account) : length(n) >= 3 && length(n) <= 24 && can(regex("^[a-z0-9]+$", n))])
+    error_message = "a storage account name is invalid (3-24 lowercase alphanumerics): ${jsonencode(local.keyed.storage_account)}. Shorten the component/appcode or the map key."
+  }
+}
+
+output "user_assigned_identity_names" {
+  description = "User-assigned identity name per user_assigned_identity_keys entry. Pattern: <disc>-<region>-<env>-<key>-id."
+  value       = local.keyed.user_assigned_identity
+}
+
+output "nsg_names" {
+  description = "NSG name per nsg_keys entry. Pattern: <region>-<env>-<key>-nsg."
+  value       = local.keyed.nsg
+}
+
+output "route_table_names" {
+  description = "Route table name per route_table_keys entry. Pattern: <region>-<env>-<key>-rt."
+  value       = local.keyed.route_table
+}
+
+output "public_ip_names" {
+  description = "Public IP name per public_ip_keys entry. Pattern: <region>-<env>-<key>-pip."
+  value       = local.keyed.public_ip
+}
+
+output "private_endpoint_names" {
+  description = "Private endpoint name per private_endpoint_keys entry. Pattern: <region>-<env>-<key>-pe."
+  value       = local.keyed.private_endpoint
+}
+
+output "network_interface_names" {
+  description = "NIC name per network_interface_keys entry. Pattern: <region>-<env>-<key>-nic."
+  value       = local.keyed.network_interface
+}
+
+output "load_balancer_names" {
+  description = "Load balancer name per load_balancer_keys entry. Pattern: <stem>-<key>-ilb."
+  value       = local.keyed.load_balancer
+}
+
+output "virtual_machine_names" {
+  description = "VM name per virtual_machine_keys entry. Pattern: <stem>-<key>."
+  value       = local.keyed.virtual_machine
+}
+
+output "disk_names" {
+  description = "Managed disk name per disk_keys entry. Pattern: <region>-<env>-<key>-disk."
+  value       = local.keyed.disk
+}
+
+output "recovery_services_vault_names" {
+  description = "Recovery Services vault name per recovery_services_vault_keys entry. Pattern: <stem>-<key>-rsv."
+  value       = local.keyed.recovery_services_vault
+}
+
+output "subnet_names" {
+  description = "Subnet name per subnet_keys entry (non-reserved subnets only). Pattern: <env>-<key>-subnet."
+  value       = local.keyed.subnet
+}
+
 # ---- Management groups ----
 output "mg_enterprise" {
   description = "Landing-zone root management group. Pattern: compeer-enterprise-mg."

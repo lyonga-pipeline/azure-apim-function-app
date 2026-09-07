@@ -36,22 +36,78 @@ locals {
     northeurope    = "neu"
   }
 
+  # Short forms for the length-constrained rows (Key Vault 24, storage 24).
+  # Extend only via a versioned change.
+  abbr = {
+    management                = "mgmt"
+    connectivity              = "conn"
+    identity                  = "id"
+    "hybrid-connectivity"     = "hyb"
+    hybrid                    = "hyb"
+    "directory-services"      = "ds"
+    governance                = "gov"
+    policy                    = "pol"
+    "shared-services"         = "shared"
+    "internal-apps"           = "intapps"
+    "external-apps"           = "extapps"
+    "regulated-apps"          = "regapps"
+    "cloudflare-connectors"   = "cfc"
+    "subscription-onboarding" = "subonb"
+    "network-peering"         = "peer"
+    "palo-alto"               = "pan"
+    platform                  = "plat"
+  }
+
   # Normalised tokens. Lowercase + trim everywhere the standard is lowercase;
   # Entra group tokens keep their required casing.
   region = local.region_codes[lower(trimspace(var.region))]
   env    = lower(trimspace(var.environment))
+  scope  = lower(trimspace(var.scope))
 
-  domain      = var.domain == null ? null : lower(trimspace(var.domain))
-  purpose     = var.purpose == null ? null : lower(trimspace(var.purpose))
-  destination = var.destination == null ? null : lower(trimspace(var.destination))
-  resource    = var.resource == null ? null : lower(trimspace(var.resource))
-  appcode     = var.appcode == null ? null : lower(trimspace(var.appcode))
-  wl_name     = var.name == null ? null : lower(trimspace(var.name))
-  policy      = var.policy == null ? null : lower(trimspace(var.policy))
-  scope       = var.scope == null ? null : lower(trimspace(var.scope))
-  instance    = format("%02d", var.instance)
-  entra_dom   = var.entra_domain == null ? null : upper(trimspace(var.entra_domain))
-  entra_role  = var.entra_role == null ? null : trimspace(var.entra_role)
+  domain       = var.domain == null ? null : lower(trimspace(var.domain))
+  appcode      = var.appcode == null ? null : lower(trimspace(var.appcode))
+  component    = var.component == null ? null : lower(trimspace(var.component))
+  purpose      = var.purpose == null ? null : lower(trimspace(var.purpose))
+  destination  = var.destination == null ? null : lower(trimspace(var.destination))
+  resource     = var.resource == null ? null : lower(trimspace(var.resource))
+  wl_name      = var.name == null ? null : lower(trimspace(var.name))
+  policy       = var.policy == null ? null : lower(trimspace(var.policy))
+  policy_scope = var.policy_scope == null ? null : lower(trimspace(var.policy_scope))
+  instance     = format("%02d", var.instance)
+  entra_dom    = var.entra_domain == null ? null : upper(trimspace(var.entra_domain))
+  entra_role   = var.entra_role == null ? null : trimspace(var.entra_role)
+
+  # The root discriminator - what makes this root's resources differ from
+  # another root's in the same region + environment.
+  disc = local.scope == "workload" ? coalesce(local.appcode, local.domain, "workload") : coalesce(local.component, "platform")
+
+  # Short form of the discriminator for the length-constrained rows.
+  disc_abbr = lookup(local.abbr, local.disc, substr(replace(local.disc, "-", ""), 0, 10))
+
+  # Common stem for the "<disc>-<region>-<env>" rows.
+  stem = local.scope == "workload" ? (
+    local.appcode == null ? "${local.domain}-${local.region}-${local.env}" : "${local.domain}-${local.appcode}-${local.region}-${local.env}"
+  ) : "platform-${local.region}-${local.env}"
+
+  # Optional global-uniqueness suffix for storage-account names.
+  st_suffix = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)
+
+  # ---- Keyed collections: <resource> => { key => name } --------------------
+  keyed = {
+    key_vault               = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-kv" }
+    storage_account         = { for k in var.storage_account_keys : k => substr(lower(replace("st${local.disc_abbr}${k}${local.region}${local.env}${local.st_suffix}", "-", "")), 0, 24) }
+    user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-id" }
+    nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${lower(k)}-nsg" }
+    route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${lower(k)}-rt" }
+    public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${lower(k)}-pip" }
+    private_endpoint        = { for k in var.private_endpoint_keys : k => "${local.region}-${local.env}-${lower(k)}-pe" }
+    network_interface       = { for k in var.network_interface_keys : k => "${local.region}-${local.env}-${lower(k)}-nic" }
+    load_balancer           = { for k in var.load_balancer_keys : k => "${local.stem}-${lower(k)}-ilb" }
+    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.stem}-${lower(k)}" }
+    disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${lower(k)}-disk" }
+    recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${lower(k)}-rsv" }
+    subnet                  = { for k in var.subnet_keys : k => "${local.env}-${lower(k)}-subnet" }
+  }
 
   names = {
     # ---- Management groups (fixed tokens; scoped ones need `domain`) ----
@@ -126,19 +182,27 @@ locals {
     # ---- Key Vault / Resource Group ----
     key_vault               = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-vault"
     platform_resource_group = "platform-${local.region}-${local.env}-rg"
-    # ADAPTED: per-capability platform RG (F has one platform RG row; `purpose`
-    # carries the capability: connectivity, management, identity, hybrid, ...)
-    resource_group = local.purpose == null ? "platform-${local.region}-${local.env}-rg" : "platform-${local.region}-${local.env}-${local.purpose}-rg"
+    # Scope-aware resource group:
+    #   workload            -> <stem>-rg  (<domain>[-<appcode>]-<region>-<env>-rg)
+    #   platform + component -> platform-<region>-<env>-<component>-rg
+    #   platform + purpose   -> platform-<region>-<env>-<purpose>-rg  (legacy)
+    #   platform (bare)      -> platform-<region>-<env>-rg
+    resource_group = (
+      local.scope == "workload" ? "${local.stem}-rg" :
+      local.component != null ? "platform-${local.region}-${local.env}-${local.component}-rg" :
+      local.purpose != null ? "platform-${local.region}-${local.env}-${local.purpose}-rg" :
+      "platform-${local.region}-${local.env}-rg"
+    )
     # ADAPTED: workload spoke RG (closest: mg_environment <domain>-<env>-mg)
     workload_resource_group = local.domain == null ? null : "${local.domain}-${local.env}-rg"
-    # ADAPTED: no-separator storage account (<=24, lower). Needs `purpose`.
+    # ADAPTED: no-separator storage account (<=24, lower). Legacy single-token.
     storage_account = local.purpose == null ? null : substr(lower(replace("st${local.purpose}${local.region}${local.env}", "-", "")), 0, 24)
     # ADAPTED: user-assigned identity (closest: key_vault <appcode>-<region>-<env>-*)
     user_assigned_identity = local.purpose == null ? null : "${local.purpose}-${local.region}-${local.env}-id"
 
     # ---- Policy ----
     policy_initiative = (local.domain == null || local.purpose == null) ? null : "initiative-${local.domain}-${local.purpose}"
-    policy_assignment = (local.policy == null || local.scope == null) ? null : "assign-${local.policy}-${local.scope}"
+    policy_assignment = (local.policy == null || local.policy_scope == null) ? null : "assign-${local.policy}-${local.policy_scope}"
 
     # ---- Entra ID ----
     entra_security_group = (local.entra_dom == null || local.entra_role == null) ? null : "AZ-${local.entra_dom}-${local.entra_role}"

@@ -9,31 +9,67 @@ token order per resource type (`platform-<region>-<env>-hub-vnet` vs
 `<region>-<env>-<purpose>-nsg` vs `<appcode>-<region>-<env>-vault`), so every row
 is an explicit pattern here.
 
-## Usage
+## Usage — the front door
 
-Call it once in the composition root's `naming.tf`, pass only the tokens the
-names you need require, then feed the outputs into the resource/pattern modules.
+Call it **once inside the pattern**. Give it the root's identity plus the map
+keys of every keyed resource the root deploys; it returns every name.
 
 ```hcl
 module "naming" {
-  source  = "../../modules/terraform-azurerm-compeer-naming"
+  source      = "../../modules/terraform-azurerm-compeer-naming"
 
-  region      = "centralus"
-  environment = "prod"
-  purpose     = "hub"       # only needed for subnet / nsg / policy_initiative
-  instance    = 1           # only needed for firewall_vm / cloudflare_connector
+  # identity - what makes this root's names differ from another root's
+  region      = var.naming.region        # "centralus"
+  environment = var.naming.environment    # "prod"
+  scope       = "platform"                # platform | workload
+  component   = "management"              # platform discriminator
+  # for workloads instead:  scope = "workload", domain = "internal-apps", appcode = "orders"
+
+  # instance keys - one list per keyed resource type the root deploys
+  key_vault_keys              = keys(var.key_vaults)          # ["primary", "secrets"]
+  storage_account_keys        = keys(var.storage_accounts)    # ["audit", "diag"]
+  recovery_services_vault_keys = keys(var.recovery_vaults)
 }
 
-# module.naming.hub_vnet                # platform-cus-prod-hub-vnet
-# module.naming.platform_resource_group # platform-cus-prod-rg
-# module.naming.firewall_vm             # platform-cus-prod-fw-01
-# module.naming.nsg                     # cus-prod-hub-nsg
+# singletons
+module.naming.resource_group          # platform-cus-prod-management-rg
+module.naming.log_analytics_workspace # cus-prod-loganalytics-workspace
+module.naming.action_group            # platform-cus-prod-ag
+
+# keyed - one name per map key
+module.naming.key_vault_names           # { primary = "mgmt-cus-prod-primary-kv", secrets = "mgmt-cus-prod-secrets-kv" }
+module.naming.storage_account_names     # { audit = "stmgmtauditcusprod", diag = "stmgmtdiagcusprod" }
 ```
 
-When published to the private registry, **pin the version** in every consumer.
+The pattern then does `coalesce(try(each.value.name, null), module.naming.key_vault_names[each.key])`
+so a `name` set in tfvars still wins.
 
-A name whose required tokens were not supplied is `null` &mdash; reference it and
-Terraform stops, which is the intended behaviour.
+### How roots differ, same region + environment
+
+| Root | identity | resource group | KV key `primary` |
+|---|---|---|---|
+| management | `component = "management"` | `platform-cus-prod-management-rg` | `mgmt-cus-prod-primary-kv` |
+| connectivity | `component = "connectivity"` | `platform-cus-prod-connectivity-rg` | &mdash; |
+| workload internal-apps | `domain = "internal-apps"` | `internal-apps-cus-prod-rg` | `intapps-cus-prod-primary-kv` |
+| workload orders | `domain = "internal-apps", appcode = "orders"` | `internal-apps-orders-cus-prod-rg` | `orders-cus-prod-primary-kv` |
+
+`component` / `domain` / `appcode` distinguishes **roots**; the map key
+(`primary`, `audit`) distinguishes **instances inside a root**.
+
+### Length constraints
+
+Key Vault and storage-account names are &le;24 chars. The module fails the plan
+with a clear message (and the exact character budget) if a computed name is too
+long &mdash; **keep Key Vault / storage map keys short** (`sec`, `app`, `hsm`,
+`audit`). Set `storage_uniqueness = <subscription id>` for a 4-hex suffix on
+storage names (they must be globally unique).
+
+### Legacy single-token inputs
+
+`purpose` / `destination` / `resource` still drive the singular `nsg` /
+`route_table` / `public_ip` / `resource_group` (per-component) outputs, for
+callers not yet migrated to the `*_keys` front door. A name whose tokens were
+not supplied is `null`.
 
 ## Inputs
 

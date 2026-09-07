@@ -182,6 +182,130 @@ run "adapted_names" {
   }
 }
 
+run "platform_root_identity_and_keyed_names" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "platform"
+    component   = "management"
+
+    key_vault_keys              = ["primary", "secrets"]
+    storage_account_keys        = ["audit", "diag"]
+    user_assigned_identity_keys = ["automation"]
+    nsg_keys                    = ["palo-mgmt", "connectors"]
+    recovery_services_vault_keys = ["platform"]
+  }
+
+  assert {
+    condition     = output.resource_group == "platform-cus-prod-management-rg"
+    error_message = "platform component RG"
+  }
+  assert {
+    condition     = output.discriminator == "management"
+    error_message = "discriminator resolves to component"
+  }
+  assert {
+    condition     = output.key_vault_names["primary"] == "mgmt-cus-prod-primary-kv" && output.key_vault_names["secrets"] == "mgmt-cus-prod-secrets-kv"
+    error_message = "keyed key-vault names (abbreviated component)"
+  }
+  assert {
+    condition     = output.storage_account_names["audit"] == "stmgmtauditcusprod" && length(output.storage_account_names["audit"]) <= 24
+    error_message = "keyed storage-account names (no dash, <=24)"
+  }
+  assert {
+    condition     = output.user_assigned_identity_names["automation"] == "mgmt-cus-prod-automation-id"
+    error_message = "keyed user-assigned-identity names"
+  }
+  assert {
+    condition     = output.nsg_names["palo-mgmt"] == "cus-prod-palo-mgmt-nsg"
+    error_message = "keyed NSG names"
+  }
+  assert {
+    condition     = output.recovery_services_vault_names["platform"] == "platform-cus-prod-platform-rsv"
+    error_message = "keyed RSV names"
+  }
+}
+
+run "workload_root_identity" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "workload"
+    domain      = "internal-apps"
+    appcode     = "orders"
+
+    key_vault_keys       = ["app", "sig"]
+    storage_account_keys = ["uploads"]
+  }
+
+  assert {
+    condition     = output.resource_group == "internal-apps-orders-cus-prod-rg"
+    error_message = "workload RG with appcode"
+  }
+  assert {
+    condition     = output.discriminator == "orders"
+    error_message = "workload discriminator resolves to appcode"
+  }
+  assert {
+    condition     = output.key_vault_names["app"] == "orders-cus-prod-app-kv"
+    error_message = "workload keyed KV names"
+  }
+  assert {
+    condition     = length(output.storage_account_names["uploads"]) <= 24 && can(regex("^[a-z0-9]+$", output.storage_account_names["uploads"]))
+    error_message = "workload keyed storage names <=24, alphanumeric"
+  }
+}
+
+run "workload_root_no_appcode" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "workload"
+    domain      = "internal-apps"
+  }
+
+  assert {
+    condition     = output.resource_group == "internal-apps-cus-prod-rg"
+    error_message = "workload RG without appcode"
+  }
+}
+
+run "storage_uniqueness_suffix" {
+  command = apply
+
+  variables {
+    region               = "centralus"
+    environment          = "prod"
+    component            = "management"
+    storage_account_keys = ["audit"]
+    storage_uniqueness   = "00000000-0000-0000-0000-000000000000"
+  }
+
+  assert {
+    condition     = length(output.storage_account_names["audit"]) <= 24 && output.storage_account_names["audit"] != "stmgmtauditcusprod"
+    error_message = "storage_uniqueness appends a hash suffix"
+  }
+}
+
+run "rejects_keyed_key_vault_over_24" {
+  command = plan
+
+  variables {
+    region         = "centralus"
+    environment    = "prod"
+    component      = "management"
+    key_vault_keys = ["this-key-is-far-too-long-to-fit"]
+  }
+
+  expect_failures = [output.key_vault_names]
+}
+
 run "entra_and_policy_casing" {
   command = apply
 
@@ -191,7 +315,7 @@ run "entra_and_policy_casing" {
     domain       = "security"
     purpose      = "baseline"
     policy       = "security"
-    scope        = "prod"
+    policy_scope = "prod"
     entra_domain = "plt"
     entra_role   = "Admins"
   }
