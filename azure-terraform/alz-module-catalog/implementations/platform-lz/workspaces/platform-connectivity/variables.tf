@@ -1,10 +1,10 @@
 variable "tenant_id" {
-  description = "Microsoft Entra tenant ID used by the connectivity workspace."
+  description = "Entra tenant ID. Provide via the shared HCP variable set as a Terraform-category variable named `tenant_id` - it is constant across the tenant. Do NOT set it in a .tfvars file or as an env var."
   type        = string
 }
 
 variable "subscription_id" {
-  description = "Connectivity subscription ID."
+  description = "Target subscription ID for this workspace. Set it directly as a workspace-level Terraform-category variable in HCP (it differs per landing zone). Do NOT set it in a .tfvars file."
   type        = string
 }
 

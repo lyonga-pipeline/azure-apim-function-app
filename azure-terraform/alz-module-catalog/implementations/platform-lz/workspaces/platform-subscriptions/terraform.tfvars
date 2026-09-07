@@ -1,5 +1,11 @@
-tenant_id                 = "00000000-0000-0000-0000-000000000000"
-execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
+#   subscription_id -> this workspace's Terraform-category variable in HCP
+# The azurerm provider reads both from those Terraform variables.
+#
+
 tfe_organization          = "Compeer-Financial-Services"
 governance_workspace_name = "platform-governance"
 

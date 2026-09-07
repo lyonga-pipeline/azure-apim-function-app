@@ -1,6 +1,10 @@
-tenant_id             = "00000000-0000-0000-0000-000000000000"
-hub_subscription_id   = "00000000-0000-0000-0000-000000000000"
-spoke_subscription_id = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id            -> shared HCP variable set (Terraform category, key: tenant_id)
+#   hub_subscription_id  -> this workspace's Terraform-category variable in HCP
+#   spoke_subscription_id-> this workspace's Terraform-category variable in HCP
+#
 
 network_peering = {
   enabled                              = false

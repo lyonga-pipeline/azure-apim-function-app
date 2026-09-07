@@ -1,9 +1,15 @@
-tenant_id                 = "00000000-0000-0000-0000-000000000000"
-execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
+#   subscription_id -> this workspace's Terraform-category variable in HCP
+# The azurerm provider reads both from those Terraform variables.
+#
+
 location                  = "centralus"
 tfe_organization          = "Compeer-Financial-Services"
 governance_workspace_name = "platform-governance"
-management_workspace_name  = "platform-management"
+management_workspace_name = "platform-management"
 
 # The deny/audit BASELINE (allowed-regions, required-tags, deny-public-PaaS,
 # secure-storage, restrict-public-IP, private-SQL, MCSB) is shipped by the
@@ -69,8 +75,8 @@ policy = {
       "rg-conn-route-server",
       "rg-hybrid-gateway",
     ]
-    not_scopes               = []
-    include_builtin_baseline = false
+    not_scopes                    = []
+    include_builtin_baseline      = false
     builtin_policy_definition_ids = {}
   }
 }

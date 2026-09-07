@@ -1,9 +1,0 @@
-cloudflare_edge = {
-  enabled  = false
-  zones    = {}
-  records  = {}
-  rulesets = {}
-  tunnels  = {}
-}
-
-cloudflare_tunnel_secrets = {}

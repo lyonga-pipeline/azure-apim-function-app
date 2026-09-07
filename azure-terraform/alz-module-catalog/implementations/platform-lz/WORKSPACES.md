@@ -16,6 +16,26 @@ Auth is HCP dynamic credentials / workload-identity federation to Azure — no
 long-lived client secrets. Deployment identities are split at least by
 governance/policy, connectivity, identity, and management.
 
+### `tenant_id` / `subscription_id` (the one gotcha)
+
+The `azurerm` provider block passes `subscription_id = var.subscription_id` and
+`tenant_id = var.tenant_id`, so **both must exist as HCP variables of category
+`Terraform`** — not `env`. An `env`-category variable named `tenant_id` becomes
+an OS env var and does **not** satisfy `var.tenant_id`; that produces the
+`No value for required variable "tenant_id"` run error. (`ARM_TENANT_ID` /
+`ARM_SUBSCRIPTION_ID` are env vars for the provider's own auth and are a
+different thing — don't rely on them to feed the Terraform variables.)
+
+| Variable | Where to set it | Why |
+|---|---|---|
+| `tenant_id` | shared **variable set** (category: Terraform, key `tenant_id`) | constant across the tenant |
+| `subscription_id` (or `execution_subscription_id`, `hub_/spoke_subscription_id`) | the **workspace's** own Terraform variables | differs per landing zone |
+
+Neither is set in `terraform.tfvars` — those files carry only the workspace's
+resource configuration. Avoid also defining these at workspace level when the
+variable set already provides them (precedence gets confusing); override at the
+workspace only for a genuine exception.
+
 ## Deployment Order
 
 1. `platform-governance` -> HCP workspace `platform-governance` (MG hierarchy + `policy_baseline` in Audit)

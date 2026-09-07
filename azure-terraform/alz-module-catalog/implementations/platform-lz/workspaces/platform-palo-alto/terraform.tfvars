@@ -1,5 +1,11 @@
-tenant_id                   = "00000000-0000-0000-0000-000000000000"
-subscription_id             = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
+#   subscription_id -> this workspace's Terraform-category variable in HCP
+# The azurerm provider reads both from those Terraform variables.
+#
+
 location                    = "centralus"
 tfe_organization            = "Compeer-Financial-Services"
 connectivity_workspace_name = "platform-connectivity"
@@ -34,8 +40,8 @@ palo_alto = {
     shared_access_key_enabled     = true # bootstrap needs the account key
     public_network_access_enabled = true # required for a service endpoint; Deny + allow-list below
     network_rules = {
-      default_action     = "Deny"
-      bypass             = ["AzureServices"]
+      default_action      = "Deny"
+      bypass              = ["AzureServices"]
       allowed_subnet_keys = ["palo_alto_management"] # resolved from the connectivity output
       # allowed_ip_ranges = []                        # on-prem CIDR only if genuinely needed
     }
@@ -48,9 +54,8 @@ palo_alto = {
   # default (private endpoint + Deny). The firewall MIs are granted
   # "Key Vault Certificates User" + "Secrets User" automatically.
   bootstrap_key_vault = {
-    name      = "kv-pan-bootstrap-prod"
-    tenant_id = "00000000-0000-0000-0000-000000000000"
-    network   = { mode = "private" }
+    name    = "kv-pan-bootstrap-prod"
+    network = { mode = "private" }
     private_endpoint = {
       name       = "pep-kv-pan-bootstrap"
       subnet_key = "private_endpoints"
@@ -82,7 +87,7 @@ palo_alto = {
   }
 
   public_ips = {
-    fw_mgmt = { name = "pip-fw-mgmt", allocation_method = "Static", sku = "Standard" }
+    fw_mgmt    = { name = "pip-fw-mgmt", allocation_method = "Static", sku = "Standard" }
     fw_untrust = { name = "pip-fw-untrust", allocation_method = "Static", sku = "Standard" }
   }
 

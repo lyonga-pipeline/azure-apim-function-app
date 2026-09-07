@@ -71,7 +71,7 @@ locals {
   _bkv_pe = try(local._bkv.private_endpoint, null)
   bootstrap_key_vault = local._bkv == null ? null : {
     name                       = local._bkv.name
-    tenant_id                  = local._bkv.tenant_id
+    tenant_id                  = coalesce(try(local._bkv.tenant_id, null), var.tenant_id)
     sku_name                   = try(local._bkv.sku_name, "premium")
     purge_protection_enabled   = try(local._bkv.purge_protection_enabled, true)
     soft_delete_retention_days = try(local._bkv.soft_delete_retention_days, 90)

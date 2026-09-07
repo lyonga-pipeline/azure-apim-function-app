@@ -1,25 +1,31 @@
-tenant_id                 = "00000000-0000-0000-0000-000000000000"
-subscription_id           = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
+#   subscription_id -> this workspace's Terraform-category variable in HCP
+# The azurerm provider reads both from those Terraform variables.
+#
+
 location                  = "centralus"
 environment               = "prod"
 tfe_organization          = "Compeer-Financial-Services"
 management_workspace_name = "platform-management"
 
 platform_tags = {
-  application          = "alz-platform-connectivity"
-  owner                = "Cloud Enablement"
-  source_repo          = "ado://Compeer/landing-zone"
-  created_on           = "2026-01-01"
-  criticality_tier     = "tier-2"
-  data_classification  = "confidential"
-  lifecycle_state      = "active"
-  cost_center          = "CC-0000"
-  gl_category          = "cloud-infrastructure"
+  application         = "alz-platform-connectivity"
+  owner               = "Cloud Enablement"
+  source_repo         = "ado://Compeer/landing-zone"
+  created_on          = "2026-01-01"
+  criticality_tier    = "tier-2"
+  data_classification = "confidential"
+  lifecycle_state     = "active"
+  cost_center         = "CC-0000"
+  gl_category         = "cloud-infrastructure"
   # optional / conditional - set where you have a value
   # application_component = "..."
   # modified_on           = "2026-01-01"
   # created_by            = "terraform"
-  dr_tier              = "standard"
+  dr_tier = "standard"
   # expiration_date      = "2026-12-31"   # sandbox / temporary / POC only
   additional_tags = {
     created_by = "terraform"
@@ -39,21 +45,21 @@ connectivity = {
     # (runbook §4.1 - the hub pattern owns all subnets). route_table_key /
     # nsg_key wire the association from one place.
     subnets = {
-      GatewaySubnet          = { address_prefixes = ["10.0.0.0/27"] }
-      RouteServerSubnet      = { address_prefixes = ["10.0.0.64/27"] }
-      AzureBastionSubnet     = { address_prefixes = ["10.0.0.128/26"] }
+      GatewaySubnet      = { address_prefixes = ["10.0.0.0/27"] }
+      RouteServerSubnet  = { address_prefixes = ["10.0.0.64/27"] }
+      AzureBastionSubnet = { address_prefixes = ["10.0.0.128/26"] }
       # service_endpoints let the bootstrap storage account / Key Vault firewall
       # to this subnet without a public endpoint (see GUARDRAIL-EXCEPTIONS.md).
-      palo_alto_management = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
-      palo_alto_untrusted    = { address_prefixes = ["10.0.1.64/26"] }
-      palo_alto_trusted      = { address_prefixes = ["10.0.1.128/26"] }
-      palo_alto_ha           = { address_prefixes = ["10.0.1.192/26"] }
-      cloudflare_connectors  = { address_prefixes = ["10.0.2.0/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
-      domain_controllers     = { address_prefixes = ["10.0.2.64/26"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }
-      dns_resolver_inbound   = { address_prefixes = ["10.0.2.128/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
-      dns_resolver_outbound  = { address_prefixes = ["10.0.2.144/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
-      private_endpoints      = { address_prefixes = ["10.0.3.0/24"], route_table_key = "to_firewall" }
-      app_integration        = { address_prefixes = ["10.0.4.0/24"], route_table_key = "to_firewall" }
+      palo_alto_management  = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
+      palo_alto_untrusted   = { address_prefixes = ["10.0.1.64/26"] }
+      palo_alto_trusted     = { address_prefixes = ["10.0.1.128/26"] }
+      palo_alto_ha          = { address_prefixes = ["10.0.1.192/26"] }
+      cloudflare_connectors = { address_prefixes = ["10.0.2.0/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
+      domain_controllers    = { address_prefixes = ["10.0.2.64/26"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }
+      dns_resolver_inbound  = { address_prefixes = ["10.0.2.128/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
+      dns_resolver_outbound = { address_prefixes = ["10.0.2.144/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
+      private_endpoints     = { address_prefixes = ["10.0.3.0/24"], route_table_key = "to_firewall" }
+      app_integration       = { address_prefixes = ["10.0.4.0/24"], route_table_key = "to_firewall" }
     }
   }
   ddos_protection_plan = {
@@ -81,9 +87,9 @@ connectivity = {
     ip_connect_enabled = true
   }
   network_security_groups = {
-    palo_mgmt          = { name = "nsg-hub-palo-mgmt", rules = {} }   # restrict to approved mgmt sources
+    palo_mgmt          = { name = "nsg-hub-palo-mgmt", rules = {} } # restrict to approved mgmt sources
     connectors         = { name = "nsg-hub-connectors", rules = {} }
-    domain_controllers = { name = "nsg-hub-dc", rules = {} }          # AD port matrix per runbook §7.3
+    domain_controllers = { name = "nsg-hub-dc", rules = {} } # AD port matrix per runbook §7.3
   }
   subnet_nsg_associations = {} # derived from subnet.nsg_key above
 

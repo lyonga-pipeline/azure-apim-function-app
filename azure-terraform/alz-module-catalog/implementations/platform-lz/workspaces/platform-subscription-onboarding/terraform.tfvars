@@ -1,5 +1,11 @@
-tenant_id                 = "00000000-0000-0000-0000-000000000000"
-execution_subscription_id = "00000000-0000-0000-0000-000000000000"
+# Deployable tfvars for this workspace.
+#
+# Auth is NOT set here:
+#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
+#   subscription_id -> this workspace's Terraform-category variable in HCP
+# The azurerm provider reads both from those Terraform variables.
+#
+
 tfe_organization          = "Compeer-Financial-Services"
 governance_workspace_name = "platform-governance"
 
@@ -35,7 +41,6 @@ onboarding = {
 
   subscriptions = {
     corp_app_alpha = {
-      subscription_id             = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
       target_management_group_key = "corp"
       display_name                = "corp-app-alpha-prod"
       workload                    = "Production"
@@ -50,7 +55,6 @@ onboarding = {
     }
 
     sandbox_alpha = {
-      subscription_id             = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
       target_management_group_key = "sandbox"
       workload                    = "DevTest"
       apply_baseline_rbac         = false # sandbox gets its own lighter RBAC
