@@ -191,10 +191,10 @@ run "platform_root_identity_and_keyed_names" {
     scope       = "platform"
     component   = "management"
 
-    key_vault_keys              = ["primary", "secrets"]
-    storage_account_keys        = ["audit", "diag"]
-    user_assigned_identity_keys = ["automation"]
-    nsg_keys                    = ["palo-mgmt", "connectors"]
+    key_vault_keys               = ["primary", "secrets"]
+    storage_account_keys         = ["audit", "diag"]
+    user_assigned_identity_keys  = ["automation"]
+    nsg_keys                     = ["palo-mgmt", "connectors"]
     recovery_services_vault_keys = ["platform"]
   }
 

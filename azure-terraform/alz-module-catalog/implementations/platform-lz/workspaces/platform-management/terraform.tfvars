@@ -4,17 +4,17 @@
 #   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
 #   subscription_id -> this workspace's Terraform-category variable in HCP
 #
-# Resource NAMES are NOT set here either - they come from the naming module
-# (naming.tf -> design-doc Appendix F). Add a `name = "..."` to any block below
-# ONLY to grandfather an existing resource; otherwise leave it out and the
-# standard name is used:
-#   resource group            platform-<region>-<env>-management-rg
-#   log analytics             <region>-<env>-loganalytics-workspace
-#   action group              platform-<region>-<env>-ag
-#   key vault (key "platform")  platform-<region>-<env>-vault
-#   storage account (key "audit")  staudit<region><env>
-#   recovery services vault   platform-<region>-<env>-rsv
-#   diagnostic settings       diag-<observed resource>-law
+# Resource NAMES are NOT set here - the pattern's naming module produces them
+# from region + environment + component "management" + the map key you choose.
+# Add `name = "..."` to a block ONLY to grandfather an existing resource.
+# Standard names for this root (component = management, cus/prod):
+#   resource group                 platform-cus-prod-management-rg
+#   log analytics                  cus-prod-loganalytics-workspace
+#   action group                   platform-cus-prod-ag
+#   key vault (key "main")         mgmt-cus-prod-main-kv       (keep KV keys <= 7 chars)
+#   storage account (key "audit")  stmgmtauditcusprod
+#   recovery services vault (main) platform-cus-prod-main-rsv
+#   diagnostic settings            diag-<observed resource name>-law
 #
 
 location    = "centralus"
@@ -63,7 +63,7 @@ management = {
     }
   }
   platform_key_vaults = {
-    platform = {
+    main = {
       sku_name                      = "standard"
       rbac_authorization_enabled    = true
       purge_protection_enabled      = true
@@ -75,8 +75,8 @@ management = {
     }
   }
   platform_key_vault_diagnostics = {
-    platform = {
-      key_vault_key = "platform"
+    main = {
+      key_vault_key = "main"
       logs = {
         audit = { category = "AuditEvent" }
       }
@@ -87,13 +87,13 @@ management = {
   }
   platform_key_vault_private_endpoints = {}
   recovery_services_vaults = {
-    platform = {
+    main = {
       storage_mode_type = "ZoneRedundant"
     }
   }
   recovery_services_vault_diagnostics = {
-    platform = {
-      recovery_services_vault_key = "platform"
+    main = {
+      recovery_services_vault_key = "main"
       logs = {
         all = { category_group = "allLogs" }
       }

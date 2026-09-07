@@ -13,6 +13,22 @@ variable "environment" {
   description = "Environment key, such as np or prod."
 }
 
+variable "naming" {
+  description = <<-EOT
+    Root identity for the naming module. This pattern IS the 'management'
+    component, so only region + environment are required from the caller. A
+    `name` set on any resource block below still overrides the computed name.
+  EOT
+  type = object({
+    region             = optional(string)
+    environment        = optional(string)
+    scope              = optional(string, "platform")
+    component          = optional(string, "management")
+    storage_uniqueness = optional(string, "")
+  })
+  default = {}
+}
+
 variable "platform_tags" {
   type = object({
     application           = optional(string)
@@ -36,13 +52,13 @@ variable "platform_tags" {
 
 variable "resource_group" {
   type = object({
-    name = string
+    name = optional(string)
   })
 }
 
 variable "log_analytics" {
   type = object({
-    name                             = string
+    name                             = optional(string)
     sku                              = optional(string, "PerGB2018")
     retention_in_days                = optional(number, 90)
     daily_quota_gb                   = optional(number)
@@ -79,7 +95,7 @@ variable "log_analytics" {
 
 variable "action_group" {
   type = object({
-    name       = string
+    name       = optional(string)
     short_name = string
     enabled    = optional(bool, true)
     receivers = optional(object({
@@ -150,7 +166,7 @@ variable "action_group" {
 
 variable "platform_storage_accounts" {
   type = map(object({
-    name                              = string
+    name                              = optional(string)
     account_tier                      = optional(string, "Standard")
     account_replication_type          = optional(string, "ZRS")
     account_kind                      = optional(string, "StorageV2")
@@ -306,7 +322,7 @@ variable "platform_storage_accounts" {
 
 variable "platform_key_vaults" {
   type = map(object({
-    name      = string
+    name      = optional(string)
     sku_name  = optional(string, "standard")
     tenant_id = optional(string)
     access_policies = optional(list(object({
@@ -361,7 +377,7 @@ variable "platform_key_vaults" {
 
 variable "recovery_services_vaults" {
   type = map(object({
-    name                               = string
+    name                               = optional(string)
     sku                                = optional(string, "Standard")
     storage_mode_type                  = optional(string, "GeoRedundant")
     public_network_access_enabled      = optional(bool)
@@ -400,7 +416,7 @@ variable "recovery_services_vaults" {
 
 variable "platform_storage_diagnostics" {
   type = map(object({
-    name                           = string
+    name                           = optional(string)
     storage_account_key            = optional(string)
     target_resource_id             = optional(string)
     log_analytics_workspace_id     = optional(string)
@@ -435,7 +451,7 @@ variable "platform_storage_diagnostics" {
 
 variable "platform_key_vault_diagnostics" {
   type = map(object({
-    name                           = string
+    name                           = optional(string)
     key_vault_key                  = optional(string)
     target_resource_id             = optional(string)
     log_analytics_workspace_id     = optional(string)
@@ -558,7 +574,7 @@ variable "platform_key_vault_private_endpoints" {
 
 variable "recovery_services_vault_diagnostics" {
   type = map(object({
-    name                           = string
+    name                           = optional(string)
     recovery_services_vault_key    = optional(string)
     target_resource_id             = optional(string)
     log_analytics_workspace_id     = optional(string)

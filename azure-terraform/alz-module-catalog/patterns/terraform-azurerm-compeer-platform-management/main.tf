@@ -19,10 +19,24 @@ module "tags" {
   additional_tags       = var.platform_tags.additional_tags
 }
 
+module "naming" {
+  source = "../../modules/terraform-azurerm-compeer-naming"
+
+  region      = coalesce(try(var.naming.region, null), var.location)
+  environment = coalesce(try(var.naming.environment, null), var.environment)
+  scope       = try(var.naming.scope, "platform")
+  component   = coalesce(try(var.naming.component, null), "management")
+
+  storage_uniqueness           = try(var.naming.storage_uniqueness, "")
+  key_vault_keys               = keys(var.platform_key_vaults)
+  storage_account_keys         = keys(var.platform_storage_accounts)
+  recovery_services_vault_keys = keys(var.recovery_services_vaults)
+}
+
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = var.resource_group.name
+  name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
   location = var.location
   tags     = module.tags.tags
 }
@@ -30,7 +44,7 @@ module "resource_group" {
 module "log_analytics" {
   source = "../../modules/terraform-azurerm-compeer-log-analytics"
 
-  log_analytics_workspace_name            = var.log_analytics.name
+  log_analytics_workspace_name            = coalesce(try(var.log_analytics.name, null), module.naming.log_analytics_workspace)
   resource_group_name                     = module.resource_group.name
   location                                = module.resource_group.location
   log_analytics_sku                       = var.log_analytics.sku
@@ -52,7 +66,7 @@ module "log_analytics" {
 module "action_group" {
   source = "../../modules/terraform-azurerm-compeer-action-group"
 
-  name                = var.action_group.name
+  name                = coalesce(try(var.action_group.name, null), module.naming.action_group)
   resource_group_name = module.resource_group.name
   short_name          = var.action_group.short_name
   enabled             = try(var.action_group.enabled, true)
@@ -65,7 +79,7 @@ module "platform_storage_accounts" {
   source   = "../../modules/terraform-azurerm-compeer-storage-account"
   for_each = var.platform_storage_accounts
 
-  name                              = each.value.name
+  name                              = coalesce(try(each.value.name, null), module.naming.storage_account_names[each.key])
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
   account_tier                      = each.value.account_tier
@@ -111,7 +125,7 @@ module "platform_key_vaults" {
   source   = "../../modules/terraform-azurerm-compeer-keyvault"
   for_each = var.platform_key_vaults
 
-  name                            = each.value.name
+  name                            = coalesce(try(each.value.name, null), module.naming.key_vault_names[each.key])
   resource_group_name             = module.resource_group.name
   location                        = module.resource_group.location
   sku_name                        = try(each.value.sku_name, "standard")
@@ -135,7 +149,7 @@ module "recovery_services_vaults" {
   source   = "../../modules/terraform-azurerm-compeer-recovery-services-vault"
   for_each = var.recovery_services_vaults
 
-  name                               = each.value.name
+  name                               = coalesce(try(each.value.name, null), module.naming.recovery_services_vault_names[each.key])
   resource_group_name                = module.resource_group.name
   location                           = module.resource_group.location
   sku                                = each.value.sku
@@ -244,7 +258,7 @@ locals {
 
   platform_storage_diagnostic_inputs = {
     for key, diagnostic in var.platform_storage_diagnostics : key => {
-      name                           = diagnostic.name
+      name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_storage_accounts[diagnostic.storage_account_key].name}-law")
       target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_storage_accounts[diagnostic.storage_account_key].id, null))
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
@@ -262,7 +276,7 @@ locals {
 
   platform_key_vault_diagnostic_inputs = {
     for key, diagnostic in var.platform_key_vault_diagnostics : key => {
-      name                           = diagnostic.name
+      name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_key_vaults[diagnostic.key_vault_key].name}-law")
       target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_key_vaults[diagnostic.key_vault_key].id, null))
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
@@ -280,7 +294,7 @@ locals {
 
   recovery_services_vault_diagnostic_inputs = {
     for key, diagnostic in var.recovery_services_vault_diagnostics : key => {
-      name                           = diagnostic.name
+      name                           = coalesce(try(diagnostic.name, null), "diag-${module.recovery_services_vaults[diagnostic.recovery_services_vault_key].name}-law")
       target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.recovery_services_vaults[diagnostic.recovery_services_vault_key].id, null))
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
