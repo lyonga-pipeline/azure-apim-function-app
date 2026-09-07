@@ -139,7 +139,6 @@ module "recovery_services_vaults" {
   resource_group_name                = module.resource_group.name
   location                           = module.resource_group.location
   sku                                = each.value.sku
-  soft_delete_enabled                = each.value.soft_delete_enabled
   storage_mode_type                  = each.value.storage_mode_type
   public_network_access_enabled      = try(each.value.public_network_access_enabled, null)
   immutability                       = try(each.value.immutability, null)

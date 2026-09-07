@@ -14,10 +14,6 @@ variable "sku" {
   type    = string
   default = "Standard"
 }
-variable "soft_delete_enabled" {
-  type    = bool
-  default = true
-}
 variable "storage_mode_type" {
   type    = string
   default = "GeoRedundant"

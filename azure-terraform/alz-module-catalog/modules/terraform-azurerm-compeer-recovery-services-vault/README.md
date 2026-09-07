@@ -21,7 +21,11 @@ State exposure: only where a secret input or sensitive output is documented in
 ## Migration
 
 versions.tf standardised; descriptions and value validation added; `x == null || x.attr`
-validation patterns fixed. Interface preserved for any consumed module.
+validation patterns fixed.
+
+**Removed `soft_delete_enabled`** - deprecated by the AzureRM provider and removed
+in v5.0 (soft delete is always on under Azure's secure-by-default policy). Drop
+the argument from any caller; behaviour is unchanged.
 
 ## Tests
 

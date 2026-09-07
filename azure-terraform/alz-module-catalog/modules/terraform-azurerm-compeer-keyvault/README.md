@@ -27,7 +27,8 @@ module "vault" {
 | Input | Type | Default | Notes |
 |---|---|---|---|
 | `name` | string | — | ForceNew; validated against the Azure name rule |
-| `resource_group_name` / `location` / `tenant_id` | string | — | first two ForceNew |
+| `resource_group_name` / `location` | string | — | ForceNew |
+| `tenant_id` | string \| null | `null` | defaults to `data.azurerm_client_config.current.tenant_id` (the deploying identity's tenant); ForceNew if changed |
 | `sku_name` | string | `standard` | `standard` \| `premium`; update in place |
 | `soft_delete_retention_days` | number | `90` | 7-90; ForceNew on decrease |
 | `purge_protection_enabled` | bool | `true` | one-way: cannot be disabled once on |
@@ -64,6 +65,10 @@ The redesigned baseline had briefly changed `access_policies` to a map, dropped
 `access_policies_by_key`, and made `contacts` a map. This module **restores** the
 original list/map contract, so callers on the pre-redesign interface need no
 changes. `network_acls` default is `{}` (deny-by-default, bypass `AzureServices`).
+
+`tenant_id` is now **optional** - it defaults to
+`data.azurerm_client_config.current.tenant_id`. Callers that were forwarding the
+platform tenant can drop the argument; pass it only for a cross-tenant vault.
 
 ## Tests
 

@@ -363,7 +363,6 @@ variable "recovery_services_vaults" {
   type = map(object({
     name                               = string
     sku                                = optional(string, "Standard")
-    soft_delete_enabled                = optional(bool, true)
     storage_mode_type                  = optional(string, "GeoRedundant")
     public_network_access_enabled      = optional(bool)
     immutability                       = optional(string)

@@ -15,8 +15,9 @@ variable "location" {
   type        = string
 }
 variable "tenant_id" {
-  description = "Entra ID tenant the vault is bound to."
+  description = "Entra ID tenant the vault is bound to. Defaults to the deploying identity's tenant (data.azurerm_client_config.current.tenant_id)."
   type        = string
+  default     = null
 }
 variable "sku_name" {
   description = "standard or premium."

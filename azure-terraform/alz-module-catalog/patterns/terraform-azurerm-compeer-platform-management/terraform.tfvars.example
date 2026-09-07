@@ -90,10 +90,9 @@ data_collection_rule_associations    = {}
 #
 # recovery_services_vaults = {
 #   platform = {
-#     name                = "rsv-lz-platform-np-001"
-#     sku                 = "Standard"
-#     soft_delete_enabled = true
-#     storage_mode_type   = "GeoRedundant"
+#     name              = "rsv-lz-platform-np-001"
+#     sku               = "Standard"
+#     storage_mode_type = "GeoRedundant"
 #   }
 # }
 

@@ -1,6 +1,15 @@
 # Offline tests. `mock_provider` means `apply` runs need no cloud auth.
 
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      tenant_id       = "00000000-0000-0000-0000-000000000000"
+      client_id       = "00000000-0000-0000-0000-000000000000"
+      object_id       = "00000000-0000-0000-0000-000000000000"
+      subscription_id = "00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
 
 variables {
   name                = "kv-hardening-test"
@@ -8,6 +17,19 @@ variables {
   location            = "eastus2"
   tenant_id           = "00000000-0000-0000-0000-000000000000"
   tags                = { environment = "test" }
+}
+
+run "tenant_id_defaults_to_client_config" {
+  command = apply
+
+  variables {
+    tenant_id = null
+  }
+
+  assert {
+    condition     = azurerm_key_vault.keyvault.tenant_id != null && azurerm_key_vault.keyvault.tenant_id != ""
+    error_message = "tenant_id must fall back to data.azurerm_client_config.current.tenant_id when not supplied"
+  }
 }
 
 run "secure_defaults" {
