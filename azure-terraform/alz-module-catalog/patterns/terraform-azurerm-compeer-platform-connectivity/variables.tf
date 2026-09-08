@@ -13,6 +13,19 @@ variable "environment" {
   description = "Environment key, such as np or prod."
 }
 
+variable "naming" {
+  description = "Root identity for the naming module. This pattern's component is 'connectivity'; only region + environment are needed from the caller. A `name` on any resource block still overrides the computed name."
+  type = object({
+    region             = optional(string)
+    environment        = optional(string)
+    scope              = optional(string, "platform")
+    component          = optional(string, "connectivity")
+    storage_uniqueness = optional(string, "")
+  })
+  default = {}
+}
+
+
 variable "platform_tags" {
   type = object({
     application           = optional(string)
@@ -36,13 +49,13 @@ variable "platform_tags" {
 
 variable "resource_group" {
   type = object({
-    name = string
+    name = optional(string)
   })
 }
 
 variable "hub_vnet" {
   type = object({
-    name                           = string
+    name                           = optional(string)
     address_space                  = list(string)
     dns_servers                    = optional(list(string))
     bgp_community                  = optional(string)
@@ -270,7 +283,7 @@ variable "bastion" {
 
 variable "network_security_groups" {
   type = map(object({
-    name = string
+    name = optional(string)
     rules = optional(map(object({
       priority                                   = number
       direction                                  = string
@@ -302,7 +315,7 @@ variable "subnet_nsg_associations" {
 
 variable "route_tables" {
   type = map(object({
-    name                          = string
+    name                          = optional(string)
     bgp_route_propagation_enabled = optional(bool, true)
     routes = optional(map(object({
       address_prefix         = string
@@ -315,7 +328,7 @@ variable "route_tables" {
 
 variable "public_ips" {
   type = map(object({
-    name                    = string
+    name                    = optional(string)
     allocation_method       = optional(string, "Static")
     sku                     = optional(string, "Standard")
     sku_tier                = optional(string, "Regional")
@@ -424,7 +437,7 @@ variable "route_servers" {
 
 variable "load_balancers" {
   type = map(object({
-    name      = string
+    name      = optional(string)
     sku       = optional(string, "Standard")
     sku_tier  = optional(string)
     edge_zone = optional(string)

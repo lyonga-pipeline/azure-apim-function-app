@@ -19,15 +19,33 @@ module "tags" {
   additional_tags       = var.platform_tags.additional_tags
 }
 
+module "naming" {
+  source = "../../modules/terraform-azurerm-compeer-naming"
+
+  region      = coalesce(try(var.naming.region, null), var.location)
+  environment = coalesce(try(var.naming.environment, null), var.environment)
+  scope       = try(var.naming.scope, "platform")
+  component   = coalesce(try(var.naming.component, null), "connectivity")
+
+  storage_uniqueness = try(var.naming.storage_uniqueness, "")
+  nsg_keys           = keys(var.network_security_groups)
+  route_table_keys   = keys(var.route_tables)
+  public_ip_keys     = keys(var.public_ips)
+  load_balancer_keys = keys(var.load_balancers)
+}
+
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = var.resource_group.name
+  name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
   location = var.location
   tags     = module.tags.tags
 }
 
 locals {
+  nm            = module.naming
+  hub_vnet_name = coalesce(try(var.hub_vnet.name, null), module.naming.hub_vnet)
+
   ddos_protection_plan_enabled = coalesce(try(var.ddos_protection_plan.enabled, null), false)
   ddos_protection_plan_id = try(coalesce(
     try(var.hub_vnet.ddos_protection_plan_id, null),
@@ -41,7 +59,7 @@ module "ddos_protection_plan" {
   source = "../../modules/terraform-azurerm-compeer-ddos-protection-plan"
   count  = local.ddos_protection_plan_enabled && try(var.ddos_protection_plan.existing_plan_id, null) == null ? 1 : 0
 
-  name                = coalesce(try(var.ddos_protection_plan.name, null), "${var.hub_vnet.name}-ddos")
+  name                = coalesce(try(var.ddos_protection_plan.name, null), local.nm.ddos_protection_plan)
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   tags                = module.tags.tags
@@ -50,7 +68,7 @@ module "ddos_protection_plan" {
 module "hub_vnet" {
   source = "../../modules/terraform-azurerm-compeer-virtual-network"
 
-  name                           = var.hub_vnet.name
+  name                           = local.hub_vnet_name
   resource_group_name            = module.resource_group.name
   location                       = module.resource_group.location
   address_space                  = var.hub_vnet.address_space
@@ -72,7 +90,7 @@ module "network_security_groups" {
   source   = "../../modules/terraform-azurerm-compeer-network-security-group"
   for_each = var.network_security_groups
 
-  name                = each.value.name
+  name                = coalesce(try(each.value.name, null), local.nm.nsg_names[each.key])
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   security_rules = {
@@ -126,7 +144,7 @@ module "route_tables" {
   source   = "../../modules/terraform-azurerm-compeer-route-table"
   for_each = var.route_tables
 
-  name                          = each.value.name
+  name                          = coalesce(try(each.value.name, null), local.nm.route_table_names[each.key])
   resource_group_name           = module.resource_group.name
   location                      = module.resource_group.location
   bgp_route_propagation_enabled = each.value.bgp_route_propagation_enabled
@@ -146,7 +164,7 @@ module "public_ips" {
   source   = "../../modules/terraform-azurerm-compeer-public-ip"
   for_each = var.public_ips
 
-  name                    = each.value.name
+  name                    = coalesce(try(each.value.name, null), local.nm.public_ip_names[each.key])
   resource_group_name     = module.resource_group.name
   location                = module.resource_group.location
   allocation_method       = each.value.allocation_method
@@ -245,7 +263,7 @@ module "private_dns_resolver" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-resolver"
   count  = coalesce(try(var.private_dns_resolver.enabled, null), false) ? 1 : 0
 
-  name                = coalesce(try(var.private_dns_resolver.name, null), "${var.hub_vnet.name}-pdnsr")
+  name                = coalesce(try(var.private_dns_resolver.name, null), local.nm.private_dns_resolver)
   resource_group_name = coalesce(try(var.private_dns_resolver.resource_group_name, null), module.resource_group.name)
   location            = coalesce(try(var.private_dns_resolver.location, null), module.resource_group.location)
   virtual_network_id  = coalesce(try(var.private_dns_resolver.virtual_network_id, null), module.hub_vnet.id)
@@ -279,7 +297,7 @@ locals {
   bastion_enabled = coalesce(try(var.bastion.enabled, null), false)
   # Create a Bastion public IP only when the caller has not supplied one.
   bastion_create_public_ip = local.bastion_enabled && try(var.bastion.public_ip_id, null) == null
-  bastion_name             = coalesce(try(var.bastion.name, null), "${var.hub_vnet.name}-bas")
+  bastion_name             = coalesce(try(var.bastion.name, null), local.nm.bastion)
 }
 
 # The bastion-host resource module consumes an externally managed Standard/Static
@@ -461,7 +479,7 @@ module "load_balancers" {
   source   = "../../modules/terraform-azurerm-compeer-load-balancer"
   for_each = local.load_balancer_inputs
 
-  name                       = each.value.name
+  name                       = coalesce(try(each.value.name, null), local.nm.load_balancer_names[each.key])
   resource_group_name        = module.resource_group.name
   location                   = module.resource_group.location
   sku                        = each.value.sku

@@ -83,9 +83,9 @@ connectivity = {
   }
   # names come from the naming module: <region>-<env>-<key>-nsg
   network_security_groups = {
-    palo_mgmt          = { rules = {} } # restrict to approved mgmt sources
+    palo_mgmt          = { rules = {} }
     connectors         = { rules = {} }
-    domain_controllers = { rules = {} } # AD port matrix per runbook §7.3
+    domain_controllers = { rules = {} }
   }
   subnet_nsg_associations = {} # derived from subnet.nsg_key above
 

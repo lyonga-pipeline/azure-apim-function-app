@@ -14,8 +14,9 @@ locals {
 
   log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
 
+  # Bastion: attach LAW diagnostics automatically when enabled. Name comes from
+  # the pattern's naming module.
   bastion = merge(
-    { name = local.std_names.bastion },
     try(var.connectivity.bastion, { enabled = false }),
     (
       try(var.connectivity.bastion.enabled, false) &&
@@ -39,25 +40,31 @@ module "connectivity" {
     azurerm = azurerm
   }
 
-  subscription_id = var.subscription_id
-  location        = var.location
-  environment     = var.environment
-  platform_tags   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}))
-  # Default names come from the naming module (Appendix F); anything set in
-  # tfvars overrides via merge().
-  resource_group                  = merge({ name = local.std_names.resource_group }, try(var.connectivity.resource_group, {}))
-  hub_vnet                        = merge({ name = local.std_names.hub_vnet }, try(var.connectivity.hub_vnet, {}))
-  ddos_protection_plan            = merge({ name = local.std_names.ddos_protection_plan }, try(var.connectivity.ddos_protection_plan, { enabled = false }))
+  # Resource names come from the naming module inside the pattern (component =
+  # "connectivity"). Add a `name` to a block in terraform.tfvars to override one.
+  naming = {
+    region             = var.location
+    environment        = var.environment
+    storage_uniqueness = var.subscription_id
+  }
+
+  subscription_id                 = var.subscription_id
+  location                        = var.location
+  environment                     = var.environment
+  platform_tags                   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}))
+  resource_group                  = try(var.connectivity.resource_group, {})
+  hub_vnet                        = try(var.connectivity.hub_vnet, {})
+  ddos_protection_plan            = try(var.connectivity.ddos_protection_plan, { enabled = false })
   palo_alto                       = try(var.connectivity.palo_alto, { enabled = false })
   dns_resolution                  = try(var.connectivity.dns_resolution, { enabled = false })
   private_dns_resolver            = try(var.connectivity.private_dns_resolver, { enabled = false })
   bastion                         = local.bastion
-  network_security_groups         = local.std_maps.network_security_groups
+  network_security_groups         = try(var.connectivity.network_security_groups, {})
   subnet_nsg_associations         = try(var.connectivity.subnet_nsg_associations, {})
-  route_tables                    = local.std_maps.route_tables
+  route_tables                    = try(var.connectivity.route_tables, {})
   subnet_route_table_associations = try(var.connectivity.subnet_route_table_associations, {})
-  public_ips                      = local.std_maps.public_ips
-  route_server_public_ips         = local.std_maps.route_server_public_ips
+  public_ips                      = try(var.connectivity.public_ips, {})
+  route_server_public_ips         = try(var.connectivity.route_server_public_ips, {})
   route_servers                   = try(var.connectivity.route_servers, {})
   load_balancers                  = try(var.connectivity.load_balancers, {})
   network_watchers                = try(var.connectivity.network_watchers, {})
