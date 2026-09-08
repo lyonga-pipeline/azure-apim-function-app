@@ -13,6 +13,19 @@ variable "environment" {
   description = "Environment key, such as np or prod."
 }
 
+variable "naming" {
+  description = "Root identity for the naming module. Component 'hybrid'. A `name` on a resource block still wins."
+  type = object({
+    region             = optional(string)
+    environment        = optional(string)
+    scope              = optional(string, "platform")
+    component          = optional(string, "hybrid")
+    storage_uniqueness = optional(string, "")
+  })
+  default = {}
+}
+
+
 variable "platform_tags" {
   type = object({
     application           = optional(string)
@@ -36,7 +49,7 @@ variable "platform_tags" {
 
 variable "resource_group" {
   type = object({
-    name = string
+    name = optional(string)
   })
 }
 
@@ -74,7 +87,7 @@ variable "expressroute_circuits" {
 
 variable "gateway_public_ips" {
   type = map(object({
-    name              = string
+    name              = optional(string)
     allocation_method = optional(string, "Static")
     sku               = optional(string, "Standard")
     sku_tier          = optional(string, "Regional")
@@ -85,7 +98,7 @@ variable "gateway_public_ips" {
 
 variable "expressroute_gateway" {
   type = object({
-    name          = string
+    name          = optional(string)
     sku           = optional(string, "ErGw1AZ")
     active_active = optional(bool, false)
     enable_bgp    = optional(bool, true)
@@ -125,7 +138,7 @@ variable "vpn_posture" {
 
 variable "vpn_gateway_public_ips" {
   type = map(object({
-    name              = string
+    name              = optional(string)
     allocation_method = optional(string, "Static")
     sku               = optional(string, "Standard")
     sku_tier          = optional(string, "Regional")
@@ -137,7 +150,7 @@ variable "vpn_gateway_public_ips" {
 
 variable "vpn_gateway" {
   type = object({
-    name          = string
+    name          = optional(string)
     sku           = optional(string, "VpnGw1AZ")
     vpn_type      = optional(string, "RouteBased")
     active_active = optional(bool, false)

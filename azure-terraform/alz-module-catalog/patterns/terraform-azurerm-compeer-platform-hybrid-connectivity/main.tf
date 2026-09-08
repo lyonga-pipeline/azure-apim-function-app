@@ -19,10 +19,22 @@ module "tags" {
   additional_tags       = var.platform_tags.additional_tags
 }
 
+module "naming" {
+  source = "../../modules/terraform-azurerm-compeer-naming"
+
+  region      = coalesce(try(var.naming.region, null), var.location)
+  environment = coalesce(try(var.naming.environment, null), var.environment)
+  scope       = try(var.naming.scope, "platform")
+  component   = coalesce(try(var.naming.component, null), "hybrid")
+
+  storage_uniqueness = try(var.naming.storage_uniqueness, "")
+  public_ip_keys     = concat(keys(var.gateway_public_ips), keys(var.vpn_gateway_public_ips))
+}
+
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = var.resource_group.name
+  name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
   location = var.location
   tags     = module.tags.tags
 }
@@ -153,7 +165,7 @@ module "gateway_public_ips" {
   source   = "../../modules/terraform-azurerm-compeer-public-ip"
   for_each = var.gateway_public_ips
 
-  name                = each.value.name
+  name                = coalesce(try(each.value.name, null), module.naming.public_ip_names[each.key])
   resource_group_name = module.resource_group.name
   location            = var.location
   allocation_method   = try(each.value.allocation_method, "Static")
@@ -167,7 +179,7 @@ module "expressroute_gateway" {
   source = "../../modules/terraform-azurerm-compeer-virtual-network-gateway"
   count  = var.expressroute_gateway == null ? 0 : 1
 
-  name                = var.expressroute_gateway.name
+  name                = coalesce(try(var.expressroute_gateway.name, null), module.naming.expressroute_gateway)
   resource_group_name = module.resource_group.name
   location            = var.location
   type                = "ExpressRoute"
@@ -203,7 +215,7 @@ module "vpn_gateway_public_ips" {
   source   = "../../modules/terraform-azurerm-compeer-public-ip"
   for_each = var.vpn_gateway_public_ips
 
-  name                = each.value.name
+  name                = coalesce(try(each.value.name, null), module.naming.public_ip_names[each.key])
   resource_group_name = module.resource_group.name
   location            = var.location
   allocation_method   = try(each.value.allocation_method, "Static")
@@ -217,7 +229,7 @@ module "vpn_gateway" {
   source = "../../modules/terraform-azurerm-compeer-virtual-network-gateway"
   count  = var.vpn_gateway == null ? 0 : 1
 
-  name                = var.vpn_gateway.name
+  name                = coalesce(try(var.vpn_gateway.name, null), module.naming.vpn_gateway)
   resource_group_name = module.resource_group.name
   location            = var.location
   type                = "Vpn"

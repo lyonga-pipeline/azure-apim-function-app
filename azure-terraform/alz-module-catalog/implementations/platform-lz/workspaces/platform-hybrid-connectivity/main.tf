@@ -49,11 +49,16 @@ module "hybrid_connectivity" {
     azurerm = azurerm
   }
 
-  subscription_id          = var.subscription_id
-  location                 = var.location
-  environment              = var.environment
-  platform_tags            = merge(var.platform_tags, try(var.hybrid_connectivity.platform_tags, {}))
-  resource_group           = merge({ name = local.std_names.resource_group }, try(var.hybrid_connectivity.resource_group, {}))
+  subscription_id = var.subscription_id
+  location        = var.location
+  environment     = var.environment
+  platform_tags   = merge(var.platform_tags, try(var.hybrid_connectivity.platform_tags, {}))
+  naming = {
+    region             = var.location
+    environment        = var.environment
+    storage_uniqueness = var.subscription_id
+  }
+  resource_group           = try(var.hybrid_connectivity.resource_group, {})
   expressroute_posture     = try(var.hybrid_connectivity.expressroute_posture, { enabled = false })
   expressroute_circuits    = try(var.hybrid_connectivity.expressroute_circuits, {})
   gateway_public_ips       = try(var.hybrid_connectivity.gateway_public_ips, try(var.hybrid_connectivity.expressroute_gateway_public_ips, {}))
