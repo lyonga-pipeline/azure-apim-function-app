@@ -19,6 +19,20 @@ variable "environment" {
   description = "Environment key, such as np or prod."
 }
 
+variable "naming" {
+  description = "Root identity for the naming module. Component 'identity'; only region + environment needed. A `name` on a resource block still wins."
+  type = object({
+    region             = optional(string)
+    environment        = optional(string)
+    scope              = optional(string, "platform")
+    component          = optional(string, "identity")
+    appcode            = optional(string, "platform")
+    storage_uniqueness = optional(string, "")
+  })
+  default = {}
+}
+
+
 variable "platform_tags" {
   type = object({
     application           = optional(string)
@@ -42,20 +56,20 @@ variable "platform_tags" {
 
 variable "resource_group" {
   type = object({
-    name = string
+    name = optional(string)
   })
 }
 
 variable "platform_identities" {
   type = map(object({
-    name = string
+    name = optional(string)
   }))
   default = {}
 }
 
 variable "key_vault" {
   type = object({
-    name                            = string
+    name                            = optional(string)
     sku_name                        = optional(string, "standard")
     soft_delete_retention_days      = optional(number, 90)
     purge_protection_enabled        = optional(bool, true)
@@ -138,7 +152,7 @@ variable "external_role_assignments" {
 
 variable "key_vault_private_endpoint" {
   type = object({
-    name                 = string
+    name                 = optional(string)
     subnet_id            = string
     private_dns_zone_ids = list(string)
     edge_zone            = optional(string)

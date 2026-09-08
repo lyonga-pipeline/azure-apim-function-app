@@ -21,10 +21,29 @@ module "tags" {
   additional_tags       = var.platform_tags.additional_tags
 }
 
+module "naming" {
+  source = "../../modules/terraform-azurerm-compeer-naming"
+
+  region      = coalesce(try(var.naming.region, null), var.location)
+  environment = coalesce(try(var.naming.environment, null), var.environment)
+  scope       = try(var.naming.scope, "platform")
+  component   = coalesce(try(var.naming.component, null), "identity")
+  appcode     = coalesce(try(var.naming.appcode, null), "platform")
+
+  storage_uniqueness          = try(var.naming.storage_uniqueness, "")
+  user_assigned_identity_keys = keys(var.platform_identities)
+  private_endpoint_keys       = ["kv"]
+}
+
+locals {
+  kv_name    = coalesce(try(var.key_vault.name, null), module.naming.key_vault)
+  kv_pe_name = coalesce(try(var.key_vault_private_endpoint.name, null), module.naming.private_endpoint_names["kv"])
+}
+
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = var.resource_group.name
+  name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
   location = var.location
   tags     = module.tags.tags
 }
@@ -33,7 +52,7 @@ module "platform_identities" {
   source   = "../../modules/terraform-azurerm-compeer-user-assigned-identity"
   for_each = var.platform_identities
 
-  name                = each.value.name
+  name                = coalesce(try(each.value.name, null), module.naming.user_assigned_identity_names[each.key])
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   tags                = module.tags.tags
@@ -42,7 +61,7 @@ module "platform_identities" {
 module "key_vault" {
   source = "../../modules/terraform-azurerm-compeer-keyvault"
 
-  name                        = var.key_vault.name
+  name                        = local.kv_name
   resource_group_name         = module.resource_group.name
   location                    = module.resource_group.location
   tenant_id                   = var.tenant_id
@@ -99,21 +118,21 @@ module "key_vault_private_endpoint" {
   source = "../../modules/terraform-azurerm-compeer-private-endpoint"
   count  = var.key_vault_private_endpoint == null ? 0 : 1
 
-  name                = var.key_vault_private_endpoint.name
+  name                = local.kv_pe_name
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   edge_zone           = try(var.key_vault_private_endpoint.edge_zone, null)
   subnet_id           = var.key_vault_private_endpoint.subnet_id
   private_service_connections = [
     {
-      name                           = "${var.key_vault_private_endpoint.name}-psc"
+      name                           = "${local.kv_pe_name}-psc"
       is_manual_connection           = false
       private_connection_resource_id = module.key_vault.id
       subresource_names              = ["vault"]
     }
   ]
   private_dns_zone_group = [{
-    name                 = "${var.key_vault_private_endpoint.name}-dns"
+    name                 = "${local.kv_pe_name}-dns"
     private_dns_zone_ids = var.key_vault_private_endpoint.private_dns_zone_ids
   }]
   timeouts = try(var.key_vault_private_endpoint.timeouts, {})
@@ -124,7 +143,7 @@ module "key_vault_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   count  = var.log_analytics_workspace_id == null ? 0 : 1
 
-  name                           = "${var.key_vault.name}-diag"
+  name                           = "${local.kv_name}-diag"
   target_resource_id             = module.key_vault.id
   log_analytics_workspace_id     = var.log_analytics_workspace_id
   log_analytics_destination_type = try(var.diagnostics.log_analytics_destination_type, null)
