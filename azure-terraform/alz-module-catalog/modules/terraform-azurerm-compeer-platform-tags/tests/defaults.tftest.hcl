@@ -63,7 +63,21 @@ run "conditional_and_sandbox_tags" {
   }
 }
 
-run "additional_tags_win" {
+run "additional_tags_fill_standard_keys" {
+  command = apply
+
+  variables {
+    application     = "orders"
+    additional_tags = { environment = "dev", owner = "team-alpha", team = "sre" }
+  }
+
+  assert {
+    condition     = output.tags["environment"] == "dev" && output.tags["owner"] == "team-alpha" && output.tags["team"] == "sre"
+    error_message = "additional_tags should fill standard keys when first-class inputs are not supplied"
+  }
+}
+
+run "standard_tags_win_on_collision" {
   command = apply
 
   variables {
@@ -73,8 +87,8 @@ run "additional_tags_win" {
   }
 
   assert {
-    condition     = output.tags["environment"] == "override" && output.tags["team"] == "sre"
-    error_message = "additional_tags merged last and win on collision"
+    condition     = output.tags["environment"] == "prod" && output.tags["team"] == "sre"
+    error_message = "first-class standard tag inputs should win over additional_tags on collision"
   }
 }
 
@@ -86,4 +100,14 @@ run "rejects_bad_classification" {
   }
 
   expect_failures = [var.data_classification]
+}
+
+run "rejects_bad_date_format" {
+  command = plan
+
+  variables {
+    created_on = "09/02/2026"
+  }
+
+  expect_failures = [var.created_on]
 }

@@ -14,4 +14,11 @@ variable "locks" {
     ])
     error_message = "lock_level must be CanNotDelete or ReadOnly."
   }
+
+  validation {
+    condition = alltrue([
+      for _, lock in var.locks : length(trimspace(lock.scope)) > 0
+    ])
+    error_message = "scope must be a non-empty Azure resource ID."
+  }
 }

@@ -1,9 +1,15 @@
 # terraform-azurerm-compeer-platform-tags
 
-Produces the **normalized enterprise tag map** consumed by every pattern as
-`module.tags.tags`. The module defines the **whole tag vocabulary** (design-doc
-tag tables); every tag is an **optional** input, so a caller sets only the tags
-it has values for and the output map drops the rest.
+Produces the **normalized enterprise tag map** consumed by platform and workload
+patterns as `module.tags.tags`.
+
+This module only sets and normalizes tags. Enforcement is intentionally handled
+by OPA plan guardrails and Azure Policy, because enforcement posture can vary by
+workspace, environment, exception status, and rollout phase.
+
+The module defines the **whole tag vocabulary** from the design-doc tag tables.
+Every tag is an **optional** input, so a caller sets only the tags it has values
+for and the output map drops the rest.
 
 ## Tag vocabulary (emitted keys are frozen)
 
@@ -16,13 +22,16 @@ it has values for and the output map drops the rest.
 | Operational / Governance | `created_by`, `dr_tier` | Conditional |
 | Governance | `expiration_date` | Required for sandbox / temporary / POC / exception resources |
 
-Plus `additional_tags` (`map(string)`) — merged last, wins on key collision.
+Plus `additional_tags` (`map(string)`) for client- or workload-specific tags.
+First-class standard tag inputs win on key collision so a caller cannot
+accidentally override a standard tag value with an escape-hatch value.
 
 ## Enforcing the mandatory set
 
-The module never fails on a missing mandatory tag (all inputs are optional).
-`missing_mandatory` output lists the Required=Yes tags the caller didn't supply;
-a caller that wants them enforced can:
+The module never fails on a missing mandatory tag. `missing_mandatory` output
+lists the Required=Yes tags the caller did not supply. A consuming root can add
+a precondition if a specific workspace wants Terraform-side enforcement, but the
+normal ALZ enforcement path is OPA and Azure Policy.
 
 ```hcl
 lifecycle {
@@ -39,6 +48,13 @@ lifecycle {
 |---|---|
 | `tags` | the merged, null-pruned tag map |
 | `missing_mandatory` | list of unsupplied Required=Yes tags (empty when all set) |
+| `mandatory_keys` | standard tag keys considered mandatory |
+| `all_standard_keys` | full standard tag vocabulary before `additional_tags` are merged |
+
+## Example
+
+See `examples/basic` for the standard tag composition used by platform and
+workload patterns.
 
 ## Migration
 
@@ -56,5 +72,6 @@ lifecycle {
 ## Tests
 
 `terraform test` (offline): only-supplied tags emitted, `missing_mandatory`
-reporting, conditional + sandbox tags, `additional_tags` precedence,
-`data_classification` validation.
+reporting, conditional + sandbox tags, `additional_tags` fill behavior,
+standard-tag precedence, `data_classification` validation, and date-format
+validation.

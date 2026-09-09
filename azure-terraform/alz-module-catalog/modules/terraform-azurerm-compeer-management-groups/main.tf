@@ -1,4 +1,6 @@
 locals {
+  top_level_groups = merge(local.external_parent_groups, local.root_groups)
+
   external_parent_groups = {
     for key, group in var.management_groups : key => group
     if try(group.parent_management_group_id, null) != null
@@ -11,7 +13,7 @@ locals {
 
   level_1_groups = {
     for key, group in var.management_groups : key => group
-    if contains(keys(local.root_groups), (group.parent_key == null ? "" : group.parent_key))
+    if contains(keys(local.top_level_groups), try(group.parent_key, null) == null ? "" : group.parent_key)
   }
 
   level_2_groups = {
@@ -57,6 +59,14 @@ locals {
     { for key, group in azurerm_management_group.level_4 : key => group.id }
   )
 
+  placed_management_group_keys = setunion(
+    toset(keys(local.top_level_groups)),
+    toset(keys(local.level_1_groups)),
+    toset(keys(local.level_2_groups)),
+    toset(keys(local.level_3_groups)),
+    toset(keys(local.level_4_groups))
+  )
+
   subscription_association_list = flatten([
     for management_group_key, group in var.management_groups : [
       for subscription_id in try(group.subscription_ids, []) : {
@@ -64,7 +74,7 @@ locals {
         management_group_key = management_group_key
         subscription_id      = subscription_id
       }
-    ]
+    ] if contains(local.placed_management_group_keys, management_group_key)
   ])
 
   subscription_associations = {

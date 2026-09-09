@@ -36,6 +36,11 @@ variable "created_on" {
   type        = string
   description = "Mandatory. Creation date (ISO-8601, e.g. 2026-09-02)."
   default     = null
+
+  validation {
+    condition     = var.created_on == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.created_on))
+    error_message = "created_on must use YYYY-MM-DD format."
+  }
 }
 
 variable "criticality_tier" {
@@ -84,6 +89,11 @@ variable "modified_on" {
   type        = string
   description = "Optional. Last-modified date (ISO-8601)."
   default     = null
+
+  validation {
+    condition     = var.modified_on == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.modified_on))
+    error_message = "modified_on must use YYYY-MM-DD format."
+  }
 }
 
 # ---- Conditional --------------------------------------------------------
@@ -104,11 +114,16 @@ variable "expiration_date" {
   type        = string
   description = "Required for sandbox / temporary / POC / exception resources (ISO-8601). Optional otherwise."
   default     = null
+
+  validation {
+    condition     = var.expiration_date == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.expiration_date))
+    error_message = "expiration_date must use YYYY-MM-DD format."
+  }
 }
 
 # ---- Escape hatch --------------------------------------------------------
 variable "additional_tags" {
   type        = map(string)
-  description = "Extra tags merged last (these win on key collision)."
+  description = "Extra tags for client- or workload-specific metadata. First-class standard tag inputs win on key collision."
   default     = {}
 }

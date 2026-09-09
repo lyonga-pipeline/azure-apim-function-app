@@ -340,7 +340,7 @@ variable "management_locks" {
     name       = string
     scope_key  = optional(string)
     scope      = optional(string)
-    lock_level = string
+    lock_level = optional(string, "CanNotDelete")
     notes      = optional(string)
   }))
   description = "Locks for critical workload landing-zone resources."

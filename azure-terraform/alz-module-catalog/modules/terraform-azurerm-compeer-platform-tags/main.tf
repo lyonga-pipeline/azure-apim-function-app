@@ -27,10 +27,17 @@ locals {
 
   # Drop any tag the caller left unset so an omitted optional tag does not
   # produce an empty tag on every resource.
-  tags = merge(
-    { for key, value in local.candidate : key => value if value != null && value != "" },
-    var.additional_tags,
-  )
+  supplied_standard_tags = {
+    for key, value in local.candidate : key => value
+    if value != null && value != ""
+  }
+
+  supplied_additional_tags = {
+    for key, value in var.additional_tags : key => value
+    if value != ""
+  }
+
+  tags = merge(local.supplied_additional_tags, local.supplied_standard_tags)
 
   missing_mandatory = [for key in local.mandatory_keys : key if !contains(keys(local.tags), key)]
 }

@@ -172,10 +172,21 @@ variable "management_locks" {
     name       = string
     scope_key  = optional(string)
     scope      = optional(string)
-    lock_level = string
+    lock_level = optional(string, "CanNotDelete")
     notes      = optional(string)
   }))
   default = {}
+
+  validation {
+    condition = alltrue([
+      for item in values(var.management_locks) :
+      (
+        (try(item.scope, null) != null || try(item.scope_key, null) != null) &&
+        !(try(item.scope, null) != null && try(item.scope_key, null) != null)
+      )
+    ])
+    error_message = "Each management lock must set exactly one of scope or scope_key."
+  }
 }
 
 variable "additional_scopes" {

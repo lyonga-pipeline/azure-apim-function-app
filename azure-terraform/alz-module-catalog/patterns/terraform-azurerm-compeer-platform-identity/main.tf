@@ -164,11 +164,24 @@ locals {
   )
 }
 
-resource "azurerm_management_lock" "this" {
-  for_each = var.management_locks
+locals {
+  management_lock_inputs = {
+    for key, value in var.management_locks : key => {
+      name       = value.name
+      scope      = coalesce(try(value.scope, null), try(local.identity_scope_ids[value.scope_key], null))
+      lock_level = try(value.lock_level, "CanNotDelete")
+      notes      = try(value.notes, null)
+    }
+  }
+}
 
-  name       = each.value.name
-  scope      = coalesce(try(each.value.scope, null), try(local.identity_scope_ids[each.value.scope_key], null))
-  lock_level = each.value.lock_level
-  notes      = try(each.value.notes, null)
+moved {
+  from = azurerm_management_lock.this
+  to   = module.management_locks.azurerm_management_lock.this
+}
+
+module "management_locks" {
+  source = "../../modules/terraform-azurerm-compeer-management-locks"
+
+  locks = local.management_lock_inputs
 }

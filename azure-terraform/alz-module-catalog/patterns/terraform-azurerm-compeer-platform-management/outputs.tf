@@ -206,7 +206,7 @@ output "subscription_budget_ids" {
 }
 
 output "management_lock_ids" {
-  value = { for key, value in azurerm_management_lock.this : key => value.id }
+  value = module.management_locks.ids
 }
 
 output "defender_plan_ids" {
