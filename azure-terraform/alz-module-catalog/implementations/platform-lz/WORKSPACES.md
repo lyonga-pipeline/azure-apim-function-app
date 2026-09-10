@@ -39,24 +39,30 @@ workspace only for a genuine exception.
 ## Deployment Order
 
 1. `platform-governance` -> HCP workspace `platform-governance` (MG hierarchy + `policy_baseline` in Audit)
-2. `platform-subscription-onboarding` -> HCP workspace `platform-subscription-onboarding` (place CSP-created subscriptions into their MG + baseline RBAC)
+2. `platform-authorization` -> HCP workspace `platform-authorization` (Entra RBAC groups + MG-scope role assignments + custom roles; needs directory write + User Access Administrator at `compeer-enterprise-mg`)
+3. `platform-workload-identity` -> HCP workspace `platform-workload-identity` (federated app registrations + SPs + FICs; any time after governance)
+4. `platform-privileged-access` -> HCP workspace `platform-privileged-access` (PIM eligible assignments + break-glass alert; needs steps 2 and 7)
+5. `platform-subscription-onboarding` -> HCP workspace `platform-subscription-onboarding` (place CSP-created subscriptions into their MG + baseline RBAC; consumes step 2 `group_object_ids`)
    - `platform-subscriptions` is **NOT DEPLOYED** — retained for a future EA/MCA billing model only.
-3. `platform-policy` -> HCP workspace `platform-policy` (exemptions, RG-scope assignments, DeployIfNotExists remediation, private-only guardrail; needs the Log Analytics workspace from step 4)
-4. `platform-management` -> HCP workspace `platform-management`
-5. `platform-connectivity` -> HCP workspace `platform-connectivity`
-6. `platform-identity-security` -> HCP workspace `platform-identity-security`
-7. `platform-hybrid-connectivity` -> HCP workspace `platform-hybrid-connectivity`
-8. `platform-palo-alto` -> HCP workspace `platform-palo-alto`
-9. `platform-directory-services` -> HCP workspace `platform-directory-services`
-10. `platform-cloudflare-connectors` -> HCP workspace `platform-cloudflare-connectors`
-11. `platform-shared-services` -> HCP workspace `platform-shared-services`
-12. `platform-workload-spoke` -> template root for one workspace per workload/environment, such as `workload-spoke-internal-apps-prod`
-13. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
-14. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
+6. `platform-policy` -> HCP workspace `platform-policy` (exemptions, RG-scope assignments, DeployIfNotExists remediation, private-only guardrail; needs the Log Analytics workspace from step 7)
+7. `platform-management` -> HCP workspace `platform-management`
+8. `platform-connectivity` -> HCP workspace `platform-connectivity`
+9. `platform-identity-security` -> HCP workspace `platform-identity-security`
+10. `platform-hybrid-connectivity` -> HCP workspace `platform-hybrid-connectivity`
+11. `platform-palo-alto` -> HCP workspace `platform-palo-alto`
+12. `platform-directory-services` -> HCP workspace `platform-directory-services`
+13. `platform-cloudflare-connectors` -> HCP workspace `platform-cloudflare-connectors`
+14. `platform-shared-services` -> HCP workspace `platform-shared-services`
+15. `platform-workload-spoke` -> template root for one workspace per workload/environment, such as `workload-spoke-internal-apps-prod`
+16. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
+17. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
 
-`platform-policy` step 3 can also run late (after step 4) — its DeployIfNotExists
+`platform-policy` step 6 can also run late (after step 7) — its DeployIfNotExists
 remediation reads `log_analytics_workspace_id` from `platform-management`.
-Steps 6 through 11 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
+Steps 8 through 14 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
+
+The identity / RBAC IaC boundary (what is codified vs. deliberately manual across
+all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 
 ## Output Contracts
 
@@ -65,6 +71,30 @@ Steps 6 through 11 can run in parallel where their upstream outputs are already 
 - `management_group_ids`
 - `custom_role_definition_ids`
 - `role_assignment_ids`
+
+`platform-authorization` publishes:
+
+- `group_object_ids` (keyed by `rbac_groups` key — consumed by
+  `platform-subscription-onboarding`, `platform-workload-spoke`,
+  `platform-privileged-access`)
+- `group_display_names`
+- `custom_role_definition_ids`
+- `role_assignment_ids`
+- `operational_contracts`, `manual_control_keys`
+
+`platform-workload-identity` publishes:
+
+- `application_client_ids` (→ HCP `TFC_AZURE_RUN_CLIENT_ID` per workspace)
+- `service_principal_object_ids`
+- `federated_credential_ids`
+- `role_assignment_ids`
+- `operational_contracts`, `manual_control_keys`
+
+`platform-privileged-access` publishes:
+
+- `pim_eligible_role_assignment_ids`
+- `break_glass_alert_id`
+- `operational_contracts`, `manual_control_keys`
 
 `platform-subscription-onboarding` publishes:
 

@@ -1,0 +1,107 @@
+# Entra authorization foundation — design doc Phase 1 Step 5 (group framework)
+# and Phase 3 Steps 4-5 (RBAC framework + group-to-role mapping).
+#
+# Principle: User -> Group -> Role -> Scope. No user ever gets a direct Azure
+# role assignment. Terraform owns the group objects and the RBAC; day-to-day
+# membership is governed by the joiner/mover/leaver process (see
+# operational_contracts.access_lifecycle).
+#
+# Group names follow AZ-<domain>-<tier>; confirm the final names against the
+# design doc Appendix F / the Identity team before first apply.
+
+rbac_groups = {
+  # Platform
+  plt_readers      = { display_name = "AZ-PLT-Readers", description = "Read-only across the platform management group." }
+  plt_contributors = { display_name = "AZ-PLT-Contributors", description = "Contributor on platform-mg for the Platform team." }
+  plt_admins       = { display_name = "AZ-PLT-Admins", description = "Owner on platform-mg (PIM-eligible only)." }
+
+  # Security
+  sec_readers   = { display_name = "AZ-SEC-Readers", description = "Security reader across the enterprise MG." }
+  sec_operators = { display_name = "AZ-SEC-Operators", description = "Security operations on Defender / Sentinel scopes." }
+  sec_admins    = { display_name = "AZ-SEC-Admins", description = "Security admin (PIM-eligible only)." }
+
+  # Network
+  net_readers   = { display_name = "AZ-NET-Readers", description = "Read-only on connectivity." }
+  net_operators = { display_name = "AZ-NET-Operators", description = "Network Contributor on connectivity." }
+  net_admins    = { display_name = "AZ-NET-Admins", description = "Network admin (PIM-eligible only)." }
+
+  # Audit
+  audit_readers = { display_name = "AZ-AUDIT-Readers", description = "Read-only across the entire enterprise MG for audit evidence." }
+}
+
+# RBAC Assignment Matrix: group -> built-in role -> scope (a full resource ID).
+role_assignments = {
+  plt_readers_platform = {
+    scope                = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    group_key            = "plt_readers"
+    role_definition_name = "Reader"
+    description          = "Platform team read baseline."
+  }
+  plt_contributors_platform = {
+    scope                = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    group_key            = "plt_contributors"
+    role_definition_name = "Contributor"
+  }
+  net_operators_platform = {
+    scope                = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    group_key            = "net_operators"
+    role_definition_name = "Network Contributor"
+  }
+  sec_operators_enterprise = {
+    scope                = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    group_key            = "sec_operators"
+    role_definition_name = "Security Admin"
+  }
+  audit_readers_enterprise = {
+    scope                = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    group_key            = "audit_readers"
+    role_definition_name = "Reader"
+  }
+}
+
+# Keep custom roles to a minimum — prefer built-ins (Phase 3 Step 4).
+custom_role_definitions = {}
+
+# Controls that are NOT provisioned here, tracked with rationale.
+operational_contracts = {
+  break_glass_accounts = {
+    phase                = "Phase 1"
+    owner                = "Identity"
+    implementation_state = "manual-control"
+    required_controls    = ["two cloud-only accounts (EMERGENCY-01/02)", "Global Administrator", "excluded from all Conditional Access", "credentials split & offline", "sign-in alert"]
+    evidence_locations   = ["Entra > Users", "SOC alert rule", "break-glass runbook"]
+    notes                = "IAM-04. Deliberately outside Terraform so tenant access survives broken IaC, identity-sync failure, or compromised automation. Microsoft guidance."
+  }
+  cloud_only_admin_accounts = {
+    phase                = "Phase 1 / Phase 2"
+    owner                = "Identity"
+    implementation_state = "external-system"
+    required_controls    = ["AZADM-<name> per admin", "cloud-only, not AD-synced", "no mailbox", "phishing-resistant MFA"]
+    evidence_locations   = ["Entra > Users", "IGA joiner records"]
+    notes                = "Account objects and credential/method registration are provisioned through the identity lifecycle (IGA), not IaC. Their RBAC is granted via the groups above + PIM, not directly."
+  }
+  conditional_access = {
+    phase                = "Phase 2"
+    owner                = "Identity"
+    implementation_state = "manual-control"
+    required_controls    = ["block legacy auth", "require MFA for admins", "require compliant device", "protect Azure management apps", "report-only before enforce"]
+    evidence_locations   = ["Entra > Conditional Access", "report-only sign-in logs"]
+    notes                = "IAM-08 is tenant-wide with high lockout blast radius. Managed in the portal with a report-only rollout; validate before any future Graph-based import."
+  }
+  pim_role_settings = {
+    phase                = "Phase 2"
+    owner                = "Identity"
+    implementation_state = "provider-gap"
+    required_controls    = ["approval workflow", "MFA on activation", "max activation duration", "notification recipients"]
+    evidence_locations   = ["Entra PIM > Settings"]
+    notes                = "platform-privileged-access creates the eligible assignments. Activation-policy settings are reconciled in the portal until provider coverage is approved."
+  }
+  access_lifecycle = {
+    phase                = "Phase 1 / Phase 10"
+    owner                = "Identity"
+    implementation_state = "external-system"
+    required_controls    = ["joiner/mover/leaver automation", "monthly privileged access review", "quarterly RBAC certification"]
+    evidence_locations   = ["IGA workflows", "Entra access reviews"]
+    notes                = "Group membership and periodic access reviews are governed by Entra ID Governance / IGA, not Terraform. Terraform owns the group + role objects only."
+  }
+}

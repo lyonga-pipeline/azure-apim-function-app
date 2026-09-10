@@ -52,6 +52,10 @@ These modules are present in the Compeer module directory and are materially com
 - `terraform-cloudflare-compeer-zone`
 - `terraform-cloudflare-compeer-ruleset`
 - `terraform-cloudflare-compeer-record-manager`
+- `terraform-azuread-compeer-ad-group`
+- `terraform-azuread-compeer-ad-application`
+- `terraform-azuread-compeer-service-principal`
+- `terraform-azurerm-compeer-operational-contracts`
 
 ## Missing
 
@@ -171,3 +175,22 @@ Following the enterprise-ALZ gap review:
   Downstream `management_group_key` references (`platform-policy`,
   `platform-subscriptions`, `platform-subscription-onboarding`) realigned to the
   `-mg` keys.
+- **Identity & RBAC (design-doc "Identity & RBAC Design v2.0", 10 phases)** — the
+  IaC-appropriate slice is ported from `compeer-alz-avm/stacks/{07,08,03}` into
+  the active `implementations/platform-lz` tree as three patterns + workspaces:
+  - `platform-authorization` — Entra RBAC groups (`terraform-azuread-compeer-ad-group`)
+    + MG-scope role assignments (`…-role-assignments`) + custom roles. The
+    `User -> Group -> Role -> Scope` model; group membership stays with identity
+    governance.
+  - `platform-workload-identity` — federated (OIDC) app registrations + SPs +
+    `azuread_application_federated_identity_credential` + SP RBAC. Enforces the
+    20-FIC-per-app limit.
+  - `platform-privileged-access` — `azurerm_pim_eligible_role_assignment` (no
+    standing admin/Owner) + break-glass sign-in alert.
+  All three emit `operational_contracts`
+  (`terraform-azurerm-compeer-operational-contracts`, extended with an
+  `implementation_state` enum + `manual_control_keys` / `keys_by_state` outputs)
+  that records what is deliberately manual — break-glass accounts, Conditional
+  Access, PIM activation policy, JML / access reviews — with rationale. Full
+  phase-by-phase map: `implementations/platform-lz/IDENTITY-RBAC-IAC-BOUNDARY.md`.
+  The `compeer-alz-avm/stacks/{03,07,08}` copies are marked DEPRECATED.

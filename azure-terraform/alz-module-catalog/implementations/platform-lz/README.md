@@ -10,6 +10,9 @@ The roots still reuse the common pattern modules under `../../patterns`. The AVM
 
 ```text
 workspaces/platform-governance
+workspaces/platform-authorization        # Entra RBAC groups + MG-scope role assignments
+workspaces/platform-workload-identity    # federated (OIDC) app registrations + SPs
+workspaces/platform-privileged-access    # PIM eligible assignments + break-glass alert
 workspaces/platform-subscriptions
 workspaces/platform-policy
 workspaces/platform-management
@@ -24,6 +27,12 @@ workspaces/platform-workload-spoke
 workspaces/platform-network-peering
 workspaces/platform-cloudflare-edge
 ```
+
+Identity & RBAC (design-doc "Identity & RBAC Design v2.0"): the three identity
+workspaces above cover the IaC-appropriate parts of all 10 phases;
+`IDENTITY-RBAC-IAC-BOUNDARY.md` maps every step to IaC or a documented manual
+control. These supersede `compeer-alz-avm/stacks/{07-identity-groups,
+08-workload-identity,03-privileged-access}` (now deprecated).
 
 Each root has its own `terraform.tfvars.example` and should be attached to a distinct HCP Terraform workspace working directory.
 
@@ -43,6 +52,9 @@ Examples:
 - workload spoke roots can read hub VNet, private DNS, and Log Analytics outputs.
 - `network-peering` reads connectivity and workload-spoke outputs to create the peering and DNS links.
 - `platform-cloudflare-edge` owns Cloudflare account resources only; Azure connector VMs stay in `platform-cloudflare-connectors`.
+- `platform-authorization` reads nothing; it is consumed by `platform-subscription-onboarding`, `platform-workload-spoke`, and `platform-privileged-access` (`group_object_ids`).
+- `platform-privileged-access` reads `platform-management.log_analytics_workspace_id` (break-glass alert) and `platform-authorization.group_object_ids` (PIM principals).
+- `platform-workload-identity` reads nothing; `platform-iac-foundation` (if used) consumes its `application_client_ids` to wire HCP workspace variables.
 
 Provider subscription context remains an explicit workspace variable or HCP dynamic credential setting. Terraform should not configure an Azure provider from a producer workspace output inside the same run.
 

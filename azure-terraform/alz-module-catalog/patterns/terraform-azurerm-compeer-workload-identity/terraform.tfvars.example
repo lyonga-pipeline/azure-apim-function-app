@@ -1,0 +1,73 @@
+# Federated workload identities — design doc Phase 4 Step 7-8.
+#
+# One app registration + service principal per automation identity, trusted via
+# OIDC federated credentials (no client secrets). Per the 20-FIC-per-app limit,
+# the platform uses a small set of SPs split by permission scope rather than one
+# per workspace. Confirm subjects against the HCP org / project / workspace names.
+
+workload_identities = {
+  # Broad platform control-plane changes (MG hierarchy, policy, RBAC groups).
+  platform_control_plane = {
+    display_name = "platform-compeer-control-plane-oidc"
+    description  = "HCP Terraform OIDC identity for governance / policy / authorization workspaces."
+    federated_credentials = {
+      governance_plan   = { display_name = "hcp-governance-plan", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-governance:run_phase:plan" }
+      governance_apply  = { display_name = "hcp-governance-apply", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-governance:run_phase:apply" }
+      policy_plan       = { display_name = "hcp-policy-plan", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-policy:run_phase:plan" }
+      policy_apply      = { display_name = "hcp-policy-apply", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-policy:run_phase:apply" }
+      authorization_plan  = { display_name = "hcp-authorization-plan", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-authorization:run_phase:plan" }
+      authorization_apply = { display_name = "hcp-authorization-apply", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-authorization:run_phase:apply" }
+    }
+    azure_role_assignments = {
+      enterprise_contributor = {
+        scope                = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+        role_definition_name = "Management Group Contributor"
+      }
+      enterprise_uaa = {
+        scope                = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+        role_definition_name = "User Access Administrator"
+        description          = "Required to create role assignments for the RBAC matrix."
+      }
+    }
+  }
+
+  # Connectivity / hub changes.
+  platform_connectivity = {
+    display_name = "platform-compeer-connectivity-oidc"
+    federated_credentials = {
+      connectivity_plan  = { display_name = "hcp-connectivity-plan", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-connectivity:run_phase:plan" }
+      connectivity_apply = { display_name = "hcp-connectivity-apply", issuer = "https://app.terraform.io", subject = "organization:Compeer-Financial-Services:project:Platform-Landing-Zone:workspace:platform-connectivity:run_phase:apply" }
+    }
+    azure_role_assignments = {
+      connectivity_contributor = {
+        scope                = "/providers/Microsoft.Management/managementGroups/connectivity-mg"
+        role_definition_name = "Contributor"
+      }
+    }
+  }
+}
+
+operational_contracts = {
+  hcp_variable_set_wiring = {
+    phase                = "Phase 4"
+    owner                = "Platform"
+    implementation_state = "codified"
+    required_controls    = ["TFC_AZURE_PROVIDER_AUTH=true", "TFC_AZURE_RUN_CLIENT_ID per workspace", "ARM_TENANT_ID", "tenant_id (Terraform category)"]
+    evidence_locations   = ["implementations/platform-lz/workspaces/platform-iac-foundation"]
+    notes                = "Client IDs published as application_client_ids are wired into HCP workspace variables by the platform-iac-foundation workspace."
+  }
+  github_actions_oidc = {
+    phase                = "Phase 4"
+    owner                = "Platform"
+    implementation_state = "external-system"
+    required_controls    = ["repo/environment-scoped subject", "no long-lived PAT"]
+    notes                = "GitHub side of any GitHub Actions federation (environment protection rules, required reviewers) is configured in GitHub, not here."
+  }
+  credential_rotation_attestation = {
+    phase                = "Phase 10"
+    owner                = "Security"
+    implementation_state = "external-system"
+    required_controls    = ["no client secrets exist", "quarterly review of federated subjects", "stale SP detection"]
+    notes                = "OIDC federation removes secrets; the periodic attestation that none were added is a governance review, not IaC."
+  }
+}

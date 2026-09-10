@@ -1,0 +1,85 @@
+# Privileged access — design doc Phase 2 (Steps 6-9).
+#
+# Terraform codifies: PIM ELIGIBLE role assignments (no standing privilege) and
+# the break-glass sign-in alert. Everything else about privileged access is a
+# tracked operational_contract — see notes.
+
+# PIM eligible assignments. principal_id is almost always an AZ-*-Admins group
+# object_id from platform-authorization, not a person.
+pim_eligible_role_assignments = {
+  platform_admins_owner = {
+    scope              = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635" # Owner
+    principal_id       = "REPLACE-with-AZ-PLT-Admins-object-id"
+    justification      = "Platform team Owner on platform-mg, activated through PIM only."
+    schedule = {
+      expiration = { duration_days = 365 }
+    }
+  }
+  security_admins_security_admin = {
+    scope              = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/fb1c8493-542b-48eb-b624-b4c8fea62acd" # Security Admin
+    principal_id       = "REPLACE-with-AZ-SEC-Admins-object-id"
+    justification      = "Security team break-fix on Defender / policy."
+    schedule = {
+      expiration = { duration_days = 365 }
+    }
+  }
+  network_admins_network_contributor = {
+    scope              = "/providers/Microsoft.Management/managementGroups/connectivity-mg"
+    role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7" # Network Contributor
+    principal_id       = "REPLACE-with-AZ-NET-Admins-object-id"
+    justification      = "Network team hub changes."
+    schedule = {
+      expiration = { duration_days = 365 }
+    }
+  }
+}
+
+# Break-glass sign-in alert (accounts themselves are NOT created here).
+break_glass_user_principal_names = [
+  "emergency-01@compeer.onmicrosoft.com",
+  "emergency-02@compeer.onmicrosoft.com",
+]
+# log_analytics_workspace_id is normally taken from the platform-management output
+# by the workspace wrapper.
+break_glass_alert = {
+  enabled             = true
+  name                = "break-glass-signin"
+  resource_group_name = "rg-secops-alerts"
+  location            = "centralus"
+  severity            = 0
+  action_group_ids    = [] # set to the SOC critical action group
+}
+
+operational_contracts = {
+  break_glass_accounts = {
+    phase                = "Phase 2"
+    owner                = "Identity"
+    implementation_state = "manual-control"
+    required_controls    = ["EMERGENCY-01/02 cloud-only", "Global Administrator", "excluded from all Conditional Access", "credentials split & sealed", "quarterly access test"]
+    notes                = "Created and credentialed outside Terraform so tenant recovery survives broken IaC / identity-sync / automation compromise. Microsoft guidance."
+  }
+  pim_activation_policy = {
+    phase                = "Phase 2"
+    owner                = "Identity"
+    implementation_state = "provider-gap"
+    required_controls    = ["require approval", "MFA on activation", "max 8h activation", "justification required", "notification recipients"]
+    evidence_locations   = ["Entra PIM > Azure resources > Settings"]
+    notes                = "This stack creates the eligible assignments; the per-role activation policy is set in the portal until provider coverage is approved."
+  }
+  admin_conditional_access = {
+    phase                = "Phase 2"
+    owner                = "Identity"
+    implementation_state = "manual-control"
+    required_controls    = ["block legacy auth", "phishing-resistant MFA for admins", "require compliant / PAW device", "protect Azure management apps", "report-only first"]
+    notes                = "Management-plane CA is tenant-wide with high lockout risk; portal-managed with a report-only rollout."
+  }
+  secure_admin_environment = {
+    phase                = "Phase 2 / Phase 4"
+    owner                = "Platform / EUC"
+    implementation_state = "external-system"
+    required_controls    = ["PAW or dedicated secure AVD", "no Azure admin from daily workstation", "device compliance enforced via CA"]
+    notes                = "PAW/secure-AVD build and Intune compliance are owned by the endpoint team, referenced by the admin CA policy above."
+  }
+}

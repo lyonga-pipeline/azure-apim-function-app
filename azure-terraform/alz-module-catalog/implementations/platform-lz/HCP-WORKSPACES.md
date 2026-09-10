@@ -39,9 +39,15 @@ Working directory = `azure-terraform/alz-module-catalog/implementations/platform
 
 | Workspace | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-governance` | governance | `platform-governance` | Management-group hierarchy (enterprise → platform/workloads/sandbox/decommissioned + children), custom role definitions, policy **baseline** in Audit, MCSB assignment, **MG-scope budgets**, **Entra security groups** for RBAC (`azuread_group`) |
-| `platform-compeer-subscription-onboarding` | subscription-onboarding | `platform-subscription-onboarding` | Places CSP-created subscriptions into their target MG, applies baseline + app RBAC at subscription scope |
+| `platform-compeer-governance` | governance | `platform-governance` | Management-group hierarchy (enterprise → platform/workloads/sandbox/decommissioned + children), custom role definitions, policy **baseline** in Audit, MCSB assignment, **MG-scope budgets** |
+| `platform-compeer-authorization` | authorization | `platform-authorization` | **Entra RBAC security groups** (`AZ-*`), **MG-scope role assignments** (the RBAC matrix), custom roles, identity/RBAC `operational_contracts` — needs directory write + User Access Administrator |
+| `platform-compeer-workload-identity` | workload-identity | `platform-workload-identity` | **Federated (OIDC) workload identities** — app registrations + service principals + federated credentials + SP RBAC for HCP / GitHub / ADO. No client secrets. |
+| `platform-compeer-privileged-access` | privileged-access | `platform-privileged-access` | **PIM eligible role assignments** (no standing admin/Owner), break-glass sign-in alert, privileged-access `operational_contracts` |
+| `platform-compeer-subscription-onboarding` | subscription-onboarding | `platform-subscription-onboarding` | Places CSP-created subscriptions into their target MG, applies baseline + app RBAC at subscription scope (consumes `authorization` group IDs) |
 | `platform-compeer-policy` | policy | `platform-policy` | Policy assignments (MG / sub / RG scope), exemptions, DeployIfNotExists remediation identities, private-only connectivity guardrail |
+
+Identity / RBAC IaC boundary (what is codified vs. deliberately manual across all
+10 design-doc phases): see `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 
 ### Phase 2 — Management & identity
 
@@ -86,7 +92,7 @@ Working directory = `azure-terraform/alz-module-catalog/implementations/platform
 
 | Workspace | Create it when | Otherwise it lives in |
 |---|---|---|
-| `platform-compeer-entra` | The Identity team owns Entra objects with a separate SP (directory write ≠ MG write) and wants app registrations for workload SPs here too | `platform-compeer-governance` (`azuread_group` for RBAC targets) |
+| `platform-compeer-entra-config` | The Identity team wants Conditional Access / authentication-method / PIM-policy settings under change control via the `azuread` provider once coverage + lockout guardrails are approved | portal-managed today; tracked in `platform-authorization` / `platform-privileged-access` `operational_contracts` |
 | `platform-compeer-palo-alto-bootstrap` | The network team wants the bootstrap storage/KV provisioned **and validated** before the firewall VMs boot (two-phase) | `platform-compeer-palo-alto` (the pattern creates bootstrap storage + KV inline) |
 | `platform-compeer-image-gallery` | Shared golden-image pipeline is in scope for this phase | not needed for the base LZ |
 | `platform-compeer-container-registry` | A shared platform ACR is required (vs per-workload ACR) | `platform-compeer-shared-services` or per-workload |
@@ -103,15 +109,26 @@ Working directory = `azure-terraform/alz-module-catalog/implementations/platform
 
 ## Count
 
-- **Core platform workspaces to create now:** 12 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
+- **Core platform workspaces to create now:** 15 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
 - **Buffer / conditional:** 5 (create only on the trigger above)
 - **Templates:** 2 (peering, workload-spoke) — instantiated many times
-- **Total platform footprint with buffer:** ~17 + templates + N workload LZs
+- **Total platform footprint with buffer:** ~20 + templates + N workload LZs
 
 ## Deployment order
 
-`governance → subscription-onboarding → policy → management → connectivity →
-identity → directory-services → hybrid-connectivity → palo-alto →
-cloudflare-connectors → cloudflare-edge → shared-services`, then peering +
-workload LZs. `policy` can run after `management` (it reads the Log Analytics
-workspace ID). See `WORKSPACES.md` for the dependency detail.
+`governance → authorization → workload-identity → privileged-access →
+subscription-onboarding → policy → management → connectivity → identity →
+directory-services → hybrid-connectivity → palo-alto → cloudflare-connectors →
+cloudflare-edge → shared-services`, then peering + workload LZs.
+
+- `authorization` runs right after `governance` — its role assignments target the
+  MG scopes `governance` creates, and every downstream RBAC consumer reads its
+  `group_object_ids`.
+- `workload-identity` can run any time after `governance`; in a bootstrapped
+  world it is what mints the SPs the other workspaces authenticate as (chicken-
+  and-egg for the very first apply is broken with a temporary admin identity).
+- `privileged-access` runs after `authorization` (principals) and `management`
+  (Log Analytics for the break-glass alert).
+- `policy` can run after `management` (it reads the Log Analytics workspace ID).
+
+See `WORKSPACES.md` for the dependency detail.
