@@ -1,14 +1,11 @@
 output "management_group_ids" {
-  value = merge(
-    { for key, value in azurerm_management_group.root : key => value.id },
-    { for key, value in azurerm_management_group.level_1 : key => value.id },
-    { for key, value in azurerm_management_group.level_2 : key => value.id },
-    { for key, value in azurerm_management_group.level_3 : key => value.id }
-  )
+  description = "Management group resource IDs keyed by management group key (from the management-groups module)."
+  value       = module.management_groups.management_group_ids
 }
 
 output "subscription_placement_ids" {
-  value = { for key, value in azurerm_management_group_subscription_association.this : key => value.id }
+  description = "Management group subscription association IDs keyed `<management_group_key>-<subscription_id>`."
+  value       = module.management_groups.subscription_association_ids
 }
 
 output "custom_policy_definition_ids" {

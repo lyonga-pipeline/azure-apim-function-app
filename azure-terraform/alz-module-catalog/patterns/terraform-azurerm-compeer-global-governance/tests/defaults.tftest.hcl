@@ -13,12 +13,15 @@ variables {
 run "mg_hierarchy" {
   command = plan
   assert {
-    condition     = contains(keys(azurerm_management_group.root), "enterprise")
-    error_message = "enterprise MG not at root"
+    condition = alltrue([
+      for key in ["enterprise", "platform", "workloads"] :
+      contains(keys(output.management_group_ids), key)
+    ])
+    error_message = "management-groups module did not surface every hierarchy key"
   }
   assert {
-    condition     = contains(keys(azurerm_management_group.level_1), "platform") && contains(keys(azurerm_management_group.level_1), "workloads")
-    error_message = "platform/workloads not level 1"
+    condition     = contains(keys(local.management_group_scope_ids), "root")
+    error_message = "root sentinel scope missing from management_group_scope_ids"
   }
 }
 

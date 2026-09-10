@@ -6,110 +6,56 @@ locals {
     "/providers/Microsoft.Management/managementGroups/${local.root_parent_management_group_value}"
   )
 
-  root_management_groups = {
-    for key, value in var.management_groups : key => value
-    if try(value.parent_key, "root") == "root"
+  # Fan the flat subscription_placements map out into the per-group
+  # subscription_ids sets the management-groups module consumes.
+  subscription_ids_by_management_group = {
+    for mg_key in keys(var.management_groups) : mg_key => [
+      for _, placement in var.subscription_placements : placement.subscription_id
+      if placement.management_group_key == mg_key
+    ]
   }
-
-  level_1_management_groups = {
-    for key, value in var.management_groups : key => value
-    if contains(keys(local.root_management_groups), try(value.parent_key, "root"))
-  }
-
-  level_2_management_groups = {
-    for key, value in var.management_groups : key => value
-    if contains(keys(local.level_1_management_groups), try(value.parent_key, "root"))
-  }
-
-  level_3_management_groups = {
-    for key, value in var.management_groups : key => value
-    if contains(keys(local.level_2_management_groups), try(value.parent_key, "root"))
-  }
-
-  unresolved_management_group_keys = sort(tolist(
-    setsubtract(
-      keys(var.management_groups),
-      concat(
-        keys(local.root_management_groups),
-        keys(local.level_1_management_groups),
-        keys(local.level_2_management_groups),
-        keys(local.level_3_management_groups)
-      )
-    )
-  ))
 }
 
-resource "azurerm_management_group" "root" {
-  for_each = local.root_management_groups
-
-  name                       = each.key
-  display_name               = each.value.display_name
-  parent_management_group_id = local.root_parent_management_group_id
+moved {
+  from = azurerm_management_group.root
+  to   = module.management_groups.azurerm_management_group.root
 }
 
-resource "azurerm_management_group" "level_1" {
-  for_each = local.level_1_management_groups
-
-  name                       = each.key
-  display_name               = each.value.display_name
-  parent_management_group_id = azurerm_management_group.root[each.value.parent_key].id
+moved {
+  from = azurerm_management_group.level_1
+  to   = module.management_groups.azurerm_management_group.level_1
 }
 
-resource "azurerm_management_group" "level_2" {
-  for_each = local.level_2_management_groups
-
-  name                       = each.key
-  display_name               = each.value.display_name
-  parent_management_group_id = azurerm_management_group.level_1[each.value.parent_key].id
+moved {
+  from = azurerm_management_group.level_2
+  to   = module.management_groups.azurerm_management_group.level_2
 }
 
-resource "azurerm_management_group" "level_3" {
-  for_each = local.level_3_management_groups
-
-  name                       = each.key
-  display_name               = each.value.display_name
-  parent_management_group_id = azurerm_management_group.level_2[each.value.parent_key].id
+moved {
+  from = azurerm_management_group.level_3
+  to   = module.management_groups.azurerm_management_group.level_3
 }
 
-resource "terraform_data" "management_group_contract" {
-  input = {
-    management_group_keys = sort(keys(var.management_groups))
-  }
+module "management_groups" {
+  source = "../../modules/terraform-azurerm-compeer-management-groups"
 
-  lifecycle {
-    precondition {
-      condition     = length(local.unresolved_management_group_keys) == 0
-      error_message = "Management groups have unsupported or unknown parent keys: ${join(", ", local.unresolved_management_group_keys)}."
+  root_parent_management_group_id = local.root_parent_management_group_id
+
+  management_groups = {
+    for key, value in var.management_groups : key => {
+      display_name     = value.display_name
+      parent_key       = try(value.parent_key, "root") == "root" ? null : value.parent_key
+      subscription_ids = local.subscription_ids_by_management_group[key]
     }
   }
-}
-
-resource "azurerm_management_group_subscription_association" "this" {
-  for_each = var.subscription_placements
-
-  management_group_id = local.management_group_scope_ids[each.value.management_group_key]
-  subscription_id     = each.value.subscription_id
-
-  depends_on = [terraform_data.management_group_contract]
 }
 
 locals {
+  # `root` keeps the tenant-root (or configured parent) scope reachable for
+  # policy, RBAC, and budget blocks that target `management_group_key = "root"`.
   management_group_scope_ids = merge(
-    {
-      root = local.root_parent_management_group_id
-    },
-    {
-      for key, value in azurerm_management_group.root : key => value.id
-    },
-    {
-      for key, value in azurerm_management_group.level_1 : key => value.id
-    },
-    {
-      for key, value in azurerm_management_group.level_2 : key => value.id
-    },
-    {
-      for key, value in azurerm_management_group.level_3 : key => value.id
-    }
+    { root = local.root_parent_management_group_id },
+    module.management_groups.management_group_ids
   )
 
   policy_definition_ids = {

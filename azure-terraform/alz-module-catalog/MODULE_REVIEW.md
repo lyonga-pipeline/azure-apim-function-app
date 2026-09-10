@@ -148,3 +148,14 @@ Following the enterprise-ALZ gap review:
   / checkov / gitleaks) + `.tflint.hcl`.
 - **subscription-vending** — retired; `subscription-onboarding` places
   CSP-created subscriptions and applies baseline RBAC.
+- **Management groups** — `global-governance` no longer inlines its own leveled
+  MG hierarchy; it now **calls `terraform-azurerm-compeer-management-groups`**.
+  The pattern maps its `management_groups` (`parent_key` default `"root"`) and
+  flat `subscription_placements` map onto the module contract (`parent_key = null`
+  for top-level, per-group `subscription_ids`), then rebuilds
+  `management_group_scope_ids` as `{ root = <tenant parent> } + module ids` for
+  policy / RBAC / budget scoping. `moved` blocks migrate the four
+  `azurerm_management_group.{root,level_1,level_2,level_3}` resource sets into the
+  module with stable keys. `subscription_placements` must target a defined
+  management group key (the bare `"root"` sentinel is no longer a valid placement
+  target — it is scope-only).
