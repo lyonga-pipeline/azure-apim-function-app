@@ -35,12 +35,30 @@ run "external_parent_hierarchy" {
     }
   }
   assert {
-    condition     = length(azurerm_management_group.external_parent) == 1
-    error_message = "alz should be created as an externally parented top-level group"
+    condition     = length(azurerm_management_group.root) == 1
+    error_message = "alz (externally parented) should be a top-level/root group"
+  }
+  assert {
+    condition     = azurerm_management_group.root["alz"].parent_management_group_id == "/providers/Microsoft.Management/managementGroups/tenant-root"
+    error_message = "per-group parent_management_group_id should win over root_parent_management_group_id"
   }
   assert {
     condition     = length(azurerm_management_group.level_1) == 1
     error_message = "platform should be created as a child of the externally parented top-level group"
+  }
+}
+
+run "root_parent_default_applies" {
+  command = plan
+  variables {
+    root_parent_management_group_id = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    management_groups = {
+      platform = { display_name = "Platform" }
+    }
+  }
+  assert {
+    condition     = azurerm_management_group.root["platform"].parent_management_group_id == "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    error_message = "top-level groups without a per-group parent should use root_parent_management_group_id"
   }
 }
 
@@ -53,11 +71,12 @@ run "full_supported_depth" {
       level_2 = { display_name = "Level 2", parent_key = "level_1" }
       level_3 = { display_name = "Level 3", parent_key = "level_2" }
       level_4 = { display_name = "Level 4", parent_key = "level_3" }
+      level_5 = { display_name = "Level 5", parent_key = "level_4" }
     }
   }
   assert {
-    condition     = length(azurerm_management_group.level_4) == 1
-    error_message = "the fourth child level should be supported"
+    condition     = length(azurerm_management_group.level_5) == 1
+    error_message = "the fifth child level should be supported"
   }
 }
 
@@ -117,6 +136,7 @@ run "rejects_unsupported_depth" {
       level_3 = { display_name = "Level 3", parent_key = "level_2" }
       level_4 = { display_name = "Level 4", parent_key = "level_3" }
       level_5 = { display_name = "Level 5", parent_key = "level_4" }
+      level_6 = { display_name = "Level 6", parent_key = "level_5" }
     }
   }
   expect_failures = [var.management_groups]

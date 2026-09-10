@@ -15,16 +15,15 @@ variable "location" {
 }
 
 variable "governance" {
-  description = "Governance workspace configuration: management groups, policy, custom roles, RBAC, and MG budgets."
+  description = <<-EOT
+    Governance workspace configuration: management groups, policy, custom roles, RBAC, and MG budgets.
+    management_groups keys ARE the Azure management group names and match the design
+    doc (Section 6.1) verbatim — e.g. "compeer-enterprise-mg", "internal-apps-uat-mg".
+    parent_key = "root" places a group under root_management_group_id / the tenant root.
+  EOT
   type        = any
   default = {
     enabled           = false
     management_groups = {}
   }
-}
-
-variable "environment" {
-  description = "Environment token, required by the naming module (MG names take the env from their key, not this)."
-  type        = string
-  default     = "prod"
 }

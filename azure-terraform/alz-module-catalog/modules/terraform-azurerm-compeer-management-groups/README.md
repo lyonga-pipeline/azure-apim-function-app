@@ -1,9 +1,10 @@
 # terraform-azurerm-compeer-management-groups
 
 Management-group hierarchy for ALZ foundations. The module creates top-level
-management groups under either the supplied tenant/root parent or a per-group
-external parent, then creates up to four child levels and optional subscription
-associations.
+management groups (those with no `parent_key`) under `root_parent_management_group_id`
+by default, or under a per-group `parent_management_group_id` when a specific
+external parent is required, then builds up to five child levels and optional
+subscription associations.
 
 Each management group is keyed by the desired management group ID. Stable keys
 are important because they keep unrelated management groups from being replaced
@@ -50,5 +51,6 @@ validation patterns fixed. Interface preserved for any consumed module.
 ## Tests
 
 `terraform test` (offline, `mock_provider`): empty plan, two-level hierarchy,
-externally parented top-level hierarchy, full supported depth, subscription
-association, and invalid parent validation.
+externally parented top-level hierarchy, `root_parent_management_group_id`
+default, full supported depth (five child levels), subscription association, and
+invalid parent / excessive depth validation.

@@ -1,3 +1,11 @@
+# Target management group hierarchy per the Azure Landing Zone Architecture &
+# Design Document v7, Section 6.1 / Figure 2. Rooted at compeer-enterprise-mg
+# (the legacy compeer-mg tree is out of scope and not managed here).
+#
+# Each of the four workload domains carries the full dev / test / uat / prod
+# environment tier. regulated-apps-mg and shared-services-mg are stood up in the
+# hierarchy but dormant at launch (no subscriptions / policy) until a distinct
+# governance need arises — see the design doc's minimum-hierarchy principle.
 management_groups = {
   "compeer-enterprise-mg" = {
     display_name = "Compeer Enterprise"
@@ -40,6 +48,10 @@ management_groups = {
     display_name = "Internal Apps - Test"
     parent_key   = "internal-apps-mg"
   }
+  "internal-apps-uat-mg" = {
+    display_name = "Internal Apps - UAT"
+    parent_key   = "internal-apps-mg"
+  }
   "internal-apps-prod-mg" = {
     display_name = "Internal Apps - Prod"
     parent_key   = "internal-apps-mg"
@@ -55,6 +67,10 @@ management_groups = {
   }
   "external-apps-test-mg" = {
     display_name = "External Apps - Test"
+    parent_key   = "external-apps-mg"
+  }
+  "external-apps-uat-mg" = {
+    display_name = "External Apps - UAT"
     parent_key   = "external-apps-mg"
   }
   "external-apps-prod-mg" = {
@@ -74,6 +90,10 @@ management_groups = {
     display_name = "Regulated Apps - Test"
     parent_key   = "regulated-apps-mg"
   }
+  "regulated-apps-uat-mg" = {
+    display_name = "Regulated Apps - UAT"
+    parent_key   = "regulated-apps-mg"
+  }
   "regulated-apps-prod-mg" = {
     display_name = "Regulated Apps - Prod"
     parent_key   = "regulated-apps-mg"
@@ -89,6 +109,10 @@ management_groups = {
   }
   "shared-services-test-mg" = {
     display_name = "Shared Services - Test"
+    parent_key   = "shared-services-mg"
+  }
+  "shared-services-uat-mg" = {
+    display_name = "Shared Services - UAT"
     parent_key   = "shared-services-mg"
   }
   "shared-services-prod-mg" = {

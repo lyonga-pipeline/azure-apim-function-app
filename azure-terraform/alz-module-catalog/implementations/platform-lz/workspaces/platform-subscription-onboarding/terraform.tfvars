@@ -40,9 +40,9 @@ onboarding = {
   }
 
   subscriptions = {
-    corp_app_alpha = {
-      target_management_group_key = "corp"
-      display_name                = "corp-app-alpha-prod"
+    internal_apps_alpha = {
+      target_management_group_key = "internal-apps-prod-mg"
+      display_name                = "internal-apps-prod-workload1-sub"
       workload                    = "Production"
       app_role_assignments = {
         alpha_team_contributor = {
@@ -55,7 +55,7 @@ onboarding = {
     }
 
     sandbox_alpha = {
-      target_management_group_key = "sandbox"
+      target_management_group_key = "sandbox-mg"
       workload                    = "DevTest"
       apply_baseline_rbac         = false # sandbox gets its own lighter RBAC
       app_role_assignments = {

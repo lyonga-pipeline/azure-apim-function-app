@@ -46,7 +46,7 @@ policy = {
   #   az policy definition list --query "[?policyRule.then.effect=='DeployIfNotExists'].{name:displayName,id:id}" -o table
   remediation = {
     enabled              = false
-    management_group_key = "enterprise"
+    management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
     dine_assignments = {
       # activity_log_to_law = {
@@ -66,7 +66,7 @@ policy = {
   # -- Private-only connectivity guardrail (see pattern README) ---------------
   private_only_connectivity = {
     enabled              = false
-    management_group_key = "enterprise"
+    management_group_key = "compeer-enterprise-mg"
     effect               = "Audit"
     enforce              = true
     allowed_public_ip_resource_group_names = [

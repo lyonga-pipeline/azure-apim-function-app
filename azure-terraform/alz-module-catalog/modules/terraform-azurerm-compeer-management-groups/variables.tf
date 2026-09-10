@@ -1,11 +1,23 @@
 variable "root_parent_management_group_id" {
-  description = "Optional parent management group ID for root-level groups in this module."
+  description = "Default Azure parent for top-level groups (those with no parent_key). Accepts a full management group resource ID or null to place them directly under the tenant root group. A per-group parent_management_group_id overrides this for that group."
   type        = string
   default     = null
 }
 
 variable "management_groups" {
-  description = "Management groups keyed by the desired management group ID."
+  description = <<-EOT
+    Management groups keyed by the desired management group name/ID. Stable keys keep
+    unrelated groups from being replaced when one is added or removed.
+
+    Parenting model, exactly one of:
+      - parent_key: another key in this map (builds the in-module hierarchy).
+      - parent_management_group_id: a management group that already exists outside
+        this module, given as a full resource ID. Use this only for top-level groups
+        that must hang off a specific external parent; otherwise leave both unset and
+        the group lands under root_parent_management_group_id (or the tenant root).
+
+    subscription_ids: subscriptions to associate directly with this group.
+  EOT
   type = map(object({
     display_name               = optional(string)
     parent_key                 = optional(string)
@@ -45,12 +57,14 @@ variable "management_groups" {
         try(var.management_groups[group.parent_key].parent_key, null) == null ? true : (
           try(var.management_groups[var.management_groups[group.parent_key].parent_key].parent_key, null) == null ? true : (
             try(var.management_groups[var.management_groups[var.management_groups[group.parent_key].parent_key].parent_key].parent_key, null) == null ? true : (
-              try(var.management_groups[var.management_groups[var.management_groups[var.management_groups[group.parent_key].parent_key].parent_key].parent_key].parent_key, null) == null
+              try(var.management_groups[var.management_groups[var.management_groups[var.management_groups[group.parent_key].parent_key].parent_key].parent_key].parent_key, null) == null ? true : (
+                try(var.management_groups[var.management_groups[var.management_groups[var.management_groups[var.management_groups[group.parent_key].parent_key].parent_key].parent_key].parent_key].parent_key, null) == null
+              )
             )
           )
         )
       )
     ])
-    error_message = "The module supports top-level management groups plus four child levels; shorten the parent_key chain or split the hierarchy."
+    error_message = "The module supports top-level management groups plus five child levels; shorten the parent_key chain or split the hierarchy."
   }
 }

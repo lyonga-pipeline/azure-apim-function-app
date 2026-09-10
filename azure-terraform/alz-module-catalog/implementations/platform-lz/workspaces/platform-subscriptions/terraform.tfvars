@@ -17,10 +17,10 @@ subscription_vending = {
     managed_by = "terraform"
   }
   subscriptions = {
-    platform_security     = { subscription_name = "platform-security-sub", management_group_key = "security", workload = "Production" }
-    platform_identity     = { subscription_name = "platform-identity-sub", management_group_key = "identity", workload = "Production" }
-    platform_management   = { subscription_name = "platform-management-sub", management_group_key = "management", workload = "Production" }
-    platform_connectivity = { subscription_name = "platform-connectivity-sub", management_group_key = "connectivity", workload = "Production" }
-    sandbox_ops           = { subscription_name = "sandbox-ops-sub", management_group_key = "sandbox", workload = "DevTest" }
+    platform_security     = { subscription_name = "platform-security-sub", management_group_key = "security-mg", workload = "Production" }
+    platform_identity     = { subscription_name = "platform-identity-sub", management_group_key = "identity-mg", workload = "Production" }
+    platform_management   = { subscription_name = "platform-management-sub", management_group_key = "management-mg", workload = "Production" }
+    platform_connectivity = { subscription_name = "platform-connectivity-sub", management_group_key = "connectivity-mg", workload = "Production" }
+    sandbox_ops           = { subscription_name = "sandbox-ops-sub", management_group_key = "sandbox-mg", workload = "DevTest" }
   }
 }

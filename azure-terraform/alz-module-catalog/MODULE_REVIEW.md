@@ -159,3 +159,15 @@ Following the enterprise-ALZ gap review:
   module with stable keys. `subscription_placements` must target a defined
   management group key (the bare `"root"` sentinel is no longer a valid placement
   target — it is scope-only).
+- **management-groups module** — `external_parent` resource folded into `root`
+  (top-level groups resolve their Azure parent as `per-group
+  parent_management_group_id ?? root_parent_management_group_id ?? tenant root`,
+  removing the two-ways-to-say-external-parent ambiguity; `moved` block included).
+  Supported depth raised from top + 4 to **top + 5 child levels** (Azure's ceiling
+  is 6 MG levels below root). `platform-governance` `naming.tf` deleted — MG names
+  are fixed catalog strings, so the workspace `management_groups` map keys ARE the
+  Azure MG names and match the design doc (Section 6.1) verbatim
+  (`compeer-enterprise-mg`, `platform-mg`, `<domain>-{dev,test,uat,prod}-mg`, …).
+  Downstream `management_group_key` references (`platform-policy`,
+  `platform-subscriptions`, `platform-subscription-onboarding`) realigned to the
+  `-mg` keys.
