@@ -20,10 +20,10 @@ variable "root_management_group_id" {
 
 variable "management_groups" {
   type = map(object({
-    display_name = string
+    display_name = optional(string)
     parent_key   = optional(string, "root")
   }))
-  description = "Management groups keyed by stable purpose"
+  description = "Management groups keyed by the Azure management group name (matches design-doc Appendix F, e.g. \"security-mg\", \"internal-apps-uat-mg\"). display_name defaults to the key; parent_key = \"root\" places the group under root_management_group_id / the tenant root."
 }
 
 variable "subscription_placements" {

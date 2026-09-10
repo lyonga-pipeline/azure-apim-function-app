@@ -1,133 +1,53 @@
 # Target management group hierarchy per the Azure Landing Zone Architecture &
-# Design Document v7, Section 6.1 / Figure 2. Rooted at compeer-enterprise-mg
-# (the legacy compeer-mg tree is out of scope and not managed here).
+# Design Document v7, Section 6.1 / Figure 2 / Appendix F. Rooted at
+# compeer-enterprise-mg (the legacy compeer-mg tree is out of scope, not managed
+# here).
 #
-# Each of the four workload domains carries the full dev / test / uat / prod
-# environment tier. regulated-apps-mg and shared-services-mg are stood up in the
-# hierarchy but dormant at launch (no subscriptions / policy) until a distinct
-# governance need arises — see the design doc's minimum-hierarchy principle.
+# The map KEY is the Azure management group name and doubles as its display name
+# (Appendix F lists one value per MG, and that is what the Figure 2 boxes show),
+# so display_name is left unset — the pattern defaults it to the key. Set it
+# explicitly only if you want a portal label that differs from the name.
+#
+# Each workload domain carries the full dev / test / uat / prod environment tier.
+# regulated-apps-* and shared-services-* are stood up but dormant at launch (no
+# subscriptions / policy) until a distinct governance need arises.
 management_groups = {
-  "compeer-enterprise-mg" = {
-    display_name = "Compeer Enterprise"
-  }
+  "compeer-enterprise-mg" = { parent_key = "root" }
 
-  "platform-mg" = {
-    display_name = "Platform"
-    parent_key   = "compeer-enterprise-mg"
-  }
-  "security-mg" = {
-    display_name = "Security"
-    parent_key   = "platform-mg"
-  }
-  "identity-mg" = {
-    display_name = "Identity"
-    parent_key   = "platform-mg"
-  }
-  "management-mg" = {
-    display_name = "Management"
-    parent_key   = "platform-mg"
-  }
-  "connectivity-mg" = {
-    display_name = "Connectivity"
-    parent_key   = "platform-mg"
-  }
+  "platform-mg"     = { parent_key = "compeer-enterprise-mg" }
+  "security-mg"     = { parent_key = "platform-mg" }
+  "identity-mg"     = { parent_key = "platform-mg" }
+  "management-mg"   = { parent_key = "platform-mg" }
+  "connectivity-mg" = { parent_key = "platform-mg" }
 
-  "workloads-mg" = {
-    display_name = "Workloads"
-    parent_key   = "compeer-enterprise-mg"
-  }
-  "internal-apps-mg" = {
-    display_name = "Internal Apps"
-    parent_key   = "workloads-mg"
-  }
-  "internal-apps-dev-mg" = {
-    display_name = "Internal Apps - Dev"
-    parent_key   = "internal-apps-mg"
-  }
-  "internal-apps-test-mg" = {
-    display_name = "Internal Apps - Test"
-    parent_key   = "internal-apps-mg"
-  }
-  "internal-apps-uat-mg" = {
-    display_name = "Internal Apps - UAT"
-    parent_key   = "internal-apps-mg"
-  }
-  "internal-apps-prod-mg" = {
-    display_name = "Internal Apps - Prod"
-    parent_key   = "internal-apps-mg"
-  }
+  "workloads-mg"       = { parent_key = "compeer-enterprise-mg" }
+  "internal-apps-mg"   = { parent_key = "workloads-mg" }
+  "external-apps-mg"   = { parent_key = "workloads-mg" }
+  "regulated-apps-mg"  = { parent_key = "workloads-mg" } # dormant
+  "shared-services-mg" = { parent_key = "workloads-mg" } # dormant
 
-  "external-apps-mg" = {
-    display_name = "External Apps"
-    parent_key   = "workloads-mg"
-  }
-  "external-apps-dev-mg" = {
-    display_name = "External Apps - Dev"
-    parent_key   = "external-apps-mg"
-  }
-  "external-apps-test-mg" = {
-    display_name = "External Apps - Test"
-    parent_key   = "external-apps-mg"
-  }
-  "external-apps-uat-mg" = {
-    display_name = "External Apps - UAT"
-    parent_key   = "external-apps-mg"
-  }
-  "external-apps-prod-mg" = {
-    display_name = "External Apps - Prod"
-    parent_key   = "external-apps-mg"
-  }
+  "sandbox-mg"        = { parent_key = "compeer-enterprise-mg" }
+  "decommissioned-mg" = { parent_key = "compeer-enterprise-mg" }
 
-  "regulated-apps-mg" = {
-    display_name = "Regulated Apps"
-    parent_key   = "workloads-mg"
-  }
-  "regulated-apps-dev-mg" = {
-    display_name = "Regulated Apps - Dev"
-    parent_key   = "regulated-apps-mg"
-  }
-  "regulated-apps-test-mg" = {
-    display_name = "Regulated Apps - Test"
-    parent_key   = "regulated-apps-mg"
-  }
-  "regulated-apps-uat-mg" = {
-    display_name = "Regulated Apps - UAT"
-    parent_key   = "regulated-apps-mg"
-  }
-  "regulated-apps-prod-mg" = {
-    display_name = "Regulated Apps - Prod"
-    parent_key   = "regulated-apps-mg"
-  }
+  "internal-apps-dev-mg"  = { parent_key = "internal-apps-mg" }
+  "internal-apps-test-mg" = { parent_key = "internal-apps-mg" }
+  "internal-apps-uat-mg"  = { parent_key = "internal-apps-mg" }
+  "internal-apps-prod-mg" = { parent_key = "internal-apps-mg" }
 
-  "shared-services-mg" = {
-    display_name = "Shared Services"
-    parent_key   = "workloads-mg"
-  }
-  "shared-services-dev-mg" = {
-    display_name = "Shared Services - Dev"
-    parent_key   = "shared-services-mg"
-  }
-  "shared-services-test-mg" = {
-    display_name = "Shared Services - Test"
-    parent_key   = "shared-services-mg"
-  }
-  "shared-services-uat-mg" = {
-    display_name = "Shared Services - UAT"
-    parent_key   = "shared-services-mg"
-  }
-  "shared-services-prod-mg" = {
-    display_name = "Shared Services - Prod"
-    parent_key   = "shared-services-mg"
-  }
+  "external-apps-dev-mg"  = { parent_key = "external-apps-mg" }
+  "external-apps-test-mg" = { parent_key = "external-apps-mg" }
+  "external-apps-uat-mg"  = { parent_key = "external-apps-mg" }
+  "external-apps-prod-mg" = { parent_key = "external-apps-mg" }
 
-  "sandbox-mg" = {
-    display_name = "Sandbox"
-    parent_key   = "compeer-enterprise-mg"
-  }
-  "decommissioned-mg" = {
-    display_name = "Decommissioned"
-    parent_key   = "compeer-enterprise-mg"
-  }
+  "regulated-apps-dev-mg"  = { parent_key = "regulated-apps-mg" }
+  "regulated-apps-test-mg" = { parent_key = "regulated-apps-mg" }
+  "regulated-apps-uat-mg"  = { parent_key = "regulated-apps-mg" }
+  "regulated-apps-prod-mg" = { parent_key = "regulated-apps-mg" }
+
+  "shared-services-dev-mg"  = { parent_key = "shared-services-mg" }
+  "shared-services-test-mg" = { parent_key = "shared-services-mg" }
+  "shared-services-uat-mg"  = { parent_key = "shared-services-mg" }
+  "shared-services-prod-mg" = { parent_key = "shared-services-mg" }
 }
 
 subscription_placements = {}

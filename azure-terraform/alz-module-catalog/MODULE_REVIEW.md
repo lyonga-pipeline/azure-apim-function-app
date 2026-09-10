@@ -162,7 +162,7 @@ Following the enterprise-ALZ gap review:
 - **management-groups module** — `external_parent` resource folded into `root`
   (top-level groups resolve their Azure parent as `per-group
   parent_management_group_id ?? root_parent_management_group_id ?? tenant root`,
-  removing the two-ways-to-say-external-parent ambiguity; `moved` block included).
+  removing the two-ways-to-say-external-parent ambiguity).
   Supported depth raised from top + 4 to **top + 5 child levels** (Azure's ceiling
   is 6 MG levels below root). `platform-governance` `naming.tf` deleted — MG names
   are fixed catalog strings, so the workspace `management_groups` map keys ARE the

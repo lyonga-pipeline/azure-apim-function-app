@@ -43,7 +43,7 @@ module "management_groups" {
 
   management_groups = {
     for key, value in var.management_groups : key => {
-      display_name     = value.display_name
+      display_name     = coalesce(try(value.display_name, null), key)
       parent_key       = try(value.parent_key, "root") == "root" ? null : value.parent_key
       subscription_ids = local.subscription_ids_by_management_group[key]
     }

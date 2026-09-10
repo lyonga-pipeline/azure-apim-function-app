@@ -4,9 +4,9 @@ variables {
   subscription_id          = "00000000-0000-0000-0000-000000000000"
   root_management_group_id = "tenant-root"
   management_groups = {
-    enterprise = { display_name = "compeer-enterprise-mg", parent_key = "root" }
-    platform   = { display_name = "platform-mg", parent_key = "enterprise" }
-    workloads  = { display_name = "workloads-mg", parent_key = "enterprise" }
+    "compeer-enterprise-mg" = { parent_key = "root" }
+    "platform-mg"           = { parent_key = "compeer-enterprise-mg" }
+    "workloads-mg"          = { parent_key = "compeer-enterprise-mg" }
   }
 }
 
@@ -14,7 +14,7 @@ run "mg_hierarchy" {
   command = plan
   assert {
     condition = alltrue([
-      for key in ["enterprise", "platform", "workloads"] :
+      for key in ["compeer-enterprise-mg", "platform-mg", "workloads-mg"] :
       contains(keys(output.management_group_ids), key)
     ])
     error_message = "management-groups module did not surface every hierarchy key"
@@ -38,7 +38,7 @@ run "policy_baseline_on" {
   variables {
     policy_baseline = {
       enabled              = true
-      management_group_key = "enterprise"
+      management_group_key = "compeer-enterprise-mg"
       effect               = "Audit"
       allowed_locations    = ["centralus", "eastus2"]
     }

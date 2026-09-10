@@ -89,13 +89,6 @@ locals {
   }
 }
 
-# Externally parented top-level groups were previously a separate resource; they
-# are now plain root groups whose parent is resolved per-group.
-moved {
-  from = azurerm_management_group.external_parent
-  to   = azurerm_management_group.root
-}
-
 resource "azurerm_management_group" "root" {
   for_each = local.root_groups
 
