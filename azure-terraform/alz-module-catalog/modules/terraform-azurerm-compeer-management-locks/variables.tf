@@ -1,5 +1,5 @@
 variable "locks" {
-  description = "Management locks keyed by logical name."
+  description = "Azure Resource Manager locks keyed by logical name. Scopes must be subscription, resource group, or resource IDs; management group scopes are not supported by Azure locks."
   type = map(object({
     name       = optional(string)
     scope      = string
@@ -17,8 +17,22 @@ variable "locks" {
 
   validation {
     condition = alltrue([
+      for _, lock in var.locks : try(lock.name, null) == null ? true : length(trimspace(lock.name)) > 0
+    ])
+    error_message = "name must be null/omitted or a non-empty string."
+  }
+
+  validation {
+    condition = alltrue([
       for _, lock in var.locks : length(trimspace(lock.scope)) > 0
     ])
     error_message = "scope must be a non-empty Azure resource ID."
+  }
+
+  validation {
+    condition = alltrue([
+      for _, lock in var.locks : !startswith(lower(trimspace(lock.scope)), "/providers/microsoft.management/managementgroups/")
+    ])
+    error_message = "Azure resource locks cannot be applied directly to management groups. Use subscription, resource group, or resource scope IDs."
   }
 }
