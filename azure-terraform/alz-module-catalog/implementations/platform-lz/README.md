@@ -58,4 +58,7 @@ Examples:
 
 Provider subscription context remains an explicit workspace variable or HCP dynamic credential setting. Terraform should not configure an Azure provider from a producer workspace output inside the same run.
 
-See `WORKSPACES.md` for the deployment order and output contracts.
+See `WORKSPACES.md` for the deployment order and output contracts, and
+`PATTERN-REFERENCE.md` for what each pattern deploys and why — including the
+full live-vs-designed Azure Policy table cross-referenced against the ALZ
+design doc and the Identity & RBAC doc.
