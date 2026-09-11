@@ -63,29 +63,62 @@ Two rounds of gap-closure since this doc was first written:
    already accepted `os_disk.disk_encryption_set_id` — only the resource that
    *creates* the DES was missing.
 
-**Partially closed — real example content added, tenant confirmation still needed:**
+**Closed — enabled live, with real (not fabricated) built-in policy IDs:**
 
-3. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — `platform-management`'s
-   `terraform.tfvars.example` now has real KQL content (commented) for new-Global-Admin,
-   Owner-role-assigned, PIM-activation, MG/policy-change, and password-spray
-   detections, on top of the 2 Palo Alto rules that ship by default. Validate
-   each query against the tenant's connected tables before promoting from
-   "alert" to `create_incident = true`.
-4. **Defender MG-scope auto-enablement** (Phase 6 §3) and **disk/SQL encryption
-   + allowed-resource-types + diagnostic-settings guardrails** (Phase 3 §6-7,
-   Phase 5 §6-7) — `platform-policy`'s `terraform.tfvars` now has named,
-   commented entries (`defender_for_servers`, `disk_encryption_required`,
-   `sql_tde_required`, `allowed_resource_types`, `diagnostic_settings_required`, …)
-   under `dine_assignments` / `management_group_policy_assignments`. Built-in
-   policy GUIDs are global across tenants, but per this repo's existing
-   convention (see `remediation.tf`), each one is left as `<verify: ...>` with
-   the `az policy definition list` command to confirm it rather than a
-   hardcoded ID that could be wrong for a given Azure Policy catalog snapshot.
+3. **Private-only connectivity guardrail** (Phase 3 §7 Cat. 2) —
+   `platform-policy`'s `private_only_connectivity.enabled` flipped to `true`.
+   Fully custom (no external ID dependency) — `deny-public-ip-address` +
+   `deny-nic-public-ip` bundled into one initiative
+   (`compeer-private-only-connectivity`), Audit mode, real approved-edge RG
+   names. **LIVE.**
+4. **Approved resource types** (Phase 3 §6) and **disk encryption for
+   Windows/Linux VMs** (Phase 5 §6) — added to `platform-policy`'s
+   `management_group_policy_assignments` with built-in policy IDs verified
+   against the live Azure Policy catalog (via `azadvertizer.net`, which mirrors
+   the `Azure/azure-policy` GitHub repo) on 2026-09-11, not guessed from
+   memory: `a08ec900-254a-4555-9bf5-e42af04b5c5c` ("Allowed resource types"),
+   `3dc5edcd-002d-444c-b216-e123bbfa37c0` (Windows disk encryption, AuditIfNotExists),
+   `ca88aadc-6e2b-416c-9de2-5a0f01d1693f` (Linux disk encryption, AuditIfNotExists).
+   **LIVE**, Audit-only — the resource-types allow-list also sets
+   `enforce = false` until the catalog list is reviewed (Deny would block
+   deployments outright if the list is missing a type Compeer actually uses).
+   A real regression was caught before this shipped: `azurerm_management_group_policy_assignment.name`
+   has a 24-character limit, and the first draft name
+   (`cmp-allowed-resource-types`, 26 chars) would have failed at apply —
+   `terraform test` (new `tests/builtin_guardrails.tftest.hcl`) caught it.
 
-None of these were architectural gaps — the pattern/module surface exists for
-all of them now. What's left is either enabling the example content after
-tenant verification (Sentinel, policy IDs), which is a config change, not a
-build.
+**Not enabled — a real reason each time, not just "not gotten to it":**
+
+5. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
+   exists (commented) in `platform-management`'s `terraform.tfvars.example`;
+   not enabled because it needs validation against the tenant's actual
+   connected-table schema first.
+6. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
+   policy GUID could be found for a plain "TDE should be enabled" audit (Azure
+   enables TDE by default on new databases now, which likely explains this).
+7. **Managed identity usage audit** (Phase 3 §7 Cat. 1) — no built-in policy
+   matches this control as literally described; would need a custom policy.
+8. **Diagnostic settings required** (Phase 3 §7 Cat. 4) — Microsoft's current
+   diagnostic-settings-policy model is per-resource-type (dozens of built-ins,
+   one per service), not a single initiative; needs Compeer to pick which
+   resource types to enforce it on.
+9. **Defender for Cloud plan auto-enablement** (Phase 6 §3-4) — the initiative
+   ID **is** confirmed and current: "Configure Microsoft Defender for Cloud
+   plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` (verified not deprecated, 12
+   bundled DeployIfNotExists policies). Not enabled because each bundled
+   policy needs a pricing tier / subplan (e.g. Servers P1 vs P2) — that's a
+   licensing/cost decision for Compeer, not a technical unknown, so it isn't
+   defaulted here. Also: `platform-policy`'s `remediation.dine_assignments`
+   only accepts `policy_definition_id` (single policy), so assigning this
+   *initiative* needs the pattern's main `management_group_policy_assignments`
+   (which supports `policy_set_definition_id` + an identity block) instead.
+
+None of the "not enabled" items are architectural gaps — the pattern/module
+surface exists for all of them. What's left is either a tenant-validation step
+(Sentinel), a genuine business decision (Defender pricing tier), or content
+that doesn't have a clean built-in equivalent (SQL TDE, managed-identity audit,
+diagnostic settings) and would need a hand-authored custom policy the same way
+`private_only_connectivity` is.
 
 ---
 
@@ -128,8 +161,8 @@ build.
 | 3. Administrative scope model | Manual (design) → realized by Steps 4-5 | |
 | 4. Azure RBAC framework / custom roles | **IaC** — `platform-authorization` (`custom_role_definitions`) + `platform-governance` | Prefer built-in roles; minimal custom roles. |
 | 5. Map Entra groups → Azure roles | **IaC** — `platform-authorization` (`role_assignments`) | |
-| 6. Core governance policies (naming, tags, regions, allowed types) | **Mostly codified** — `policy_baseline` ships `cmp-allowed-locations` + `cmp-required-tags`; naming is enforced by convention (module/naming outputs), not a policy; an "approved resource types" allow-list is not yet assigned | |
-| 7. Security guardrails (identity / network / data / logging) | **Partially codified** — network: `cmp-deny-public-ip`, `cmp-deny-public-paas`, `cmp-sql-private-network`; data: `cmp-secure-storage`. Identity (require managed identity, audit privileged access) and logging (require diagnostic settings) guardrails are not yet assigned as policy — the generic assignment + DINE-remediation mechanism (`platform-policy`) can carry them once an operator adds the built-in policy IDs. | |
+| 6. Core governance policies (naming, tags, regions, allowed types) | **Codified** — `policy_baseline` ships `cmp-allowed-locations` + `cmp-required-tags`; `platform-policy` ships `cmp-allowed-res-types` (built-in "Allowed resource types", **LIVE**, `enforce=false` until the catalog list is reviewed). Naming is enforced by convention (module/naming outputs), not a policy. | |
+| 7. Security guardrails (identity / network / data / logging) | **Mostly codified** — network: `cmp-deny-public-ip`, `cmp-deny-public-paas`, `cmp-sql-private-network`, plus the private-only-connectivity initiative (**LIVE**); data: `cmp-secure-storage`, `cmp-disk-encrypt-win`/`-linux` (**LIVE**). Identity (audit privileged access — covered by `platform-authorization`'s group model, not a resource policy) and logging (require diagnostic settings) are not assigned as policy — see "Not enabled" items 7-8 in the Known Gaps section. | |
 | 8. Compliance & monitoring policies | **Hybrid** — Defender/Policy compliance data is real (`platform-management`, Azure Policy compliance state); a purpose-built compliance *dashboard* is not built (Azure Policy's own compliance view / Workbook is the assumed consumer) | |
 | 9. Subscription governance framework | **IaC** — `platform-subscription-onboarding` (+ `platform-subscriptions`) | |
 | 10. Validation & governance testing | Manual | |
@@ -155,8 +188,8 @@ build.
 |---|---|---|
 | 1-4. Classification, encryption standards, CMK framework, Key Vault integration | **Hybrid** — standards are design docs; CMK material is `terraform-azurerm-compeer-key-vault-key` / `keyvault-assets` in `platform-identity-security`; `storage-account` module accepts a customer-managed key | |
 | 5. Storage encryption controls | **Codified today** — `global-governance` `policy_baseline` ships `cmp-secure-storage` (HTTPS-only, TLS 1.2+, no public blob) | Deny/audit assignable at `workloads-mg`. |
-| 6. Compute (disk) encryption controls | **IaC** — `platform-identity-security` (`disk_encryption_sets`, `terraform-azurerm-compeer-disk-encryption-set`) | Enforcement (a policy requiring every VM disk to use a DES) is a commented example in `platform-policy` tfvars (`disk_encryption_required`) pending built-in policy ID confirmation. |
-| 7. Database encryption controls | **Hybrid** | Azure SQL enables TDE by default with a platform-managed key; CMK-backed TDE would consume a key from `platform-identity-security`. The *audit/enforce* policy (`sql_tde_required`) is a commented example in `platform-policy` tfvars pending built-in policy ID confirmation. |
+| 6. Compute (disk) encryption controls | **IaC** — `platform-identity-security` (`disk_encryption_sets`, `terraform-azurerm-compeer-disk-encryption-set`) creates CMK disk encryption sets; `platform-policy` audits general disk-encryption posture (`cmp-disk-encrypt-win`/`-linux`, built-in "…should enable Azure Disk Encryption or EncryptionAtHost", **LIVE**, AuditIfNotExists) | The audit checks ADE/EncryptionAtHost is *on*, not that a workload specifically uses the platform DES — auditing "uses our CMK" would need a custom policy, not a built-in. |
+| 7. Database encryption controls | **Hybrid** | Azure SQL enables TDE by default with a platform-managed key; CMK-backed TDE would consume a key from `platform-identity-security`. No current non-deprecated built-in policy GUID could be found for a plain TDE-audit — see "Not enabled" §6 below. |
 | 8. Encryption-in-transit controls | **Partially codified** — `cmp-secure-storage` (HTTPS/TLS for storage); Key Vault / SQL public-network-access denial via `cmp-deny-public-paas` and `cmp-sql-private-network` | Bastion covers admin SSH/RDP-over-TLS. |
 | 9. Azure Policy encryption guardrails | **Hybrid** — the assignment mechanism is `platform-policy` / `global-governance`; the guardrail *initiative* (all of Steps 5-8 as one bundle) has not been assembled as a single policy set | |
 | 10. Validation | Manual | |
@@ -166,7 +199,7 @@ build.
 | Step | Delivery | Where |
 |---|---|---|
 | 1-2. Architecture & governance model | Manual (design) | |
-| 3. Enable Defender at MG scope | **Hybrid** — mechanism is `platform-policy` `remediation.dine_assignments` (a generic caller-supplied DeployIfNotExists bundle) | The *resource* (`azurerm_management_group_policy_assignment` + system-assigned identity) exists and is generic. `platform-policy` tfvars now has named, commented entries (`defender_for_servers`, `defender_for_storage`, `defender_for_sql`, `defender_for_key_vault`) — enable them once the built-in policy IDs are confirmed against the tenant. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
+| 3. Enable Defender at MG scope | **Hybrid** — the assignment mechanism (`azurerm_management_group_policy_assignment` + system-assigned identity, `platform-policy`) is generic and proven (it's the same resource already assigning the live guardrails above) | The confirmed, current initiative — "Configure Microsoft Defender for Cloud plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` — is documented in `platform-policy` tfvars but not enabled: per-plan pricing tier/subplan is a Compeer licensing decision, not a technical unknown. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
 | 4. Core Defender plans | **IaC** — `platform-management` (`defender_plan_ids`) + `platform-policy` for inheritance | |
 | 5-7. CSPM, regulatory frameworks, workload protection plans | **Hybrid** — plan enablement IaC; framework assignment + attack-path review are portal/console | |
 | 8-9. Remediation & operations model | **Manual** (`external-system`) | SOC / platform run process. |

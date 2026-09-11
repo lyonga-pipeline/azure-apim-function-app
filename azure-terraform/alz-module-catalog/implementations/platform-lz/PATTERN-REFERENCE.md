@@ -187,20 +187,22 @@ Phase 3 §7-8, Phase 5 §6-9, Phase 6 §3.
 | `cmp-deny-public-ip` | Audit | `compeer-enterprise-mg` | **LIVE** | `policy_baseline` | Phase 3 §7 Cat. 2 |
 | `cmp-sql-private-network` | Audit | `compeer-enterprise-mg` | **LIVE** | `policy_baseline` | Phase 3 §7 Cat. 2; Phase 5 §7 |
 | Microsoft Cloud Security Benchmark (initiative) | Audit (`enforce=false`) | `compeer-enterprise-mg` | **LIVE** | `policy_baseline` | Phase 6 §6 "Required baseline" |
-| `deny-public-ip-address` (private-only guardrail) | Audit (wired) | `compeer-enterprise-mg` | wired, **disabled** (`private_only_connectivity.enabled=false`) | `platform-policy` | Phase 3 §7 Cat. 2 |
-| `deny-nic-public-ip` (private-only guardrail) | Audit (wired) | `compeer-enterprise-mg` | wired, **disabled** | `platform-policy` | Phase 3 §7 Cat. 2 |
-| Approved resource types allow-list | — | `compeer-enterprise-mg` (planned) | commented example, not enabled | `platform-policy` tfvars | Phase 3 §6 "Approved Resource Types" |
-| Disk encryption required | — | `workloads-mg` (planned) | commented example, not enabled | `platform-policy` tfvars | Phase 5 §6 |
-| SQL TDE required | — | `workloads-mg` (planned) | commented example, not enabled | `platform-policy` tfvars | Phase 5 §7 |
-| Managed identity usage audit | — | `workloads-mg` (planned) | commented example, not enabled | `platform-policy` tfvars | Phase 3 §7 Cat. 1 (Identity) |
-| Diagnostic settings required (DINE) | — | `compeer-enterprise-mg` (planned) | commented example, not enabled | `platform-policy` tfvars `remediation.dine_assignments` | Phase 3 §7 Cat. 4 (Logging) |
-| Defender for Servers/Storage/SQL/Key Vault (DINE) | — | `compeer-enterprise-mg` (planned) | commented example, not enabled | `platform-policy` tfvars `remediation.dine_assignments` | Phase 6 §3-4 |
-| `custom_policy_set_definitions` (custom initiative) | — | — | plumbing only, **never populated anywhere**, incl. examples | governance + policy | not named explicitly in either doc — general capability |
+| `compeer-private-only-connectivity` initiative (`deny-public-ip-address` + `deny-nic-public-ip`) | Audit | `compeer-enterprise-mg` | **LIVE** | `platform-policy` `private_only_connectivity` | Phase 3 §7 Cat. 2 |
+| `cmp-allowed-res-types` (built-in "Allowed resource types", `a08ec900-254a-4555-9bf5-e42af04b5c5c`) | Audit, `enforce=false` | `compeer-enterprise-mg` | **LIVE** (report-only; catalog list needs review before `enforce=true`) | `platform-policy` | Phase 3 §6 "Approved Resource Types" |
+| `cmp-disk-encrypt-win` (built-in `3dc5edcd-002d-444c-b216-e123bbfa37c0`) | AuditIfNotExists | `workloads-mg` | **LIVE** | `platform-policy` | Phase 5 §6 |
+| `cmp-disk-encrypt-linux` (built-in `ca88aadc-6e2b-416c-9de2-5a0f01d1693f`) | AuditIfNotExists | `workloads-mg` | **LIVE** | `platform-policy` | Phase 5 §6 |
+| SQL TDE required | — | `workloads-mg` (planned) | **not enabled — no current built-in GUID found** | `platform-policy` tfvars | Phase 5 §7 |
+| Managed identity usage audit | — | `workloads-mg` (planned) | **not enabled — no built-in matches the design doc's literal control** | `platform-policy` tfvars | Phase 3 §7 Cat. 1 (Identity) |
+| Diagnostic settings required | — | `compeer-enterprise-mg` (planned) | **not enabled — Microsoft's diagnostic-settings model is per-resource-type (dozens of built-ins), not one initiative; needs Compeer to pick target resource types** | `platform-policy` tfvars `remediation.dine_assignments` | Phase 3 §7 Cat. 4 (Logging) |
+| "Configure Microsoft Defender for Cloud plans" initiative (`f08c57cd-dbd6-49a4-a85e-9ae77ac959b0`, confirmed, not deprecated) | — | `compeer-enterprise-mg` (planned) | **ID confirmed, not enabled — per-plan pricing tier/subplan (e.g. Servers P1 vs P2) is a licensing/cost decision for Compeer**; also needs `management_group_policy_assignments` (supports `policy_set_definition_id` + identity), not `remediation.dine_assignments` (single-policy only) | `platform-policy` tfvars | Phase 6 §3-4 |
+| `custom_policy_set_definitions` (hand-authored custom initiative) | — | — | the **variable** is plumbing only, never populated by a caller; the **resource** it feeds is exercised internally by `private_only_connectivity`'s own initiative, so the mechanism is proven, just not used for anything hand-authored | governance + policy | not named explicitly in either doc — general capability |
 
-The commented entries are left as `<verify: ...>` with the exact
-`az policy definition list` lookup command rather than a hardcoded built-in
-policy GUID — see `IDENTITY-RBAC-IAC-BOUNDARY.md`'s "Known gaps" section for
-why.
+GUIDs above were verified against the live Azure built-in policy catalog
+(via `azadvertizer.net`, which mirrors the `Azure/azure-policy` GitHub repo) on
+2026-09-11 — not from memory. The three enabled here are Audit-only: no Deny,
+no resource changes, no cost, report-only-first per this repo's convention.
+See `IDENTITY-RBAC-IAC-BOUNDARY.md`'s "Known gaps" section for the ones still
+not enabled and why.
 
 Nothing in the **Identity & RBAC doc** maps to an Azure Policy directly — its
 only policy-adjacent statement is "policy administration is controlled through
