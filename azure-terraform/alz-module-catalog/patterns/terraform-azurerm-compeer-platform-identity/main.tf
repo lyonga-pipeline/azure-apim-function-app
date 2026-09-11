@@ -151,6 +151,22 @@ module "key_vault_diagnostics" {
   metrics                        = var.diagnostics.metrics
 }
 
+module "disk_encryption_sets" {
+  source   = "../../modules/terraform-azurerm-compeer-disk-encryption-set"
+  for_each = var.disk_encryption_sets
+
+  name                      = each.value.name
+  resource_group_name       = module.resource_group.name
+  location                  = module.resource_group.location
+  key_vault_key_id          = try(each.value.key_vault_key_id, null)
+  managed_hsm_key_id        = try(each.value.managed_hsm_key_id, null)
+  encryption_type           = try(each.value.encryption_type, "EncryptionAtRestWithCustomerKey")
+  auto_key_rotation_enabled = try(each.value.auto_key_rotation_enabled, true)
+  identity_type             = try(each.value.identity_type, "SystemAssigned")
+  identity_ids              = try(each.value.identity_ids, null)
+  tags                      = module.tags.tags
+}
+
 locals {
   identity_scope_ids = merge(
     {

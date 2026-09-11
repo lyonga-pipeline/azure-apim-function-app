@@ -202,6 +202,30 @@ variable "additional_lock_scopes" {
   default     = {}
 }
 
+variable "disk_encryption_sets" {
+  description = <<-EOT
+    Customer-managed-key disk encryption sets — design doc Phase 5 Step 6
+    ("Compute and Disk Encryption Controls"). Required for regulated-apps-mg /
+    Restricted-data workloads; optional elsewhere. key_vault_key_id should
+    reference a key created in this pattern's key_vault (see
+    terraform-azurerm-compeer-key-vault-key in the composition root).
+    After creation, grant each DES's identity_principal_id "Key Vault Crypto
+    Service Encryption User" on the source key via identity_role_assignments
+    or external_role_assignments, then pass the output id to a VM pattern's
+    os_disk.disk_encryption_set_id.
+  EOT
+  type = map(object({
+    name                      = string
+    key_vault_key_id          = optional(string)
+    managed_hsm_key_id        = optional(string)
+    encryption_type           = optional(string, "EncryptionAtRestWithCustomerKey")
+    auto_key_rotation_enabled = optional(bool, true)
+    identity_type             = optional(string, "SystemAssigned")
+    identity_ids              = optional(list(string))
+  }))
+  default = {}
+}
+
 variable "management_locks" {
   type = map(object({
     name       = string

@@ -25,3 +25,11 @@ output "key_vault_uri" {
 output "key_vault_private_endpoint_id" {
   value = try(module.identity[0].key_vault_private_endpoint_id, null)
 }
+
+output "disk_encryption_set_ids" {
+  value = try(module.identity[0].disk_encryption_set_ids, {})
+}
+
+output "disk_encryption_set_identity_principal_ids" {
+  value = try(module.identity[0].disk_encryption_set_identity_principal_ids, {})
+}

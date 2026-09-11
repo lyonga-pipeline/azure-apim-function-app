@@ -56,6 +56,8 @@ These modules are present in the Compeer module directory and are materially com
 - `terraform-azuread-compeer-ad-application`
 - `terraform-azuread-compeer-service-principal`
 - `terraform-azurerm-compeer-operational-contracts`
+- `terraform-azurerm-compeer-role-management-policy`
+- `terraform-azurerm-compeer-disk-encryption-set`
 
 ## Missing
 
@@ -194,3 +196,28 @@ Following the enterprise-ALZ gap review:
   Access, PIM activation policy, JML / access reviews — with rationale. Full
   phase-by-phase map: `implementations/platform-lz/IDENTITY-RBAC-IAC-BOUNDARY.md`.
   The `compeer-alz-avm/stacks/{03,07,08}` copies are marked DEPRECATED.
+- **Group-based RBAC end-to-end** — `subscription-onboarding` and
+  `subscription-vending` now accept `principal_group_key` (resolved against
+  `platform-authorization`'s `group_object_ids`) as an alternative to a literal
+  `principal_id`, and both reject `principal_type = "User"` outright. Combined
+  with `platform-authorization`, no path in the active tree grants Azure RBAC
+  directly to a user principal.
+- **Identity & RBAC gap closure (audit + fix)** — verified every "IaC" claim in
+  `IDENTITY-RBAC-IAC-BOUNDARY.md` against real resources and found two provider
+  capabilities the doc had wrongly written off:
+  - `azurerm_role_management_policy` (PIM activation policy — approval,
+    MFA-on-activation, max duration, notifications) genuinely exists (confirmed
+    against the installed provider schema). New module
+    `terraform-azurerm-compeer-role-management-policy`, wired into
+    `platform-privileged-access` as `role_management_policies`.
+  - `azurerm_disk_encryption_set` also exists, and the VM modules already
+    accepted `os_disk.disk_encryption_set_id` — only the resource that creates
+    the DES was missing. New module `terraform-azurerm-compeer-disk-encryption-set`,
+    wired into `platform-identity-security` as `disk_encryption_sets`.
+  Also added real (commented) Sentinel detection KQL for new-Global-Admin,
+  Owner-role-assigned, PIM-activation, MG/policy-change, and password-spray in
+  `platform-management` tfvars, and named policy-assignment placeholders
+  (Defender-plan enablement, disk/SQL encryption, allowed-resource-types,
+  diagnostic-settings) in `platform-policy` tfvars, each with the
+  `az policy definition list` lookup command per this repo's existing
+  convention rather than a hardcoded GUID that could be wrong.

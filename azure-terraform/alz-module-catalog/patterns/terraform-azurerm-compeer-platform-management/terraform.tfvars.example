@@ -286,3 +286,85 @@ defender_soc_posture = {
 #     enabled = true
 #   }
 # }
+#
+# Sentinel detection content (design doc Phase 2 Step 9 / Phase 7 Step 8). The
+# module ships 2 default rules (Palo Alto CEF-forwarding-stopped, critical
+# threat) via include_default_rules. Everything below is IDENTITY / PRIVILEGED
+# ACCESS detection content that must be added explicitly - it does not exist
+# until it is enabled here. Validate each query against the tenant's connected
+# tables (AuditLogs, SigninLogs, AzureActivity) before promoting from "Alert
+# only" to "create_incident = true" in production, per the report-only-first
+# principle used for Conditional Access.
+#
+# sentinel = {
+#   enabled                  = true
+#   include_default_rules    = true
+#   scheduled_alert_rules = {
+#     new_global_administrator = {
+#       display_name    = "New Global Administrator assigned"
+#       severity        = "High"
+#       query_frequency = "PT15M"
+#       query_period    = "PT15M"
+#       tactics         = ["PrivilegeEscalation", "Persistence"]
+#       query           = <<-KQL
+#         AuditLogs
+#         | where OperationName == "Add member to role"
+#         | mv-expand TargetResources
+#         | where tostring(TargetResources.displayName) == "Global Administrator"
+#         | extend InitiatedByUser = tostring(InitiatedBy.user.userPrincipalName)
+#       KQL
+#     }
+#     owner_role_assigned = {
+#       display_name    = "Owner role assigned at an Azure scope"
+#       severity        = "High"
+#       query_frequency = "PT15M"
+#       query_period    = "PT15M"
+#       tactics         = ["PrivilegeEscalation"]
+#       query           = <<-KQL
+#         AzureActivity
+#         | where OperationNameValue =~ "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
+#         | where ActivityStatusValue == "Success"
+#         | extend RoleDefinitionId = tostring(parse_json(tostring(Properties)).roleDefinitionId)
+#         | where RoleDefinitionId has "8e3af657-a8ff-443c-a75c-2fe8c4bcb635" // built-in Owner
+#       KQL
+#     }
+#     pim_role_activation = {
+#       display_name    = "PIM eligible role activated"
+#       severity        = "Medium"
+#       query_frequency = "PT15M"
+#       query_period    = "PT15M"
+#       tactics         = ["PrivilegeEscalation"]
+#       create_incident = false // volume signal; correlate rather than page on every activation
+#       query           = <<-KQL
+#         AuditLogs
+#         | where OperationName has "Add member to role completed (PIM activation)"
+#       KQL
+#     }
+#     mg_or_policy_change = {
+#       display_name    = "Management group or policy assignment changed"
+#       severity        = "Medium"
+#       query_frequency = "PT15M"
+#       query_period    = "PT15M"
+#       tactics         = ["Impact", "DefenseEvasion"]
+#       query           = <<-KQL
+#         AzureActivity
+#         | where ResourceProviderValue in~ ("MICROSOFT.MANAGEMENT", "MICROSOFT.AUTHORIZATION")
+#         | where OperationNameValue has_any ("managementGroups", "policyAssignments", "policyDefinitions")
+#         | where ActivityStatusValue == "Success"
+#       KQL
+#     }
+#     password_spray_suspected = {
+#       display_name    = "Possible password spray against multiple accounts"
+#       severity        = "Medium"
+#       query_frequency = "PT10M"
+#       query_period    = "PT10M"
+#       tactics         = ["CredentialAccess"]
+#       query           = <<-KQL
+#         SigninLogs
+#         | where ResultType !in ("0")
+#         | summarize FailedAccounts = dcount(UserPrincipalName), Attempts = count() by IPAddress, bin(TimeGenerated, 10m)
+#         | where FailedAccounts >= 5 and Attempts >= 10
+#       KQL
+#     }
+#   }
+# }

@@ -91,6 +91,12 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "break_glass_signin" {
   }
 }
 
+module "role_management_policies" {
+  source = "../../modules/terraform-azurerm-compeer-role-management-policy"
+
+  policies = var.role_management_policies
+}
+
 module "operational_contracts" {
   source = "../../modules/terraform-azurerm-compeer-operational-contracts"
 

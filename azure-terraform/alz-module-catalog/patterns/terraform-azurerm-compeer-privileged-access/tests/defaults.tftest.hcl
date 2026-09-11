@@ -62,6 +62,35 @@ run "break_glass_alert_enabled" {
   }
 }
 
+run "role_management_policy" {
+  command = plan
+  variables {
+    role_management_policies = {
+      plt_admins_owner = {
+        role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+        scope              = "/providers/Microsoft.Management/managementGroups/platform-mg"
+        activation_rules = {
+          maximum_duration                   = "PT8H"
+          require_approval                   = true
+          require_multifactor_authentication = true
+          approvers = [
+            { object_id = "22222222-2222-2222-2222-222222222222", type = "Group" }
+          ]
+        }
+        notification_rules = {
+          eligible_activations = {
+            admin_notifications = { default_recipients = true }
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition     = length(module.role_management_policies.ids) == 1
+    error_message = "expected one role management policy"
+  }
+}
+
 run "operational_contracts_surface" {
   command = apply
   variables {

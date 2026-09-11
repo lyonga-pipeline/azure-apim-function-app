@@ -8,12 +8,17 @@ output "break_glass_alert_id" {
   value       = try(azurerm_monitor_scheduled_query_rules_alert_v2.break_glass_signin[0].id, null)
 }
 
+output "role_management_policy_ids" {
+  description = "PIM activation-policy resource IDs keyed by role_management_policies key."
+  value       = module.role_management_policies.ids
+}
+
 output "operational_contracts" {
   description = "Declared privileged-access operational controls that are not provisioned here."
   value       = module.operational_contracts.contracts
 }
 
 output "manual_control_keys" {
-  description = "Privileged-access controls deliberately left outside Terraform (PIM activation policy, admin Conditional Access, PAW)."
+  description = "Privileged-access controls deliberately left outside Terraform (admin Conditional Access, PAW)."
   value       = module.operational_contracts.manual_control_keys
 }

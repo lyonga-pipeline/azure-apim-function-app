@@ -2,6 +2,10 @@ output "pim_eligible_role_assignment_ids" {
   value = try(module.privileged_access[0].pim_eligible_role_assignment_ids, {})
 }
 
+output "role_management_policy_ids" {
+  value = try(module.privileged_access[0].role_management_policy_ids, {})
+}
+
 output "break_glass_alert_id" {
   value = try(module.privileged_access[0].break_glass_alert_id, null)
 }

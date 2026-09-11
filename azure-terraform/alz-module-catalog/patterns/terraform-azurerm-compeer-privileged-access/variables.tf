@@ -61,8 +61,54 @@ variable "break_glass_alert" {
   default = {}
 }
 
+variable "role_management_policies" {
+  description = <<-EOT
+    PIM *activation policy* settings (approval, MFA-on-activation, max
+    duration, notifications) for the roles in pim_eligible_role_assignments —
+    design doc Phase 2 Step 6. Pair each entry's role_definition_id + scope
+    with the matching pim_eligible_role_assignments entry.
+  EOT
+  type = map(object({
+    role_definition_id = string
+    scope              = string
+
+    activation_rules = optional(object({
+      maximum_duration                                   = optional(string)
+      require_approval                                   = optional(bool)
+      require_justification                              = optional(bool)
+      require_multifactor_authentication                 = optional(bool)
+      require_ticket_info                                = optional(bool)
+      required_conditional_access_authentication_context = optional(string)
+      approvers = optional(list(object({
+        object_id = string
+        type      = string
+      })), [])
+    }))
+
+    active_assignment_rules = optional(object({
+      expiration_required                = optional(bool)
+      expire_after                       = optional(string)
+      require_justification              = optional(bool)
+      require_multifactor_authentication = optional(bool)
+      require_ticket_info                = optional(bool)
+    }))
+
+    eligible_assignment_rules = optional(object({
+      expiration_required = optional(bool)
+      expire_after        = optional(string)
+    }))
+
+    notification_rules = optional(map(map(object({
+      default_recipients    = bool
+      notification_level    = optional(string, "All")
+      additional_recipients = optional(set(string), [])
+    }))), {})
+  }))
+  default = {}
+}
+
 variable "operational_contracts" {
-  description = "Privileged-access controls not represented by native Terraform resources (PIM activation policy, Conditional Access for admins, PAW/secure admin environment)."
+  description = "Privileged-access controls not represented by native Terraform resources (Conditional Access for admins, PAW/secure admin environment)."
   type = map(object({
     phase                = optional(string, "Phase 2")
     owner                = optional(string)

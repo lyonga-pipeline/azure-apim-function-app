@@ -49,6 +49,20 @@ identity_role_assignments = {
 
 key_vault_private_endpoint = null
 
+# Customer-managed-key disk encryption (design doc Phase 5 Step 6). Left empty
+# for the smoke test - populate once a CMK exists in the platform Key Vault
+# above, then grant the DES identity "Key Vault Crypto Service Encryption
+# User" on that key via identity_role_assignments / external_role_assignments,
+# and pass disk_encryption_set_ids["platform"] to a VM pattern's
+# os_disk.disk_encryption_set_id.
+# disk_encryption_sets = {
+#   platform = {
+#     name             = "des-platform-prod"
+#     key_vault_key_id = "https://kv-platform-prod.vault.azure.net/keys/des-key/<version>"
+#   }
+# }
+disk_encryption_sets = {}
+
 # Optional: set this to the platform-management output
 # `log_analytics_workspace_id` to enable Key Vault diagnostics. Leaving it unset
 # lets this stack run before the shared monitoring workspace is wired in HCP.

@@ -55,6 +55,7 @@ module "identity" {
   }
   resource_group             = try(var.identity.resource_group, {})
   platform_identities        = try(var.identity.platform_identities, {})
+  disk_encryption_sets       = try(var.identity.disk_encryption_sets, {})
   key_vault                  = try(var.identity.key_vault, {})
   key_vault_private_endpoint = local.key_vault_private_endpoint
   log_analytics_workspace_id = local.log_analytics_workspace_id

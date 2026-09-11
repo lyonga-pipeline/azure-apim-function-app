@@ -10,11 +10,14 @@ alert.
 | Object | Resource |
 |---|---|
 | PIM eligible role assignments (group → role → scope, activation via PIM) | `azurerm_pim_eligible_role_assignment` |
+| PIM activation policy (approval, MFA-on-activation, max duration, notifications) | `terraform-azurerm-compeer-role-management-policy` |
 | Break-glass account sign-in alert | `azurerm_monitor_scheduled_query_rules_alert_v2` |
 
 Principals are the `AZ-*-Admins` groups from `platform-authorization`, not
 individuals. `principal_id` therefore comes from that pattern's
-`group_object_ids` output.
+`group_object_ids` output. Pair each `pim_eligible_role_assignments` entry with
+a `role_management_policies` entry on the same `role_definition_id` + `scope`
+so the eligibility and its activation rules are configured together.
 
 ## What is deliberately NOT here
 
@@ -22,9 +25,6 @@ individuals. `principal_id` therefore comes from that pattern's
 
 - **break-glass accounts** — created and credentialed outside Terraform so tenant
   recovery survives broken IaC, identity-sync failure, or automation compromise.
-- **PIM activation policy** (approval, MFA-on-activation, max duration,
-  notifications) — `provider-gap`; set in the portal until provider coverage is
-  approved.
 - **admin Conditional Access** — tenant-wide, high lockout blast radius;
   portal-managed with a report-only rollout.
 - **secure admin environment / PAW** — owned by the endpoint team.

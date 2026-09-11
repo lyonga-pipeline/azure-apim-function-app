@@ -39,6 +39,55 @@ privileged_access = {
     }
   }
 
+  # Activation-policy settings, one per pim_eligible_role_assignments entry
+  # above (same role_definition_id + scope). approver_group_key resolves
+  # against platform-authorization group_object_ids, same as
+  # principal_group_key above - approvers should be a different group than the
+  # one being activated (AZ-SEC-Admins approves AZ-PLT-Admins, and vice versa).
+  role_management_policies = {
+    platform_admins_owner = {
+      scope              = "/providers/Microsoft.Management/managementGroups/platform-mg"
+      role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635" # Owner
+      activation_rules = {
+        maximum_duration                   = "PT8H"
+        require_approval                   = true
+        require_justification              = true
+        require_multifactor_authentication = true
+        approvers = [
+          { approver_group_key = "sec_admins", type = "Group" },
+        ]
+      }
+      notification_rules = {
+        eligible_activations = {
+          admin_notifications = { default_recipients = true, notification_level = "All" }
+        }
+      }
+    }
+    security_admins_security_admin = {
+      scope              = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+      role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/fb1c8493-542b-48eb-b624-b4c8fea62acd" # Security Admin
+      activation_rules = {
+        maximum_duration                   = "PT8H"
+        require_approval                   = true
+        require_justification              = true
+        require_multifactor_authentication = true
+        approvers = [
+          { approver_group_key = "plt_admins", type = "Group" },
+        ]
+      }
+    }
+    network_admins_network_contributor = {
+      scope              = "/providers/Microsoft.Management/managementGroups/connectivity-mg"
+      role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7" # Network Contributor
+      activation_rules = {
+        maximum_duration                   = "PT8H"
+        require_approval                   = false # break-fix; MFA + justification instead of a blocking approval
+        require_justification              = true
+        require_multifactor_authentication = true
+      }
+    }
+  }
+
   # Break-glass accounts are NOT created by Terraform. This only alerts on them.
   break_glass_user_principal_names = [
     "emergency-01@compeer.onmicrosoft.com",
@@ -69,10 +118,10 @@ privileged_access = {
     pim_activation_policy = {
       phase                = "Phase 2"
       owner                = "Identity"
-      implementation_state = "provider-gap"
+      implementation_state = "codified"
       required_controls    = ["require approval", "MFA on activation", "max 8h activation", "justification", "notification recipients"]
-      evidence_locations   = ["Entra PIM > Azure resources > Settings"]
-      notes                = "Eligible assignments are codified here; the per-role activation policy is set in the portal until provider coverage is approved."
+      evidence_locations   = ["role_management_policies above", "Entra PIM > Azure resources > Settings (verification)"]
+      notes                = "azurerm_role_management_policy sets approval/MFA/duration/notifications per role_management_policies entry."
     }
     admin_conditional_access = {
       phase                = "Phase 2"

@@ -39,30 +39,53 @@ diagnostic settings), `platform-subscription-onboarding` / `platform-subscriptio
   `manual-control` (lockout / blast-radius risk), `external-system` (owned by
   HR/IGA/ITSM/SOC/endpoint), `provider-gap` (no safe provider coverage yet).
 
-## Known gaps — mechanism exists, content does not (as of this writing)
+## Known gaps, and what closed them
 
 Everything marked **IaC** below is verified against real resources in the repo.
-A few rows are **Hybrid** for a different reason than "deliberately manual" — the
-Terraform *mechanism* to enforce the control exists and is generic, but nobody
-has populated it with the specific policy/rule content yet:
+Two rounds of gap-closure since this doc was first written:
 
-1. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — only 2 default rules
-   ship, both Palo Alto (CEF forwarding stopped, critical threat log). Identity
-   attacks, privileged-role changes, new-Global-Admin, and Owner-assignment
-   detections are NOT authored. Add them to `platform-management`'s
-   `sentinel.scheduled_alert_rules`.
-2. **Defender MG-scope auto-enablement** (Phase 6 §3) — `platform-policy`'s
-   `remediation.dine_assignments` is a generic DeployIfNotExists bundle; the
-   built-in "Configure Microsoft Defender for X" policy IDs are not pre-wired.
-3. **Disk / database encryption enforcement** (Phase 5 §6-7) — no
-   `azurerm_disk_encryption_set` module and no assigned SQL TDE/CMK policy yet.
-   Only storage (`cmp-secure-storage`) is codified.
-4. **"Approved resource types" allow-list and identity/logging guardrails**
-   (Phase 3 §6-7) — mechanism exists (custom/built-in policy assignment), IDs
-   not yet supplied.
+**Closed — new modules, wired end-to-end:**
 
-None of these are architectural gaps — the pattern/module surface to close each
-one already exists — they are backlog items for whoever owns policy content.
+1. **PIM activation policy** (Phase 2 §6) — `azurerm_role_management_policy`
+   DOES exist in the azurerm provider (confirmed against the installed provider
+   schema; it was wrongly marked `provider-gap` in an earlier version of this
+   doc). New module `terraform-azurerm-compeer-role-management-policy` +
+   `platform-privileged-access`'s `role_management_policies` variable set
+   approval / MFA-on-activation / max duration / notification recipients per
+   `(role_definition_id, scope)`, paired with the matching
+   `pim_eligible_role_assignments` entry. `operational_contracts.pim_activation_policy`
+   is now `codified`, not `provider-gap`.
+2. **Disk encryption (CMK)** (Phase 5 §6) — new module
+   `terraform-azurerm-compeer-disk-encryption-set`, wired into
+   `platform-identity-security` (`disk_encryption_sets` variable,
+   `disk_encryption_set_ids` / `disk_encryption_set_identity_principal_ids`
+   outputs). The VM modules (`…-windows-virtual-machine`, `…-linux-virtual-machine`)
+   already accepted `os_disk.disk_encryption_set_id` — only the resource that
+   *creates* the DES was missing.
+
+**Partially closed — real example content added, tenant confirmation still needed:**
+
+3. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — `platform-management`'s
+   `terraform.tfvars.example` now has real KQL content (commented) for new-Global-Admin,
+   Owner-role-assigned, PIM-activation, MG/policy-change, and password-spray
+   detections, on top of the 2 Palo Alto rules that ship by default. Validate
+   each query against the tenant's connected tables before promoting from
+   "alert" to `create_incident = true`.
+4. **Defender MG-scope auto-enablement** (Phase 6 §3) and **disk/SQL encryption
+   + allowed-resource-types + diagnostic-settings guardrails** (Phase 3 §6-7,
+   Phase 5 §6-7) — `platform-policy`'s `terraform.tfvars` now has named,
+   commented entries (`defender_for_servers`, `disk_encryption_required`,
+   `sql_tde_required`, `allowed_resource_types`, `diagnostic_settings_required`, …)
+   under `dine_assignments` / `management_group_policy_assignments`. Built-in
+   policy GUIDs are global across tenants, but per this repo's existing
+   convention (see `remediation.tf`), each one is left as `<verify: ...>` with
+   the `az policy definition list` command to confirm it rather than a
+   hardcoded ID that could be wrong for a given Azure Policy catalog snapshot.
+
+None of these were architectural gaps — the pattern/module surface exists for
+all of them now. What's left is either enabling the example content after
+tenant verification (Sentinel, policy IDs), which is a config change, not a
+build.
 
 ---
 
@@ -90,10 +113,10 @@ one already exists — they are backlog items for whoever owns policy content.
 | 3. Emergency access accounts (`EMERGENCY-01/02`) | **Manual** (`manual-control`) | Microsoft-recommended to keep outside automation and identity sync; credentials split and sealed; excluded from all Conditional Access. Contract: `break_glass_accounts`. **Terraform does add the sign-in alert** (`platform-privileged-access`, `break_glass_alert`). |
 | 4. Administrative authentication standards (phishing-resistant MFA) | **Manual** (`manual-control`) | Authentication-methods policy + authentication strengths are tenant configuration; Graph-based management is high risk. |
 | 5. Administrative Conditional Access | **Manual** (`manual-control`) | Tenant-wide, highest lockout blast radius; report-only rollout required. Contract: `conditional_access` / `admin_conditional_access`. Provider (`azuread_conditional_access_policy`) exists but Compeer keeps CA portal-managed by policy. |
-| 6. Deploy Entra PIM | **Hybrid** — `platform-privileged-access` | `azurerm_pim_eligible_role_assignment` for Azure resource roles. Entra **directory-role** PIM eligibility and all **activation-policy settings** (approval, MFA-on-activation, max duration, notifications) are `provider-gap` → portal. Contract: `pim_activation_policy`. |
+| 6. Deploy Entra PIM | **IaC** — `platform-privileged-access` | `azurerm_pim_eligible_role_assignment` for Azure resource roles plus `role_management_policies` (`terraform-azurerm-compeer-role-management-policy`) for the activation-policy settings (approval, MFA-on-activation, max duration, notifications). Entra **directory-role** PIM eligibility (as opposed to Azure resource-role PIM) is out of scope — Compeer's admin model routes through Azure RBAC groups, not Entra directory roles. |
 | 7. Convert active → eligible privileges | **IaC** — `platform-privileged-access` | Admin/Owner roles are **not** in the standing `platform-authorization` matrix; they exist only as eligible assignments here. |
 | 8. Secure administration environment (PAW / secure AVD) | **Manual** (`external-system`) | Endpoint team (Intune compliance, PAW build). Referenced by the admin CA policy. Contract: `secure_admin_environment`. |
-| 9. Monitoring & alerting (emergency login, new GA, Owner assignment, PIM bypass) | **Hybrid** | Emergency-account login: **IaC**, implemented (`platform-privileged-access` break-glass alert). New-GA / Owner-assignment / PIM-bypass: the Sentinel rule *mechanism* exists (`platform-management`, `scheduled_alert_rules`) but these specific KQL rules are not yet authored — see Phase 7 Step 8. |
+| 9. Monitoring & alerting (emergency login, new GA, Owner assignment, PIM bypass) | **Hybrid** | Emergency-account login: **IaC**, implemented (`platform-privileged-access` break-glass alert). New-GA / Owner-assignment / PIM-activation: real KQL rules exist as commented examples in `platform-management` tfvars — see Phase 7 Step 8 for enabling them. |
 | 10. Validation & security testing | Manual | |
 
 ## Phase 3 — Governance, Azure RBAC, Guardrails
@@ -132,7 +155,8 @@ one already exists — they are backlog items for whoever owns policy content.
 |---|---|---|
 | 1-4. Classification, encryption standards, CMK framework, Key Vault integration | **Hybrid** — standards are design docs; CMK material is `terraform-azurerm-compeer-key-vault-key` / `keyvault-assets` in `platform-identity-security`; `storage-account` module accepts a customer-managed key | |
 | 5. Storage encryption controls | **Codified today** — `global-governance` `policy_baseline` ships `cmp-secure-storage` (HTTPS-only, TLS 1.2+, no public blob) | Deny/audit assignable at `workloads-mg`. |
-| 6-7. Compute (disk) & database encryption controls | **Framework only, not yet populated** | No `azurerm_disk_encryption_set` module and no baked-in SQL TDE/CMK policy exist yet. The generic policy-assignment mechanism (`platform-policy` custom/built-in assignments, or `remediation.dine_assignments`) can carry the built-in "Disk encryption should be enabled" / SQL TDE initiative IDs once an operator adds them — that wiring has not been done. |
+| 6. Compute (disk) encryption controls | **IaC** — `platform-identity-security` (`disk_encryption_sets`, `terraform-azurerm-compeer-disk-encryption-set`) | Enforcement (a policy requiring every VM disk to use a DES) is a commented example in `platform-policy` tfvars (`disk_encryption_required`) pending built-in policy ID confirmation. |
+| 7. Database encryption controls | **Hybrid** | Azure SQL enables TDE by default with a platform-managed key; CMK-backed TDE would consume a key from `platform-identity-security`. The *audit/enforce* policy (`sql_tde_required`) is a commented example in `platform-policy` tfvars pending built-in policy ID confirmation. |
 | 8. Encryption-in-transit controls | **Partially codified** — `cmp-secure-storage` (HTTPS/TLS for storage); Key Vault / SQL public-network-access denial via `cmp-deny-public-paas` and `cmp-sql-private-network` | Bastion covers admin SSH/RDP-over-TLS. |
 | 9. Azure Policy encryption guardrails | **Hybrid** — the assignment mechanism is `platform-policy` / `global-governance`; the guardrail *initiative* (all of Steps 5-8 as one bundle) has not been assembled as a single policy set | |
 | 10. Validation | Manual | |
@@ -142,7 +166,7 @@ one already exists — they are backlog items for whoever owns policy content.
 | Step | Delivery | Where |
 |---|---|---|
 | 1-2. Architecture & governance model | Manual (design) | |
-| 3. Enable Defender at MG scope | **Hybrid** — mechanism is `platform-policy` `remediation.dine_assignments` (a generic caller-supplied DeployIfNotExists bundle) | The *resource* (`azurerm_management_group_policy_assignment` + system-assigned identity) exists and is generic; it does **not** ship with the Defender-plan-enablement policy definition ID pre-wired. An operator must add the built-in "Configure Microsoft Defender for X" DINE policy ID(s) to `dine_assignments` before this step is actually enforced. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
+| 3. Enable Defender at MG scope | **Hybrid** — mechanism is `platform-policy` `remediation.dine_assignments` (a generic caller-supplied DeployIfNotExists bundle) | The *resource* (`azurerm_management_group_policy_assignment` + system-assigned identity) exists and is generic. `platform-policy` tfvars now has named, commented entries (`defender_for_servers`, `defender_for_storage`, `defender_for_sql`, `defender_for_key_vault`) — enable them once the built-in policy IDs are confirmed against the tenant. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
 | 4. Core Defender plans | **IaC** — `platform-management` (`defender_plan_ids`) + `platform-policy` for inheritance | |
 | 5-7. CSPM, regulatory frameworks, workload protection plans | **Hybrid** — plan enablement IaC; framework assignment + attack-path review are portal/console | |
 | 8-9. Remediation & operations model | **Manual** (`external-system`) | SOC / platform run process. |
@@ -156,7 +180,7 @@ one already exists — they are backlog items for whoever owns policy content.
 | 3. Log Analytics architecture | **IaC** — `platform-management` | |
 | 4. Deploy Sentinel | **IaC** — `platform-management` (`sentinel_onboarding_id`) | |
 | 5-7. Connect identity / Azure / security data sources | **IaC** — `platform-management` (Sentinel connectors) | |
-| 8. Detection rules | **Hybrid** — `terraform-azurerm-compeer-sentinel` accepts a `scheduled_alert_rules` map and ships 2 default rules | The 2 rules that ship by default are Palo Alto-only (CEF forwarding stopped, critical threat log). Identity-attack, privileged-activity, admin-change, and emergency-account KQL rules are **not yet authored** — they must be added to `scheduled_alert_rules` in the `platform-management` tfvars. The break-glass **sign-in alert** is a separate, already-implemented control (`platform-privileged-access`, Azure Monitor scheduled query, not a Sentinel analytics rule). |
+| 8. Detection rules | **Hybrid** — `terraform-azurerm-compeer-sentinel` ships 2 default rules (Palo Alto CEF-down, critical threat) plus 5 commented example rules in `platform-management` tfvars | `new_global_administrator`, `owner_role_assigned`, `pim_role_activation`, `mg_or_policy_change`, `password_spray_suspected` — real KQL against `AuditLogs` / `AzureActivity` / `SigninLogs`; validate field names against the tenant's connected tables, then enable. The break-glass **sign-in alert** is a separate, already-implemented control (`platform-privileged-access`, Azure Monitor scheduled query, not a Sentinel analytics rule). |
 | 9. Incident response framework | **Manual** (`external-system`) | SOC runbooks / playbooks. |
 | 10. Validation | Manual | |
 
@@ -202,7 +226,6 @@ production-readiness assessment, and operational handover are **Manual**
 | Cloud-only admin account objects | Source of truth is HR / the joiner process. Terraform would fight the IGA system and could not hold the credential material. |
 | Conditional Access (management plane) | One bad apply locks every administrator (including the pipeline identity) out of the portal and ARM. Report-only rollout and human verification are mandatory. |
 | Authentication methods / strengths | Tenant-singleton policy; provider coverage is partial and a mistake is tenant-wide. |
-| PIM activation-policy settings | `provider-gap` — the eligible *assignment* is codified; approval/MFA/duration settings are not safely expressible yet. |
 | Access reviews / entitlement management / JML | Owned by Entra ID Governance / the IGA platform; these are workflow state, not declarative infrastructure. |
 | SOC runbooks, remediation processes, readiness gates | Process and human judgment, not resources. |
 | PAW / secure admin devices | Endpoint management (Intune) domain. |
