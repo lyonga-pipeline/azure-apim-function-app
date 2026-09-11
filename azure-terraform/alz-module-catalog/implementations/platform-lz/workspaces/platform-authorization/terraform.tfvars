@@ -27,6 +27,11 @@ authorization = {
     net_admins    = { display_name = "AZ-NET-Admins", description = "Network admin (PIM-eligible only).", assignable_to_role = true }
 
     audit_readers = { display_name = "AZ-AUDIT-Readers", description = "Read-only across the enterprise MG for audit evidence." }
+
+    break_glass_admins = {
+      display_name = "AZ-BREAKGLASS-Admins"
+      description  = "Emergency Azure access group. Group object is Terraform-managed; membership is controlled by the break-glass manual process."
+    }
   }
 
   # RBAC Assignment Matrix (standing, least-privilege). Admin/Owner roles are NOT

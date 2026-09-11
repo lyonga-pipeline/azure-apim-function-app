@@ -25,9 +25,28 @@ locals {
     for key, id in local.subscription_target_mg_ids : key if id == null
   ])
 
-  contract_valid = length(local.unresolved_target_keys) == 0
+  baseline_principal_group_keys = [
+    for assignment in values(var.baseline_role_assignments) : assignment.principal_group_key
+    if try(assignment.principal_group_key, null) != null
+  ]
+
+  app_principal_group_keys = flatten([
+    for subscription in values(var.subscriptions) : [
+      for assignment in values(subscription.app_role_assignments) : assignment.principal_group_key
+      if try(assignment.principal_group_key, null) != null
+    ]
+  ])
+
+  unresolved_principal_group_keys = sort(tolist(setsubtract(
+    toset(concat(local.baseline_principal_group_keys, local.app_principal_group_keys)),
+    toset(keys(var.group_object_ids))
+  )))
+
+  contract_valid = length(local.unresolved_target_keys) == 0 && length(local.unresolved_principal_group_keys) == 0
 
   subscriptions = local.contract_valid ? var.subscriptions : {}
+
+  unresolved_principal_placeholder = "00000000-0000-0000-0000-000000000000"
 
   # Baseline RBAC: cartesian of (subscription that opts in) x (baseline entry).
   baseline_assignment_inputs = {
@@ -38,10 +57,10 @@ locals {
           value = {
             name                             = null
             scope                            = "/subscriptions/${s.subscription_id}"
-            principal_id                     = ra.principal_id
+            principal_id                     = try(ra.principal_id, null) != null ? ra.principal_id : lookup(var.group_object_ids, ra.principal_group_key, local.unresolved_principal_placeholder)
             role_definition_name             = ra.role_definition_name
             role_definition_id               = ra.role_definition_id
-            principal_type                   = ra.principal_type
+            principal_type                   = try(ra.principal_group_key, null) != null ? "Group" : ra.principal_type
             description                      = coalesce(ra.description, "Platform baseline RBAC for onboarded subscription ${sub_key}")
             condition                        = ra.condition
             condition_version                = ra.condition_version
@@ -62,10 +81,10 @@ locals {
           value = {
             name                             = ra.name
             scope                            = "/subscriptions/${s.subscription_id}"
-            principal_id                     = ra.principal_id
+            principal_id                     = try(ra.principal_id, null) != null ? ra.principal_id : lookup(var.group_object_ids, ra.principal_group_key, local.unresolved_principal_placeholder)
             role_definition_name             = ra.role_definition_name
             role_definition_id               = ra.role_definition_id
-            principal_type                   = ra.principal_type
+            principal_type                   = try(ra.principal_group_key, null) != null ? "Group" : ra.principal_type
             description                      = ra.description
             condition                        = ra.condition
             condition_version                = ra.condition_version
@@ -85,8 +104,11 @@ resource "terraform_data" "onboarding_contract" {
 
   lifecycle {
     precondition {
-      condition     = local.contract_valid
-      error_message = "subscriptions reference management group keys not present in management_group_ids: ${join(", ", local.unresolved_target_keys)}."
+      condition = local.contract_valid
+      error_message = join(" ", compact([
+        length(local.unresolved_target_keys) > 0 ? "subscriptions reference management group keys not present in management_group_ids: ${join(", ", local.unresolved_target_keys)}." : "",
+        length(local.unresolved_principal_group_keys) > 0 ? "RBAC assignments reference principal_group_key values not present in group_object_ids: ${join(", ", local.unresolved_principal_group_keys)}." : "",
+      ]))
     }
   }
 }

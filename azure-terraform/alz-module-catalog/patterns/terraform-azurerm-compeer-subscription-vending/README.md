@@ -36,7 +36,7 @@ When enabling vending, provide either:
 
 The root fails early if vending is enabled without a billing scope, with an unknown management group key, or with an invalid workload value.
 
-`subscription_role_assignments` defaults to `{}`. Populate it only after the client's Entra groups or managed identities are approved. Assign privileged roles to groups, use PIM for eligibility where required, and avoid direct user assignments.
+`subscription_role_assignments` defaults to `{}`. Populate it only after the client's Entra groups or managed identities are approved. Assign privileged roles to groups, use PIM for eligibility where required, and do not use direct user assignments. The pattern rejects `principal_type = "User"`.
 
 ## Management Group Assumption
 

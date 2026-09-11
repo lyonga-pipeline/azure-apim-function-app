@@ -5,16 +5,19 @@ variables {
     connectivity = "/providers/Microsoft.Management/managementGroups/connectivity"
     corp         = "corp"
   }
+  group_object_ids = {
+    platform_ops     = "11111111-1111-1111-1111-111111111111"
+    security_readers = "22222222-2222-2222-2222-222222222222"
+    app_alpha_team   = "33333333-3333-3333-3333-333333333333"
+  }
   baseline_role_assignments = {
     platform_ops = {
       role_definition_name = "Contributor"
-      principal_id         = "11111111-1111-1111-1111-111111111111"
-      principal_type       = "Group"
+      principal_group_key  = "platform_ops"
     }
     security_readers = {
       role_definition_name = "Reader"
-      principal_id         = "22222222-2222-2222-2222-222222222222"
-      principal_type       = "Group"
+      principal_group_key  = "security_readers"
     }
   }
   subscriptions = {
@@ -28,8 +31,7 @@ variables {
       app_role_assignments = {
         team_owner = {
           role_definition_name = "Owner"
-          principal_id         = "33333333-3333-3333-3333-333333333333"
-          principal_type       = "Group"
+          principal_group_key  = "app_alpha_team"
         }
       }
     }
@@ -92,6 +94,27 @@ run "rejects_unknown_mg_key" {
   expect_failures = [terraform_data.onboarding_contract]
 }
 
+run "rejects_unknown_principal_group_key" {
+  command = plan
+
+  variables {
+    baseline_role_assignments = {
+      platform_ops = {
+        role_definition_name = "Contributor"
+        principal_group_key  = "missing_group"
+      }
+    }
+    subscriptions = {
+      app = {
+        subscription_id             = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+        target_management_group_key = "corp"
+      }
+    }
+  }
+
+  expect_failures = [terraform_data.onboarding_contract]
+}
+
 run "rejects_bad_guid" {
   command = plan
 
@@ -105,4 +128,20 @@ run "rejects_bad_guid" {
   }
 
   expect_failures = [var.subscriptions]
+}
+
+run "rejects_direct_user_principal" {
+  command = plan
+
+  variables {
+    baseline_role_assignments = {
+      direct_user = {
+        role_definition_name = "Reader"
+        principal_id         = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+        principal_type       = "User"
+      }
+    }
+  }
+
+  expect_failures = [var.baseline_role_assignments]
 }

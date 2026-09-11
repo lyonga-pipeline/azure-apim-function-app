@@ -44,7 +44,8 @@ variable "subscriptions" {
     apply_baseline_rbac         = optional(bool, true)
     app_role_assignments = optional(map(object({
       name                             = optional(string)
-      principal_id                     = string
+      principal_id                     = optional(string)
+      principal_group_key              = optional(string)
       role_definition_name             = optional(string)
       role_definition_id               = optional(string)
       principal_type                   = optional(string)
@@ -83,10 +84,30 @@ variable "subscriptions" {
     condition = alltrue(flatten([
       for s in values(var.subscriptions) : [
         for a in values(s.app_role_assignments) :
+        (try(a.principal_id, null) != null) != (try(a.principal_group_key, null) != null)
+      ]
+    ]))
+    error_message = "Each app_role_assignments entry must set exactly one of principal_id or principal_group_key."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for s in values(var.subscriptions) : [
+        for a in values(s.app_role_assignments) :
         (a.role_definition_name != null) != (a.role_definition_id != null)
       ]
     ]))
     error_message = "Each app_role_assignments entry must set exactly one of role_definition_name or role_definition_id."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for s in values(var.subscriptions) : [
+        for a in values(s.app_role_assignments) :
+        try(a.principal_type, null) == null ? true : lower(a.principal_type) != "user"
+      ]
+    ]))
+    error_message = "Direct User principals are not allowed for subscription onboarding RBAC. Use Entra groups, managed identities, or service principals."
   }
 }
 
@@ -99,7 +120,8 @@ variable "baseline_role_assignments" {
   type = map(object({
     role_definition_name             = optional(string)
     role_definition_id               = optional(string)
-    principal_id                     = string
+    principal_id                     = optional(string)
+    principal_group_key              = optional(string)
     principal_type                   = optional(string)
     description                      = optional(string)
     condition                        = optional(string)
@@ -111,10 +133,32 @@ variable "baseline_role_assignments" {
   validation {
     condition = alltrue([
       for a in values(var.baseline_role_assignments) :
+      (try(a.principal_id, null) != null) != (try(a.principal_group_key, null) != null)
+    ])
+    error_message = "Each baseline_role_assignments entry must set exactly one of principal_id or principal_group_key."
+  }
+
+  validation {
+    condition = alltrue([
+      for a in values(var.baseline_role_assignments) :
       (a.role_definition_name != null) != (a.role_definition_id != null)
     ])
     error_message = "Each baseline_role_assignments entry must set exactly one of role_definition_name or role_definition_id."
   }
+
+  validation {
+    condition = alltrue([
+      for a in values(var.baseline_role_assignments) :
+      try(a.principal_type, null) == null ? true : lower(a.principal_type) != "user"
+    ])
+    error_message = "Direct User principals are not allowed for subscription onboarding RBAC. Use Entra groups, managed identities, or service principals."
+  }
+}
+
+variable "group_object_ids" {
+  description = "Entra security group object IDs keyed by platform-authorization rbac_groups key. Used to resolve principal_group_key for baseline and app subscription RBAC."
+  type        = map(string)
+  default     = {}
 }
 
 variable "default_tags" {

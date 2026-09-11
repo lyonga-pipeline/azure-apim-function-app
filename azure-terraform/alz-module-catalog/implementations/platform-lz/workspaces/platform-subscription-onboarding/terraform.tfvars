@@ -6,8 +6,9 @@
 # The azurerm provider reads both from those Terraform variables.
 #
 
-tfe_organization          = "Compeer-Financial-Services"
-governance_workspace_name = "platform-governance"
+tfe_organization             = "Compeer-Financial-Services"
+governance_workspace_name    = "platform-governance"
+authorization_workspace_name = "platform-authorization"
 
 onboarding = {
   enabled                  = true
@@ -19,52 +20,27 @@ onboarding = {
 
   # Applied at subscription scope to EVERY onboarded subscription
   # (unless a subscription sets apply_baseline_rbac = false).
+  # principal_group_key resolves from platform-authorization.group_object_ids.
   baseline_role_assignments = {
     platform_operations = {
       role_definition_name = "Contributor"
-      principal_id         = "11111111-1111-1111-1111-111111111111" # platform-ops group objectId
-      principal_type       = "Group"
+      principal_group_key  = "plt_contributors"
       description          = "Platform operations standing access"
     }
     security_readers = {
       role_definition_name = "Reader"
-      principal_id         = "22222222-2222-2222-2222-222222222222" # security group objectId
-      principal_type       = "Group"
+      principal_group_key  = "sec_readers"
     }
     break_glass = {
       role_definition_name = "Owner"
-      principal_id         = "33333333-3333-3333-3333-333333333333" # break-glass group objectId
-      principal_type       = "Group"
+      principal_group_key  = "break_glass_admins"
       description          = "Emergency access - monitored"
     }
   }
 
-  subscriptions = {
-    internal_apps_alpha = {
-      target_management_group_key = "internal-apps-prod-mg"
-      display_name                = "internal-apps-prod-workload1-sub"
-      workload                    = "Production"
-      app_role_assignments = {
-        alpha_team_contributor = {
-          role_definition_name = "Contributor"
-          principal_id         = "44444444-4444-4444-4444-444444444444"
-          principal_type       = "Group"
-          description          = "App Alpha delivery team"
-        }
-      }
-    }
-
-    sandbox_alpha = {
-      target_management_group_key = "sandbox-mg"
-      workload                    = "DevTest"
-      apply_baseline_rbac         = false # sandbox gets its own lighter RBAC
-      app_role_assignments = {
-        sandbox_owner = {
-          role_definition_name = "Owner"
-          principal_id         = "55555555-5555-5555-5555-555555555555"
-          principal_type       = "Group"
-        }
-      }
-    }
-  }
+  # Populate after CSP creates real subscription GUIDs. App/workload team access
+  # should use principal_group_key when the group is created by
+  # platform-authorization, or principal_id + principal_type = "Group" for a
+  # pre-existing workload group owned by the client's IGA process.
+  subscriptions = {}
 }

@@ -32,13 +32,17 @@ pattern (which *does* create subscriptions) is retained for reference but is
 | Name | Description |
 |---|---|
 | `management_group_ids` | `map(string)` — resolved MG IDs keyed by catalog key (feed the governance workspace's `management_group_ids` output straight in). |
+| `group_object_ids` | `map(string)` — Entra security group object IDs keyed by `platform-authorization.rbac_groups` key. Used to resolve `principal_group_key` in RBAC entries. |
 | `subscriptions` | `map(object)` keyed by a stable logical name. Each: `subscription_id` (GUID), exactly one of `target_management_group_key` / `target_management_group_id`, optional `display_name`, `workload` (Production/DevTest), `apply_baseline_rbac` (default true), `app_role_assignments` (keyed `map(object)`). |
 | `baseline_role_assignments` | `map(object)` — RBAC applied at subscription scope to **every** subscription with `apply_baseline_rbac = true`. This is the "consistent way": platform ops, security readers, break-glass. |
 | `default_tags` | Informational only (recorded on the contract marker). |
 
 Each RBAC entry sets exactly one of `role_definition_name` / `role_definition_id`
-(validated), plus `principal_id`, optional `principal_type`, `description`,
-`condition` / `condition_version`.
+(validated), and exactly one of `principal_group_key` / `principal_id`.
+`principal_group_key` is preferred for human/team access because the platform
+model is **User -> Entra group -> Azure role -> scope**. `principal_id` remains
+available for approved pre-existing workload groups, managed identities, or
+service principals. Direct `principal_type = "User"` is rejected.
 
 ## Lifecycle contract
 

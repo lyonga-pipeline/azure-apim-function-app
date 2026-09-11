@@ -8,6 +8,8 @@ pattern.
 
 - Reads the management-group ID catalog from the `platform-governance` workspace
   (`use_tfe_outputs = true`), or takes it explicitly via `management_group_ids`.
+- Reads Entra RBAC group object IDs from the `platform-authorization` workspace
+  and resolves `principal_group_key` in baseline/app RBAC entries.
 - For each subscription in `onboarding.subscriptions` (all **already created by
   the CSP partner**, sitting under the Tenant Root Group):
   - moves it to `target_management_group_key` / `target_management_group_id`;
@@ -21,7 +23,8 @@ It does **not** create subscriptions, resource groups, or workload resources.
 
 | Concern | Workspace |
 |---|---|
-| MG hierarchy, MG-scope RBAC, custom roles, MG policy | `platform-governance` |
+| MG hierarchy, custom roles, MG policy | `platform-governance` |
+| Entra RBAC groups and MG-scope RBAC | `platform-authorization` |
 | Subscription creation | CSP partner (out of band) |
 | Workload resources inside a subscription | that workload's workspace |
 

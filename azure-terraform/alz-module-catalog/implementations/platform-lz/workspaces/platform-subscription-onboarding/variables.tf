@@ -9,13 +9,13 @@ variable "execution_subscription_id" {
 }
 
 variable "use_tfe_outputs" {
-  description = "Read management group IDs from the governance workspace outputs instead of passing them in."
+  description = "Read management group IDs and group object IDs from upstream workspace outputs instead of passing them in."
   type        = bool
   default     = true
 }
 
 variable "tfe_organization" {
-  description = "HCP Terraform organization that contains the governance workspace."
+  description = "HCP Terraform organization that contains the governance and authorization workspaces."
   type        = string
   default     = null
 }
@@ -26,8 +26,20 @@ variable "governance_workspace_name" {
   default     = "platform-governance"
 }
 
+variable "authorization_workspace_name" {
+  description = "Workspace that publishes group_object_ids."
+  type        = string
+  default     = "platform-authorization"
+}
+
 variable "management_group_ids" {
   description = "Explicit management group ID catalog. Used when use_tfe_outputs = false, or merged over the governance outputs when both are present."
+  type        = map(string)
+  default     = {}
+}
+
+variable "group_object_ids" {
+  description = "Explicit Entra security group object ID catalog keyed by platform-authorization rbac_groups key. Used when use_tfe_outputs = false, or merged over authorization outputs when both are present."
   type        = map(string)
   default     = {}
 }

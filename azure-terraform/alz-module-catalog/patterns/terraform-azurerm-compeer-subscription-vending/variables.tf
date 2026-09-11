@@ -98,6 +98,14 @@ variable "subscription_role_assignments" {
     ])
     error_message = "Each enabled subscription_role_assignments entry must set exactly one of role_definition_name or role_definition_id."
   }
+
+  validation {
+    condition = alltrue([
+      for item in values(var.subscription_role_assignments) :
+      try(item.enabled, true) ? (try(item.principal_type, null) == null ? true : lower(item.principal_type) != "user") : true
+    ])
+    error_message = "Direct User principals are not allowed for subscription vending RBAC. Use Entra groups, managed identities, or service principals."
+  }
 }
 
 variable "subscription_timeouts" {
