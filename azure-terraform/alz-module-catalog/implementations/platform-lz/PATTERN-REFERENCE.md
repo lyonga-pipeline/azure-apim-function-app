@@ -78,6 +78,17 @@ gates its `dynamic` block on `== null`, so no fix was needed there; it's the
 coalesce-with-a-mismatched-default idiom specifically that's dangerous, not
 passing `null` itself.
 
+Separately (not a bug fix — closing the `custom_policy_set_definitions`
+placeholder gap identified while auditing `global-governance`, §1 below):
+the 6 `cmp-*` baseline policies are now packaged into one custom initiative,
+`compeer-landing-zone-baseline`, and assigned once instead of as 6 separate
+management-group policy assignments — the first real caller of a capability
+that had been wired end-to-end but never populated by anything. Same 6
+controls, same Audit effect, same scope; covered by
+`policy_baseline_packages_into_one_initiative` in
+`terraform-azurerm-compeer-global-governance/tests/defaults.tftest.hcl`.
+See §1 for the full rationale.
+
 ---
 
 ## 1. `global-governance` — workspace `platform-governance`
@@ -103,24 +114,43 @@ guardrails that live in that narrower workspace; this table is just what
 
 | Policy | Effect (today) | Scope | Status |
 |---|---|---|---|
-| `cmp-allowed-locations` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| `cmp-required-tags` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| `cmp-deny-public-paas` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| `cmp-secure-storage` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| `cmp-deny-public-ip` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| `cmp-sql-private-network` | Audit | `compeer-enterprise-mg` | **LIVE** |
-| Microsoft Cloud Security Benchmark (built-in initiative) | Audit (`enforce=false`) | `compeer-enterprise-mg` | **LIVE** |
+| `cmp-allowed-locations` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| `cmp-required-tags` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| `cmp-deny-public-paas` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| `cmp-secure-storage` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| `cmp-deny-public-ip` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| `cmp-sql-private-network` | Audit | `compeer-enterprise-mg` | **LIVE** — via `compeer-landing-zone-baseline` initiative |
+| Microsoft Cloud Security Benchmark (built-in initiative) | Audit (`enforce=false`) | `compeer-enterprise-mg` | **LIVE** (separate, unrelated initiative) |
 
-**`custom_policy_set_definitions` (initiative authoring)** — wired end to end
-(`variables.tf` → `resource "azurerm_policy_set_definition" "this"` in
-`main.tf` → passed through by the `platform-governance` workspace) but **never
-populated** — not in the real workspace `terraform.tfvars`, not even in
-`terraform.tfvars.example`. The pattern's own README says the intent was to
-package "approved regions, required tags, public access, encryption,
-diagnostics, identity, and connectivity guardrails" as one initiative; in
-practice governance assigns the 6 `cmp-*` policies individually plus the
-built-in MCSB initiative, so this capability has zero current callers. Not a
-bug — just unused optionality.
+**`custom_policy_set_definitions` (initiative authoring) — now in use.** It
+was wired end to end (`variables.tf` → `resource "azurerm_policy_set_definition"
+"this"` in `main.tf` → passed through by the `platform-governance` workspace)
+but never populated — not in the real workspace `terraform.tfvars`, not even
+in `terraform.tfvars.example`. `policy_baseline.tf` is now its first real
+caller: the 6 `cmp-*` policies above are packaged into one initiative,
+`compeer-landing-zone-baseline` (merged into the pattern's own
+`azurerm_policy_set_definition.this` for_each exactly like `pb_definitions`
+already merges into `var.custom_policy_definitions`), and assigned once —
+`cmp-lz-baseline` — instead of as 6 separate management-group policy
+assignments. This is the packaging the README always described ("approved
+regions, required tags, public access, ... as one scoped package"); it had
+just never been implemented until now.
+
+Why this and not 6 standalone assignments: it's the same shape Microsoft's
+own ALZ policy architecture uses at scale — author the guardrail set once,
+assign the *same* initiative at as many management-group scopes as the org
+grows into (a future `regulated-apps-mg`, a per-business-unit MG, etc.),
+each with its own scoped parameter/`not_scopes`/exemption overrides, instead
+of re-declaring 6 policy assignments per scope. Each member policy keeps its
+own effect/parameter wiring via the initiative's own declared parameters
+(the same `[parameters('x')]` ARM-token idiom the MCSB assignment already
+uses), so a future need for a policy-specific effect is additive — expose
+one more initiative parameter — not a rewrite. Today all 6 already share one
+`enforce`/`effect` toggle (`var.policy_baseline.effect` / `.enforce`), so
+this change is pure consolidation: same 6 controls, same Audit effect, same
+scope — 1 Azure Policy/Compliance object instead of 6. Covered by a new
+`terraform test` run, `policy_baseline_packages_into_one_initiative`, in
+[`tests/defaults.tftest.hcl`](../../patterns/terraform-azurerm-compeer-global-governance/tests/defaults.tftest.hcl).
 
 `custom_policy_definitions` / `management_group_policy_assignments` in
 `terraform.tfvars.example` (6 defs: `allowed_locations`, `required_tags`,

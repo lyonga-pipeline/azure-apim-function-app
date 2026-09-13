@@ -160,70 +160,115 @@ locals {
     }
   }
 
+  # -----------------------------------------------------------------------
+  # Landing-zone baseline initiative (policy set definition).
+  #
+  # Packages the 6 cmp-* definitions above into one assignable initiative
+  # instead of 6 separate management-group policy assignments. This is what
+  # var.custom_policy_set_definitions was built for (see main.tf's
+  # azurerm_policy_set_definition.this) but had zero callers - policy_baseline
+  # is now its first real one, merged in the same way pb_definitions already
+  # merges into var.custom_policy_definitions.
+  #
+  # Each member policy keeps its own parameter wiring via the initiative's
+  # own declared parameters (ARM "[parameters('x')]" tokens in
+  # parameter_values, same idiom azurerm_policy_set_definition already uses
+  # for MCSB-style initiatives). Today all 6 already share one effect/enforce
+  # toggle (var.policy_baseline.effect / .enforce), so bundling them changes
+  # zero enforcement behavior - it only replaces 6 assignment objects with 1.
+  # A future need for a policy-specific effect is additive from here (expose
+  # one more initiative parameter), not a rewrite.
+  #
+  # Assigning this SAME initiative at more than one management-group scope
+  # (e.g. workloads-mg today, a future regulated-apps-mg or per-BU MG) is how
+  # this scales without re-declaring the 6 policies per scope: author once
+  # here, assign per scope - with independent parameter/not_scopes overrides
+  # per assignment - via policy_set_definition_key.
+  pb_initiative_key = "compeer-landing-zone-baseline"
+
+  pb_initiative_parameters = {
+    effect               = local._pb_effect_param
+    exemptResourceGroups = local._pb_exempt_rgs_param
+    allowedLocations = {
+      type     = "Array"
+      metadata = { displayName = "Allowed locations" }
+    }
+    requiredTagNames = {
+      type     = "Array"
+      metadata = { displayName = "Required tag names" }
+    }
+  }
+
+  pb_initiative_references = {
+    "cmp-allowed-locations" = {
+      policy_definition_key = "cmp-allowed-locations"
+      parameter_values = {
+        allowedLocations = { value = "[parameters('allowedLocations')]" }
+        effect           = { value = "[parameters('effect')]" }
+      }
+    }
+    "cmp-required-tags" = {
+      policy_definition_key = "cmp-required-tags"
+      parameter_values = {
+        requiredTagNames = { value = "[parameters('requiredTagNames')]" }
+        effect           = { value = "[parameters('effect')]" }
+      }
+    }
+    "cmp-deny-public-paas" = {
+      policy_definition_key = "cmp-deny-public-paas"
+      parameter_values = {
+        exemptResourceGroups = { value = "[parameters('exemptResourceGroups')]" }
+        effect               = { value = "[parameters('effect')]" }
+      }
+    }
+    "cmp-secure-storage" = {
+      policy_definition_key = "cmp-secure-storage"
+      parameter_values = {
+        exemptResourceGroups = { value = "[parameters('exemptResourceGroups')]" }
+        effect               = { value = "[parameters('effect')]" }
+      }
+    }
+    "cmp-deny-public-ip" = {
+      policy_definition_key = "cmp-deny-public-ip"
+      parameter_values      = { effect = { value = "[parameters('effect')]" } }
+    }
+    "cmp-sql-private-network" = {
+      policy_definition_key = "cmp-sql-private-network"
+      parameter_values      = { effect = { value = "[parameters('effect')]" } }
+    }
+  }
+
+  pb_initiative = { for k, v in local.pb_initiative_all : k => v if local.pb_enabled }
+  pb_initiative_all = {
+    (local.pb_initiative_key) = {
+      display_name                 = "Compeer - Landing zone baseline"
+      management_group_key         = local.pb_mg_key
+      description                  = "Packages the Compeer landing-zone guardrail policies (allowed regions, required tags, deny public PaaS, secure storage, restrict public IP, private SQL) as one assignable initiative."
+      metadata                     = local._pb_meta
+      parameters                   = local.pb_initiative_parameters
+      policy_definition_references = local.pb_initiative_references
+    }
+  }
+
   pb_assignments = { for k, v in local.pb_assignments_all : k => v if local.pb_enabled }
   pb_assignments_all = merge(
     {
-      "cmp-allowed-locations" = {
-        name                    = "cmp-allowed-loc"
-        display_name            = "Compeer - Allowed regions"
-        management_group_key    = local.pb_mg_key
-        policy_definition_key   = "cmp-allowed-locations"
-        enforce                 = local.pb_enforce
-        not_scopes              = local.pb_not_scopes
-        parameters              = { allowedLocations = { value = local.pb_locations }, effect = { value = local.pb_effect } }
-        non_compliance_messages = { default = { content = "Deploy resources only in Compeer-approved regions." } }
-      }
-      "cmp-required-tags" = {
-        name                  = "cmp-required-tags"
-        display_name          = "Compeer - Required tags"
-        management_group_key  = local.pb_mg_key
-        policy_definition_key = "cmp-required-tags"
-        enforce               = local.pb_enforce
-        not_scopes            = local.pb_not_scopes
-        parameters            = { requiredTagNames = { value = local.pb_required_tags }, effect = { value = local.pb_effect } }
-      }
-      "cmp-deny-public-paas" = {
-        name                  = "cmp-deny-pub-paas"
-        display_name          = "Compeer - Deny public PaaS"
-        management_group_key  = local.pb_mg_key
-        policy_definition_key = "cmp-deny-public-paas"
-        enforce               = local.pb_enforce
-        not_scopes            = local.pb_not_scopes
+      "cmp-landing-zone-baseline" = {
+        name                      = "cmp-lz-baseline"
+        display_name              = "Compeer - Landing zone baseline"
+        management_group_key      = local.pb_mg_key
+        policy_set_definition_key = local.pb_initiative_key
+        enforce                   = local.pb_enforce
+        not_scopes                = local.pb_not_scopes
         parameters = {
           effect               = { value = local.pb_effect }
+          allowedLocations     = { value = local.pb_locations }
+          requiredTagNames     = { value = local.pb_required_tags }
           exemptResourceGroups = { value = local.pb_exempt_rgs }
         }
-        non_compliance_messages = { default = { content = "Disable public network access (private endpoint / service endpoint + Deny). Documented exceptions must be in an approved exempt resource group." } }
-      }
-      "cmp-secure-storage" = {
-        name                  = "cmp-secure-storage"
-        display_name          = "Compeer - Secure storage"
-        management_group_key  = local.pb_mg_key
-        policy_definition_key = "cmp-secure-storage"
-        enforce               = local.pb_enforce
-        not_scopes            = local.pb_not_scopes
-        parameters = {
-          effect               = { value = local.pb_effect }
-          exemptResourceGroups = { value = local.pb_exempt_rgs }
+        non_compliance_messages = {
+          default = { content = "Landing-zone baseline guardrail violated - see the policy compliance reason for the specific control (regions, tags, public PaaS access, secure storage, public IP, or private SQL)." }
         }
-      }
-      "cmp-deny-public-ip" = {
-        name                  = "cmp-deny-pip"
-        display_name          = "Compeer - Restrict public IP"
-        management_group_key  = local.pb_mg_key
-        policy_definition_key = "cmp-deny-public-ip"
-        enforce               = local.pb_enforce
-        not_scopes            = local.pb_not_scopes
-        parameters            = { effect = { value = local.pb_effect } }
-      }
-      "cmp-sql-private-network" = {
-        name                  = "cmp-sql-private"
-        display_name          = "Compeer - Private SQL network"
-        management_group_key  = local.pb_mg_key
-        policy_definition_key = "cmp-sql-private-network"
-        enforce               = local.pb_enforce
-        not_scopes            = local.pb_not_scopes
-        parameters            = { effect = { value = local.pb_effect } }
       }
     },
     local.pb_assign_mcsb ? {

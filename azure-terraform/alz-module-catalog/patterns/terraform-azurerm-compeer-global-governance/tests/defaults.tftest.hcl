@@ -52,12 +52,43 @@ run "policy_baseline_on" {
     error_message = "MCSB initiative assignment missing"
   }
   assert {
-    condition     = local.pb_assignments["cmp-allowed-locations"].parameters.effect.value == "Audit"
+    condition     = local.pb_assignments["cmp-landing-zone-baseline"].parameters.effect.value == "Audit"
     error_message = "baseline should assign in Audit by default"
   }
   assert {
     condition     = contains(keys(azurerm_policy_definition.this), "cmp-required-tags")
     error_message = "baseline definitions not merged into the pattern's for_each"
+  }
+}
+
+run "policy_baseline_packages_into_one_initiative" {
+  command = plan
+  variables {
+    policy_baseline = {
+      enabled              = true
+      management_group_key = "compeer-enterprise-mg"
+    }
+  }
+  assert {
+    condition     = length(local.pb_initiative) == 1
+    error_message = "expected the 6 baseline policies to package into exactly one initiative"
+  }
+  assert {
+    condition     = length(local.pb_initiative["compeer-landing-zone-baseline"].policy_definition_references) == 6
+    error_message = "expected the initiative to reference all 6 baseline policy definitions"
+  }
+  assert {
+    condition     = contains(keys(azurerm_policy_set_definition.this), "compeer-landing-zone-baseline")
+    error_message = "baseline initiative not merged into the pattern's azurerm_policy_set_definition.this for_each"
+  }
+  assert {
+    # exactly 2 assignments now: the one bundled initiative + MCSB - not 7
+    condition     = length(azurerm_management_group_policy_assignment.this) == 2
+    error_message = "expected the 6 individual baseline assignments to collapse into 1 initiative assignment (+ MCSB)"
+  }
+  assert {
+    condition     = local.pb_assignments["cmp-landing-zone-baseline"].policy_set_definition_key == local.pb_initiative_key
+    error_message = "the baseline assignment should point at the packaged initiative by key, not at an individual policy"
   }
 }
 

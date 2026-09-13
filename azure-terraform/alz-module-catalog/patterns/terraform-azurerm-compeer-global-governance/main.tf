@@ -96,7 +96,7 @@ resource "azurerm_policy_definition" "this" {
 }
 
 resource "azurerm_policy_set_definition" "this" {
-  for_each = var.custom_policy_set_definitions
+  for_each = merge(var.custom_policy_set_definitions, local.pb_initiative)
 
   name                = each.key
   display_name        = each.value.display_name
