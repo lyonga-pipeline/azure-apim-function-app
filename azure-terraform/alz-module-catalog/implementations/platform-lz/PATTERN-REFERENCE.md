@@ -279,6 +279,32 @@ consume this), Phase 4 §4/§6 (Bastion, private endpoints).
 | `terraform_data.dns_resolution_contract` | — | Precondition guarding the DNS mode switch above |
 | `role_assignments`, `management_locks`, `diagnostic_settings` | — | RBAC (group-based), lock protection, hub-resource diagnostics → LAW |
 
+**Verified against the real deployed `platform-connectivity` tfvars** (not just
+the smoke-test example): `bastion.enabled`, `ddos_protection_plan.enabled`,
+and `dns_resolution.enabled` are all `false` today. Unlike the policy pattern's
+gaps, these are **deliberate, cost-driven decisions already documented in the
+pattern README** ("do not deploy paid firewall, gateway, DNS resolver, or DDoS
+services by default") — not something to force on.
+
+Two contracts (`palo_alto_route_contract`, `dns_resolution_contract`) had zero
+test coverage before this pass despite gating a real security architecture
+decision (every egress route must point at an approved firewall IP). Added
+`tests/contracts.tftest.hcl` (9 new runs: off-by-default no-op, each
+precondition's failure case, and a valid-configuration pass, for both
+contracts) — all green, no code changes needed, the contracts were already
+correct.
+
+**Found, not fixed — a real logging gap, left for a decision, not silently
+patched:** `network_watcher_flow_logs = {}` in the real tfvars — no NSG flow
+logs are actually being collected, even though `azurerm_network_watcher`
+itself is created unconditionally. Design doc / Identity & RBAC doc (Phase 7
+§6, "Connect Azure Platform Data Sources… Network Security: NSG Flow Logs")
+calls for this. Wiring it needs a flow-log destination (the `platform_storage_accounts.audit`
+storage account already created in `platform-management`, or a new
+Traffic-Analytics-enabled workspace) and a per-NSG or subscription-wide scope
+decision — a small real cost, so it's flagged here rather than turned on
+unprompted.
+
 ---
 
 ## 9. `platform-identity` — workspace `platform-identity-security`
