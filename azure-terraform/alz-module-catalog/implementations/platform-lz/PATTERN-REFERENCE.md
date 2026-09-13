@@ -191,16 +191,27 @@ Phase 3 §7-8, Phase 5 §6-9, Phase 6 §3.
 | `cmp-allowed-res-types` (built-in "Allowed resource types", `a08ec900-254a-4555-9bf5-e42af04b5c5c`) | Audit, `enforce=false` | `compeer-enterprise-mg` | **LIVE** (report-only; catalog list needs review before `enforce=true`) | `platform-policy` | Phase 3 §6 "Approved Resource Types" |
 | `cmp-disk-encrypt-win` (built-in `3dc5edcd-002d-444c-b216-e123bbfa37c0`) | AuditIfNotExists | `workloads-mg` | **LIVE** | `platform-policy` | Phase 5 §6 |
 | `cmp-disk-encrypt-linux` (built-in `ca88aadc-6e2b-416c-9de2-5a0f01d1693f`) | AuditIfNotExists | `workloads-mg` | **LIVE** | `platform-policy` | Phase 5 §6 |
+| `cmp-vm-backup` (built-in "Azure Backup should be enabled for Virtual Machines", `013e242c-8828-4970-87b3-ab247555486d`) | AuditIfNotExists | `workloads-mg` | **LIVE** | `platform-policy` | Phase 9 / §14 "Backup and Restore… default posture for all workloads" |
+| `cmp-cis-benchmark` (built-in initiative "CIS Microsoft Azure Foundations Benchmark v2.0.0", `06f19060-9e68-4070-92ca-f15cc126059e`) | Audit (`enforce=false`, reporting only) | `compeer-enterprise-mg` | **LIVE** | `platform-policy` | Phase 6 §6 "Recommended" (alongside MCSB's "Required baseline") |
 | SQL TDE required | — | `workloads-mg` (planned) | **not enabled — no current built-in GUID found** | `platform-policy` tfvars | Phase 5 §7 |
 | Managed identity usage audit | — | `workloads-mg` (planned) | **not enabled — no built-in matches the design doc's literal control** | `platform-policy` tfvars | Phase 3 §7 Cat. 1 (Identity) |
 | Diagnostic settings required | — | `compeer-enterprise-mg` (planned) | **not enabled — Microsoft's diagnostic-settings model is per-resource-type (dozens of built-ins), not one initiative; needs Compeer to pick target resource types** | `platform-policy` tfvars `remediation.dine_assignments` | Phase 3 §7 Cat. 4 (Logging) |
 | "Configure Microsoft Defender for Cloud plans" initiative (`f08c57cd-dbd6-49a4-a85e-9ae77ac959b0`, confirmed, not deprecated) | — | `compeer-enterprise-mg` (planned) | **ID confirmed, not enabled — per-plan pricing tier/subplan (e.g. Servers P1 vs P2) is a licensing/cost decision for Compeer**; also needs `management_group_policy_assignments` (supports `policy_set_definition_id` + identity), not `remediation.dine_assignments` (single-policy only) | `platform-policy` tfvars | Phase 6 §3-4 |
 | `custom_policy_set_definitions` (hand-authored custom initiative) | — | — | the **variable** is plumbing only, never populated by a caller; the **resource** it feeds is exercised internally by `private_only_connectivity`'s own initiative, so the mechanism is proven, just not used for anything hand-authored | governance + policy | not named explicitly in either doc — general capability |
 
-GUIDs above were verified against the live Azure built-in policy catalog
-(via `azadvertizer.net`, which mirrors the `Azure/azure-policy` GitHub repo) on
-2026-09-11 — not from memory. The three enabled here are Audit-only: no Deny,
-no resource changes, no cost, report-only-first per this repo's convention.
+**Coverage: 12 policies/initiatives live, 4 explicitly not enabled with a
+concrete reason each** (no clean built-in match, a genuine licensing decision,
+or a per-resource-type model too broad to default). That accounts for every
+policy-shaped control named in the ALZ design doc's Phase 3/5/6/9 and the
+Identity & RBAC doc's equivalent phases — nothing in either document names a
+policy that isn't in this table. GUIDs were verified against the live Azure
+built-in policy catalog (via `azadvertizer.net`, which mirrors the
+`Azure/azure-policy` GitHub repo) on 2026-09-11 — not from memory. Every
+enabled policy here is **Audit-only**: no Deny, no resource changes, no cost,
+report-only-first per this repo's established convention (see Conditional
+Access and the private-only-connectivity guardrail for the same principle
+applied elsewhere). Flipping any of these to `Deny`/`enforce=true` is a
+separate, deliberate decision this pass does not make unprompted.
 See `IDENTITY-RBAC-IAC-BOUNDARY.md`'s "Known gaps" section for the ones still
 not enabled and why.
 

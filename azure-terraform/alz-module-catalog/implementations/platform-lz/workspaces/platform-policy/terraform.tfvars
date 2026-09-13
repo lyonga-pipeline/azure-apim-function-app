@@ -122,6 +122,30 @@ policy = {
       display_name         = "Compeer require disk encryption - Linux VMs"
       identity             = { type = "SystemAssigned" }
     }
+    # Design doc Phase 9 / §14: backup-and-restore is the default DR posture for
+    # every workload. Scoped to workloads-mg (not compeer-enterprise-mg) because
+    # platform-mg runs VMs that are deliberately NOT backed up this way: Palo
+    # Alto firewalls (stateless, licensed, protected by HA + Panorama config,
+    # not snapshot backup) and Cloudflare connector VMs (stateless, trivially
+    # rebuilt). Domain controllers already get explicit, targeted enrollment via
+    # directory-services' azurerm_backup_protected_vm, independent of this audit.
+    vm_backup_required = {
+      name                 = "cmp-vm-backup"
+      management_group_key = "workloads-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d" # built-in "Azure Backup should be enabled for Virtual Machines"
+      display_name         = "Compeer require VM backup"
+    }
+    # Phase 6 §6: CIS is the "Recommended" regulatory-compliance framework
+    # alongside MCSB's "Required baseline" (governance policy_baseline). Audit
+    # only - a benchmark dashboard, not a guardrail; never enforced (enforce
+    # is fixed false the same way the MCSB assignment is).
+    cis_benchmark = {
+      name                     = "cmp-cis-benchmark"
+      management_group_key     = "compeer-enterprise-mg"
+      policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e" # built-in initiative "CIS Microsoft Azure Foundations Benchmark v2.0.0"
+      display_name             = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
+      enforce                  = false
+    }
   }
   subscription_policy_assignments   = {}
   resource_group_policy_assignments = {}

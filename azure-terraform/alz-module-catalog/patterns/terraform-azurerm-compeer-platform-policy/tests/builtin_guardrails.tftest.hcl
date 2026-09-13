@@ -46,12 +46,29 @@ run "builtin_audit_guardrails" {
         display_name         = "Compeer require disk encryption - Linux VMs"
         identity             = { type = "SystemAssigned" }
       }
+      vm_backup_required = {
+        name                  = "cmp-vm-backup"
+        management_group_key  = "workloads-mg"
+        policy_definition_id  = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d"
+        display_name          = "Compeer require VM backup"
+      }
+      cis_benchmark = {
+        name                     = "cmp-cis-benchmark"
+        management_group_key     = "compeer-enterprise-mg"
+        policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e"
+        display_name             = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
+        enforce                  = false
+      }
     }
   }
 
   assert {
-    condition     = length(azurerm_management_group_policy_assignment.this) == 3
-    error_message = "expected the 3 built-in guardrail assignments to be created"
+    condition     = length(azurerm_management_group_policy_assignment.this) == 5
+    error_message = "expected the 5 built-in guardrail assignments to be created"
+  }
+  assert {
+    condition     = azurerm_management_group_policy_assignment.this["cis_benchmark"].enforce == false
+    error_message = "CIS benchmark is a reporting initiative, never enforced"
   }
   assert {
     condition     = azurerm_management_group_policy_assignment.this["allowed_resource_types"].enforce == false

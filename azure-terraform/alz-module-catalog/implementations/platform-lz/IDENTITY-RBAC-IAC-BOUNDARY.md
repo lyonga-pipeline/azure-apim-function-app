@@ -86,23 +86,35 @@ Two rounds of gap-closure since this doc was first written:
    has a 24-character limit, and the first draft name
    (`cmp-allowed-resource-types`, 26 chars) would have failed at apply —
    `terraform test` (new `tests/builtin_guardrails.tftest.hcl`) caught it.
+5. **VM backup required** (Phase 9 / §14) and **CIS Microsoft Azure
+   Foundations Benchmark** (Phase 6 §6, the doc's "Recommended" framework
+   alongside MCSB's "Required baseline") — same treatment, same verification
+   method: `013e242c-8828-4970-87b3-ab247555486d` ("Azure Backup should be
+   enabled for Virtual Machines", AuditIfNotExists, `workloads-mg`) and
+   `06f19060-9e68-4070-92ca-f15cc126059e` (CIS v2.0.0 initiative, Audit,
+   `compeer-enterprise-mg`, `enforce=false` like MCSB). **LIVE.**
+
+With these, every policy-shaped control named in the ALZ design doc's Phase
+3/5/6/9 and the Identity & RBAC doc's equivalent phases is accounted for: 12
+live, 4 explicitly not enabled below with a concrete reason each — see the
+full table in `PATTERN-REFERENCE.md`.
 
 **Not enabled — a real reason each time, not just "not gotten to it":**
 
-5. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
+6. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
    exists (commented) in `platform-management`'s `terraform.tfvars.example`;
    not enabled because it needs validation against the tenant's actual
    connected-table schema first.
-6. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
+7. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
    policy GUID could be found for a plain "TDE should be enabled" audit (Azure
    enables TDE by default on new databases now, which likely explains this).
-7. **Managed identity usage audit** (Phase 3 §7 Cat. 1) — no built-in policy
+8. **Managed identity usage audit** (Phase 3 §7 Cat. 1) — no built-in policy
    matches this control as literally described; would need a custom policy.
-8. **Diagnostic settings required** (Phase 3 §7 Cat. 4) — Microsoft's current
+9. **Diagnostic settings required** (Phase 3 §7 Cat. 4) — Microsoft's current
    diagnostic-settings-policy model is per-resource-type (dozens of built-ins,
    one per service), not a single initiative; needs Compeer to pick which
    resource types to enforce it on.
-9. **Defender for Cloud plan auto-enablement** (Phase 6 §3-4) — the initiative
+10. **Defender for Cloud plan auto-enablement** (Phase 6 §3-4) — the initiative
    ID **is** confirmed and current: "Configure Microsoft Defender for Cloud
    plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` (verified not deprecated, 12
    bundled DeployIfNotExists policies). Not enabled because each bundled
@@ -201,7 +213,9 @@ diagnostic settings) and would need a hand-authored custom policy the same way
 | 1-2. Architecture & governance model | Manual (design) | |
 | 3. Enable Defender at MG scope | **Hybrid** — the assignment mechanism (`azurerm_management_group_policy_assignment` + system-assigned identity, `platform-policy`) is generic and proven (it's the same resource already assigning the live guardrails above) | The confirmed, current initiative — "Configure Microsoft Defender for Cloud plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` — is documented in `platform-policy` tfvars but not enabled: per-plan pricing tier/subplan is a Compeer licensing decision, not a technical unknown. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
 | 4. Core Defender plans | **IaC** — `platform-management` (`defender_plan_ids`) + `platform-policy` for inheritance | |
-| 5-7. CSPM, regulatory frameworks, workload protection plans | **Hybrid** — plan enablement IaC; framework assignment + attack-path review are portal/console | |
+| 5. CSPM | **IaC** — CSPM is one of the 12 plans in the Defender-for-Cloud-plans initiative above; Secure Score / attack-path review are portal/console | |
+| 6. Regulatory compliance frameworks | **IaC** — MCSB (`policy_baseline`, "Required baseline") **and** CIS Microsoft Azure Foundations Benchmark v2.0.0 (`cmp-cis-benchmark`, "Recommended") are both **LIVE** at `compeer-enterprise-mg`, Audit/reporting only | |
+| 7. Workload protection plans | **Hybrid** — plan enablement IaC (Defender-for-Cloud-plans initiative, not yet enabled — see Phase 6 §3); per-workload configuration is portal/console | |
 | 8-9. Remediation & operations model | **Manual** (`external-system`) | SOC / platform run process. |
 | 10. Validation | Manual | |
 
@@ -236,6 +250,14 @@ Per-workload; delivered by `platform-workload-spoke` + workload service patterns
 workload team), user auth to Entra (workload config). Security review gate,
 production-readiness assessment, and operational handover are **Manual**
 (`external-system`) governance gates.
+
+The design doc's §14 "Backup and Restore… default posture for all workloads via
+the centralized Recovery Services Vault" is enforced as **IaC**:
+`cmp-vm-backup` (built-in "Azure Backup should be enabled for Virtual
+Machines"), **LIVE**, Audit, `workloads-mg` (see `platform-policy`). Not
+assigned at `compeer-enterprise-mg` — platform-mg runs VMs deliberately not
+protected this way (stateless Palo Alto/Cloudflare-connector VMs; domain
+controllers get explicit `azurerm_backup_protected_vm` enrollment instead).
 
 ## Phase 10 — Entra-Only Transition & Continuous Governance
 
