@@ -89,10 +89,17 @@ resource "terraform_data" "expressroute_contract" {
     }
 
     precondition {
+      # coalesce(x, "") errors ("no non-null, non-empty-string arguments")
+      # whenever x is null, because coalesce treats "" as empty too - it
+      # doesn't return "". That crashed terraform plan for every run of this
+      # pattern once provider_design_reference was left unset, regardless of
+      # whether the posture was even enabled (HCL evaluates this expression
+      # eagerly; the leading !enabled short-circuit does not protect the
+      # error inside coalesce). A null-safe ternary avoids the error path.
       condition = (
         !local.expressroute_posture_enabled ||
         (
-          length(trimspace(coalesce(local.expressroute_posture.provider_design_reference, ""))) > 0 &&
+          length(trimspace(local.expressroute_posture.provider_design_reference == null ? "" : local.expressroute_posture.provider_design_reference)) > 0 &&
           local.expressroute_posture.bgp_and_routing_approved &&
           local.expressroute_posture.cutover_window_approved
         )
@@ -132,10 +139,12 @@ resource "terraform_data" "vpn_contract" {
     }
 
     precondition {
+      # Same null-safe fix as the ExpressRoute contract above - coalesce(x, "")
+      # crashes plan (rather than failing the precondition) when x is null.
       condition = (
         !local.vpn_posture_enabled ||
         (
-          length(trimspace(coalesce(local.vpn_posture.design_reference, ""))) > 0 &&
+          length(trimspace(local.vpn_posture.design_reference == null ? "" : local.vpn_posture.design_reference)) > 0 &&
           local.vpn_posture.bgp_and_routing_approved &&
           local.vpn_posture.shared_key_handling_approved &&
           local.vpn_posture.failover_test_approved

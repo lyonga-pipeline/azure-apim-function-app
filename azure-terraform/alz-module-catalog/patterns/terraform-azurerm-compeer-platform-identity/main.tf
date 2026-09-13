@@ -78,10 +78,20 @@ module "key_vault" {
     false
   )
   public_network_access_enabled = try(var.key_vault.public_network_access_enabled, false)
-  network_acls = coalesce(try(var.key_vault.network_acls, null), {
-    bypass         = "None"
-    default_action = "Deny"
-  })
+  # coalesce(x, {bypass=.., default_action=..}) errors with "all arguments
+  # must have the same type" whenever x is null, because the literal default
+  # object and var.key_vault.network_acls's declared object type (which also
+  # allows ip_rules / virtual_network_subnet_ids) aren't the same shape - and
+  # a ternary hits the same "Inconsistent conditional result types" issue.
+  # Building a fixed-shape object with per-field try() avoids both error
+  # paths. This crashed every plan that left network_acls unset, including
+  # the real deployed platform-identity-security tfvars.
+  network_acls = {
+    bypass                     = try(var.key_vault.network_acls.bypass, "None")
+    default_action             = try(var.key_vault.network_acls.default_action, "Deny")
+    ip_rules                   = try(var.key_vault.network_acls.ip_rules, null)
+    virtual_network_subnet_ids = try(var.key_vault.network_acls.virtual_network_subnet_ids, null)
+  }
   contacts = values(var.key_vault.contacts)
   timeouts = try(var.key_vault.timeouts, {})
   tags     = module.tags.tags

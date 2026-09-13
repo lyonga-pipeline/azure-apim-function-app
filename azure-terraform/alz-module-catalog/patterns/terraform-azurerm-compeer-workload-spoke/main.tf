@@ -178,10 +178,19 @@ module "workload_key_vault" {
     false
   )
   public_network_access_enabled = try(var.workload_key_vault.public_network_access_enabled, false)
-  network_acls = coalesce(try(var.workload_key_vault.network_acls, null), {
-    bypass         = "AzureServices"
-    default_action = "Deny"
-  })
+  # coalesce(x, {bypass=.., default_action=..}) errors ("all arguments must
+  # have the same type") whenever x is null, because the literal default and
+  # network_acls's declared object type (which also allows ip_rules /
+  # virtual_network_subnet_ids) aren't the same shape - this crashed plan for
+  # every workload that enables its own Key Vault without setting
+  # network_acls explicitly. Build a fixed-shape object with per-field try()
+  # instead (same fix as platform-identity).
+  network_acls = {
+    bypass                     = try(var.workload_key_vault.network_acls.bypass, "AzureServices")
+    default_action             = try(var.workload_key_vault.network_acls.default_action, "Deny")
+    ip_rules                   = try(var.workload_key_vault.network_acls.ip_rules, null)
+    virtual_network_subnet_ids = try(var.workload_key_vault.network_acls.virtual_network_subnet_ids, null)
+  }
   contacts = values(try(var.workload_key_vault.contacts, {}))
   timeouts = try(var.workload_key_vault.timeouts, {})
   tags     = module.tags.tags

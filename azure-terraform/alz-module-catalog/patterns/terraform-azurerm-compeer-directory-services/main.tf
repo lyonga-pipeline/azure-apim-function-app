@@ -160,10 +160,15 @@ resource "terraform_data" "controller_contract" {
     }
 
     precondition {
+      # coalesce(x, "") errors ("no non-null, non-empty-string arguments")
+      # when x is null - it doesn't return "". That turned a missing
+      # domain_name/domain_admin_username into a cryptic function-call crash
+      # instead of this precondition's clean error message. Null-safe ternary
+      # avoids the error path.
       condition = alltrue([
         for key, promotion in local.ad_ds_promotions :
-        length(trimspace(coalesce(try(promotion.domain_name, null), ""))) > 0 &&
-        length(trimspace(coalesce(try(promotion.domain_admin_username, null), ""))) > 0
+        length(trimspace(try(promotion.domain_name, null) == null ? "" : promotion.domain_name)) > 0 &&
+        length(trimspace(try(promotion.domain_admin_username, null) == null ? "" : promotion.domain_admin_username)) > 0
       ])
       error_message = "Each enabled AD DS promotion must set domain_name and domain_admin_username."
     }

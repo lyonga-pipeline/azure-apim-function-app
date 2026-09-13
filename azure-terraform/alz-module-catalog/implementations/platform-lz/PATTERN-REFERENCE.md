@@ -35,6 +35,49 @@ files (e.g. `platform-management`'s alerts live in `platform_alerts.tf`, not
 Not deployed: `subscription-vending` (creates subscriptions; Compeer's CSP
 creates them instead — kept for a future EA/MCA billing model only).
 
+## Test coverage audit (all 17 patterns)
+
+Before this pass, only 2 of the 17 patterns (`global-governance`,
+`palo-alto-hub`) had meaningful test coverage; several with real safety-
+critical `terraform_data` contracts had **zero**. All 17 now have a passing
+`terraform test` suite — 86 test runs total, 0 failures — and validating
+against `terraform plan` (not just `terraform validate`, which does not
+evaluate resource preconditions or runtime function calls with real values)
+surfaced three real, previously-latent bugs:
+
+1. **`platform-hybrid-connectivity`** — `coalesce(x, "")` inside the
+   ExpressRoute and VPN posture preconditions crashed `terraform plan` with
+   *"no non-null, non-empty-string arguments"* whenever `provider_design_reference`
+   / `design_reference` was left `null` — **which the real deployed
+   `platform-hybrid-connectivity` tfvars does**. This broke every plan of that
+   workspace, regardless of whether ExpressRoute/VPN posture was even enabled
+   (HCL evaluates the whole expression eagerly; the leading `!enabled`
+   short-circuit does not protect the error inside `coalesce`). Fixed with a
+   null-safe ternary.
+2. **`platform-directory-services`** — the same `coalesce(x, "")` pattern in
+   the AD DS promotion precondition turned a missing `domain_name`/
+   `domain_admin_username` into the same cryptic crash instead of the
+   precondition's intended clean error message. Same fix.
+3. **`platform-identity` and `workload-spoke`** (the latter also reused by
+   `shared-services`) — `network_acls = coalesce(try(x.network_acls, null), {bypass=.., default_action=..})`
+   crashed with *"all arguments must have the same type"* whenever
+   `network_acls` was left unset, because the literal default object and the
+   variable's declared object type (which also allows `ip_rules` /
+   `virtual_network_subnet_ids`) are different shapes — and a ternary between
+   them hits the equally well-known "Inconsistent conditional result types"
+   error. **Neither `platform-identity-security`'s real tfvars nor the
+   pattern's own `terraform.tfvars.example` set `network_acls`**, so this
+   crashed for the real deployed workspace and for any workload spoke that
+   enables its own Key Vault. Fixed by building the object attribute-by-
+   attribute with `try()` per field, which sidesteps both error paths.
+
+`terraform-azurerm-compeer-platform-management`'s `platform_key_vaults` module
+call shares a related-but-safe pattern (`network_acls = try(each.value.network_acls, null)`
+passed straight through, no coalesce-with-a-default) — the receiving module
+gates its `dynamic` block on `== null`, so no fix was needed there; it's the
+coalesce-with-a-mismatched-default idiom specifically that's dangerous, not
+passing `null` itself.
+
 ---
 
 ## 1. `global-governance` — workspace `platform-governance`
