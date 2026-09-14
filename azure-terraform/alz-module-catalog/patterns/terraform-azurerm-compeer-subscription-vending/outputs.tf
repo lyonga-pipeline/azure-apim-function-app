@@ -19,21 +19,21 @@ output "subscription_catalog" {
 output "vended_subscription_ids" {
   description = "Subscription GUIDs created by this root."
   value = {
-    for key, subscription in azurerm_subscription.this : key => subscription.subscription_id
+    for key, subscription in azurerm_subscription.subscription : key => subscription.subscription_id
   }
 }
 
 output "vended_subscription_resource_ids" {
   description = "Azure resource IDs for subscriptions created by this root."
   value = {
-    for key, subscription in azurerm_subscription.this : key => "/subscriptions/${subscription.subscription_id}"
+    for key, subscription in azurerm_subscription.subscription : key => "/subscriptions/${subscription.subscription_id}"
   }
 }
 
 output "subscription_management_group_association_ids" {
   description = "Management group association IDs for vended subscriptions."
   value = {
-    for key, association in azurerm_management_group_subscription_association.this : key => association.id
+    for key, association in azurerm_management_group_subscription_association.association : key => association.id
   }
 }
 

@@ -6,14 +6,26 @@ Workload Identity Framework"). One Entra app registration + service principal pe
 automation identity, trusted through OIDC federated credentials, with the Azure
 roles the SP holds.
 
+## Overview
+
+**What this deploys:** secret-less federated workload identities for CI/CD
+and IaC automation (HCP Terraform, GitHub Actions, Azure DevOps) — app
+registration + service principal + OIDC federated credentials + role
+assignments, no client secrets ever created.
+
 ## What is Terraform-managed here
 
 | Object | Module / resource |
 |---|---|
 | App registration | `terraform-azuread-compeer-ad-application` |
 | Service principal | `terraform-azuread-compeer-service-principal` |
-| Federated identity credentials (OIDC trust rules) | `azuread_application_federated_identity_credential` |
-| SP role assignments (SP → built-in role → scope) | `azurerm_role_assignment` |
+| Federated identity credentials (OIDC trust rules) | `azuread_application_federated_identity_credential.federated_credential` |
+| SP role assignments (SP → built-in role → scope) | `azurerm_role_assignment.assignment` |
+
+**`moved.tf`:** both resources above were renamed from the generic
+Terraform default `"this"` for readability. `moved.tf` records the old→new
+address for each so an already-applied workspace's next `terraform apply`
+is a plain state move, not a destroy/recreate.
 
 **No client secrets or passwords** are created. Each federated credential pins an
 exact `issuer` + `subject` + `audience`; an app registration allows at most **20**

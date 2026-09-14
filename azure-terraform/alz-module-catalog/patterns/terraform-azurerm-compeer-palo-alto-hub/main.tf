@@ -204,7 +204,7 @@ module "load_balancers" {
   tags                       = var.tags
 }
 
-resource "azurerm_linux_virtual_machine" "this" {
+resource "azurerm_linux_virtual_machine" "vm" {
   for_each = var.enabled ? var.virtual_machines : {}
 
   name                            = each.value.name

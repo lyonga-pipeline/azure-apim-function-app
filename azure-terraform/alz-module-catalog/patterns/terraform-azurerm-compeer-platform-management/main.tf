@@ -320,7 +320,7 @@ locals {
   }
 }
 
-resource "azurerm_resource_provider_registration" "this" {
+resource "azurerm_resource_provider_registration" "registration" {
   for_each = var.resource_provider_registrations
 
   name = each.key
@@ -555,7 +555,7 @@ resource "azurerm_monitor_aad_diagnostic_setting" "entra" {
   }
 }
 
-resource "azurerm_consumption_budget_subscription" "this" {
+resource "azurerm_consumption_budget_subscription" "subscription_budget" {
   for_each = var.subscription_budgets
 
   name            = each.key
@@ -604,7 +604,7 @@ module "management_locks" {
   locks = local.management_lock_inputs
 }
 
-resource "azurerm_security_center_subscription_pricing" "this" {
+resource "azurerm_security_center_subscription_pricing" "pricing" {
   for_each = var.defender_plans
 
   resource_type = each.value.resource_type
@@ -620,7 +620,7 @@ resource "azurerm_security_center_subscription_pricing" "this" {
   }
 }
 
-resource "azurerm_security_center_contact" "this" {
+resource "azurerm_security_center_contact" "contact" {
   count = var.security_contact == null ? 0 : 1
 
   name                = try(var.security_contact.name, "default")
@@ -630,7 +630,7 @@ resource "azurerm_security_center_contact" "this" {
   alerts_to_admins    = try(var.security_contact.alerts_to_admins, true)
 }
 
-resource "azurerm_security_center_setting" "this" {
+resource "azurerm_security_center_setting" "setting" {
   for_each = var.security_center_settings
 
   setting_name = each.key

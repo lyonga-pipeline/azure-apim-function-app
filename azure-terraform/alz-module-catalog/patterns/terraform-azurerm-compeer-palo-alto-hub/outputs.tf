@@ -15,12 +15,12 @@ output "load_balancer_ids" {
 
 output "virtual_machine_ids" {
   description = "Palo Alto VM IDs keyed by input key."
-  value       = { for key, vm in azurerm_linux_virtual_machine.this : key => vm.id }
+  value       = { for key, vm in azurerm_linux_virtual_machine.vm : key => vm.id }
 }
 
 output "virtual_machine_identity_principal_ids" {
   description = "System-assigned identity principal IDs for the firewall VMs, keyed by input key."
-  value       = { for key, vm in azurerm_linux_virtual_machine.this : key => try(vm.identity[0].principal_id, null) }
+  value       = { for key, vm in azurerm_linux_virtual_machine.vm : key => try(vm.identity[0].principal_id, null) }
 }
 
 output "bootstrap_storage_account_id" {

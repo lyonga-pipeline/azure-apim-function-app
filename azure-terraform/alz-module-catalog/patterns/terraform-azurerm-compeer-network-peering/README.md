@@ -1,5 +1,26 @@
 # Network Peering Root
 
+## Overview
+
+**What this deploys:** the cross-subscription VNet peering + Private DNS
+zone links between one hub and one workload spoke — a template pattern, run
+once per spoke in its own dedicated HCP workspace.
+
+| Resource | Purpose |
+|---|---|
+| `azurerm_virtual_network_peering` (module, aliased `hub`/`spoke` providers) | The two-way peering |
+| `azurerm_private_dns_zone_virtual_network_link` (module) | Links the hub's shared Private DNS zones to the spoke VNet |
+| `terraform_data.resolved_input_validation` | See below |
+
+**`terraform_data.resolved_input_validation` — why resolution is checked
+before use:** this pattern can source hub/spoke identifiers either from
+explicit variables or from `tfe_outputs` (another workspace's state). A
+stale or unreadable `tfe_outputs` source would otherwise plan a peering
+against `null` resource IDs; the contract fails the plan cleanly instead.
+See `tests/contracts.tftest.hcl`.
+
+---
+
 This root owns the cross-subscription network attachment between one hub VNet and one workload spoke VNet. It creates both Azure peering resources and links shared Private DNS zones to the spoke VNet.
 
 Keep this in a dedicated HCP workspace, for example `network-peering-online-banking-np1`. Do not also enable `hub_connection` in `workload-spoke` for the same spoke, because only one state should own each peering resource.

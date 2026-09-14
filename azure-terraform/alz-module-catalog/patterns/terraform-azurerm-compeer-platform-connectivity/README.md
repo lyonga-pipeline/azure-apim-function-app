@@ -1,5 +1,47 @@
 # Platform Connectivity Root
 
+## Overview
+
+**What this deploys:** the hub VNet, subnets, and the two enforcement
+contracts (Palo Alto routing, DNS resolution mode) that other patterns
+(`platform-hybrid-connectivity`, `palo-alto-hub`, `directory-services`) rely
+on being correct before they run. Bastion, DDoS Protection Plan, and
+private DNS resolver are wired but left **off by default** — this is a
+deliberate cost-safe baseline (each is a paid, always-on Azure service), not
+an oversight; see `implementations/platform-lz/PATTERN-REFERENCE.md` §8.
+
+| Resource | Purpose |
+|---|---|
+| `module.virtual_network` | Hub VNet + typed subnet map (`subnet_ids` keyed by purpose) |
+| `azurerm_network_watcher.watcher` | Network Watcher for the hub |
+| `terraform_data.palo_alto_route_contract` | See below |
+| `terraform_data.dns_resolution_contract` | See below |
+
+**The two `terraform_data` contracts — why enforcement lives here instead of
+just in tfvars comments:** both encode an architectural decision that's easy
+to violate by accident in a plain map of route/subnet inputs, so Terraform
+checks it at plan time rather than relying on code review to catch it:
+
+- **`palo_alto_route_contract`** — when `palo_alto.enabled = true`, every
+  `VirtualAppliance` route next-hop must match an approved Palo Alto private
+  IP, and every subnet key `palo_alto` declares must actually exist in the
+  hub VNet. This keeps egress routing and the firewall's actual subnet
+  layout from silently drifting apart.
+- **`dns_resolution_contract`** — enforces which of the two supported DNS
+  modes (`dc-forwarders` today, `private-resolver` after the NET-27 decision)
+  is actually wired up, so a half-configured switch between the two modes
+  fails the plan instead of producing broken name resolution at apply time.
+
+See `tests/contracts.tftest.hcl` for the exact pass/fail scenarios both
+contracts cover.
+
+**`moved.tf`:** `azurerm_network_watcher.watcher` was renamed from the
+generic Terraform default `"this"` for readability. `moved.tf` records the
+old→new address so an already-applied workspace's next `terraform apply` is
+a plain state move, not a destroy/recreate.
+
+---
+
 This root creates shared network foundations for a landing-zone environment.
 
 It keeps address allocation explicit in the root input contract. The VNet module receives VNet address spaces and typed subnet maps, then outputs `subnet_ids` keyed by the same subnet purpose keys.

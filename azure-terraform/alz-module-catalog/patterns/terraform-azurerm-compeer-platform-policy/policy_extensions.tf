@@ -6,7 +6,7 @@
 # pattern instead.
 # =============================================================================
 
-resource "azurerm_resource_group_policy_assignment" "this" {
+resource "azurerm_resource_group_policy_assignment" "rg_assignment" {
   for_each = var.resource_group_policy_assignments
 
   name              = try(each.value.name, each.key)
@@ -36,9 +36,9 @@ resource "azurerm_resource_group_policy_assignment" "this" {
 
 locals {
   _all_assignment_ids = merge(
-    { for k, v in azurerm_management_group_policy_assignment.this : k => v.id },
-    { for k, v in azurerm_subscription_policy_assignment.this : k => v.id },
-    { for k, v in azurerm_resource_group_policy_assignment.this : k => v.id },
+    { for k, v in azurerm_management_group_policy_assignment.mg_assignment : k => v.id },
+    { for k, v in azurerm_subscription_policy_assignment.subscription_assignment : k => v.id },
+    { for k, v in azurerm_resource_group_policy_assignment.rg_assignment : k => v.id },
   )
 
   mg_exemptions  = { for k, v in var.policy_exemptions : k => v if v.scope_type == "management_group" }
@@ -46,7 +46,7 @@ locals {
   rg_exemptions  = { for k, v in var.policy_exemptions : k => v if v.scope_type == "resource_group" }
 }
 
-resource "azurerm_management_group_policy_exemption" "this" {
+resource "azurerm_management_group_policy_exemption" "mg_exemption" {
   for_each = local.mg_exemptions
 
   name                            = each.key
@@ -60,7 +60,7 @@ resource "azurerm_management_group_policy_exemption" "this" {
   policy_definition_reference_ids = try(each.value.policy_definition_reference_ids, null)
 }
 
-resource "azurerm_subscription_policy_exemption" "this" {
+resource "azurerm_subscription_policy_exemption" "subscription_exemption" {
   for_each = local.sub_exemptions
 
   name                            = each.key
@@ -74,7 +74,7 @@ resource "azurerm_subscription_policy_exemption" "this" {
   policy_definition_reference_ids = try(each.value.policy_definition_reference_ids, null)
 }
 
-resource "azurerm_resource_group_policy_exemption" "this" {
+resource "azurerm_resource_group_policy_exemption" "rg_exemption" {
   for_each = local.rg_exemptions
 
   name                            = each.key

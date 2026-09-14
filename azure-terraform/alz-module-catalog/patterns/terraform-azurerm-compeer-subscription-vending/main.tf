@@ -106,7 +106,7 @@ locals {
   subscription_role_assignment_inputs = local.subscription_contract_valid ? {
     for key, assignment in local.enabled_subscription_role_assignments : key => {
       name                                   = try(assignment.name, null)
-      scope                                  = "/subscriptions/${azurerm_subscription.this[assignment.subscription_key].subscription_id}"
+      scope                                  = "/subscriptions/${azurerm_subscription.subscription[assignment.subscription_key].subscription_id}"
       principal_id                           = assignment.principal_id
       role_definition_name                   = try(assignment.role_definition_name, null)
       role_definition_id                     = try(assignment.role_definition_id, null)
@@ -117,7 +117,7 @@ locals {
       skip_service_principal_aad_check       = try(assignment.skip_service_principal_aad_check, null)
       delegated_managed_identity_resource_id = try(assignment.delegated_managed_identity_resource_id, null)
     }
-    if contains(keys(azurerm_subscription.this), assignment.subscription_key)
+    if contains(keys(azurerm_subscription.subscription), assignment.subscription_key)
   } : {}
 }
 
@@ -162,7 +162,7 @@ resource "terraform_data" "subscription_vending_contract" {
   }
 }
 
-resource "azurerm_subscription" "this" {
+resource "azurerm_subscription" "subscription" {
   for_each = local.subscription_resource_inputs
 
   alias             = each.value.alias
@@ -181,8 +181,8 @@ resource "azurerm_subscription" "this" {
   depends_on = [terraform_data.subscription_vending_contract]
 }
 
-resource "azurerm_management_group_subscription_association" "this" {
-  for_each = azurerm_subscription.this
+resource "azurerm_management_group_subscription_association" "association" {
+  for_each = azurerm_subscription.subscription
 
   management_group_id = local.subscription_inputs[each.key].management_group_id
   subscription_id     = "/subscriptions/${each.value.subscription_id}"
@@ -193,5 +193,5 @@ module "subscription_role_assignments" {
 
   assignments = local.subscription_role_assignment_inputs
 
-  depends_on = [azurerm_management_group_subscription_association.this]
+  depends_on = [azurerm_management_group_subscription_association.association]
 }

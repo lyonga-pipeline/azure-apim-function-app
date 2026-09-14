@@ -9,6 +9,13 @@ Implements design-doc **Phase 1 Step 5** (Entra security group framework),
 groups to Azure roles). The governing principle is `User -> Group -> Role ->
 Scope` — no user is assigned a role directly.
 
+## Overview
+
+**What this deploys:** the second pattern in deployment order — the Entra
+groups and RBAC matrix everything downstream (`subscription-onboarding`,
+`workload-spoke`, `privileged-access`) assigns roles through, so those
+patterns never assign a role to an individual user directly.
+
 ## What is Terraform-managed here
 
 | Object | Module |

@@ -186,7 +186,7 @@ output "sentinel_data_connector_contract" {
 }
 
 output "resource_provider_registration_ids" {
-  value = { for key, value in azurerm_resource_provider_registration.this : key => value.id }
+  value = { for key, value in azurerm_resource_provider_registration.registration : key => value.id }
 }
 
 output "role_assignment_ids" {
@@ -202,7 +202,7 @@ output "entra_diagnostic_setting_id" {
 }
 
 output "subscription_budget_ids" {
-  value = { for key, value in azurerm_consumption_budget_subscription.this : key => value.id }
+  value = { for key, value in azurerm_consumption_budget_subscription.subscription_budget : key => value.id }
 }
 
 output "management_lock_ids" {
@@ -210,7 +210,7 @@ output "management_lock_ids" {
 }
 
 output "defender_plan_ids" {
-  value = { for key, value in azurerm_security_center_subscription_pricing.this : key => value.id }
+  value = { for key, value in azurerm_security_center_subscription_pricing.pricing : key => value.id }
 }
 
 output "defender_soc_posture" {

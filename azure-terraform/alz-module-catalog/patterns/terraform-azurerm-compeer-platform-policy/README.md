@@ -1,5 +1,48 @@
 # Compeer Platform Policy Pattern
 
+## Overview
+
+**What this deploys:** the narrower, more frequently-changed half of Azure
+Policy governance — everything that needs to promote from Audit→Deny, carry
+a remediation identity, or grant a scoped exemption, separate from the
+one-time management-group scaffold in `global-governance`.
+
+| Area | Resource | Purpose |
+|---|---|---|
+| Policy definitions | `azurerm_policy_definition.definition` | Custom rules (e.g. `cmp-allowed-res-types`, `cmp-disk-encrypt-win`) |
+| Policy initiatives | `azurerm_policy_set_definition.initiative` | e.g. `compeer-private-only-connectivity` (see below) |
+| Assignments | `azurerm_management_group_policy_assignment.mg_assignment`, `.subscription_assignment` (subscription-scope), `.rg_assignment` (resource-group-scope, `policy_extensions.tf`) | Applies a definition/initiative at the named scope; only `mg_assignment` carries a remediation `identity` block |
+| Exemptions | `azurerm_management_group_policy_exemption.mg_exemption`, `.rg_exemption`, `.subscription_exemption` (all `policy_extensions.tf`) | Time-boxed or permanent carve-outs for a specific scope |
+
+**Why 3 assignment types and 3 exemption types instead of one generic
+"assignment" resource:** Azure Policy assignments and exemptions are scoped
+resources — an assignment at a resource group is a *different Terraform
+resource type* (`azurerm_resource_group_policy_assignment`) than one at a
+management group (`azurerm_management_group_policy_assignment`), even though
+they take nearly identical arguments. This pattern mirrors that split 1:1
+rather than hiding it behind one abstraction, so `terraform plan` always
+shows exactly which scope a change lands at. `main.tf` holds the two most
+commonly used (`mg_assignment`, `subscription_assignment`);
+`policy_extensions.tf` holds the narrower/rarer ones (`rg_assignment`, and
+all 3 exemption types) so the common path stays short.
+
+**`var.remediation.dine_assignments` — a real, documented limitation:** this
+mechanism only accepts a single `policy_definition_id` (no
+`policy_set_definition_id`), so a DeployIfNotExists **initiative** (like
+"Configure Microsoft Defender for Cloud plans") cannot be remediated through
+it — it needs a plain `management_group_policy_assignment` with its own
+`identity` block instead. See `implementations/platform-lz/PATTERN-REFERENCE.md`
+§6 for the specific policies this affects.
+
+**`moved.tf`:** resource labels here were renamed from the generic
+Terraform default `"this"` to purpose-specific names (`.definition`,
+`.initiative`, `.mg_assignment`, etc.) for readability. `moved.tf` records
+the old→new address for every renamed resource so an already-applied
+workspace's next `terraform apply` is a plain state move, not a
+destroy/recreate. Safe to ignore when reading the pattern's logic.
+
+---
+
 This pattern owns Azure Policy definitions, initiatives, and assignments after the management-group hierarchy exists. It is intentionally separate from the governance root so policy promotion, remediation, managed-identity assignment, and deny-mode changes can run through a narrower HCP Terraform workspace.
 
 Use `management_group_ids` from the governance workspace output. Do not configure the same policy definition or assignment in both governance and policy workspaces unless the resource has been deliberately imported and ownership transferred.

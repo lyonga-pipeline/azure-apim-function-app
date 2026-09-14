@@ -9,19 +9,19 @@ output "subscription_placement_ids" {
 }
 
 output "custom_policy_definition_ids" {
-  value = { for key, value in azurerm_policy_definition.this : key => value.id }
+  value = { for key, value in azurerm_policy_definition.definition : key => value.id }
 }
 
 output "custom_policy_set_definition_ids" {
-  value = { for key, value in azurerm_policy_set_definition.this : key => value.id }
+  value = { for key, value in azurerm_policy_set_definition.initiative : key => value.id }
 }
 
 output "management_group_policy_assignment_ids" {
-  value = { for key, value in azurerm_management_group_policy_assignment.this : key => value.id }
+  value = { for key, value in azurerm_management_group_policy_assignment.mg_assignment : key => value.id }
 }
 
 output "subscription_policy_assignment_ids" {
-  value = { for key, value in azurerm_subscription_policy_assignment.this : key => value.id }
+  value = { for key, value in azurerm_subscription_policy_assignment.subscription_assignment : key => value.id }
 }
 
 output "custom_role_definition_ids" {
@@ -33,5 +33,5 @@ output "role_assignment_ids" {
 }
 
 output "management_group_budget_ids" {
-  value = { for key, value in azurerm_consumption_budget_management_group.this : key => value.id }
+  value = { for key, value in azurerm_consumption_budget_management_group.management_group_budget : key => value.id }
 }

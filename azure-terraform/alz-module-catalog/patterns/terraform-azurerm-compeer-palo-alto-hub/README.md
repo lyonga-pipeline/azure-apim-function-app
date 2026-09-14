@@ -20,6 +20,13 @@ Set `marketplace_agreement.enabled = true` **once per subscription** to accept
 the `paloaltonetworks / vmseries-flex / <plan>` image agreement. That is not
 "using Marketplace" in the solution-template sense.
 
+## Overview
+
+**What this deploys:** a fully Terraform-owned (no Marketplace solution
+template) Palo Alto VM-Series firewall hub — every VM, NIC, load balancer,
+and public IP, so the shape matches Compeer's actual requirements instead of
+the Marketplace template's fixed 2-VM/1-LB layout.
+
 ## What it composes
 
 | Concern | Resource / module | Notes |
@@ -29,7 +36,12 @@ the `paloaltonetworks / vmseries-flex / <plan>` image agreement. That is not
 | Public IPs | `public-ip` module | mgmt + untrust only; pin their RG in the private-only allow-list |
 | NICs | `network-interface` module | `ip_forwarding_enabled = true`; 3 per firewall + any Sunstream NICs |
 | Load balancers | `load-balancer` module | `trust` ILB + `sunstream` ILB (just another map key) |
-| Firewall VMs | `azurerm_linux_virtual_machine` (for_each) | Custom, image-based: `source_image_reference` + `plan`; system-assigned identity, `custom_data` bootstrap. **This is the only VM path** — the `PaloAltoNetworks/swfw-modules` AVM module was removed. |
+| Firewall VMs | `azurerm_linux_virtual_machine.vm` (for_each) | Custom, image-based: `source_image_reference` + `plan`; system-assigned identity, `custom_data` bootstrap. **This is the only VM path** — the `PaloAltoNetworks/swfw-modules` AVM module was removed. |
+
+**`moved.tf`:** `azurerm_linux_virtual_machine.vm` was renamed from the
+generic Terraform default `"this"` for readability. `moved.tf` records the
+old→new address so an already-applied workspace's next `terraform apply` is
+a plain state move, not a destroy/recreate.
 
 ## Bootstrap (`virtual_machines[*].bootstrap`)
 

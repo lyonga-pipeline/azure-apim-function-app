@@ -1,5 +1,58 @@
 # Global Governance Root
 
+## Overview
+
+**What this deploys:** the foundation everything else in this catalog builds
+on top of — it runs first in the deployment order.
+
+| Area | Resource / module | Purpose |
+|---|---|---|
+| Management groups | `module.management_groups` | The 25-entry go-live management-group tree under `compeer-enterprise-mg` (platform, workloads, internal/external/regulated apps, shared services, sandbox, decommissioned) |
+| Policy definitions | `azurerm_policy_definition.definition` | Custom policy rules — both hand-authored (`var.custom_policy_definitions`) and the built-in landing-zone baseline (`policy_baseline.tf`, merged in) |
+| Policy initiatives | `azurerm_policy_set_definition.initiative` | Packages related policy definitions into one assignable initiative — see "The policy baseline" below |
+| Policy assignments | `azurerm_management_group_policy_assignment.mg_assignment`, `azurerm_subscription_policy_assignment.subscription_assignment` | Applies definitions/initiatives at a management-group or subscription scope |
+| Custom roles + RBAC | `module.custom_role_definitions`, `module.role_assignments` | Custom Azure roles (kept minimal by design) and any standing role assignments declared here (rare — see `platform-authorization`) |
+| Budgets | `azurerm_consumption_budget_management_group.management_group_budget` | MG-scope cost budgets |
+
+**The policy baseline (`policy_baseline.tf`) — why it's not just 6 plain policy resources:**
+this file exists because the deployable workspace needs real, working guardrails
+out of the box (allowed regions, required tags, deny-public-PaaS, secure
+storage, restrict public IP, private SQL) instead of an empty
+`custom_policy_definitions = {}`. Two things about its shape are easy to miss
+on a first read:
+
+1. **It merges into the pattern's own variables, it doesn't add separate
+   resources.** `local.pb_definitions` / `local.pb_assignments` are merged
+   into `var.custom_policy_definitions` / the assignment map via
+   `merge(var.x, local.pb_y)` in `main.tf` — so `var.custom_policy_definitions`
+   still works for anything hand-authored on top, and the baseline is just
+   more entries in the same `for_each` map, not a parallel code path.
+2. **The 6 policies are packaged into one initiative, not 6 separate
+   assignments.** `azurerm_policy_set_definition.initiative` bundles all 6
+   under `compeer-landing-zone-baseline`, assigned once
+   (`cmp-landing-zone-baseline`). This is what lets the *same* initiative be
+   assigned again at a different management-group scope later (a future
+   `regulated-apps-mg`, say) with its own parameter/`not_scopes` overrides,
+   instead of re-declaring 6 policy assignments per scope every time the org
+   adds one. Each member policy still gets its own effect/parameter wiring
+   via the initiative's own declared parameters (ARM `[parameters('x')]`
+   tokens in `parameter_values`) — so a future need for a policy-specific
+   effect is additive (one more initiative parameter), not a rewrite.
+
+`effect` defaults to `Audit` (see "Policy baseline" below for the toggle) —
+promote to `Deny` per policy only after the false-positive review.
+
+**`moved.tf`:** resource labels in this pattern were renamed from the
+generic Terraform default `"this"` to purpose-specific names (e.g.
+`azurerm_policy_definition.definition`, `azurerm_policy_set_definition.initiative`)
+for readability. `moved.tf` records the old→new address for every renamed
+resource so an already-applied workspace's next `terraform apply` is a plain
+state move, not a destroy/recreate. It's safe to ignore when reading the
+pattern's logic — it exists purely for state continuity — and safe to delete
+once every real workspace using this pattern has applied past the rename.
+
+---
+
 This root creates the management-group scaffold, Azure Policy assignments, and RBAC guardrails for the net-new landing-zone path.
 
 It receives IDs explicitly from HCP workspace variables or an approved governance catalog. It does not read legacy remote state, infer subscription placement from environment names, or vend subscriptions. Subscription vending is handled by a separate enterprise process.

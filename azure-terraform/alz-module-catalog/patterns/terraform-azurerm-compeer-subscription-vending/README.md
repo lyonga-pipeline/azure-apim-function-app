@@ -16,10 +16,17 @@
 
 This root vends Azure subscriptions and places them under the approved landing-zone management group hierarchy. It intentionally stays separate from `global-governance` so subscription billing lifecycle, management group and policy lifecycle, and workload deployment lifecycle can be operated independently.
 
+## Overview
+
+**What this deploys (reference only — not deployed, see the notice above):**
+Terraform-driven subscription vending for a future EA/MCA billing model.
+`platform-subscriptions` is hard-disabled and must stay that way while
+Compeer's CSP-partner billing model is in effect.
+
 ## What It Does
 
-- Creates Azure subscriptions through `azurerm_subscription`.
-- Associates each vended subscription to the target management group with `azurerm_management_group_subscription_association`.
+- Creates Azure subscriptions through `azurerm_subscription.subscription`.
+- Associates each vended subscription to the target management group with `azurerm_management_group_subscription_association.association`.
 - Creates optional subscription-scope RBAC assignments through the shared `role-assignments` module.
 - Applies enterprise subscription tags from `default_tags` plus per-subscription tags.
 - Keeps the full target subscription catalog in `terraform.tfvars`, with actual creation gated by `vending_enabled` and per-subscription `enabled` flags.

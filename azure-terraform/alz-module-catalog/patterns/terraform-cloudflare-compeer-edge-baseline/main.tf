@@ -1,4 +1,4 @@
-resource "cloudflare_zone" "this" {
+resource "cloudflare_zone" "zone" {
   for_each = var.enabled ? var.zones : {}
 
   zone       = each.value.zone
@@ -7,10 +7,10 @@ resource "cloudflare_zone" "this" {
   paused     = try(each.value.paused, false)
 }
 
-resource "cloudflare_record" "this" {
+resource "cloudflare_record" "record" {
   for_each = var.enabled ? var.records : {}
 
-  zone_id         = coalesce(try(each.value.zone_id, null), try(cloudflare_zone.this[each.value.zone_key].id, null))
+  zone_id         = coalesce(try(each.value.zone_id, null), try(cloudflare_zone.zone[each.value.zone_key].id, null))
   name            = each.value.name
   content         = coalesce(try(each.value.content, null), try(each.value.value, null))
   type            = each.value.type
@@ -22,10 +22,10 @@ resource "cloudflare_record" "this" {
   tags            = try(each.value.tags, null)
 }
 
-resource "cloudflare_ruleset" "this" {
+resource "cloudflare_ruleset" "ruleset" {
   for_each = var.enabled ? var.rulesets : {}
 
-  zone_id     = try(each.value.zone_key, null) == null ? null : cloudflare_zone.this[each.value.zone_key].id
+  zone_id     = try(each.value.zone_key, null) == null ? null : cloudflare_zone.zone[each.value.zone_key].id
   account_id  = try(each.value.account_id, null)
   kind        = each.value.kind
   name        = each.value.name
@@ -80,7 +80,7 @@ module "zero_trust_tunnels" {
   catch_all_service = try(each.value.catch_all_service, "http_status:404")
   dns_records = {
     for record_key, record in try(each.value.dns_records, {}) : record_key => merge(record, {
-      zone_id = coalesce(try(record.zone_id, null), try(cloudflare_zone.this[record.zone_key].id, null))
+      zone_id = coalesce(try(record.zone_id, null), try(cloudflare_zone.zone[record.zone_key].id, null))
     })
   }
   access_applications = try(each.value.access_applications, {})

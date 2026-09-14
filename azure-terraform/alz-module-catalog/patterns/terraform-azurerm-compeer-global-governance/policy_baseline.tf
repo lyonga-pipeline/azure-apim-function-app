@@ -166,7 +166,7 @@ locals {
   # Packages the 6 cmp-* definitions above into one assignable initiative
   # instead of 6 separate management-group policy assignments. This is what
   # var.custom_policy_set_definitions was built for (see main.tf's
-  # azurerm_policy_set_definition.this) but had zero callers - policy_baseline
+  # azurerm_policy_set_definition.initiative) but had zero callers - policy_baseline
   # is now its first real one, merged in the same way pb_definitions already
   # merges into var.custom_policy_definitions.
   #

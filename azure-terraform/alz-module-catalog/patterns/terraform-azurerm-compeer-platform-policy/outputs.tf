@@ -7,22 +7,22 @@ output "custom_policy_set_definition_ids" {
 }
 
 output "management_group_policy_assignment_ids" {
-  value = { for key, value in azurerm_management_group_policy_assignment.this : key => value.id }
+  value = { for key, value in azurerm_management_group_policy_assignment.mg_assignment : key => value.id }
 }
 
 output "subscription_policy_assignment_ids" {
-  value = { for key, value in azurerm_subscription_policy_assignment.this : key => value.id }
+  value = { for key, value in azurerm_subscription_policy_assignment.subscription_assignment : key => value.id }
 }
 
 output "resource_group_policy_assignment_ids" {
-  value = { for k, v in azurerm_resource_group_policy_assignment.this : k => v.id }
+  value = { for k, v in azurerm_resource_group_policy_assignment.rg_assignment : k => v.id }
 }
 
 output "policy_exemption_ids" {
   value = merge(
-    { for k, v in azurerm_management_group_policy_exemption.this : k => v.id },
-    { for k, v in azurerm_subscription_policy_exemption.this : k => v.id },
-    { for k, v in azurerm_resource_group_policy_exemption.this : k => v.id },
+    { for k, v in azurerm_management_group_policy_exemption.mg_exemption : k => v.id },
+    { for k, v in azurerm_subscription_policy_exemption.subscription_exemption : k => v.id },
+    { for k, v in azurerm_resource_group_policy_exemption.rg_exemption : k => v.id },
   )
 }
 

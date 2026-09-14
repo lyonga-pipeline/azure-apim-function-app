@@ -457,7 +457,7 @@ locals {
       bastion_public_ip = module.bastion[0].public_ip_id
     },
     {
-      for key, value in azurerm_network_watcher.this : "network_watcher:${key}" => value.id
+      for key, value in azurerm_network_watcher.watcher : "network_watcher:${key}" => value.id
     },
     {
       for key, value in module.local_network_gateways.ids : "local_network_gateway:${key}" => value
@@ -496,7 +496,7 @@ module "load_balancers" {
   tags                       = module.tags.tags
 }
 
-resource "azurerm_network_watcher" "this" {
+resource "azurerm_network_watcher" "watcher" {
   for_each = var.network_watchers
 
   name                = each.value.name
@@ -528,8 +528,8 @@ module "network_watcher_flow_logs" {
   flow_logs = {
     for key, flow_log in var.network_watcher_flow_logs : key => {
       name                      = flow_log.name
-      network_watcher_name      = coalesce(try(flow_log.network_watcher_name, null), try(azurerm_network_watcher.this[flow_log.network_watcher_key].name, null))
-      resource_group_name       = coalesce(try(flow_log.resource_group_name, null), try(azurerm_network_watcher.this[flow_log.network_watcher_key].resource_group_name, null), module.resource_group.name)
+      network_watcher_name      = coalesce(try(flow_log.network_watcher_name, null), try(azurerm_network_watcher.watcher[flow_log.network_watcher_key].name, null))
+      resource_group_name       = coalesce(try(flow_log.resource_group_name, null), try(azurerm_network_watcher.watcher[flow_log.network_watcher_key].resource_group_name, null), module.resource_group.name)
       network_security_group_id = coalesce(try(flow_log.network_security_group_id, null), try(module.network_security_groups[flow_log.network_security_group_key].id, null))
       storage_account_id        = flow_log.storage_account_id
       enabled                   = try(flow_log.enabled, true)

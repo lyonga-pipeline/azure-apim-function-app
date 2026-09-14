@@ -1,5 +1,27 @@
 # Compeer Directory Services Pattern
 
+## Overview
+
+**What this deploys:** the hub-hosted Windows domain controller VMs —
+resource group, NICs, VMs, optional data disks, and (currently, see the
+deviation note below) the AD DS role install + promotion extension hooks.
+
+| Resource / module | Purpose |
+|---|---|
+| `module.windows_vm` | The domain controller VM(s), keyed by stable names (not `dc01`/`dc02`) |
+| `module.network_interface` | Per-controller NICs with static private IPs + per-controller DNS server settings |
+| `azurerm_virtual_machine_extension` | `ad_ds_role_install` / `ad_ds_promotion` — disabled-by-default extension hooks (see deviation note) |
+| `module.management_locks` | Optional `CanNotDelete`/`ReadOnly` lock |
+
+**`terraform_data.controller_contract` — what it enforces:** AD DS promotion
+needs `domain_name` and `domain_admin_username` to actually be set before an
+extension tries to promote a VM with nothing to promote it into — the
+contract fails the plan with a clear message instead of the extension
+failing at apply/runtime. See `tests/controller_contract.tftest.hcl` for the
+5 scenarios it covers.
+
+---
+
 This pattern deploys Azure infrastructure for hub-hosted directory services: resource group, NICs with stable keys, Windows VMs, optional data disks, optional diagnostics, optional AD DS/DNS role installation, optional domain join, optional AD DS promotion, optional RBAC, optional locks, and no-resource operational contracts.
 
 > **⚠ Deviation — temporary, pending AD-team confirmation.** `deploy-runbook.tf` §7.2 / §15

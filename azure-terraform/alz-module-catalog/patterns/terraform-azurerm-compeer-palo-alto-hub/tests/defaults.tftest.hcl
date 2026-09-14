@@ -79,7 +79,7 @@ run "two_firewalls_two_lbs_bootstrap" {
   command = plan
 
   assert {
-    condition     = length(azurerm_linux_virtual_machine.this) == 2
+    condition     = length(azurerm_linux_virtual_machine.vm) == 2
     error_message = "expected two firewall VMs"
   }
   assert {

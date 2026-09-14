@@ -4,7 +4,7 @@ mock_provider "azuread" {}
 run "empty_is_noop" {
   command = plan
   assert {
-    condition     = length(module.application) == 0 && length(azuread_application_federated_identity_credential.this) == 0
+    condition     = length(module.application) == 0 && length(azuread_application_federated_identity_credential.federated_credential) == 0
     error_message = "no identities by default"
   }
 }
@@ -41,11 +41,11 @@ run "app_sp_fic_and_rbac" {
     error_message = "one app + one SP per identity"
   }
   assert {
-    condition     = length(azuread_application_federated_identity_credential.this) == 2
+    condition     = length(azuread_application_federated_identity_credential.federated_credential) == 2
     error_message = "one FIC per federated_credentials entry"
   }
   assert {
-    condition     = length(azurerm_role_assignment.this) == 1
+    condition     = length(azurerm_role_assignment.assignment) == 1
     error_message = "one SP role assignment"
   }
 }

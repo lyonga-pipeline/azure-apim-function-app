@@ -89,6 +89,63 @@ controls, same Audit effect, same scope; covered by
 `terraform-azurerm-compeer-global-governance/tests/defaults.tftest.hcl`.
 See §1 for the full rationale.
 
+## Readability pass: resource naming, file layout, and READMEs
+
+A separate, catalog-wide pass — resource labels, not behavior — requested
+after review feedback that the generic Terraform default label `"this"`
+made diffs and cross-references hard to follow for a team reviewing changes
+across 18 patterns and 106 modules.
+
+**1. Every `resource`/`data` block labeled `"this"` was renamed to a
+purpose-specific name** (e.g. `azurerm_policy_definition.this` →
+`.definition`, `azurerm_key_vault_secret.this` → `.secret`,
+`azurerm_management_group_policy_assignment.this` → `.mg_assignment`),
+scoped so no two resources in the same file collide (e.g. the policy
+pattern's `mg_assignment` / `rg_assignment` / `subscription_assignment` /
+their 3 exemption counterparts). 125 resource/data labels renamed across 68
+directories (10 patterns, 58 modules) — the other 8 patterns and 48 modules
+already used custom labels and needed no change.
+
+**State safety:** renaming a label changes that resource's Terraform-state
+address, and several of these patterns back already-applied real workspaces
+(`platform-identity-security`, `platform-policy`, etc.). Every rename ships
+with a `moved.tf` in the same directory recording the old→new address, so
+the next `terraform apply` against a real workspace is a plain state move,
+not a destroy/recreate. One real cross-module chaining bug was caught and
+fixed by this pass's own test run: `terraform-azurerm-compeer-management-locks`'
+lock resource is consumed by 6 other patterns via pre-existing historical
+`moved` blocks (from when those patterns' inline lock resource was extracted
+into a shared module); those blocks had to keep pointing at the module's
+*old* internal address (`module.management_locks.azurerm_management_lock.this`)
+so Terraform chains the two moves together — pointing them straight at the
+final renamed address (`...azurerm_management_lock.lock`) instead produced
+an "Ambiguous move statements" error, caught by re-running
+`terraform test` after the rename (3 patterns failed until this was fixed:
+`cloudflare-connectors`, `platform-connectivity`, `platform-management`).
+
+**Verification:** `terraform validate` passes on all 68 touched directories;
+`terraform test` passes on all 67 of them that have a test suite (the 68th,
+`subscription-vending`, has none — it's the explicitly-not-deployed
+reference pattern).
+
+**2. File organization ("a single parameter file where useful") — already
+compliant, no changes needed.** Every one of the 18 patterns and 106 modules
+already has exactly one `variables.tf` and one `outputs.tf`, with no
+variable/output declarations scattered across other files. Nothing to
+consolidate here.
+
+**3. Every one of the 18 patterns now has a README `## Overview` section**
+stating what it deploys and why, plus — where the pattern carries a
+`terraform_data` contract, a merge-into-`var.*` pattern, or another piece of
+configuration that isn't self-explanatory from the code alone — a short
+explanation of *why* it's shaped that way (e.g. `global-governance`'s
+initiative-packaging merge pattern, `platform-connectivity`'s two routing/DNS
+contracts, `platform-identity`/`workload-spoke`'s field-by-field `network_acls`
+construction). Patterns whose README already had an equivalent table (e.g.
+`palo-alto-hub`'s "What it composes", `platform-authorization`'s "What is
+Terraform-managed here") kept that table and just gained the `## Overview`
+heading and a one-line orientation above it, rather than a duplicate section.
+
 ---
 
 ## 1. `global-governance` — workspace `platform-governance`

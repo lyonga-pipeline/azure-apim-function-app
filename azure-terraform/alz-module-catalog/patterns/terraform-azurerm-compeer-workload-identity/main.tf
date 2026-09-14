@@ -38,7 +38,7 @@ module "service_principal" {
   notes       = try(each.value.notes, null)
 }
 
-resource "azuread_application_federated_identity_credential" "this" {
+resource "azuread_application_federated_identity_credential" "federated_credential" {
   for_each = local.federated_credentials
 
   application_id = module.application[each.value.identity_key].id
@@ -49,7 +49,7 @@ resource "azuread_application_federated_identity_credential" "this" {
   subject        = each.value.subject
 }
 
-resource "azurerm_role_assignment" "this" {
+resource "azurerm_role_assignment" "assignment" {
   for_each = local.azure_role_assignments
 
   scope                = each.value.scope

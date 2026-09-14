@@ -52,7 +52,7 @@ locals {
       for key, value in module.network_interfaces : "nic:${key}" => value.id
     },
     {
-      for key, value in azurerm_linux_virtual_machine.this : "vm:${key}" => value.id
+      for key, value in azurerm_linux_virtual_machine.vm : "vm:${key}" => value.id
     },
     var.additional_scopes
   )
@@ -110,7 +110,7 @@ module "network_interfaces" {
   tags = module.tags.tags
 }
 
-resource "azurerm_linux_virtual_machine" "this" {
+resource "azurerm_linux_virtual_machine" "vm" {
   for_each = var.connectors
 
   name                            = each.value.name
@@ -188,11 +188,11 @@ resource "azurerm_linux_virtual_machine" "this" {
   depends_on = [terraform_data.connector_contract]
 }
 
-resource "azurerm_virtual_machine_extension" "this" {
+resource "azurerm_virtual_machine_extension" "extension" {
   for_each = local.extensions
 
   name                       = coalesce(try(each.value.name, null), each.value.extension_key)
-  virtual_machine_id         = azurerm_linux_virtual_machine.this[each.value.connector_key].id
+  virtual_machine_id         = azurerm_linux_virtual_machine.vm[each.value.connector_key].id
   publisher                  = each.value.publisher
   type                       = each.value.type
   type_handler_version       = each.value.type_handler_version
@@ -210,8 +210,8 @@ module "vm_diagnostics" {
     if coalesce(try(connector.diagnostics.enabled, null), false)
   }
 
-  name                           = coalesce(try(each.value.name, null), "${azurerm_linux_virtual_machine.this[each.key].name}-diag")
-  target_resource_id             = azurerm_linux_virtual_machine.this[each.key].id
+  name                           = coalesce(try(each.value.name, null), "${azurerm_linux_virtual_machine.vm[each.key].name}-diag")
+  target_resource_id             = azurerm_linux_virtual_machine.vm[each.key].id
   log_analytics_workspace_id     = try(each.value.log_analytics_workspace_id, null)
   log_analytics_destination_type = try(each.value.log_analytics_destination_type, null)
   storage_account_id             = try(each.value.storage_account_id, null)

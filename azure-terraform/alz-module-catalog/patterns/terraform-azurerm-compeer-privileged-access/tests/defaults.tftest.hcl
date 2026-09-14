@@ -3,7 +3,7 @@ mock_provider "azurerm" {}
 run "empty_is_noop" {
   command = plan
   assert {
-    condition     = length(azurerm_pim_eligible_role_assignment.this) == 0
+    condition     = length(azurerm_pim_eligible_role_assignment.eligible_assignment) == 0
     error_message = "no eligible assignments by default"
   }
   assert {
@@ -28,7 +28,7 @@ run "eligible_assignments" {
     }
   }
   assert {
-    condition     = length(azurerm_pim_eligible_role_assignment.this) == 1
+    condition     = length(azurerm_pim_eligible_role_assignment.eligible_assignment) == 1
     error_message = "expected one eligible assignment"
   }
 }

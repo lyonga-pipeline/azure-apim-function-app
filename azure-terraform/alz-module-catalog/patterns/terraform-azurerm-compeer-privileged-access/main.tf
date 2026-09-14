@@ -4,7 +4,7 @@ locals {
   ])
 }
 
-resource "azurerm_pim_eligible_role_assignment" "this" {
+resource "azurerm_pim_eligible_role_assignment" "eligible_assignment" {
   for_each = var.pim_eligible_role_assignments
 
   scope              = each.value.scope

@@ -1,5 +1,24 @@
 # Workload Spoke Root
 
+## Overview
+
+**What this deploys:** the template every application workload's network
+boundary is instantiated from — resource group, spoke VNet, subnets,
+optional NSG/route-table associations, optional hub peering, optional
+Private DNS links, and an optional per-workload Key Vault.
+
+**`workload_key_vault`'s `network_acls` — why it's built field-by-field
+instead of one `coalesce()`:** the same pattern as `platform-identity`'s Key
+Vault (see that README) — building the final object with
+`try(var.workload_key_vault.network_acls.<field>, <default>)` per field
+avoids a `coalesce()` crash ("all arguments must have the same type") when
+`network_acls` is left unset, which is the common case for a workload that
+just wants Key Vault defaults. `tests/defaults.tftest.hcl`'s middle run is
+the direct regression test — this pattern is also wrapped by
+`shared-services`, which inherits the same fix.
+
+---
+
 This root creates an application landing-zone network boundary.
 
 It deploys the workload resource group, spoke VNet, subnets, optional NSG/route-table associations, optional spoke-to-hub peering, and optional Private DNS links. Application resources should be deployed from the app-owned consumer repo using the explicit outputs from this root and the shared platform workspaces.

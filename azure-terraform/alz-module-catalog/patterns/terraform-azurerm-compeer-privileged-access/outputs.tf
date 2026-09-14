@@ -1,6 +1,6 @@
 output "pim_eligible_role_assignment_ids" {
   description = "PIM eligible role assignment resource IDs keyed by pim_eligible_role_assignments key."
-  value       = { for key, assignment in azurerm_pim_eligible_role_assignment.this : key => assignment.id }
+  value       = { for key, assignment in azurerm_pim_eligible_role_assignment.eligible_assignment : key => assignment.id }
 }
 
 output "break_glass_alert_id" {

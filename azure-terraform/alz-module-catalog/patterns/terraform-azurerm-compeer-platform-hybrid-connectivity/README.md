@@ -1,5 +1,31 @@
 # Platform Hybrid Connectivity Root
 
+## Overview
+
+**What this deploys:** ExpressRoute (and VPN) circuits, gateways, and
+connections — kept in its own workspace, separate from `platform-connectivity`,
+because activating a circuit involves a carrier, BGP routing, and a cutover
+window with a different approval chain than the hub VNet itself.
+
+| Resource | Purpose |
+|---|---|
+| `azurerm_express_route_circuit` (module) | The circuit itself |
+| `azurerm_virtual_network_gateway` (module) | ExpressRoute/VPN gateway in the hub's `GatewaySubnet` |
+| `azurerm_virtual_network_gateway_connection` (module) | Circuit-to-gateway (or VPN) connection |
+| `terraform_data.expressroute_contract`, `.vpn_contract` | See below |
+
+**The two `terraform_data` contracts — why "enabled" isn't just a boolean:**
+both `expressroute_posture` and `vpn_posture` require **both** the actual
+resources (circuit, gateway, connection) **and** the sign-offs (provider
+design reference, BGP/routing approval, cutover-window approval) before
+Terraform will apply anything. This exists so a half-promoted hybrid
+connection — resources declared but approvals missing, or approvals claimed
+but resources never declared — fails the plan loudly instead of quietly
+going live without the required sign-off. See `tests/contracts.tftest.hcl`
+for the exact pass/fail scenarios both contracts cover.
+
+---
+
 This optional root is the placeholder for Compeer's on-premises connectivity path. Use it for ExpressRoute circuits, the ExpressRoute virtual network gateway, and circuit-to-gateway connections after the carrier/provider design is approved.
 
 Keep this root in a separate HCP workspace from `platform-connectivity`. The hub VNet and subnets are a platform network baseline, while ExpressRoute circuit activation, provider coordination, BGP routing, and cutover windows have a separate lifecycle and approval chain.

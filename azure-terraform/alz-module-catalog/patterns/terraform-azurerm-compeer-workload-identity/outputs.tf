@@ -15,12 +15,12 @@ output "service_principal_object_ids" {
 
 output "federated_credential_ids" {
   description = "Federated identity credential resource IDs keyed `<identity_key>::<credential_key>`."
-  value       = { for key, fic in azuread_application_federated_identity_credential.this : key => fic.id }
+  value       = { for key, fic in azuread_application_federated_identity_credential.federated_credential : key => fic.id }
 }
 
 output "role_assignment_ids" {
   description = "SP role assignment resource IDs keyed `<identity_key>::<assignment_key>`."
-  value       = { for key, ra in azurerm_role_assignment.this : key => ra.id }
+  value       = { for key, ra in azurerm_role_assignment.assignment : key => ra.id }
 }
 
 output "operational_contracts" {

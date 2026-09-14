@@ -121,7 +121,7 @@ output "private_dns_zone_resource_group_names" {
 }
 
 output "network_watcher_ids" {
-  value = { for key, value in azurerm_network_watcher.this : key => value.id }
+  value = { for key, value in azurerm_network_watcher.watcher : key => value.id }
 }
 
 output "local_network_gateway_ids" {

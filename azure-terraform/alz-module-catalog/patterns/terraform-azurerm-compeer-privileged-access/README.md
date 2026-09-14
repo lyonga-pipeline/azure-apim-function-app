@@ -5,13 +5,25 @@ Management). Everything here follows "no standing privilege" — Terraform creat
 **eligible** PIM assignments, never active ones, and the break-glass sign-in
 alert.
 
+## Overview
+
+**What this deploys:** eligible (never active) PIM role assignments plus
+their activation policy and the break-glass sign-in alert — the "no standing
+privilege" slice of privileged access, consuming the `AZ-*-Admins` groups
+from `platform-authorization`.
+
 ## What is Terraform-managed here
 
 | Object | Resource |
 |---|---|
-| PIM eligible role assignments (group → role → scope, activation via PIM) | `azurerm_pim_eligible_role_assignment` |
+| PIM eligible role assignments (group → role → scope, activation via PIM) | `azurerm_pim_eligible_role_assignment.eligible_assignment` |
 | PIM activation policy (approval, MFA-on-activation, max duration, notifications) | `terraform-azurerm-compeer-role-management-policy` |
 | Break-glass account sign-in alert | `azurerm_monitor_scheduled_query_rules_alert_v2` |
+
+**`moved.tf`:** `azurerm_pim_eligible_role_assignment.eligible_assignment` was
+renamed from the generic Terraform default `"this"` for readability.
+`moved.tf` records the old→new address so an already-applied workspace's
+next `terraform apply` is a plain state move, not a destroy/recreate.
 
 Principals are the `AZ-*-Admins` groups from `platform-authorization`, not
 individuals. `principal_id` therefore comes from that pattern's

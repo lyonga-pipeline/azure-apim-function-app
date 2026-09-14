@@ -1,5 +1,38 @@
 # Platform Management Root
 
+## Overview
+
+**What this deploys:** the shared observability + subscription-hygiene
+foundation every other platform/workload pattern reads from (Log Analytics
+workspace ID, action group ID).
+
+| Area | Resource | Purpose |
+|---|---|---|
+| Provider registrations | `azurerm_resource_provider_registration.registration` | Registers Azure resource providers (left unmanaged in the smoke-test tfvars — see below) |
+| Budgets | `azurerm_consumption_budget_subscription.subscription_budget` | Subscription-scope cost budgets |
+| Defender/SOC posture | `azurerm_security_center_contact.contact`, `.setting`, `.pricing` | Security contact + Defender plan pricing tiers — all left disabled/no-cost by default (see `defender_soc_posture` below) |
+| Observability | `module.log_analytics_workspace`, `module.action_group`, `module.data_collection_*` | The Log Analytics workspace, action group, and optional Data Collection Endpoints/Rules other patterns consume |
+| Platform hooks | `platform_storage_accounts`, `platform_key_vaults`, `recovery_services_vaults` | Deployable but empty-by-default hooks for platform services (see table below) |
+
+**`defender_soc_posture` — why a `terraform_data` contract instead of a plain
+boolean flag:** the goal is a **no-cost posture marker** that Terraform
+actively refuses to let drift silently — if `terraform.tfvars` ever claims
+"Defender Standard is enabled" or "security contact is configured" without
+actually setting the corresponding `defender_plans` / `security_contact`
+inputs, the apply fails loudly at the `terraform_data.defender_soc_posture_contract`
+precondition instead of silently deploying nothing while the tfvars claims
+otherwise. See `tests/defender_soc_posture.tftest.hcl` for the exact
+scenarios this catches.
+
+**`moved.tf`:** resource labels here were renamed from the generic
+Terraform default `"this"` to purpose-specific names (`.registration`,
+`.subscription_budget`, `.contact`, `.setting`, `.pricing`) for readability.
+`moved.tf` records the old→new address for every renamed resource so an
+already-applied workspace's next `terraform apply` is a plain state move,
+not a destroy/recreate. Safe to ignore when reading the pattern's logic.
+
+---
+
 This root creates the shared observability foundation for a landing-zone environment.
 
 It produces the Log Analytics workspace ID and action group ID consumed by platform and workload roots.

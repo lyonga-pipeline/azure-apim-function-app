@@ -15,6 +15,12 @@ in [`global-governance`](../terraform-azurerm-compeer-global-governance). The ol
 pattern (which *does* create subscriptions) is retained for reference but is
 **not deployed**.
 
+## Overview
+
+**What this deploys:** the bridge between a CSP-handed-over subscription (in
+the Tenant Root Group) and the management-group tree `global-governance`
+already created — MG placement + subscription-scope RBAC, nothing else.
+
 ## Composition
 
 | Concern | Owned here | Owned elsewhere |

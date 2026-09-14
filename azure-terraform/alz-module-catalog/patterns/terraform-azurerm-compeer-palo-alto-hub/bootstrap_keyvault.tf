@@ -14,7 +14,7 @@ locals {
   bkv_mode             = try(local.bkv.network.mode, "private") # private | selected
   bkv_public           = local.bkv_mode == "selected"
   bkv_pe_enabled       = local.bkv_enabled && try(local.bkv.private_endpoint, null) != null
-  bkv_fw_principal_ids = { for k, vm in azurerm_linux_virtual_machine.this : k => try(vm.identity[0].principal_id, null) }
+  bkv_fw_principal_ids = { for k, vm in azurerm_linux_virtual_machine.vm : k => try(vm.identity[0].principal_id, null) }
 }
 
 module "bootstrap_key_vault" {

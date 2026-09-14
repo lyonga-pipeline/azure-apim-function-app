@@ -6,15 +6,15 @@ locals {
   }
 
   policy_definition_ids = {
-    for key, value in azurerm_policy_definition.this : key => value.id
+    for key, value in azurerm_policy_definition.definition : key => value.id
   }
 
   policy_set_definition_ids = {
-    for key, value in azurerm_policy_set_definition.this : key => value.id
+    for key, value in azurerm_policy_set_definition.initiative : key => value.id
   }
 }
 
-resource "azurerm_policy_definition" "this" {
+resource "azurerm_policy_definition" "definition" {
   for_each = merge(var.custom_policy_definitions, local.poc_definitions)
 
   name                = each.key
@@ -28,7 +28,7 @@ resource "azurerm_policy_definition" "this" {
   policy_rule         = jsonencode(each.value.policy_rule)
 }
 
-resource "azurerm_policy_set_definition" "this" {
+resource "azurerm_policy_set_definition" "initiative" {
   for_each = merge(var.custom_policy_set_definitions, local.poc_set_definitions)
 
   name                = each.key
@@ -53,7 +53,7 @@ resource "azurerm_policy_set_definition" "this" {
   }
 }
 
-resource "azurerm_management_group_policy_assignment" "this" {
+resource "azurerm_management_group_policy_assignment" "mg_assignment" {
   for_each = merge(var.management_group_policy_assignments, local.poc_assignments)
 
   name                = try(each.value.name, each.key)
@@ -89,7 +89,7 @@ resource "azurerm_management_group_policy_assignment" "this" {
   }
 }
 
-resource "azurerm_subscription_policy_assignment" "this" {
+resource "azurerm_subscription_policy_assignment" "subscription_assignment" {
   for_each = var.subscription_policy_assignments
 
   name            = try(each.value.name, each.key)
