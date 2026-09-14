@@ -2,12 +2,12 @@
 # "policy by workload criticality tier, not ad hoc per VM"). Protected-item
 # enrolment stays with the pattern that owns the VM / file share.
 
-resource "azurerm_backup_policy_vm" "this" {
+resource "azurerm_backup_policy_vm" "vm_policy" {
   for_each = var.backup_policy_vm
 
   name                           = each.value.name
   resource_group_name            = var.resource_group_name
-  recovery_vault_name            = azurerm_recovery_services_vault.this.name
+  recovery_vault_name            = azurerm_recovery_services_vault.vault.name
   policy_type                    = try(each.value.policy_type, "V2")
   timezone                       = try(each.value.timezone, "UTC")
   instant_restore_retention_days = try(each.value.instant_restore_retention_days, null)
@@ -59,12 +59,12 @@ resource "azurerm_backup_policy_vm" "this" {
   }
 }
 
-resource "azurerm_backup_policy_file_share" "this" {
+resource "azurerm_backup_policy_file_share" "file_share_policy" {
   for_each = var.backup_policy_file_share
 
   name                = each.value.name
   resource_group_name = var.resource_group_name
-  recovery_vault_name = azurerm_recovery_services_vault.this.name
+  recovery_vault_name = azurerm_recovery_services_vault.vault.name
   timezone            = try(each.value.timezone, "UTC")
 
   backup {

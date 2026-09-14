@@ -12,7 +12,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_private_dns_zone_virtual_network_link.this["hub-kv"].registration_enabled == false
+    condition     = azurerm_private_dns_zone_virtual_network_link.vnet_link["hub-kv"].registration_enabled == false
     error_message = "registration_enabled should default false"
   }
 }

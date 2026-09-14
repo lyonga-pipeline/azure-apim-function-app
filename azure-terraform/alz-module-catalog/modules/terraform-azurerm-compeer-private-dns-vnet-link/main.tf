@@ -1,4 +1,4 @@
-resource "azurerm_private_dns_zone_virtual_network_link" "this" {
+resource "azurerm_private_dns_zone_virtual_network_link" "vnet_link" {
   for_each = var.links
 
   name                  = each.value.name

@@ -1,4 +1,4 @@
-resource "azurerm_key_vault_key" "this" {
+resource "azurerm_key_vault_key" "key" {
   for_each        = var.keys
   name            = each.key
   key_vault_id    = var.key_vault_id

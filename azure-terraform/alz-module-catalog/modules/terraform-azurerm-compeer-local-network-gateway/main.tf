@@ -1,4 +1,4 @@
-resource "azurerm_local_network_gateway" "this" {
+resource "azurerm_local_network_gateway" "gateway" {
   for_each = var.local_network_gateways
 
   name                = each.value.name

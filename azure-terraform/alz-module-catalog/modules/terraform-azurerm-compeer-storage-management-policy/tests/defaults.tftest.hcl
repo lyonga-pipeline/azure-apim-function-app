@@ -21,7 +21,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_storage_management_policy.this.storage_account_id == var.storage_account_id
+    condition     = azurerm_storage_management_policy.policy.storage_account_id == var.storage_account_id
     error_message = "storage_account_id not wired"
   }
 }

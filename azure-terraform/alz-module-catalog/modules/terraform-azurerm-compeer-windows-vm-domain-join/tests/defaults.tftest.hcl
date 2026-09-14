@@ -11,11 +11,11 @@ run "inline_password_path" {
   command = apply
 
   assert {
-    condition     = azurerm_virtual_machine_extension.this.type == "JsonADDomainExtension"
+    condition     = azurerm_virtual_machine_extension.extension.type == "JsonADDomainExtension"
     error_message = "wrong extension type"
   }
   assert {
-    condition     = length(azurerm_virtual_machine_extension.this.protected_settings_from_key_vault) == 0
+    condition     = length(azurerm_virtual_machine_extension.extension.protected_settings_from_key_vault) == 0
     error_message = "no KV protected settings block when inline password is used"
   }
 }
@@ -32,7 +32,7 @@ run "key_vault_protected_settings_path" {
   }
 
   assert {
-    condition     = length(azurerm_virtual_machine_extension.this.protected_settings_from_key_vault) == 1
+    condition     = length(azurerm_virtual_machine_extension.extension.protected_settings_from_key_vault) == 1
     error_message = "KV protected settings block should render"
   }
 }

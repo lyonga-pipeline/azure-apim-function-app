@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_automation_account.this.name == "aa-platform"
+    condition     = azurerm_automation_account.account.name == "aa-platform"
     error_message = "name not wired"
   }
 }

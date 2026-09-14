@@ -1,5 +1,5 @@
 # Automation account creation
-resource "azurerm_automation_account" "this" {
+resource "azurerm_automation_account" "account" {
   name                          = var.automation_account_name
   resource_group_name           = var.resource_group_name
   location                      = var.resource_group_location

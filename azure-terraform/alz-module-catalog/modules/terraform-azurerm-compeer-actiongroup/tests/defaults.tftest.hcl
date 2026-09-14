@@ -22,11 +22,11 @@ run "create_with_receivers" {
   }
 
   assert {
-    condition     = length(azurerm_monitor_action_group.this.email_receiver) == 2
+    condition     = length(azurerm_monitor_action_group.action_group.email_receiver) == 2
     error_message = "expected two email receivers"
   }
   assert {
-    condition     = azurerm_monitor_action_group.this.email_receiver[0].use_common_alert_schema == true
+    condition     = azurerm_monitor_action_group.action_group.email_receiver[0].use_common_alert_schema == true
     error_message = "use_common_alert_schema should default true"
   }
 }
@@ -45,7 +45,7 @@ run "add_receiver_is_additive" {
   }
 
   assert {
-    condition     = length(azurerm_monitor_action_group.this.email_receiver) == 3
+    condition     = length(azurerm_monitor_action_group.action_group.email_receiver) == 3
     error_message = "adding a receiver key adds one receiver"
   }
 }

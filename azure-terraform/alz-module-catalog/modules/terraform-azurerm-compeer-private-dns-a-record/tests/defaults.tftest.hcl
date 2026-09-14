@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_private_dns_a_record.this["api"].ttl == 300
+    condition     = azurerm_private_dns_a_record.record["api"].ttl == 300
     error_message = "ttl should default to 300"
   }
 }

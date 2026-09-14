@@ -23,7 +23,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_monitor_data_collection_rule.this.name == "dcr-platform"
+    condition     = azurerm_monitor_data_collection_rule.rule.name == "dcr-platform"
     error_message = "name not wired"
   }
 }

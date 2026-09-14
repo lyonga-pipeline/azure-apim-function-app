@@ -1,4 +1,4 @@
-resource "azurerm_storage_container_immutability_policy" "this" {
+resource "azurerm_storage_container_immutability_policy" "policy" {
   storage_container_resource_manager_id = var.storage_container_resource_manager_id
   immutability_period_in_days           = var.immutability_period_in_days
   locked                                = var.locked

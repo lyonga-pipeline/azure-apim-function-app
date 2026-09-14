@@ -25,7 +25,7 @@ resource "azurerm_synapse_workspace" "synapse_workspace" {
 # aad_admin / sql_aad_admin are separate resources in azurerm >= 4.0. Managed
 # only when an admin object is supplied so the workspace lifecycle stays
 # independent of directory-admin churn.
-resource "azurerm_synapse_workspace_aad_admin" "this" {
+resource "azurerm_synapse_workspace_aad_admin" "aad_admin" {
   count = var.aad_admin == null ? 0 : 1
 
   synapse_workspace_id = azurerm_synapse_workspace.synapse_workspace.id

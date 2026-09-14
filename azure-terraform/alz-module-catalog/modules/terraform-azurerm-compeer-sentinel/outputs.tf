@@ -1,6 +1,6 @@
 output "onboarding_id" {
   description = "Sentinel onboarding resource ID when enabled."
-  value       = try(azurerm_sentinel_log_analytics_workspace_onboarding.this[0].id, null)
+  value       = try(azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].id, null)
 }
 
 output "enabled" {
@@ -20,10 +20,10 @@ output "data_connector_contract" {
 
 output "scheduled_alert_rule_ids" {
   description = "Scheduled analytics rule IDs keyed by rule name."
-  value       = { for k, v in azurerm_sentinel_alert_rule_scheduled.this : k => v.id }
+  value       = { for k, v in azurerm_sentinel_alert_rule_scheduled.scheduled_rule : k => v.id }
 }
 
 output "id" {
   description = "Resource ID of the Sentinel onboarding (null when disabled). Stable alias for onboarding_id."
-  value       = try(azurerm_sentinel_log_analytics_workspace_onboarding.this[0].id, null)
+  value       = try(azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].id, null)
 }

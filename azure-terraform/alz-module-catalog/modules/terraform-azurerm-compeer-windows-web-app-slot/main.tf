@@ -1,4 +1,4 @@
-resource "azurerm_windows_web_app_slot" "this" {
+resource "azurerm_windows_web_app_slot" "slot" {
   name                          = var.name
   app_service_id                = var.app_service_id
   https_only                    = var.https_only

@@ -13,7 +13,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_virtual_network_gateway.this.type == "ExpressRoute"
+    condition     = azurerm_virtual_network_gateway.gateway.type == "ExpressRoute"
     error_message = "type default"
   }
 }

@@ -19,11 +19,11 @@ run "create" {
   command = apply
 
   assert {
-    condition     = length(azurerm_role_assignment.this) == 2
+    condition     = length(azurerm_role_assignment.assignment) == 2
     error_message = "expected two role assignments"
   }
   assert {
-    condition     = azurerm_role_assignment.this["workload-kv-reader"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv"
+    condition     = azurerm_role_assignment.assignment["workload-kv-reader"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv"
     error_message = "scope wired from the map value"
   }
 }
@@ -52,7 +52,7 @@ run "add_assignment_is_additive" {
   }
 
   assert {
-    condition     = length(azurerm_role_assignment.this) == 3
+    condition     = length(azurerm_role_assignment.assignment) == 3
     error_message = "adding an assignment key adds exactly one assignment"
   }
 }

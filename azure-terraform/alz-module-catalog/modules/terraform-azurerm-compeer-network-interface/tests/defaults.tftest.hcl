@@ -14,7 +14,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_network_interface.this.ip_configuration) == 1
+    condition     = length(azurerm_network_interface.interface.ip_configuration) == 1
     error_message = "expected one ip configuration"
   }
 }

@@ -13,7 +13,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_route_server.this) == 1
+    condition     = length(azurerm_route_server.server) == 1
     error_message = "expected one route server"
   }
 }

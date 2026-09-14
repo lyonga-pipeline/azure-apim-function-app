@@ -10,7 +10,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_monitor_metric_alert.this.criteria) == 1
+    condition     = length(azurerm_monitor_metric_alert.alert.criteria) == 1
     error_message = "expected one criteria block"
   }
 }

@@ -13,7 +13,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_network_watcher_flow_log.this["app-nsg"].enabled == true
+    condition     = azurerm_network_watcher_flow_log.flow_log["app-nsg"].enabled == true
     error_message = "flow log enabled by default"
   }
 }

@@ -3,7 +3,7 @@ mock_provider "azurerm" {}
 run "empty_is_noop" {
   command = plan
   assert {
-    condition     = length(azurerm_role_management_policy.this) == 0
+    condition     = length(azurerm_role_management_policy.policy) == 0
     error_message = "no policies by default"
   }
 }
@@ -28,11 +28,11 @@ run "activation_rules_with_approval" {
     }
   }
   assert {
-    condition     = length(azurerm_role_management_policy.this) == 1
+    condition     = length(azurerm_role_management_policy.policy) == 1
     error_message = "expected one role management policy"
   }
   assert {
-    condition     = azurerm_role_management_policy.this["platform_admins_owner"].activation_rules[0].require_approval == true
+    condition     = azurerm_role_management_policy.policy["platform_admins_owner"].activation_rules[0].require_approval == true
     error_message = "require_approval should be set"
   }
 }
@@ -56,7 +56,7 @@ run "assignment_rules" {
     }
   }
   assert {
-    condition     = azurerm_role_management_policy.this["security_admins"].eligible_assignment_rules[0].expire_after == "P365D"
+    condition     = azurerm_role_management_policy.policy["security_admins"].eligible_assignment_rules[0].expire_after == "P365D"
     error_message = "eligible_assignment_rules should be set"
   }
 }
@@ -87,7 +87,7 @@ run "notification_rules_all_sets" {
     }
   }
   assert {
-    condition     = length(azurerm_role_management_policy.this["network_admins"].notification_rules) == 1
+    condition     = length(azurerm_role_management_policy.policy["network_admins"].notification_rules) == 1
     error_message = "notification_rules block should be present"
   }
 }

@@ -10,15 +10,15 @@ run "defaults" {
   command = apply
 
   assert {
-    condition     = azurerm_key_vault_managed_storage_account.this.storage_account_key == "key1"
+    condition     = azurerm_key_vault_managed_storage_account.managed_storage_account.storage_account_key == "key1"
     error_message = "default managed key should be key1"
   }
   assert {
-    condition     = azurerm_key_vault_managed_storage_account.this.regenerate_key_automatically == true
+    condition     = azurerm_key_vault_managed_storage_account.managed_storage_account.regenerate_key_automatically == true
     error_message = "auto key regeneration should default on"
   }
   assert {
-    condition     = length(azurerm_key_vault_managed_storage_account_sas_token_definition.this) == 0
+    condition     = length(azurerm_key_vault_managed_storage_account_sas_token_definition.sas_token) == 0
     error_message = "no SAS definitions by default"
   }
 }

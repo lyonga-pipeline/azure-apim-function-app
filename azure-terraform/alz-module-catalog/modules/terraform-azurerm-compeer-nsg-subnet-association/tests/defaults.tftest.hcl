@@ -6,7 +6,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_subnet_network_security_group_association.this.subnet_id == var.subnet_id
+    condition     = azurerm_subnet_network_security_group_association.association.subnet_id == var.subnet_id
     error_message = "subnet_id not wired"
   }
 }

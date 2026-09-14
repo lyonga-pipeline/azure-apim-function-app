@@ -1,4 +1,4 @@
-resource "azurerm_express_route_circuit" "this" {
+resource "azurerm_express_route_circuit" "circuit" {
   name                     = var.name
   resource_group_name      = var.resource_group_name
   location                 = var.location

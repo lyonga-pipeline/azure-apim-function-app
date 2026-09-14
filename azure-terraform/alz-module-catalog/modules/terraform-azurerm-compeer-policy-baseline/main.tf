@@ -3,8 +3,8 @@
 # ============================================================================
 
 locals {
-  policy_definition_ids = { for key, value in azurerm_policy_definition.this : key => value.id }
-  policy_set_ids        = { for key, value in azurerm_policy_set_definition.this : key => value.id }
+  policy_definition_ids = { for key, value in azurerm_policy_definition.definition : key => value.id }
+  policy_set_ids        = { for key, value in azurerm_policy_set_definition.initiative : key => value.id }
 
   management_group_exemptions = {
     for key, exemption in var.exemptions : key => exemption
@@ -22,7 +22,7 @@ locals {
   }
 }
 
-resource "azurerm_policy_definition" "this" {
+resource "azurerm_policy_definition" "definition" {
   for_each = var.policy_definitions
 
   name                = coalesce(try(each.value.name, null), each.key)
@@ -36,7 +36,7 @@ resource "azurerm_policy_definition" "this" {
   policy_rule         = jsonencode(each.value.policy_rule)
 }
 
-resource "azurerm_policy_set_definition" "this" {
+resource "azurerm_policy_set_definition" "initiative" {
   for_each = var.policy_set_definitions
 
   name                = coalesce(try(each.value.name, null), each.key)
@@ -61,7 +61,7 @@ resource "azurerm_policy_set_definition" "this" {
   }
 }
 
-resource "azurerm_management_group_policy_assignment" "this" {
+resource "azurerm_management_group_policy_assignment" "mg_assignment" {
   for_each = var.management_group_assignments
 
   name                 = coalesce(try(each.value.name, null), each.key)
@@ -90,7 +90,7 @@ resource "azurerm_management_group_policy_assignment" "this" {
   }
 }
 
-resource "azurerm_subscription_policy_assignment" "this" {
+resource "azurerm_subscription_policy_assignment" "subscription_assignment" {
   for_each = var.subscription_assignments
 
   name                 = coalesce(try(each.value.name, null), each.key)
@@ -119,7 +119,7 @@ resource "azurerm_subscription_policy_assignment" "this" {
   }
 }
 
-resource "azurerm_resource_group_policy_assignment" "this" {
+resource "azurerm_resource_group_policy_assignment" "rg_assignment" {
   for_each = var.resource_group_assignments
 
   name                 = coalesce(try(each.value.name, null), each.key)
@@ -148,7 +148,7 @@ resource "azurerm_resource_group_policy_assignment" "this" {
   }
 }
 
-resource "azurerm_management_group_policy_exemption" "this" {
+resource "azurerm_management_group_policy_exemption" "mg_exemption" {
   for_each = local.management_group_exemptions
 
   name                            = each.key
@@ -162,7 +162,7 @@ resource "azurerm_management_group_policy_exemption" "this" {
   policy_definition_reference_ids = try(each.value.policy_definition_ids, null)
 }
 
-resource "azurerm_subscription_policy_exemption" "this" {
+resource "azurerm_subscription_policy_exemption" "subscription_exemption" {
   for_each = local.subscription_exemptions
 
   name                            = each.key
@@ -176,7 +176,7 @@ resource "azurerm_subscription_policy_exemption" "this" {
   policy_definition_reference_ids = try(each.value.policy_definition_ids, null)
 }
 
-resource "azurerm_resource_group_policy_exemption" "this" {
+resource "azurerm_resource_group_policy_exemption" "rg_exemption" {
   for_each = local.resource_group_exemptions
 
   name                            = each.key

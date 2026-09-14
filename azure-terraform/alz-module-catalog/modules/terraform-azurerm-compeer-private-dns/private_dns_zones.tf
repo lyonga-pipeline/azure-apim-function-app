@@ -3,7 +3,7 @@
 # Ownership boundary: zones and links only. A-records and other record sets are
 # owned by terraform-azurerm-compeer-private-dns-a-record and friends.
 
-resource "azurerm_private_dns_zone" "this" {
+resource "azurerm_private_dns_zone" "zone" {
   for_each = var.zones
 
   name                = each.key
@@ -41,12 +41,12 @@ locals {
   ]...)
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "this" {
+resource "azurerm_private_dns_zone_virtual_network_link" "vnet_link" {
   for_each = local.vnet_links
 
   name                  = each.value.name
   resource_group_name   = each.value.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.this[each.value.zone_key].name
+  private_dns_zone_name = azurerm_private_dns_zone.zone[each.value.zone_key].name
   virtual_network_id    = each.value.virtual_network_id
   registration_enabled  = each.value.registration_enabled
   tags                  = each.value.tags

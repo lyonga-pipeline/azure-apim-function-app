@@ -9,7 +9,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_recovery_services_vault.this.name == "rsv-backup"
+    condition     = azurerm_recovery_services_vault.vault.name == "rsv-backup"
     error_message = "name not wired"
   }
 }

@@ -10,7 +10,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_route_table.this.route) == 1
+    condition     = length(azurerm_route_table.table.route) == 1
     error_message = "expected one route"
   }
 }

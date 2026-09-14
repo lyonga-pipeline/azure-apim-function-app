@@ -1,17 +1,17 @@
 output "ids" {
   description = "Flow log IDs keyed by input key."
-  value       = { for key, flow_log in azurerm_network_watcher_flow_log.this : key => flow_log.id }
+  value       = { for key, flow_log in azurerm_network_watcher_flow_log.flow_log : key => flow_log.id }
 }
 
 output "names" {
   description = "Flow log names keyed by input key."
-  value       = { for key, flow_log in azurerm_network_watcher_flow_log.this : key => flow_log.name }
+  value       = { for key, flow_log in azurerm_network_watcher_flow_log.flow_log : key => flow_log.name }
 }
 
 output "flow_logs" {
   description = "Network Watcher flow log attributes keyed by input key for downstream composition."
   value = {
-    for key, flow_log in azurerm_network_watcher_flow_log.this : key => {
+    for key, flow_log in azurerm_network_watcher_flow_log.flow_log : key => {
       id                        = flow_log.id
       name                      = flow_log.name
       resource_group_name       = flow_log.resource_group_name

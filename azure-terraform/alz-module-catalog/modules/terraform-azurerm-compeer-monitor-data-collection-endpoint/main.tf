@@ -1,4 +1,4 @@
-resource "azurerm_monitor_data_collection_endpoint" "this" {
+resource "azurerm_monitor_data_collection_endpoint" "endpoint" {
   name                          = var.name
   resource_group_name           = var.resource_group_name
   location                      = var.location

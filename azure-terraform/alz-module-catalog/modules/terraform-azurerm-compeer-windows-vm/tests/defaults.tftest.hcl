@@ -18,15 +18,15 @@ run "secure_defaults" {
   command = apply
 
   assert {
-    condition     = azurerm_windows_virtual_machine.this.secure_boot_enabled == true
+    condition     = azurerm_windows_virtual_machine.vm.secure_boot_enabled == true
     error_message = "Secure Boot should default on"
   }
   assert {
-    condition     = azurerm_windows_virtual_machine.this.encryption_at_host_enabled == true
+    condition     = azurerm_windows_virtual_machine.vm.encryption_at_host_enabled == true
     error_message = "encryption at host should default on"
   }
   assert {
-    condition     = azurerm_windows_virtual_machine.this.computer_name == "vm-dc01-test"
+    condition     = azurerm_windows_virtual_machine.vm.computer_name == "vm-dc01-test"
     error_message = "computer_name should be the sanitised name prefix"
   }
 }
@@ -37,7 +37,7 @@ run "rejects_zone_and_availability_set" {
     zone                = "1"
     availability_set_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Compute/availabilitySets/as1"
   }
-  expect_failures = [azurerm_windows_virtual_machine.this]
+  expect_failures = [azurerm_windows_virtual_machine.vm]
 }
 
 run "rejects_weak_password" {

@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_firewall_policy.this.name == "afwp-hub"
+    condition     = azurerm_firewall_policy.policy.name == "afwp-hub"
     error_message = "name not wired"
   }
 }

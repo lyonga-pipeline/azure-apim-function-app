@@ -2,7 +2,7 @@ mock_provider "azurerm" {}
 run "disabled_is_noop" {
   command = plan
   assert {
-    condition     = length(azurerm_consumption_budget_resource_group.this) == 0 && length(azurerm_consumption_budget_subscription.this) == 0 && length(azurerm_consumption_budget_management_group.this) == 0
+    condition     = length(azurerm_consumption_budget_resource_group.resource_group_budget) == 0 && length(azurerm_consumption_budget_subscription.subscription_budget) == 0 && length(azurerm_consumption_budget_management_group.management_group_budget) == 0
     error_message = "no budget when no scope selected"
   }
 }
@@ -21,7 +21,7 @@ run "creates_subscription_budget" {
     }
   }
   assert {
-    condition     = length(azurerm_consumption_budget_subscription.this) == 1
+    condition     = length(azurerm_consumption_budget_subscription.subscription_budget) == 1
     error_message = "subscription budget should be created"
   }
 }

@@ -1,4 +1,4 @@
-resource "azurerm_virtual_network" "this" {
+resource "azurerm_virtual_network" "network" {
   name                           = var.name
   location                       = var.location
   resource_group_name            = var.resource_group_name
@@ -41,11 +41,11 @@ resource "azurerm_virtual_network" "this" {
   }
 }
 
-resource "azurerm_subnet" "this" {
+resource "azurerm_subnet" "subnet" {
   for_each                                      = var.subnets
   name                                          = each.key
   resource_group_name                           = var.resource_group_name
-  virtual_network_name                          = azurerm_virtual_network.this.name
+  virtual_network_name                          = azurerm_virtual_network.network.name
   address_prefixes                              = each.value.address_prefixes
   service_endpoints                             = try(each.value.service_endpoints, [])
   service_endpoint_policy_ids                   = try(each.value.service_endpoint_policy_ids, [])

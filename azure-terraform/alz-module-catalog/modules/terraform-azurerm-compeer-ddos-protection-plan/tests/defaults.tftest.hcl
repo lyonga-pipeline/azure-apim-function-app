@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_network_ddos_protection_plan.this.name == "ddos-platform"
+    condition     = azurerm_network_ddos_protection_plan.plan.name == "ddos-platform"
     error_message = "name not wired"
   }
 }

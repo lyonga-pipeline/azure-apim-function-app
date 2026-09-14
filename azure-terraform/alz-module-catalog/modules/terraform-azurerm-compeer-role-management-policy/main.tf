@@ -1,4 +1,4 @@
-resource "azurerm_role_management_policy" "this" {
+resource "azurerm_role_management_policy" "policy" {
   for_each = var.policies
 
   role_definition_id = each.value.role_definition_id

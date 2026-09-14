@@ -17,7 +17,7 @@ run "create" {
 run "no_aad_admin_by_default" {
   command = plan
   assert {
-    condition     = length(azurerm_synapse_workspace_aad_admin.this) == 0
+    condition     = length(azurerm_synapse_workspace_aad_admin.aad_admin) == 0
     error_message = "aad admin should not be managed when aad_admin is null"
   }
 }

@@ -14,7 +14,7 @@ locals {
   }
 }
 
-resource "azurerm_route_server" "this" {
+resource "azurerm_route_server" "server" {
   for_each = var.route_servers
 
   name                             = each.value.name
@@ -37,11 +37,11 @@ resource "azurerm_route_server" "this" {
   }
 }
 
-resource "azurerm_route_server_bgp_connection" "this" {
+resource "azurerm_route_server_bgp_connection" "bgp_connection" {
   for_each = local.bgp_connections
 
   name            = each.value.name
-  route_server_id = coalesce(try(each.value.ipv4_route_server_id, null), azurerm_route_server.this[each.value.route_server_key].id)
+  route_server_id = coalesce(try(each.value.ipv4_route_server_id, null), azurerm_route_server.server[each.value.route_server_key].id)
   peer_asn        = each.value.peer_asn
   peer_ip         = each.value.peer_ip
 

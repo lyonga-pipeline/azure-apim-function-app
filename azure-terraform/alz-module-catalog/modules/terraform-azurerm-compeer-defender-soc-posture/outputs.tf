@@ -1,6 +1,6 @@
 output "defender_plan_ids" {
   description = "Defender plan IDs keyed by input key."
-  value       = { for key, plan in azurerm_security_center_subscription_pricing.this : key => plan.id }
+  value       = { for key, plan in azurerm_security_center_subscription_pricing.pricing : key => plan.id }
 }
 
 output "posture_contract" {

@@ -13,7 +13,7 @@ locals {
   }
 }
 
-resource "azurerm_security_center_subscription_pricing" "this" {
+resource "azurerm_security_center_subscription_pricing" "pricing" {
   for_each = var.enabled ? var.defender_plans : {}
 
   resource_type = each.value.resource_type
@@ -29,7 +29,7 @@ resource "azurerm_security_center_subscription_pricing" "this" {
   }
 }
 
-resource "azurerm_security_center_contact" "this" {
+resource "azurerm_security_center_contact" "contact" {
   count = var.enabled && var.security_contact != null ? 1 : 0
 
   name                = try(var.security_contact.name, "default")
@@ -39,7 +39,7 @@ resource "azurerm_security_center_contact" "this" {
   alerts_to_admins    = try(var.security_contact.alerts_to_admins, true)
 }
 
-resource "azurerm_security_center_setting" "this" {
+resource "azurerm_security_center_setting" "setting" {
   for_each = var.enabled ? var.security_center_settings : {}
 
   setting_name = each.key

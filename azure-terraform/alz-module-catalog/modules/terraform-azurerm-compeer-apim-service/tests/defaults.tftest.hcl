@@ -9,11 +9,11 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_api_management.this.name == "apim-platform"
+    condition     = azurerm_api_management.service.name == "apim-platform"
     error_message = "name not wired"
   }
   assert {
-    condition     = azurerm_api_management.this.sku_name == "Developer_1"
+    condition     = azurerm_api_management.service.sku_name == "Developer_1"
     error_message = "default sku not applied"
   }
 }
@@ -25,5 +25,5 @@ run "rejects_bad_sku" {
 run "rejects_vnet_without_config" {
   command = plan
   variables { virtual_network_type = "Internal" }
-  expect_failures = [azurerm_api_management.this]
+  expect_failures = [azurerm_api_management.service]
 }

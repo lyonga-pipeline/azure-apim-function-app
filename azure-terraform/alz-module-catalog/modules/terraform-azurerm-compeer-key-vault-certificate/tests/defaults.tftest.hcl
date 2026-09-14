@@ -5,7 +5,7 @@ variables {
 run "empty_is_noop" {
   command = plan
   assert {
-    condition     = length(azurerm_key_vault_certificate.this) == 0
+    condition     = length(azurerm_key_vault_certificate.certificate) == 0
     error_message = "no certificates by default"
   }
 }

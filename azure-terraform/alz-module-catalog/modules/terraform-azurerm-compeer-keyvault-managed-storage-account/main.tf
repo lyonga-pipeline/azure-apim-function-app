@@ -1,4 +1,4 @@
-resource "azurerm_key_vault_managed_storage_account" "this" {
+resource "azurerm_key_vault_managed_storage_account" "managed_storage_account" {
   name                         = var.name
   key_vault_id                 = var.key_vault_id
   storage_account_id           = var.storage_account_id
@@ -8,11 +8,11 @@ resource "azurerm_key_vault_managed_storage_account" "this" {
   tags                         = var.tags
 }
 
-resource "azurerm_key_vault_managed_storage_account_sas_token_definition" "this" {
+resource "azurerm_key_vault_managed_storage_account_sas_token_definition" "sas_token" {
   for_each = var.sas_token_definitions
 
   name                       = each.key
-  managed_storage_account_id = azurerm_key_vault_managed_storage_account.this.id
+  managed_storage_account_id = azurerm_key_vault_managed_storage_account.managed_storage_account.id
   sas_template_uri           = each.value.sas_template_uri
   sas_type                   = each.value.sas_type
   validity_period            = each.value.validity_period

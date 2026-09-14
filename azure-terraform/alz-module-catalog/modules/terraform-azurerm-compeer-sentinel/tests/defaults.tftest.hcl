@@ -8,7 +8,7 @@ variables {
 run "onboard" {
   command = apply
   assert {
-    condition     = length(azurerm_sentinel_log_analytics_workspace_onboarding.this) == 1
+    condition     = length(azurerm_sentinel_log_analytics_workspace_onboarding.onboarding) == 1
     error_message = "Sentinel should be onboarded when enabled"
   }
 }
@@ -19,7 +19,7 @@ run "disabled_is_noop" {
     enabled = false
   }
   assert {
-    condition     = length(azurerm_sentinel_log_analytics_workspace_onboarding.this) == 0
+    condition     = length(azurerm_sentinel_log_analytics_workspace_onboarding.onboarding) == 0
     error_message = "nothing onboarded when disabled"
   }
 }

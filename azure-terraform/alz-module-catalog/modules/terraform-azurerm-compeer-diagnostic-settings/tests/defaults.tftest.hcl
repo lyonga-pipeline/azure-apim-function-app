@@ -16,11 +16,11 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_monitor_diagnostic_setting.this.enabled_log) == 2
+    condition     = length(azurerm_monitor_diagnostic_setting.setting.enabled_log) == 2
     error_message = "expected two enabled_log blocks"
   }
   assert {
-    condition     = length(azurerm_monitor_diagnostic_setting.this.enabled_metric) == 1
+    condition     = length(azurerm_monitor_diagnostic_setting.setting.enabled_metric) == 1
     error_message = "expected one enabled_metric block"
   }
 }
@@ -30,7 +30,7 @@ run "rejects_no_destination" {
   variables {
     log_analytics_workspace_id = null
   }
-  expect_failures = [azurerm_monitor_diagnostic_setting.this]
+  expect_failures = [azurerm_monitor_diagnostic_setting.setting]
 }
 
 run "rejects_log_with_both_category_and_group" {

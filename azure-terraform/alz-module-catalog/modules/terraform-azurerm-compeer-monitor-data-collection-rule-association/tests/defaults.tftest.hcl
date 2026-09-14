@@ -9,7 +9,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_monitor_data_collection_rule_association.this.target_resource_id == var.target_resource_id
+    condition     = azurerm_monitor_data_collection_rule_association.association.target_resource_id == var.target_resource_id
     error_message = "target not wired"
   }
 }
@@ -19,5 +19,5 @@ run "rejects_no_dcr_or_dce" {
   variables {
     data_collection_rule_id = null
   }
-  expect_failures = [azurerm_monitor_data_collection_rule_association.this]
+  expect_failures = [azurerm_monitor_data_collection_rule_association.association]
 }

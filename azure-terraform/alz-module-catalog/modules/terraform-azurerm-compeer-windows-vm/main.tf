@@ -8,7 +8,7 @@ locals {
   )
 }
 
-resource "azurerm_windows_virtual_machine" "this" {
+resource "azurerm_windows_virtual_machine" "vm" {
   name                       = var.name
   computer_name              = coalesce(var.computer_name, local.default_computer_name)
   resource_group_name        = var.resource_group_name

@@ -1,19 +1,19 @@
 output "id" {
   description = "Resource ID of the data collection rule."
-  value       = azurerm_monitor_data_collection_rule.this.id
+  value       = azurerm_monitor_data_collection_rule.rule.id
 }
 
 output "name" {
   description = "Name of the data collection rule."
-  value       = azurerm_monitor_data_collection_rule.this.name
+  value       = azurerm_monitor_data_collection_rule.rule.name
 }
 
 output "immutable_id" {
   description = "Immutable ID of the data collection rule."
-  value       = azurerm_monitor_data_collection_rule.this.immutable_id
+  value       = azurerm_monitor_data_collection_rule.rule.immutable_id
 }
 
 output "identity_principal_id" {
   description = "Principal ID of the rule's system-assigned managed identity (null if none), for RBAC grants."
-  value       = try(azurerm_monitor_data_collection_rule.this.identity[0].principal_id, null)
+  value       = try(azurerm_monitor_data_collection_rule.rule.identity[0].principal_id, null)
 }

@@ -52,11 +52,11 @@ run "create" {
   command = apply
 
   assert {
-    condition     = azurerm_application_gateway.this.name == "agw-platform"
+    condition     = azurerm_application_gateway.gateway.name == "agw-platform"
     error_message = "name not wired"
   }
   assert {
-    condition     = azurerm_application_gateway.this.http2_enabled == true
+    condition     = azurerm_application_gateway.gateway.http2_enabled == true
     error_message = "http2_enabled default not applied (azurerm 4.x attribute)"
   }
 }

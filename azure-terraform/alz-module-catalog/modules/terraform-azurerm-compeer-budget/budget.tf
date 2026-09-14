@@ -1,8 +1,8 @@
-resource "azurerm_consumption_budget_resource_group" "this" {
+resource "azurerm_consumption_budget_resource_group" "resource_group_budget" {
   count = local.budget_scope_type == "resource_group" ? 1 : 0
 
   name              = local.budget_name
-  resource_group_id = data.azurerm_resource_group.this[0].id
+  resource_group_id = data.azurerm_resource_group.lookup[0].id
   amount            = local.budget_amount
   time_grain        = var.time_grain
 
@@ -33,7 +33,7 @@ resource "azurerm_consumption_budget_resource_group" "this" {
   }
 }
 
-resource "azurerm_consumption_budget_subscription" "this" {
+resource "azurerm_consumption_budget_subscription" "subscription_budget" {
   count = local.budget_scope_type == "subscription" ? 1 : 0
 
   name            = local.budget_name
@@ -68,7 +68,7 @@ resource "azurerm_consumption_budget_subscription" "this" {
   }
 }
 
-resource "azurerm_consumption_budget_management_group" "this" {
+resource "azurerm_consumption_budget_management_group" "management_group_budget" {
   count = local.budget_scope_type == "management_group" ? 1 : 0
 
   name                = local.budget_name

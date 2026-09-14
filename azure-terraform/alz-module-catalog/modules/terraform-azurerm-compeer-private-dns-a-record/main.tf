@@ -1,4 +1,4 @@
-resource "azurerm_private_dns_a_record" "this" {
+resource "azurerm_private_dns_a_record" "record" {
   for_each = var.records
 
   name                = each.value.name

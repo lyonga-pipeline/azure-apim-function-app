@@ -2,16 +2,16 @@
 # PATTERN MODULE: tunnel, configuration, DNS and access policy resources are composed here intentionally.
 # ============================================================================
 
-resource "cloudflare_zero_trust_tunnel_cloudflared" "this" {
+resource "cloudflare_zero_trust_tunnel_cloudflared" "tunnel" {
   account_id = var.account_id
   name       = var.name
   secret     = var.tunnel_secret
   config_src = var.config_src
 }
 
-resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "tunnel_config" {
   account_id = var.account_id
-  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.tunnel.id
 
   config {
     dynamic "ingress_rule" {
@@ -47,13 +47,13 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
   }
 }
 
-resource "cloudflare_record" "this" {
+resource "cloudflare_record" "record" {
   for_each = var.dns_records
 
   zone_id         = each.value.zone_id
   name            = each.value.name
   type            = try(each.value.type, "CNAME")
-  content         = coalesce(try(each.value.content, null), cloudflare_zero_trust_tunnel_cloudflared.this.cname)
+  content         = coalesce(try(each.value.content, null), cloudflare_zero_trust_tunnel_cloudflared.tunnel.cname)
   ttl             = try(each.value.ttl, 1)
   proxied         = try(each.value.proxied, true)
   comment         = try(each.value.comment, null)
@@ -62,7 +62,7 @@ resource "cloudflare_record" "this" {
   tags            = try(each.value.tags, null)
 }
 
-resource "cloudflare_zero_trust_access_application" "this" {
+resource "cloudflare_zero_trust_access_application" "access_application" {
   for_each = var.access_applications
 
   account_id                   = var.account_id
@@ -91,12 +91,12 @@ resource "cloudflare_zero_trust_access_application" "this" {
   tags                         = try(each.value.tags, null)
 }
 
-resource "cloudflare_zero_trust_access_policy" "this" {
+resource "cloudflare_zero_trust_access_policy" "access_policy" {
   for_each = var.access_policies
 
   account_id                     = var.account_id
   zone_id                        = try(each.value.zone_id, null)
-  application_id                 = coalesce(try(each.value.application_id, null), try(cloudflare_zero_trust_access_application.this[each.value.application_key].id, null))
+  application_id                 = coalesce(try(each.value.application_id, null), try(cloudflare_zero_trust_access_application.access_application[each.value.application_key].id, null))
   name                           = each.value.name
   decision                       = try(each.value.decision, "allow")
   precedence                     = each.value.precedence

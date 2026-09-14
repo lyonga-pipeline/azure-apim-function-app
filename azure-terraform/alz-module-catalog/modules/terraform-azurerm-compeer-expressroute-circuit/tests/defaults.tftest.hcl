@@ -10,7 +10,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_express_route_circuit.this.bandwidth_in_mbps == 200
+    condition     = azurerm_express_route_circuit.circuit.bandwidth_in_mbps == 200
     error_message = "bandwidth not wired"
   }
 }

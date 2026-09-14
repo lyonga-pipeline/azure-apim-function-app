@@ -9,7 +9,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_role_definition.this.permissions) == 1
+    condition     = length(azurerm_role_definition.definition.permissions) == 1
     error_message = "expected one permissions block"
   }
 }

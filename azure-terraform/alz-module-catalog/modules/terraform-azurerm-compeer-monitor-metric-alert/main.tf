@@ -6,7 +6,7 @@ locals {
   ]))
 }
 
-resource "azurerm_monitor_metric_alert" "this" {
+resource "azurerm_monitor_metric_alert" "alert" {
   name                     = var.name
   resource_group_name      = var.resource_group_name
   scopes                   = var.scopes

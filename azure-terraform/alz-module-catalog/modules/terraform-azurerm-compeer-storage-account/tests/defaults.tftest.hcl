@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_storage_account.this.name == "stplatform001"
+    condition     = azurerm_storage_account.account.name == "stplatform001"
     error_message = "name not wired"
   }
 }
@@ -21,7 +21,7 @@ run "public_requires_firewall_allowlist" {
     public_network_access_enabled = true
     network_rules                 = { default_action = "Deny" } # no allow-list
   }
-  expect_failures = [azurerm_storage_account.this]
+  expect_failures = [azurerm_storage_account.account]
 }
 
 run "public_with_service_endpoint_ok" {

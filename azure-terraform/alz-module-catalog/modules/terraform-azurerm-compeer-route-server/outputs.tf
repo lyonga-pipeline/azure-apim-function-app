@@ -1,22 +1,22 @@
 output "ids" {
   description = "Route server IDs keyed by input key."
-  value       = { for key, route_server in azurerm_route_server.this : key => route_server.id }
+  value       = { for key, route_server in azurerm_route_server.server : key => route_server.id }
 }
 
 output "names" {
   description = "Route server names keyed by input key."
-  value       = { for key, route_server in azurerm_route_server.this : key => route_server.name }
+  value       = { for key, route_server in azurerm_route_server.server : key => route_server.name }
 }
 
 output "resource_group_names" {
   description = "Route server resource group names keyed by input key."
-  value       = { for key, route_server in azurerm_route_server.this : key => route_server.resource_group_name }
+  value       = { for key, route_server in azurerm_route_server.server : key => route_server.resource_group_name }
 }
 
 output "route_servers" {
   description = "Route server attributes keyed by input key for downstream composition."
   value = {
-    for key, route_server in azurerm_route_server.this : key => {
+    for key, route_server in azurerm_route_server.server : key => {
       id                               = route_server.id
       name                             = route_server.name
       resource_group_name              = route_server.resource_group_name
@@ -30,13 +30,13 @@ output "route_servers" {
 
 output "bgp_connection_ids" {
   description = "Route server BGP connection IDs keyed by generated key."
-  value       = { for key, connection in azurerm_route_server_bgp_connection.this : key => connection.id }
+  value       = { for key, connection in azurerm_route_server_bgp_connection.bgp_connection : key => connection.id }
 }
 
 output "bgp_connections" {
   description = "Route server BGP connection attributes keyed by generated key."
   value = {
-    for key, connection in azurerm_route_server_bgp_connection.this : key => {
+    for key, connection in azurerm_route_server_bgp_connection.bgp_connection : key => {
       id              = connection.id
       name            = connection.name
       route_server_id = connection.route_server_id

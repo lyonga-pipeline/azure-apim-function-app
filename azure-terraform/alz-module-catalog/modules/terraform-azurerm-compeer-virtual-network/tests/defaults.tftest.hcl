@@ -12,11 +12,11 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_subnet.this) == 2
+    condition     = length(azurerm_subnet.subnet) == 2
     error_message = "expected two subnets"
   }
   assert {
-    condition     = azurerm_subnet.this["app"].name == "app"
+    condition     = azurerm_subnet.subnet["app"].name == "app"
     error_message = "subnet name = map key"
   }
 }
@@ -30,7 +30,7 @@ run "add_subnet_is_additive" {
     }
   }
   assert {
-    condition     = length(azurerm_subnet.this) == 3
+    condition     = length(azurerm_subnet.subnet) == 3
     error_message = "adding a key adds one subnet"
   }
 }

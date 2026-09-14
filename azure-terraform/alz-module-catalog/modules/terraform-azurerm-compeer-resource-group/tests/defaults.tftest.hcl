@@ -8,7 +8,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_resource_group.this.name == "rg-platform-connectivity-prod"
+    condition     = azurerm_resource_group.group.name == "rg-platform-connectivity-prod"
     error_message = "name not wired"
   }
 }

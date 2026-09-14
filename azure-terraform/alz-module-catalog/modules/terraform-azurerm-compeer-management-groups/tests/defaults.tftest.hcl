@@ -91,7 +91,7 @@ run "subscription_association" {
     }
   }
   assert {
-    condition     = length(azurerm_management_group_subscription_association.this) == 1
+    condition     = length(azurerm_management_group_subscription_association.association) == 1
     error_message = "subscription associations should be created from subscription_ids"
   }
 }

@@ -9,7 +9,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_monitor_data_collection_endpoint.this.name == "dce-platform"
+    condition     = azurerm_monitor_data_collection_endpoint.endpoint.name == "dce-platform"
     error_message = "name not wired"
   }
 }

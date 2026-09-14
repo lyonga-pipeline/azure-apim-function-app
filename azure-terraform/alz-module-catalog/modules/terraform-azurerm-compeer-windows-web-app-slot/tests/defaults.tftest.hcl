@@ -9,11 +9,11 @@ run "secure_defaults" {
   command = apply
 
   assert {
-    condition     = azurerm_windows_web_app_slot.this.https_only == true
+    condition     = azurerm_windows_web_app_slot.slot.https_only == true
     error_message = "https_only should default true"
   }
   assert {
-    condition     = azurerm_windows_web_app_slot.this.public_network_access_enabled == false
+    condition     = azurerm_windows_web_app_slot.slot.public_network_access_enabled == false
     error_message = "public network access should default closed"
   }
 }
@@ -30,11 +30,11 @@ run "with_stack_and_identity" {
   }
 
   assert {
-    condition     = one(azurerm_windows_web_app_slot.this.site_config).always_on == true
+    condition     = one(azurerm_windows_web_app_slot.slot.site_config).always_on == true
     error_message = "site_config.always_on not wired"
   }
   assert {
-    condition     = length(azurerm_windows_web_app_slot.this.identity) == 1
+    condition     = length(azurerm_windows_web_app_slot.slot.identity) == 1
     error_message = "identity block should render"
   }
 }

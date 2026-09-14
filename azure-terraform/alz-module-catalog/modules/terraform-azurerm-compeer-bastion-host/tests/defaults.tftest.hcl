@@ -9,14 +9,14 @@ variables {
 run "standard_defaults" {
   command = apply
   assert {
-    condition     = azurerm_bastion_host.this.sku == "Standard" && azurerm_bastion_host.this.tunneling_enabled == true
+    condition     = azurerm_bastion_host.host.sku == "Standard" && azurerm_bastion_host.host.tunneling_enabled == true
     error_message = "Standard SKU with tunneling by default"
   }
 }
 run "rejects_basic_with_tunneling" {
   command = plan
   variables { sku = "Basic" }
-  expect_failures = [azurerm_bastion_host.this]
+  expect_failures = [azurerm_bastion_host.host]
 }
 run "rejects_bad_sku" {
   command = plan

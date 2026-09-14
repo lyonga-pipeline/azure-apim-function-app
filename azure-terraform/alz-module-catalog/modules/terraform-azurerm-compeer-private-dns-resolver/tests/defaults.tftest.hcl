@@ -8,7 +8,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_private_dns_resolver.this.name == "dnspr-hub"
+    condition     = azurerm_private_dns_resolver.resolver.name == "dnspr-hub"
     error_message = "name not wired"
   }
 }

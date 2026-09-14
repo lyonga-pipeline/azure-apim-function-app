@@ -13,7 +13,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_lb.this.sku == "Standard"
+    condition     = azurerm_lb.load_balancer.sku == "Standard"
     error_message = "sku default Standard"
   }
 }

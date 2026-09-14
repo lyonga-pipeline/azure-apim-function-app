@@ -1,4 +1,4 @@
-resource "azurerm_network_watcher_flow_log" "this" {
+resource "azurerm_network_watcher_flow_log" "flow_log" {
   for_each = var.flow_logs
 
   name                      = each.value.name

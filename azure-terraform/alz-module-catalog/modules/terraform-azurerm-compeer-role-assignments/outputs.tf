@@ -1,17 +1,17 @@
 output "ids" {
   description = "Map of caller-supplied key to role assignment resource ID."
-  value       = { for key, value in azurerm_role_assignment.this : key => value.id }
+  value       = { for key, value in azurerm_role_assignment.assignment : key => value.id }
 }
 
 output "names" {
   description = "Map of caller-supplied key to role assignment name (GUID)."
-  value       = { for key, value in azurerm_role_assignment.this : key => value.name }
+  value       = { for key, value in azurerm_role_assignment.assignment : key => value.name }
 }
 
 output "assignments" {
   description = "Map of caller-supplied key to assignment attributes (id, principal_id, role_definition_name, scope)."
   value = {
-    for key, value in azurerm_role_assignment.this : key => {
+    for key, value in azurerm_role_assignment.assignment : key => {
       id                   = value.id
       name                 = value.name
       scope                = value.scope

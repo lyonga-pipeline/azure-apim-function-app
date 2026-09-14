@@ -9,7 +9,7 @@ variables {
 run "expressroute_connection" {
   command = apply
   assert {
-    condition     = azurerm_virtual_network_gateway_connection.this.type == "ExpressRoute"
+    condition     = azurerm_virtual_network_gateway_connection.connection.type == "ExpressRoute"
     error_message = "type default ExpressRoute"
   }
 }
@@ -19,5 +19,5 @@ run "ipsec_requires_lng_and_key" {
     type                     = "IPsec"
     express_route_circuit_id = null
   }
-  expect_failures = [azurerm_virtual_network_gateway_connection.this]
+  expect_failures = [azurerm_virtual_network_gateway_connection.connection]
 }

@@ -12,7 +12,7 @@ locals {
   effective_protocols = merge({ http2_enabled = true }, var.protocols == null ? {} : { for k, v in var.protocols : k => v if v != null })
 }
 
-resource "azurerm_api_management" "this" {
+resource "azurerm_api_management" "service" {
   name                          = var.name
   location                      = var.location
   resource_group_name           = var.resource_group_name

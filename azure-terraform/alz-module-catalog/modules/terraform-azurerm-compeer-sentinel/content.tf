@@ -10,28 +10,28 @@
 # =============================================================================
 
 # Threat-intelligence / CEF-style connectors that Terraform can own directly.
-resource "azurerm_sentinel_data_connector_threat_intelligence" "this" {
+resource "azurerm_sentinel_data_connector_threat_intelligence" "threat_intel_connector" {
   count                      = var.enabled && try(var.data_connectors.threat_intelligence, false) ? 1 : 0
   name                       = "ti"
-  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].workspace_id
 }
 
-resource "azurerm_sentinel_data_connector_microsoft_defender_advanced_threat_protection" "this" {
+resource "azurerm_sentinel_data_connector_microsoft_defender_advanced_threat_protection" "mdatp_connector" {
   count                      = var.enabled && try(var.data_connectors.defender_atp, false) ? 1 : 0
   name                       = "mdatp"
-  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].workspace_id
 }
 
-resource "azurerm_sentinel_data_connector_azure_active_directory" "this" {
+resource "azurerm_sentinel_data_connector_azure_active_directory" "aad_connector" {
   count                      = var.enabled && try(var.data_connectors.entra_id, false) ? 1 : 0
   name                       = "aad"
-  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].workspace_id
 }
 
-resource "azurerm_sentinel_data_connector_azure_security_center" "this" {
+resource "azurerm_sentinel_data_connector_azure_security_center" "defender_connector" {
   count                      = var.enabled && try(var.data_connectors.defender_for_cloud, false) ? 1 : 0
   name                       = "mdc"
-  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].workspace_id
 }
 
 # Baseline scheduled analytics rules, incl. the mandatory Palo-Alto /
@@ -75,11 +75,11 @@ locals {
   )
 }
 
-resource "azurerm_sentinel_alert_rule_scheduled" "this" {
+resource "azurerm_sentinel_alert_rule_scheduled" "scheduled_rule" {
   for_each = { for k, v in local.scheduled_rules : k => v if var.enabled }
 
   name                       = each.key
-  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].workspace_id
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.onboarding[0].workspace_id
   display_name               = each.value.display_name
   severity                   = each.value.severity
   query                      = each.value.query

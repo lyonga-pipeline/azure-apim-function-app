@@ -10,7 +10,7 @@ variables {
 run "creates_with_key_vault_key" {
   command = plan
   assert {
-    condition     = azurerm_disk_encryption_set.this.encryption_type == "EncryptionAtRestWithCustomerKey"
+    condition     = azurerm_disk_encryption_set.set.encryption_type == "EncryptionAtRestWithCustomerKey"
     error_message = "default encryption_type should be EncryptionAtRestWithCustomerKey"
   }
 }
@@ -20,7 +20,7 @@ run "rejects_no_key_source" {
   variables {
     key_vault_key_id = null
   }
-  expect_failures = [azurerm_disk_encryption_set.this]
+  expect_failures = [azurerm_disk_encryption_set.set]
 }
 
 run "rejects_both_key_sources" {
@@ -28,7 +28,7 @@ run "rejects_both_key_sources" {
   variables {
     managed_hsm_key_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/managedHSMs/hsm1/keys/key1"
   }
-  expect_failures = [azurerm_disk_encryption_set.this]
+  expect_failures = [azurerm_disk_encryption_set.set]
 }
 
 run "rejects_user_assigned_without_identity_ids" {
@@ -36,7 +36,7 @@ run "rejects_user_assigned_without_identity_ids" {
   variables {
     identity_type = "UserAssigned"
   }
-  expect_failures = [azurerm_disk_encryption_set.this]
+  expect_failures = [azurerm_disk_encryption_set.set]
 }
 
 run "user_assigned_identity" {
@@ -46,7 +46,7 @@ run "user_assigned_identity" {
     identity_ids  = ["/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-des"]
   }
   assert {
-    condition     = azurerm_disk_encryption_set.this.identity[0].type == "UserAssigned"
+    condition     = azurerm_disk_encryption_set.set.identity[0].type == "UserAssigned"
     error_message = "identity type should be UserAssigned"
   }
 }

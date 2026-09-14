@@ -1,4 +1,4 @@
-resource "azurerm_application_gateway" "this" {
+resource "azurerm_application_gateway" "gateway" {
   name                              = var.name
   location                          = var.location
   resource_group_name               = var.resource_group_name

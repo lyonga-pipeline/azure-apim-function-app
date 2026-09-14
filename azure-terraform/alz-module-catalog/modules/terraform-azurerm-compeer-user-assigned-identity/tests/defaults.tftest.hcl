@@ -7,7 +7,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_user_assigned_identity.this.name == "id-platform-workload"
+    condition     = azurerm_user_assigned_identity.identity.name == "id-platform-workload"
     error_message = "name not wired"
   }
 }

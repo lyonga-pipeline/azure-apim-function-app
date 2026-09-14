@@ -1,4 +1,4 @@
-resource "azurerm_network_interface" "this" {
+resource "azurerm_network_interface" "interface" {
   name                           = var.name
   location                       = var.location
   resource_group_name            = var.resource_group_name

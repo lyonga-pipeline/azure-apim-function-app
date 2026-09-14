@@ -2,7 +2,7 @@ locals {
   secret_names = toset(nonsensitive(keys(var.secrets)))
 }
 
-resource "azurerm_key_vault_secret" "this" {
+resource "azurerm_key_vault_secret" "secret" {
   for_each        = local.secret_names
   name            = each.key
   value           = var.secrets[each.key].value

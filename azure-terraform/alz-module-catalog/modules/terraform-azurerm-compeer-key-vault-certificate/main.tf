@@ -1,4 +1,4 @@
-resource "azurerm_key_vault_certificate" "this" {
+resource "azurerm_key_vault_certificate" "certificate" {
   for_each     = var.certificates
   name         = each.key
   key_vault_id = var.key_vault_id

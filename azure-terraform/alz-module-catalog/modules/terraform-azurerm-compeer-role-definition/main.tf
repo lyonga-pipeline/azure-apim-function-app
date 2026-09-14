@@ -1,4 +1,4 @@
-resource "azurerm_role_definition" "this" {
+resource "azurerm_role_definition" "definition" {
   name               = var.name
   scope              = var.scope
   description        = var.description

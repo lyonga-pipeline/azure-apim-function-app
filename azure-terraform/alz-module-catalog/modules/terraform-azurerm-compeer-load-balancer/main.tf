@@ -1,4 +1,4 @@
-resource "azurerm_lb" "this" {
+resource "azurerm_lb" "load_balancer" {
   name                = var.name
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -30,10 +30,10 @@ resource "azurerm_lb" "this" {
   }
 }
 
-resource "azurerm_lb_backend_address_pool" "this" {
+resource "azurerm_lb_backend_address_pool" "backend_pool" {
   for_each           = var.backend_address_pools
   name               = each.key
-  loadbalancer_id    = azurerm_lb.this.id
+  loadbalancer_id    = azurerm_lb.load_balancer.id
   virtual_network_id = try(each.value.virtual_network_id, null)
   synchronous_mode   = try(each.value.synchronous_mode, null)
 
@@ -55,11 +55,11 @@ resource "azurerm_lb_backend_address_pool" "this" {
   }
 }
 
-resource "azurerm_lb_backend_address_pool_address" "this" {
+resource "azurerm_lb_backend_address_pool_address" "backend_pool_address" {
   for_each = var.backend_addresses
 
   name                                = each.key
-  backend_address_pool_id             = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.this[each.value.backend_address_pool_name].id
+  backend_address_pool_id             = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.backend_pool[each.value.backend_address_pool_name].id
   virtual_network_id                  = try(each.value.virtual_network_id, null)
   ip_address                          = try(each.value.ip_address, null)
   backend_address_ip_configuration_id = try(each.value.backend_address_ip_configuration_id, null)
@@ -72,10 +72,10 @@ resource "azurerm_lb_backend_address_pool_address" "this" {
   }
 }
 
-resource "azurerm_lb_probe" "this" {
+resource "azurerm_lb_probe" "probe" {
   for_each            = var.probes
   name                = each.key
-  loadbalancer_id     = azurerm_lb.this.id
+  loadbalancer_id     = azurerm_lb.load_balancer.id
   protocol            = each.value.protocol
   port                = each.value.port
   request_path        = try(each.value.request_path, null)
@@ -91,16 +91,16 @@ resource "azurerm_lb_probe" "this" {
   }
 }
 
-resource "azurerm_lb_rule" "this" {
+resource "azurerm_lb_rule" "rule" {
   for_each                       = var.rules
   name                           = each.key
-  loadbalancer_id                = azurerm_lb.this.id
+  loadbalancer_id                = azurerm_lb.load_balancer.id
   protocol                       = each.value.protocol
   frontend_port                  = each.value.frontend_port
   backend_port                   = each.value.backend_port
   frontend_ip_configuration_name = each.value.frontend_ip_configuration_name
-  backend_address_pool_ids       = length(try(each.value.backend_address_pool_ids, [])) > 0 ? each.value.backend_address_pool_ids : [for pool in try(each.value.backend_address_pool_names, []) : azurerm_lb_backend_address_pool.this[pool].id]
-  probe_id                       = try(each.value.probe_id, null) != null ? each.value.probe_id : (try(each.value.probe_name, null) == null ? null : azurerm_lb_probe.this[each.value.probe_name].id)
+  backend_address_pool_ids       = length(try(each.value.backend_address_pool_ids, [])) > 0 ? each.value.backend_address_pool_ids : [for pool in try(each.value.backend_address_pool_names, []) : azurerm_lb_backend_address_pool.backend_pool[pool].id]
+  probe_id                       = try(each.value.probe_id, null) != null ? each.value.probe_id : (try(each.value.probe_name, null) == null ? null : azurerm_lb_probe.probe[each.value.probe_name].id)
   load_distribution              = try(each.value.load_distribution, "Default")
   disable_outbound_snat          = try(each.value.disable_outbound_snat, false)
   idle_timeout_in_minutes        = try(each.value.idle_timeout_in_minutes, 4)
@@ -115,16 +115,16 @@ resource "azurerm_lb_rule" "this" {
   }
 }
 
-resource "azurerm_lb_nat_rule" "this" {
+resource "azurerm_lb_nat_rule" "nat_rule" {
   for_each = var.nat_rules
 
   name                           = each.key
   resource_group_name            = var.resource_group_name
-  loadbalancer_id                = azurerm_lb.this.id
+  loadbalancer_id                = azurerm_lb.load_balancer.id
   protocol                       = each.value.protocol
   frontend_ip_configuration_name = each.value.frontend_ip_configuration_name
   backend_port                   = each.value.backend_port
-  backend_address_pool_id        = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.this[each.value.backend_address_pool_name].id
+  backend_address_pool_id        = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.backend_pool[each.value.backend_address_pool_name].id
   frontend_port                  = try(each.value.frontend_port, null)
   frontend_port_start            = try(each.value.frontend_port_start, null)
   frontend_port_end              = try(each.value.frontend_port_end, null)
@@ -140,13 +140,13 @@ resource "azurerm_lb_nat_rule" "this" {
   }
 }
 
-resource "azurerm_lb_outbound_rule" "this" {
+resource "azurerm_lb_outbound_rule" "outbound_rule" {
   for_each = var.outbound_rules
 
   name                     = each.key
-  loadbalancer_id          = azurerm_lb.this.id
+  loadbalancer_id          = azurerm_lb.load_balancer.id
   protocol                 = each.value.protocol
-  backend_address_pool_id  = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.this[each.value.backend_address_pool_name].id
+  backend_address_pool_id  = try(each.value.backend_address_pool_id, null) != null ? each.value.backend_address_pool_id : azurerm_lb_backend_address_pool.backend_pool[each.value.backend_address_pool_name].id
   allocated_outbound_ports = try(each.value.allocated_outbound_ports, null)
   idle_timeout_in_minutes  = try(each.value.idle_timeout_in_minutes, null)
   tcp_reset_enabled        = try(each.value.tcp_reset_enabled, null)

@@ -13,7 +13,7 @@ locals {
   ])
 }
 
-resource "azurerm_monitor_data_collection_rule" "this" {
+resource "azurerm_monitor_data_collection_rule" "rule" {
   name                        = var.name
   resource_group_name         = var.resource_group_name
   location                    = var.location

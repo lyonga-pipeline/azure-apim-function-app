@@ -8,11 +8,11 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_private_dns_zone.this) == 2
+    condition     = length(azurerm_private_dns_zone.zone) == 2
     error_message = "expected two zones"
   }
   assert {
-    condition     = azurerm_private_dns_zone.this["kv"].name == "privatelink.vaultcore.azure.net"
+    condition     = azurerm_private_dns_zone.zone["kv"].name == "privatelink.vaultcore.azure.net"
     error_message = "zone name from map value"
   }
 }

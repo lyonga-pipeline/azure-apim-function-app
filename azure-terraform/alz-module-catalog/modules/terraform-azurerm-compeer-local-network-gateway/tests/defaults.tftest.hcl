@@ -13,11 +13,11 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = length(azurerm_local_network_gateway.this) == 1
+    condition     = length(azurerm_local_network_gateway.gateway) == 1
     error_message = "expected one local network gateway"
   }
   assert {
-    condition     = azurerm_local_network_gateway.this["hq"].name == "lng-hq"
+    condition     = azurerm_local_network_gateway.gateway["hq"].name == "lng-hq"
     error_message = "name not wired from map value"
   }
 }
@@ -30,7 +30,7 @@ run "add_gateway_is_additive" {
     }
   }
   assert {
-    condition     = length(azurerm_local_network_gateway.this) == 2
+    condition     = length(azurerm_local_network_gateway.gateway) == 2
     error_message = "adding a key adds one gateway"
   }
 }

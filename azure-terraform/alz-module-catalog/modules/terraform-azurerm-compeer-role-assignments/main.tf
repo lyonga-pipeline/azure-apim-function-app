@@ -8,7 +8,7 @@ locals {
   }
 }
 
-resource "azurerm_role_assignment" "this" {
+resource "azurerm_role_assignment" "assignment" {
   for_each = local.assignments
 
   name                                   = try(each.value.name, null)

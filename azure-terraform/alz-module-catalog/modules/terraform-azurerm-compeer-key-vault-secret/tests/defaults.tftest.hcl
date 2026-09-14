@@ -6,7 +6,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_key_vault_secret.this["db-pw"].name == "db-pw"
+    condition     = azurerm_key_vault_secret.secret["db-pw"].name == "db-pw"
     error_message = "secret name should default to the map key"
   }
 }
@@ -14,7 +14,7 @@ run "empty_is_noop" {
   command = plan
   variables { secrets = {} }
   assert {
-    condition     = length(azurerm_key_vault_secret.this) == 0
+    condition     = length(azurerm_key_vault_secret.secret) == 0
     error_message = "no secrets by default"
   }
 }

@@ -6,7 +6,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_key_vault_key.this["cmk"].key_type == "RSA"
+    condition     = azurerm_key_vault_key.key["cmk"].key_type == "RSA"
     error_message = "key_type not wired"
   }
 }

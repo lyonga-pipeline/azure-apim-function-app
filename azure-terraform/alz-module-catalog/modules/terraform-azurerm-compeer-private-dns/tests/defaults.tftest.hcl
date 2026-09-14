@@ -21,19 +21,19 @@ run "create" {
   command = plan
 
   assert {
-    condition     = length(azurerm_private_dns_zone.this) == 2
+    condition     = length(azurerm_private_dns_zone.zone) == 2
     error_message = "Expected two zones"
   }
   assert {
-    condition     = azurerm_private_dns_zone.this["privatelink.blob.core.windows.net"].name == "privatelink.blob.core.windows.net"
+    condition     = azurerm_private_dns_zone.zone["privatelink.blob.core.windows.net"].name == "privatelink.blob.core.windows.net"
     error_message = "Zone name must come from the map key"
   }
   assert {
-    condition     = length(azurerm_private_dns_zone_virtual_network_link.this) == 1
+    condition     = length(azurerm_private_dns_zone_virtual_network_link.vnet_link) == 1
     error_message = "Expected one VNet link"
   }
   assert {
-    condition     = azurerm_private_dns_zone_virtual_network_link.this["privatelink.vaultcore.azure.net/hub"].registration_enabled == false
+    condition     = azurerm_private_dns_zone_virtual_network_link.vnet_link["privatelink.vaultcore.azure.net/hub"].registration_enabled == false
     error_message = "registration_enabled should default to false"
   }
 }
@@ -50,7 +50,7 @@ run "add_zone_is_additive" {
   }
 
   assert {
-    condition     = length(azurerm_private_dns_zone.this) == 3
+    condition     = length(azurerm_private_dns_zone.zone) == 3
     error_message = "Adding a zone key adds exactly one zone"
   }
 }

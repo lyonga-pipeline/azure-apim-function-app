@@ -6,7 +6,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_storage_container_immutability_policy.this.immutability_period_in_days == 30
+    condition     = azurerm_storage_container_immutability_policy.policy.immutability_period_in_days == 30
     error_message = "retention period not wired"
   }
 }

@@ -1,4 +1,4 @@
-resource "azurerm_bastion_host" "this" {
+resource "azurerm_bastion_host" "host" {
   name                      = var.name
   resource_group_name       = var.resource_group_name
   location                  = var.location

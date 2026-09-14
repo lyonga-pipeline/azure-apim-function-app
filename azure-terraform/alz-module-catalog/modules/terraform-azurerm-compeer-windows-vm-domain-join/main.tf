@@ -2,7 +2,7 @@ locals {
   use_key_vault_protected_settings = var.protected_settings_from_key_vault != null
 }
 
-resource "azurerm_virtual_machine_extension" "this" {
+resource "azurerm_virtual_machine_extension" "extension" {
   name                        = var.name
   virtual_machine_id          = var.virtual_machine_id
   publisher                   = "Microsoft.Compute"
