@@ -229,13 +229,22 @@ module "route_server" {
   }
 }
 
+module "private_dns_zones_resource_group" {
+  source = "../../modules/terraform-azurerm-compeer-resource-group"
+  count  = length(local.private_dns_zones_to_create) > 0 ? 1 : 0
+
+  name     = coalesce(try(var.private_dns_zones_resource_group.name, null), "${module.naming.resource_group}-dns")
+  location = var.location
+  tags     = module.tags.tags
+}
+
 module "private_dns_zones" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-zone"
 
   zones = {
     for key, zone in local.private_dns_zones_to_create : key => {
       name                = zone.name
-      resource_group_name = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
+      resource_group_name = coalesce(try(zone.resource_group_name, null), module.private_dns_zones_resource_group[0].name)
       tags                = module.tags.tags
     }
   }
@@ -249,7 +258,7 @@ module "private_dns_hub_links" {
     {
       for key, zone in local.private_dns_zones_to_create : key => {
         name                  = "lnk-${key}-${var.environment}-hub"
-        resource_group_name   = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
+        resource_group_name   = coalesce(try(zone.resource_group_name, null), module.private_dns_zones_resource_group[0].name)
         private_dns_zone_name = module.private_dns_zones.names[key]
         virtual_network_id    = module.hub_vnet.id
         registration_enabled  = zone.registration_enabled

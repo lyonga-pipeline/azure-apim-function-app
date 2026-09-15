@@ -495,7 +495,7 @@ consume this), Phase 4 §4/§6 (Bastion, private endpoints).
 | `route_tables` / `subnet_route_table_associations` | — | UDRs — see the Palo Alto route contract below |
 | `ddos_protection_plan` | — | Optional, off by default (cost) |
 | `public_ips`, `route_server_public_ips`, `route_server` | — | Optional hooks for Palo Alto egress / BGP route injection |
-| `private_dns_zones` / `private_dns_hub_links` / `private_dns_resolver` | — | Private DNS. Phase 1 default is `dc-forwarders` (hub VNet DNS → approved DC resolvers over ExpressRoute); `private-resolver` is switched on only after the NET-27 decision |
+| `private_dns_zones` / `private_dns_hub_links` / `private_dns_zones_resource_group` / `private_dns_resolver` | — | Private DNS. Zones are created fresh in their own dedicated resource group by default (`<naming.resource_group>-dns`) — a zone can be marked `existing = true` (with its own `resource_group_name`) if it genuinely lives elsewhere and should only be linked. Resolution: Phase 1 default is `dc-forwarders` (hub VNet DNS → approved DC resolvers over ExpressRoute); `private-resolver` is switched on only after the NET-27 decision |
 | `bastion_public_ip` / `bastion` / `bastion_diagnostics` | `terraform-azurerm-compeer-bastion-host` | Eliminates public admin RDP/SSH. Phase 4 §4 |
 | `load_balancers` | — | Palo Alto egress / HA hooks |
 | `azurerm_network_watcher` + `network_watcher_flow_logs` | — | NSG flow logs |
@@ -589,11 +589,19 @@ ALZ Doc §8.5 (hub firewall, default-deny, Panorama-managed).
 | `bootstrap_storage` + `azurerm_storage_share*` + `local_file` | — | Bootstrap file share (`init-cfg.txt`, `bootstrap.xml`) VM-Series reads on first boot |
 | `terraform_data.bootstrap_contract` | — | Precondition guarding bootstrap completeness before VM creation |
 | `public_ips` / `network_interfaces` / `load_balancers` | — | Untrust/trust/management NICs, HA internal LBs |
-| `azurerm_linux_virtual_machine.this` | — | The firewall VMs themselves |
+| `azurerm_linux_virtual_machine.vm` | — | The firewall VMs themselves |
 
 Firewall policy, routing, and NAT are managed through Panorama post-boot — not
 Terraform — consistent with Compeer's existing operating model (design doc
 §8.5).
+
+**Enabled** (`palo_alto.enabled = true`) — PAYG licensing, plan `bundle2`
+(see the pattern README for what that bundle includes). **Blocker before the
+first real apply:** both firewalls' `admin_ssh_keys` in the real tfvars are
+still the literal placeholder `"ssh-ed25519 AAAA... replace"` — deliberately
+left as a placeholder rather than fabricated; the network team needs to
+supply the real key(s). Not caught by `terraform validate` (confirmed) since
+there's no format `validation` block on it.
 
 ---
 

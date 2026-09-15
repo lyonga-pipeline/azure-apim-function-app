@@ -62,6 +62,32 @@ run "privatelink_catalogue_expands" {
   }
 }
 
+run "zones_created_in_their_own_dedicated_resource_group" {
+  command = plan
+  variables {
+    privatelink_zone_catalogue = ["blob", "keyvault"]
+  }
+  assert {
+    condition     = length(module.private_dns_zones_resource_group) == 1
+    error_message = "expected a dedicated resource group for the DNS zones to be created"
+  }
+  assert {
+    condition     = length(regexall("-dns$", module.private_dns_zones_resource_group[0].name)) > 0
+    error_message = "dedicated DNS resource group should use the naming module's derived default name"
+  }
+}
+
+run "no_zones_means_no_dedicated_resource_group" {
+  command = plan
+  variables {
+    privatelink_zone_catalogue = []
+  }
+  assert {
+    condition     = length(module.private_dns_zones_resource_group) == 0
+    error_message = "no zones to create should mean no dedicated resource group either"
+  }
+}
+
 run "existing_zone_rejected_without_resource_group" {
   command = plan
   variables {

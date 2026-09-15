@@ -1,5 +1,17 @@
 # terraform-azurerm-compeer-palo-alto-hub
 
+> **⚠ Before the first real apply of `platform-palo-alto`:** both firewalls'
+> `admin_ssh_keys` in the real `terraform.tfvars` are still the literal
+> placeholder string `"ssh-ed25519 AAAA... replace"` — deliberately left as a
+> placeholder, not a real key, since generating one isn't something to do on
+> the network team's behalf. Swap in the real public key(s) the network team
+> will use to manage `vm-fw-hub-01` / `vm-fw-hub-02` before applying — the
+> mock-provider test suite doesn't catch this because it uses its own
+> throwaway key. Confirmed `terraform validate` doesn't catch it either
+> (verified against the real workspace) — the string is a syntactically
+> plausible key with no format `validation` block checking it, so it passes
+> until a real `plan`/`apply` reaches the actual Azure API.
+
 **Pattern module.** Deploys the Azure side of a Palo Alto VM-Series firewall hub
 **entirely in Terraform** - no Marketplace *solution template*. Terraform owns
 every VM, NIC, load balancer, public IP, and the bootstrap artifacts, so the

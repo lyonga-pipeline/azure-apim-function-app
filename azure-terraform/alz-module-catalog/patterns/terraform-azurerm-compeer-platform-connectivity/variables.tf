@@ -671,6 +671,14 @@ variable "network_watcher_flow_logs" {
   }
 }
 
+variable "private_dns_zones_resource_group" {
+  type = object({
+    name = optional(string)
+  })
+  default     = {}
+  description = "Dedicated resource group for every private DNS zone this pattern creates (the privatelink catalogue + hand-authored private_dns_zones) - kept separate from the hub's own resource group so DNS zone lifecycle/ownership is visible on its own. A zone can still override resource_group_name individually (e.g. an existing = true zone that lives elsewhere)."
+}
+
 variable "private_dns_zones" {
   type = map(object({
     name = string

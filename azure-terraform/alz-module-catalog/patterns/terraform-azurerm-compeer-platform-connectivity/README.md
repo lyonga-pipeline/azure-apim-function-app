@@ -14,8 +14,19 @@ an oversight; see `implementations/platform-lz/PATTERN-REFERENCE.md` §8.
 |---|---|
 | `module.virtual_network` | Hub VNet + typed subnet map (`subnet_ids` keyed by purpose) |
 | `azurerm_network_watcher.watcher` | Network Watcher for the hub |
+| `module.private_dns_zones` / `_hub_links` / `_zones_resource_group` | The privatelink zone catalogue — see below |
 | `terraform_data.palo_alto_route_contract` | See below |
 | `terraform_data.dns_resolution_contract` | See below |
+
+**Private DNS zones live in their own dedicated resource group**
+(`private_dns_zones_resource_group`, default name `<naming.resource_group>-dns`),
+separate from the hub's own resource group, so DNS zone lifecycle/ownership
+is visible on its own rather than folded into the hub RG. Every zone in
+`privatelink_zone_catalogue` (or hand-authored in `private_dns_zones`) is
+created fresh here by default. A zone can still be marked `existing = true`
+(with its own `resource_group_name`) if it genuinely lives elsewhere and
+should only be linked, not created — see `tests/defaults.tftest.hcl` for
+both paths.
 
 **The two `terraform_data` contracts — why enforcement lives here instead of
 just in tfvars comments:** both encode an architectural decision that's easy
