@@ -18,15 +18,22 @@ an oversight; see `implementations/platform-lz/PATTERN-REFERENCE.md` §8.
 | `terraform_data.palo_alto_route_contract` | See below |
 | `terraform_data.dns_resolution_contract` | See below |
 
-**Private DNS zones live in their own dedicated resource group**
-(`private_dns_zones_resource_group`, default name `<naming.resource_group>-dns`),
-separate from the hub's own resource group, so DNS zone lifecycle/ownership
-is visible on its own rather than folded into the hub RG. Every zone in
-`privatelink_zone_catalogue` (or hand-authored in `private_dns_zones`) is
-created fresh here by default. A zone can still be marked `existing = true`
-(with its own `resource_group_name`) if it genuinely lives elsewhere and
-should only be linked, not created — see `tests/defaults.tftest.hcl` for
-both paths.
+**Private DNS zones are reused from the existing landing zone, not
+created.** Confirmed: the privatelink zones this platform needs
+(`privatelink_zone_catalogue`) already exist elsewhere — this pattern only
+creates the hub VNet link to each, via `existing = true` (with
+`resource_group_name` pointing at the real shared DNS resource group) on
+every `private_dns_zones` entry. The real tfvars carries a placeholder
+resource group name (`net-ncus-plfc-rg`) pending confirmation of the actual
+name — **flagged, not fabricated**, since it's an assumption about the
+existing landing zone's naming, not a value this repo can know on its own.
+
+The pattern also supports the opposite case — creating zones fresh, in
+their own dedicated resource group (`private_dns_zones_resource_group`,
+default name `<naming.resource_group>-dns`) — for a zone that genuinely
+doesn't exist yet (omit `existing`, or set it to `false`). Not the current
+real-tfvars path, but available if a future zone needs it. See
+`tests/defaults.tftest.hcl` for both paths.
 
 **The two `terraform_data` contracts — why enforcement lives here instead of
 just in tfvars comments:** both encode an architectural decision that's easy
