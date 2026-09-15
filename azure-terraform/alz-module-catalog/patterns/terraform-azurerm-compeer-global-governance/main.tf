@@ -16,26 +16,6 @@ locals {
   }
 }
 
-moved {
-  from = azurerm_management_group.root
-  to   = module.management_groups.azurerm_management_group.root
-}
-
-moved {
-  from = azurerm_management_group.level_1
-  to   = module.management_groups.azurerm_management_group.level_1
-}
-
-moved {
-  from = azurerm_management_group.level_2
-  to   = module.management_groups.azurerm_management_group.level_2
-}
-
-moved {
-  from = azurerm_management_group.level_3
-  to   = module.management_groups.azurerm_management_group.level_3
-}
-
 module "management_groups" {
   source = "../../modules/terraform-azurerm-compeer-management-groups"
 

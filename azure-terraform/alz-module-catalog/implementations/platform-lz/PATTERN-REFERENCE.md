@@ -172,6 +172,32 @@ than a blanket rule.
 `subscription-vending`, has none — it's the explicitly-not-deployed
 reference pattern).
 
+**Every historical `moved` block in the catalog has since been removed —
+none remain.** Beyond the 68 `moved.tf` files from the rename itself, this
+also covers two sets of pre-existing blocks that predated this session's
+work entirely and were left in place at first, on the assumption they might
+still be protecting real state:
+
+- 6 blocks (one each in `cloudflare-connectors`, `directory-services`,
+  `platform-connectivity`, `platform-identity`, `platform-management`,
+  `workload-spoke`) recording an old inline `azurerm_management_lock`
+  resource's extraction into the shared `management-locks` module. The
+  `.resource_lock` rename above made these doubly stale — their `to` address
+  named a module-internal label that no longer exists anywhere.
+- 4 blocks in `global-governance` recording `azurerm_management_group.root`
+  / `.level_1` / `.level_2` / `.level_3`'s extraction into the shared
+  `management-groups` module. These were still technically accurate (that
+  module's labels never changed), just as unused as everything else here.
+
+All removed on the same confirmed basis as the 68 `moved.tf` files: no
+`implementations/platform-lz/workspaces/*` workspace has ever run a real
+`terraform apply`, so there is no state anywhere for any of this
+bookkeeping to protect — a plain rename/refactor is sufficient until the
+first real apply happens. Re-verified: `terraform validate` and
+`terraform test` pass on every affected directory (the 6 lock-consuming
+patterns, `shared-services` which wraps `workload-spoke`, and
+`global-governance`).
+
 **2. File organization ("a single parameter file where useful") — already
 compliant, no changes needed.** Every one of the 18 patterns and 106 modules
 already has exactly one `variables.tf` and one `outputs.tf`, with no
