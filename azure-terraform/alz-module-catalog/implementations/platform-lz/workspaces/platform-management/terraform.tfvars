@@ -122,14 +122,28 @@ management = {
       }
     }
   }
-  defender_plans   = {}
+  # Defender for Cloud - approved pricing decision: Servers Plan 1 (P1) only.
+  # P1 covers vulnerability assessment, just-in-time VM access, and adaptive
+  # network hardening; it does NOT include Microsoft Defender for Endpoint
+  # (that's P2 - a separate, larger cost decision, not approved here). Add
+  # further resource_type entries (SqlServers, StorageAccounts, KeyVaults,
+  # AppServices, Containers, Arm, Dns, CosmosDbs, ...) only after the same
+  # kind of explicit per-plan pricing-tier approval - each is its own cost
+  # line, not a bundle.
+  defender_plans = {
+    virtual_machines = {
+      resource_type = "VirtualMachines"
+      tier          = "Standard"
+      subplan       = "P1"
+    }
+  }
   security_contact = null
   defender_soc_posture = {
-    enabled                       = false
-    defender_standard_enabled     = false
+    enabled                       = true
+    defender_standard_enabled     = true
     sentinel_enabled              = false
     data_collection_rules_enabled = false
     security_contact_enabled      = false
-    notes                         = "Enable after SOC onboarding and cost approval."
+    notes                         = "Defender for Cloud Servers P1 approved and enabled. Security contact, Sentinel, and DCR-based SOC integration remain pending separate SOC onboarding and cost approval."
   }
 }

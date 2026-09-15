@@ -15,12 +15,23 @@ tags = {
   terraform_workspace = "platform-palo-alto"
 }
 
-# Terraform-native VM-Series deployment (no Marketplace solution template):
+# Terraform-native VM-Series deployment (no Marketplace solution template,
+# no vendorized/AVM firewall module - approved: custom build, PAYG licensing).
 # 2 firewalls, mgmt/untrust/trust NICs + Sunstream dataplane NICs, a trust ILB
 # and a Sunstream ILB, storage bootstrap. subnet_key values resolve against the
 # connectivity workspace's subnet_ids output.
+#
+# Image/license: paloaltonetworks/vmseries-flex, plan "bundle2" - Azure
+# Marketplace PAYG (pay-as-you-go, hourly), NOT BYOL. bundle2 is the fuller
+# PAYG bundle (NGFW + Threat Prevention + DNS Security + WildFire + URL
+# Filtering/PAN-DB + GlobalProtect + Premium Support) vs bundle1 (NGFW +
+# Threat Prevention + Premium Support only). Verify current entitlements
+# against the live Azure Marketplace listing before go-live - bundle
+# contents are Palo Alto's to change. This is also the pattern's own
+# variables.tf default for source_image_reference/plan, so it's implicit
+# below; listed here for visibility.
 palo_alto = {
-  enabled = false
+  enabled = true
 
   # Accept the VM-Series image agreement once per subscription (NOT the template).
   marketplace_agreement = {
@@ -129,6 +140,11 @@ palo_alto = {
     }
   }
 
+  # BLOCKER before the first real apply: both admin_ssh_keys entries below are
+  # still the literal placeholder "ssh-ed25519 AAAA... replace" - this is not
+  # a usable key and was never a real one. Swap in the real public key(s) the
+  # network team will use to manage these firewalls before running this
+  # workspace for real.
   virtual_machines = {
     fw1 = {
       name                   = "vm-fw-hub-01"

@@ -30,9 +30,25 @@ This root creates the shared observability foundation for a landing-zone environ
 
 It produces the Log Analytics workspace ID and action group ID consumed by platform and workload roots.
 
-For short smoke tests, `terraform.tfvars` leaves `defender_plans = {}` so Microsoft Defender for Cloud paid Standard plans are not enabled accidentally. The Standard plan map is left commented in the tfvars file; uncomment it only after cost approval and when you are ready to test the security baseline.
+**Defender for Cloud — approved: Servers Plan 1 (P1) only.** The real
+`terraform.tfvars` sets `defender_plans.virtual_machines = { resource_type =
+"VirtualMachines", tier = "Standard", subplan = "P1" }`. P1 covers
+vulnerability assessment, just-in-time VM access, and adaptive network
+hardening — it does **not** include Microsoft Defender for Endpoint (that's
+P2, a separate, larger cost decision not approved here). Add further
+resource-type plans (SQL, Storage, Key Vault, App Services, Containers, ARM,
+DNS, Cosmos DB, …) only after the same kind of explicit per-plan pricing-tier
+approval — each is its own cost line, not a bundle. For a from-scratch smoke
+test with zero Defender cost, set `defender_plans = {}` and
+`defender_soc_posture.defender_standard_enabled = false`.
 
-`defender_soc_posture` is intentionally present but disabled. It records the Defender/SOC target state without deploying Defender Standard, Sentinel, Data Collection Rules, or other paid SOC resources by default. Use it as the no-cost enterprise posture marker until the SOC design and cost approval are complete.
+`defender_soc_posture` records the Defender/SOC target state as a no-cost
+contract-checked posture marker — it doesn't deploy anything itself, but
+Terraform rejects a configuration that *claims* Defender Standard is enabled
+without `defender_plans` actually backing that claim (or a security-contact
+claim without `security_contact` configured). Sentinel, Data Collection
+Rules, and the security contact remain off pending separate SOC onboarding
+and cost approval — this only turns on the Defender Servers plan.
 
 The root now emits `defender_soc_posture` from a no-cost contract resource. Terraform will reject a configuration that claims Defender Standard or security contact posture is enabled unless the supporting `defender_plans` or `security_contact` inputs are also configured.
 

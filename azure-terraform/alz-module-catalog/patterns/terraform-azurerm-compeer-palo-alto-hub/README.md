@@ -20,6 +20,15 @@ Set `marketplace_agreement.enabled = true` **once per subscription** to accept
 the `paloaltonetworks / vmseries-flex / <plan>` image agreement. That is not
 "using Marketplace" in the solution-template sense.
 
+**Licensing decision: PAYG, plan `bundle2`** (this pattern's own default for
+both `marketplace_agreement.plan` and `virtual_machines[*].source_image_reference` /
+`.plan` — no override needed). `bundle2` is a pay-as-you-go (hourly) Azure
+Marketplace plan, not BYOL: NGFW + Threat Prevention + DNS Security +
+WildFire + URL Filtering (PAN-DB) + GlobalProtect + Premium Support, vs.
+`bundle1`'s NGFW + Threat Prevention + Premium Support only. Verify current
+entitlements against the live Azure Marketplace listing before go-live —
+bundle contents are Palo Alto's to change, not something this repo controls.
+
 ## Overview
 
 **What this deploys:** a fully Terraform-owned (no Marketplace solution
