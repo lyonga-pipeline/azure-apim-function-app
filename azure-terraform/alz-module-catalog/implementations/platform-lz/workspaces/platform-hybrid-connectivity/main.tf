@@ -39,6 +39,27 @@ locals {
       }
     }
   )
+
+  # Resolve vpn_certificate_key_vault.private_endpoint.subnet_key -> the real
+  # connectivity workspace's subnet_id, same pattern as the gateway subnets
+  # above (network engineer request: reference the existing hub VNet/subnets
+  # rather than a hand-copied ID). Only name/subnet_id/private_dns_zone_ids
+  # are passed to the pattern - it has no subnet_key field of its own.
+  vckv_pe = try(var.hybrid_connectivity.vpn_certificate_key_vault.private_endpoint, null)
+
+  vpn_certificate_key_vault = try(var.hybrid_connectivity.vpn_certificate_key_vault, null) == null ? {} : merge(
+    var.hybrid_connectivity.vpn_certificate_key_vault,
+    local.vckv_pe == null ? {} : {
+      private_endpoint = {
+        name = local.vckv_pe.name
+        subnet_id = coalesce(
+          try(local.vckv_pe.subnet_id, null),
+          try(local.connectivity_outputs.subnet_ids[local.vckv_pe.subnet_key], null)
+        )
+        private_dns_zone_ids = try(local.vckv_pe.private_dns_zone_ids, [])
+      }
+    }
+  )
 }
 
 module "hybrid_connectivity" {
@@ -50,6 +71,7 @@ module "hybrid_connectivity" {
   }
 
   subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
   location        = var.location
   environment     = var.environment
   platform_tags   = merge(var.platform_tags, try(var.hybrid_connectivity.platform_tags, {}))
@@ -58,15 +80,17 @@ module "hybrid_connectivity" {
     environment        = var.environment
     storage_uniqueness = var.subscription_id
   }
-  resource_group           = try(var.hybrid_connectivity.resource_group, {})
-  expressroute_posture     = try(var.hybrid_connectivity.expressroute_posture, { enabled = false })
-  expressroute_circuits    = try(var.hybrid_connectivity.expressroute_circuits, {})
-  gateway_public_ips       = try(var.hybrid_connectivity.gateway_public_ips, try(var.hybrid_connectivity.expressroute_gateway_public_ips, {}))
-  expressroute_gateway     = local.expressroute_gateway
-  expressroute_connections = try(var.hybrid_connectivity.expressroute_connections, {})
-  vpn_posture              = try(var.hybrid_connectivity.vpn_posture, { enabled = false })
-  vpn_gateway_public_ips   = try(var.hybrid_connectivity.vpn_gateway_public_ips, {})
-  vpn_gateway              = local.vpn_gateway
-  local_network_gateways   = try(var.hybrid_connectivity.local_network_gateways, {})
-  vpn_connections          = try(var.hybrid_connectivity.vpn_connections, {})
+  resource_group            = try(var.hybrid_connectivity.resource_group, {})
+  expressroute_posture      = try(var.hybrid_connectivity.expressroute_posture, { enabled = false })
+  expressroute_circuits     = try(var.hybrid_connectivity.expressroute_circuits, {})
+  gateway_public_ips        = try(var.hybrid_connectivity.gateway_public_ips, try(var.hybrid_connectivity.expressroute_gateway_public_ips, {}))
+  expressroute_gateway      = local.expressroute_gateway
+  expressroute_connections  = try(var.hybrid_connectivity.expressroute_connections, {})
+  vpn_posture               = try(var.hybrid_connectivity.vpn_posture, { enabled = false })
+  vpn_gateway_public_ips    = try(var.hybrid_connectivity.vpn_gateway_public_ips, {})
+  vpn_gateway               = local.vpn_gateway
+  local_network_gateways    = try(var.hybrid_connectivity.local_network_gateways, {})
+  vpn_connections           = try(var.hybrid_connectivity.vpn_connections, {})
+  vpn_certificate_key_vault = local.vpn_certificate_key_vault
+  vpn_certificate_identity  = try(var.hybrid_connectivity.vpn_certificate_identity, {})
 }

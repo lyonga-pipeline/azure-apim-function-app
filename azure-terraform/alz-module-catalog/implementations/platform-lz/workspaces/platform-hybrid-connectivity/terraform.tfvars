@@ -61,4 +61,19 @@ hybrid_connectivity = {
   vpn_gateway            = null
   local_network_gateways = {}
   vpn_connections        = {}
+
+  # Network engineer request: Key Vault + managed identity + RBAC for VPN
+  # gateway certificate management. Standalone scaffolding - not gated behind
+  # vpn_posture.enabled, since it's low-cost prep infrastructure (a small
+  # private Key Vault + identity, not a paid gateway) that can exist ahead of
+  # the VPN posture being fully approved.
+  vpn_certificate_key_vault = {
+    enabled = true
+    name    = "kv-vpn-cert-prod"
+    private_endpoint = {
+      name       = "pep-kv-vpn-cert"
+      subnet_key = "private_endpoints"
+      # private_dns_zone_ids = [<privatelink.vaultcore.azure.net zone id>]
+    }
+  }
 }

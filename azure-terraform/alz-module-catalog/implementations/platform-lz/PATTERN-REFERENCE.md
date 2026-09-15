@@ -567,6 +567,7 @@ windows have a different approval chain than the hub network baseline.
 | `expressroute_circuits` / `expressroute_gateway` / `gateway_public_ips` / `expressroute_connections` | — | Primary hybrid path |
 | `vpn_gateway` / `vpn_gateway_public_ips` / `local_network_gateways` / `vpn_connections` | — | Backup hybrid path |
 | `terraform_data.expressroute_contract` / `terraform_data.vpn_contract` | — | Preconditions: when `expressroute_posture.enabled=true`, requires at least one circuit + gateway public IP + gateway + connection, plus a provider design reference, BGP/routing approval, and cutover-window approval — so hybrid connectivity can't be half-promoted by accident |
+| `vpn_certificate_key_vault` / `vpn_certificate_identity` / `_rbac` / `_private_endpoint` | — | Network engineer request: private Key Vault + user-assigned identity for VPN gateway certificate management, granted Key Vault Administrator + Certificates User + Secrets User. Standalone scaffolding, not gated behind `vpn_posture.enabled` — low-cost prep infra that can exist ahead of full VPN approval. No native azurerm VPN-gateway-to-KeyVault integration exists for a site-to-site gateway; this gives whatever automation manages certs a vault + identity to use. |
 
 Requires `platform-connectivity`'s hub VNet to already expose `GatewaySubnet`.
 Smoke-test tfvars leave `expressroute_posture.enabled = false` (cost-free).

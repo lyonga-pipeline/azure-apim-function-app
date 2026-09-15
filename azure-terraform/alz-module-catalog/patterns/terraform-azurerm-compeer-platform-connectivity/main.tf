@@ -233,7 +233,7 @@ module "private_dns_zones" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-zone"
 
   zones = {
-    for key, zone in local.effective_private_dns_zones : key => {
+    for key, zone in local.private_dns_zones_to_create : key => {
       name                = zone.name
       resource_group_name = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
       tags                = module.tags.tags
@@ -245,17 +245,32 @@ module "private_dns_zones" {
 module "private_dns_hub_links" {
   source = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
 
-  links = {
-    for key, zone in local.effective_private_dns_zones : key => {
-      name                  = "lnk-${key}-${var.environment}-hub"
-      resource_group_name   = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
-      private_dns_zone_name = module.private_dns_zones.names[key]
-      virtual_network_id    = module.hub_vnet.id
-      registration_enabled  = zone.registration_enabled
-      tags                  = module.tags.tags
+  links = merge(
+    {
+      for key, zone in local.private_dns_zones_to_create : key => {
+        name                  = "lnk-${key}-${var.environment}-hub"
+        resource_group_name   = coalesce(try(zone.resource_group_name, null), module.resource_group.name)
+        private_dns_zone_name = module.private_dns_zones.names[key]
+        virtual_network_id    = module.hub_vnet.id
+        registration_enabled  = zone.registration_enabled
+        tags                  = module.tags.tags
+      }
+      if zone.link_to_hub
+    },
+    {
+      # existing = true: link only, using the zone's real name/RG directly -
+      # no dependency on module.private_dns_zones, which never creates these.
+      for key, zone in local.private_dns_zones_existing : key => {
+        name                  = "lnk-${key}-${var.environment}-hub"
+        resource_group_name   = zone.resource_group_name
+        private_dns_zone_name = zone.name
+        virtual_network_id    = module.hub_vnet.id
+        registration_enabled  = zone.registration_enabled
+        tags                  = module.tags.tags
+      }
+      if zone.link_to_hub
     }
-    if zone.link_to_hub
-  }
+  )
   tags = module.tags.tags
 }
 

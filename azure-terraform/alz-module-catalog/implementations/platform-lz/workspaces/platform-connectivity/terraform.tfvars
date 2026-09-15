@@ -101,6 +101,9 @@ connectivity = {
   }
   subnet_route_table_associations = {} # derived from subnet.route_table_key above
 
+  # Network engineer confirmed: a public IP should be declared alongside the
+  # specific resource that needs it (e.g. palo-alto-hub declares its own
+  # mgmt/untrust public IPs), not generically here. Left empty deliberately.
   public_ips                = {}
   route_server_public_ips   = {}
   route_servers             = {}
@@ -116,5 +119,32 @@ connectivity = {
     "keyvault", "app_service", "app_config",
     "sql", "servicebus", "eventgrid", "acr", "monitor",
   ]
-  private_dns_zones = {} # hand-authored zones on top of the catalogue
+
+  # Network engineer confirmed: these zones already exist (a prior hub /
+  # shared platform subscription) - Terraform only links the new hub VNet to
+  # them, it never creates or manages them. Every key below overrides the
+  # matching catalogue entry (same key the catalogue generates internally:
+  # replace(replace(name, "privatelink.", ""), ".", "_")) with existing = true.
+  #
+  # PLACEHOLDER - CONFIRM BEFORE APPLY: "rg-shared-dns-existing" below is not
+  # a real resource group name. Replace it with the actual resource group(s)
+  # where these zones live - they may not all be in the same one.
+  private_dns_zones = {
+    blob_core_windows_net         = { name = "privatelink.blob.core.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    file_core_windows_net         = { name = "privatelink.file.core.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    queue_core_windows_net        = { name = "privatelink.queue.core.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    table_core_windows_net        = { name = "privatelink.table.core.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    dfs_core_windows_net          = { name = "privatelink.dfs.core.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    vaultcore_azure_net           = { name = "privatelink.vaultcore.azure.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    azurewebsites_net             = { name = "privatelink.azurewebsites.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    azconfig_io                   = { name = "privatelink.azconfig.io", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    database_windows_net          = { name = "privatelink.database.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    servicebus_windows_net        = { name = "privatelink.servicebus.windows.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    eventgrid_azure_net           = { name = "privatelink.eventgrid.azure.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    azurecr_io                    = { name = "privatelink.azurecr.io", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    monitor_azure_com             = { name = "privatelink.monitor.azure.com", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    oms_opinsights_azure_com      = { name = "privatelink.oms.opinsights.azure.com", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    ods_opinsights_azure_com      = { name = "privatelink.ods.opinsights.azure.com", existing = true, resource_group_name = "rg-shared-dns-existing" }
+    agentsvc_azure-automation_net = { name = "privatelink.agentsvc.azure-automation.net", existing = true, resource_group_name = "rg-shared-dns-existing" }
+  }
 }

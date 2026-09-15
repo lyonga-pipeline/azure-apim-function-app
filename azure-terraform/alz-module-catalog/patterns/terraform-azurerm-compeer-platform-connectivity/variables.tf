@@ -673,12 +673,27 @@ variable "network_watcher_flow_logs" {
 
 variable "private_dns_zones" {
   type = map(object({
-    name                 = string
+    name = string
+    # existing = true: this zone already exists elsewhere (e.g. a prior hub, a
+    # shared platform subscription) - Terraform only links the new hub VNet to
+    # it, it never creates or manages the zone itself. resource_group_name is
+    # REQUIRED in that case (the zone's real, existing resource group - it
+    # cannot default to this workspace's own resource group, which almost
+    # certainly isn't where the real zone lives).
+    existing             = optional(bool, false)
     resource_group_name  = optional(string)
     link_to_hub          = optional(bool, true)
     registration_enabled = optional(bool, false)
   }))
   default = {}
+
+  validation {
+    condition = alltrue([
+      for zone in values(var.private_dns_zones) :
+      !try(zone.existing, false) || try(zone.resource_group_name, null) != null
+    ])
+    error_message = "Every private_dns_zones entry with existing = true must set resource_group_name to the zone's real, existing resource group."
+  }
 }
 
 variable "additional_scopes" {

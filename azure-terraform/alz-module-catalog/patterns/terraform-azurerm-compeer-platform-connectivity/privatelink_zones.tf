@@ -15,6 +15,19 @@
 
 locals {
   effective_private_dns_zones = merge(local.privatelink_zones, var.private_dns_zones)
+
+  # existing = true zones are looked up, never created - see
+  # var.private_dns_zones' own comment for why (they already exist elsewhere,
+  # e.g. a prior hub or a shared platform subscription; Terraform only links
+  # the new hub VNet to them).
+  private_dns_zones_to_create = {
+    for key, zone in local.effective_private_dns_zones : key => zone
+    if !try(zone.existing, false)
+  }
+  private_dns_zones_existing = {
+    for key, zone in local.effective_private_dns_zones : key => zone
+    if try(zone.existing, false)
+  }
 }
 
 locals {

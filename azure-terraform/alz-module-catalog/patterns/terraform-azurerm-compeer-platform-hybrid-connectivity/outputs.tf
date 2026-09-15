@@ -41,3 +41,23 @@ output "local_network_gateways" {
 output "vpn_connection_ids" {
   value = { for key, value in module.vpn_connections : key => value.id }
 }
+
+output "vpn_certificate_key_vault_id" {
+  value = try(module.vpn_certificate_key_vault[0].id, null)
+}
+
+output "vpn_certificate_key_vault_uri" {
+  value = try(module.vpn_certificate_key_vault[0].vault_uri, null)
+}
+
+output "vpn_certificate_identity_id" {
+  value = try(module.vpn_certificate_identity[0].id, null)
+}
+
+output "vpn_certificate_identity_principal_id" {
+  value = try(module.vpn_certificate_identity[0].principal_id, null)
+}
+
+output "vpn_certificate_identity_client_id" {
+  value = try(module.vpn_certificate_identity[0].client_id, null)
+}

@@ -42,6 +42,16 @@ the Marketplace template's fixed 2-VM/1-LB layout.
 |---|---|---|
 | Bootstrap storage | `storage-account` module + `azurerm_storage_share` | `public_network_access_enabled = false` by default |
 | Bootstrap layout | `azurerm_storage_share_directory` / `_file` | `config` / `content` / `license` / `software` + `init-cfg.txt` |
+
+**`azurerm_storage_share` vs `_share_directory` vs `_share_file` — not
+redundant, three different levels of the same hierarchy:** the *share*
+(`azurerm_storage_share.bootstrap`) is the file-share container itself; the
+*directories* (`azurerm_storage_share_directory.bootstrap`) are the
+`config`/`content`/`license`/`software` folders inside it; the *files*
+(`azurerm_storage_share_file.bootstrap`, e.g. `init-cfg.txt`) are the actual
+content uploaded into those folders. All three are required — removing any
+one breaks the bootstrap (no share to put folders in, no folders to
+organize files in, or no actual config content for the firewall to read).
 | Public IPs | `public-ip` module | mgmt + untrust only; pin their RG in the private-only allow-list |
 | NICs | `network-interface` module | `ip_forwarding_enabled = true`; 3 per firewall + any Sunstream NICs |
 | Load balancers | `load-balancer` module | `trust` ILB + `sunstream` ILB (just another map key) |

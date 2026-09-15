@@ -61,3 +61,46 @@ run "privatelink_catalogue_expands" {
     error_message = "keyvault privatelink zone missing"
   }
 }
+
+run "existing_zone_rejected_without_resource_group" {
+  command = plan
+  variables {
+    private_dns_zones = {
+      blob_core_windows_net = { name = "privatelink.blob.core.windows.net", existing = true }
+    }
+  }
+  expect_failures = [var.private_dns_zones]
+}
+
+run "existing_zone_is_linked_not_created" {
+  command = plan
+  variables {
+    privatelink_zone_catalogue = ["blob", "keyvault"]
+    # Override the catalogue's "blob" entry (same key the catalogue generates:
+    # replace(replace(name, "privatelink.", ""), ".", "_")) to point at a zone
+    # that already exists elsewhere - var.private_dns_zones wins on key
+    # collision with the catalogue.
+    private_dns_zones = {
+      blob_core_windows_net = {
+        name                = "privatelink.blob.core.windows.net"
+        existing            = true
+        resource_group_name = "rg-shared-dns-existing"
+      }
+    }
+  }
+  assert {
+    # existing zone is NOT in the create set...
+    condition     = !contains(keys(local.private_dns_zones_to_create), "blob_core_windows_net")
+    error_message = "an existing zone should not be queued for creation"
+  }
+  assert {
+    # ...but IS in the existing set, still headed for a hub vnet link...
+    condition     = contains(keys(local.private_dns_zones_existing), "blob_core_windows_net")
+    error_message = "an existing zone should still be recorded for linking"
+  }
+  assert {
+    # ...and the non-existing catalogue entry (keyvault) still gets created as before.
+    condition     = contains(keys(local.private_dns_zones_to_create), "vaultcore_azure_net")
+    error_message = "a normal (non-existing) catalogue zone should still be created"
+  }
+}

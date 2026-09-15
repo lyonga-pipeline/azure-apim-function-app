@@ -13,6 +13,12 @@ variable "environment" {
   description = "Environment key, such as np or prod."
 }
 
+variable "tenant_id" {
+  type        = string
+  description = "Azure tenant id. Leave null to use the tenant from the active Azure credentials (the keyvault module defaults it internally via data.azurerm_client_config.current)."
+  default     = null
+}
+
 variable "naming" {
   description = "Root identity for the naming module. Component 'hybrid'. A `name` on a resource block still wins."
   type = object({
@@ -229,4 +235,34 @@ variable "vpn_connections" {
   }))
   default     = {}
   description = "IPsec VPN backup gateway connections. Shared keys should be injected from HCP sensitive variables or an approved secret store."
+}
+
+variable "vpn_certificate_key_vault" {
+  type = object({
+    enabled                    = optional(bool, false)
+    name                       = optional(string)
+    sku_name                   = optional(string, "premium")
+    purge_protection_enabled   = optional(bool, true)
+    soft_delete_retention_days = optional(number, 90)
+    network = optional(object({
+      mode               = optional(string, "private") # private | selected
+      allowed_ip_ranges  = optional(list(string), [])
+      allowed_subnet_ids = optional(list(string), [])
+    }), {})
+    private_endpoint = optional(object({
+      name                 = string
+      subnet_id            = string
+      private_dns_zone_ids = optional(list(string), [])
+    }))
+  })
+  default     = {}
+  description = "Optional private Key Vault for VPN gateway certificate management (network engineer request: cert authentication needs somewhere to live). Private by default (network_acls Deny + a private endpoint) - set network.mode = \"selected\" only with an approved exception."
+}
+
+variable "vpn_certificate_identity" {
+  type = object({
+    name = optional(string)
+  })
+  default     = {}
+  description = "Name override for the user-assigned managed identity granted access to vpn_certificate_key_vault. Defaults to a generated name."
 }
