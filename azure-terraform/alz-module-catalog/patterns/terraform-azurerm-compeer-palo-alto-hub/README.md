@@ -38,11 +38,6 @@ the Marketplace template's fixed 2-VM/1-LB layout.
 | Load balancers | `load-balancer` module | `trust` ILB + `sunstream` ILB (just another map key) |
 | Firewall VMs | `azurerm_linux_virtual_machine.vm` (for_each) | Custom, image-based: `source_image_reference` + `plan`; system-assigned identity, `custom_data` bootstrap. **This is the only VM path** — the `PaloAltoNetworks/swfw-modules` AVM module was removed. |
 
-**`moved.tf`:** `azurerm_linux_virtual_machine.vm` was renamed from the
-generic Terraform default `"this"` for readability. `moved.tf` records the
-old→new address so an already-applied workspace's next `terraform apply` is
-a plain state move, not a destroy/recreate.
-
 ## Bootstrap (`virtual_machines[*].bootstrap`)
 
 | `mode` | Needs | `custom_data` becomes | State impact |

@@ -35,11 +35,6 @@ checks it at plan time rather than relying on code review to catch it:
 See `tests/contracts.tftest.hcl` for the exact pass/fail scenarios both
 contracts cover.
 
-**`moved.tf`:** `azurerm_network_watcher.watcher` was renamed from the
-generic Terraform default `"this"` for readability. `moved.tf` records the
-old→new address so an already-applied workspace's next `terraform apply` is
-a plain state move, not a destroy/recreate.
-
 ---
 
 This root creates shared network foundations for a landing-zone environment.

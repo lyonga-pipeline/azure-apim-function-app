@@ -34,13 +34,6 @@ it — it needs a plain `management_group_policy_assignment` with its own
 `identity` block instead. See `implementations/platform-lz/PATTERN-REFERENCE.md`
 §6 for the specific policies this affects.
 
-**`moved.tf`:** resource labels here were renamed from the generic
-Terraform default `"this"` to purpose-specific names (`.definition`,
-`.initiative`, `.mg_assignment`, etc.) for readability. `moved.tf` records
-the old→new address for every renamed resource so an already-applied
-workspace's next `terraform apply` is a plain state move, not a
-destroy/recreate. Safe to ignore when reading the pattern's logic.
-
 ---
 
 This pattern owns Azure Policy definitions, initiatives, and assignments after the management-group hierarchy exists. It is intentionally separate from the governance root so policy promotion, remediation, managed-identity assignment, and deny-mode changes can run through a narrower HCP Terraform workspace.

@@ -20,12 +20,6 @@ matching `admin_passwords` entry. Without this contract, a misconfigured
 connector would silently plan and apply a VM nobody can log into. See
 `tests/connector_contract.tftest.hcl` for the exact failure/pass scenarios.
 
-**`moved.tf`:** resource labels here were renamed from the generic
-Terraform default `"this"` to purpose-specific names (`.vm`, `.extension`)
-for readability. `moved.tf` records the old→new address for every renamed
-resource so an already-applied workspace's next `terraform apply` is a plain
-state move, not a destroy/recreate.
-
 ---
 
 This Azure pattern deploys the hub-hosted Cloudflare connector VM infrastructure: resource group, NICs with no public IPs, Linux VMs, optional VM extensions, optional diagnostics, optional RBAC, locks, and operational contracts.

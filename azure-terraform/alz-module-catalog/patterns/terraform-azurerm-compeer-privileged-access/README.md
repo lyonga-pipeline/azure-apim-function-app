@@ -20,11 +20,6 @@ from `platform-authorization`.
 | PIM activation policy (approval, MFA-on-activation, max duration, notifications) | `terraform-azurerm-compeer-role-management-policy` |
 | Break-glass account sign-in alert | `azurerm_monitor_scheduled_query_rules_alert_v2` |
 
-**`moved.tf`:** `azurerm_pim_eligible_role_assignment.eligible_assignment` was
-renamed from the generic Terraform default `"this"` for readability.
-`moved.tf` records the old→new address so an already-applied workspace's
-next `terraform apply` is a plain state move, not a destroy/recreate.
-
 Principals are the `AZ-*-Admins` groups from `platform-authorization`, not
 individuals. `principal_id` therefore comes from that pattern's
 `group_object_ids` output. Pair each `pim_eligible_role_assignments` entry with

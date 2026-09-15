@@ -19,11 +19,6 @@ Azure sides; this contract catches a half-configured tunnel (secret set on
 one side but not the other) at plan time instead of a connector silently
 failing to authenticate at runtime. See `tests/contracts.tftest.hcl`.
 
-**`moved.tf`:** the 3 resources above were renamed from the generic
-Terraform default `"this"` for readability. `moved.tf` records the old→new
-address for each so an already-applied workspace's next `terraform apply`
-is a plain state move, not a destroy/recreate.
-
 ---
 
 Creates the Cloudflare-owned edge/control-plane resources for the external-app ingress path: zones, DNS records, rulesets, Zero Trust tunnels, remotely managed tunnel ingress, and optional Access applications/policies.

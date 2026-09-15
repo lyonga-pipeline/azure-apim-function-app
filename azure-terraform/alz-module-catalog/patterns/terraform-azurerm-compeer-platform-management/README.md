@@ -24,13 +24,6 @@ precondition instead of silently deploying nothing while the tfvars claims
 otherwise. See `tests/defender_soc_posture.tftest.hcl` for the exact
 scenarios this catches.
 
-**`moved.tf`:** resource labels here were renamed from the generic
-Terraform default `"this"` to purpose-specific names (`.registration`,
-`.subscription_budget`, `.contact`, `.setting`, `.pricing`) for readability.
-`moved.tf` records the old→new address for every renamed resource so an
-already-applied workspace's next `terraform apply` is a plain state move,
-not a destroy/recreate. Safe to ignore when reading the pattern's logic.
-
 ---
 
 This root creates the shared observability foundation for a landing-zone environment.

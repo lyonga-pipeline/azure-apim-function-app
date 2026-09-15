@@ -107,21 +107,31 @@ directories (10 patterns, 58 modules) — the other 8 patterns and 48 modules
 already used custom labels and needed no change.
 
 **State safety:** renaming a label changes that resource's Terraform-state
-address, and several of these patterns back already-applied real workspaces
-(`platform-identity-security`, `platform-policy`, etc.). Every rename ships
-with a `moved.tf` in the same directory recording the old→new address, so
-the next `terraform apply` against a real workspace is a plain state move,
-not a destroy/recreate. One real cross-module chaining bug was caught and
-fixed by this pass's own test run: `terraform-azurerm-compeer-management-locks`'
-lock resource is consumed by 6 other patterns via pre-existing historical
-`moved` blocks (from when those patterns' inline lock resource was extracted
-into a shared module); those blocks had to keep pointing at the module's
-*old* internal address (`module.management_locks.azurerm_management_lock.this`)
-so Terraform chains the two moves together — pointing them straight at the
-final renamed address (`...azurerm_management_lock.lock`) instead produced
-an "Ambiguous move statements" error, caught by re-running
-`terraform test` after the rename (3 patterns failed until this was fixed:
-`cloudflare-connectors`, `platform-connectivity`, `platform-management`).
+address, which matters once a workspace has actually applied — so every
+rename was first shipped with a `moved.tf` recording the old→new address, on
+the defensive assumption that a real workspace might already hold state
+under the old `.this` addresses. That assumption was confirmed wrong: **no
+`implementations/platform-lz/workspaces/*` workspace has ever run a real
+`terraform apply`** — there is no state anywhere with a `.this` address to
+migrate from. All 68 `moved.tf` files were removed as a result; a plain
+rename is sufficient until the first real apply happens, at which point the
+new semantic names simply become the resources' addresses from day one.
+
+While the `moved.tf` files existed, re-running `terraform test` after the
+rename did catch one real, independent bug worth recording:
+`terraform-azurerm-compeer-management-locks`' lock resource is consumed by 6
+patterns via **pre-existing historical** `moved` blocks (from when those
+patterns' inline lock resource was extracted into a shared module, well
+before this rename pass). Pointing those historical blocks straight at the
+final renamed address (`...azurerm_management_lock.lock`) instead of the
+module's own then-current internal address broke `terraform plan` for 3
+patterns (`cloudflare-connectors`, `platform-connectivity`,
+`platform-management`) with "Ambiguous move statements" — a genuine
+chaining-order bug, caught and fixed, unrelated to whether any workspace has
+actually applied. Those 6 pre-existing historical `moved` blocks are a
+separate, older piece of history that this pass didn't create and left in
+place; since no workspace has ever applied, they're currently inert too, but
+removing them wasn't requested and wasn't done.
 
 **Verification:** `terraform validate` passes on all 68 touched directories;
 `terraform test` passes on all 67 of them that have a test suite (the 68th,

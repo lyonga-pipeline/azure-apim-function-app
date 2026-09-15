@@ -22,11 +22,6 @@ assignments, no client secrets ever created.
 | Federated identity credentials (OIDC trust rules) | `azuread_application_federated_identity_credential.federated_credential` |
 | SP role assignments (SP → built-in role → scope) | `azurerm_role_assignment.assignment` |
 
-**`moved.tf`:** both resources above were renamed from the generic
-Terraform default `"this"` for readability. `moved.tf` records the old→new
-address for each so an already-applied workspace's next `terraform apply`
-is a plain state move, not a destroy/recreate.
-
 **No client secrets or passwords** are created. Each federated credential pins an
 exact `issuer` + `subject` + `audience`; an app registration allows at most **20**
 federated credentials, so the platform uses a few SPs split by permission scope

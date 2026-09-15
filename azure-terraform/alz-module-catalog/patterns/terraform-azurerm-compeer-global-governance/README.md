@@ -42,15 +42,6 @@ on a first read:
 `effect` defaults to `Audit` (see "Policy baseline" below for the toggle) —
 promote to `Deny` per policy only after the false-positive review.
 
-**`moved.tf`:** resource labels in this pattern were renamed from the
-generic Terraform default `"this"` to purpose-specific names (e.g.
-`azurerm_policy_definition.definition`, `azurerm_policy_set_definition.initiative`)
-for readability. `moved.tf` records the old→new address for every renamed
-resource so an already-applied workspace's next `terraform apply` is a plain
-state move, not a destroy/recreate. It's safe to ignore when reading the
-pattern's logic — it exists purely for state continuity — and safe to delete
-once every real workspace using this pattern has applied past the rename.
-
 ---
 
 This root creates the management-group scaffold, Azure Policy assignments, and RBAC guardrails for the net-new landing-zone path.
