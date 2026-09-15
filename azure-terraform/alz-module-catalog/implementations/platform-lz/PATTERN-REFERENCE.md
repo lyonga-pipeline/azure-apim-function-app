@@ -604,23 +604,24 @@ Terraform — consistent with Compeer's existing operating model (design doc
 |---|---|---|
 | `network_interfaces` / `domain_controllers` | `terraform-azurerm-compeer-windows-virtual-machine` | The DC VMs |
 | `azurerm_managed_disk.data` + `azurerm_virtual_machine_data_disk_attachment` | — | AD DS database/logs data disk, separate from the OS disk |
-| `azurerm_virtual_machine_extension.ad_ds_role_install` / `.ad_ds_promotion` | — | AD DS/DNS role install + domain promotion — **see deviation below** |
-| `domain_join` | — | Join non-DC VMs to the domain |
+| `domain_join` | — | Optional Terraform-owned domain join, ahead of manual AD DS promotion |
 | `vm_diagnostics` | — | Boot/guest diagnostics → LAW |
 | `role_assignments`, `management_locks` | — | Group-based RBAC + lock protection |
-| `operational_contracts` | `terraform-azurerm-compeer-operational-contracts` | Tracks the deviation below with rationale |
+| `operational_contracts` | `terraform-azurerm-compeer-operational-contracts` | Records the AD DS decision below with rationale |
 | `azurerm_backup_protected_vm.dc` | — | Enrols DCs into the Recovery Services Vault from `platform-management` |
 | `terraform_data.controller_contract` | — | Precondition on DC configuration completeness |
 
-**⚠ Documented deviation.** The design runbook says AD DS role install +
-promotion should **not** be Terraform-owned (Ansible/PowerShell DSC instead),
-and domain-admin secrets should never pass through Terraform variables. This
-pattern currently drives both via `azurerm_virtual_machine_extension`, and
-`var.ad_ds_promotion_passwords` lands in state. It's a temporary bridge so DCs
-can stand up end-to-end; before production the AD team must either formally
-accept this as an approved exception or flip the `*.enabled` flags off and hand
-promotion to the approved config-management pipeline (VM/NIC/disk/diagnostics
-stay Terraform-owned either way). Tracked as `TODO(ad-team)` in the pattern.
+**Resolved: AD DS role install + promotion are not Terraform-owned.** The
+design runbook always specified this (Ansible/PowerShell DSC instead,
+domain-admin secrets never through Terraform variables). This pattern
+briefly carried a Terraform-owned bridge for both
+(`azurerm_virtual_machine_extension.ad_ds_role_install` / `.ad_ds_promotion`
++ `var.ad_ds_promotion_passwords`) to stand DCs up end-to-end during early
+build-out. **Confirmed with the network/AD team:** Terraform stops at a
+domain-joined, ready-to-promote VM; AD DS role install and promotion happen
+manually (or via the approved config-management pipeline) once the VM has
+joined the domain. The bridge has been removed from the pattern —
+VM/NIC/disk/diagnostics/lock/domain-join stay Terraform-owned.
 
 ---
 

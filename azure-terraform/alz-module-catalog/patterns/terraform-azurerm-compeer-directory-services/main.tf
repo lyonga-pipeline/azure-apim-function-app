@@ -1,25 +1,20 @@
 # =============================================================================
-# ⚠ DEVIATION — TEMPORARY, PENDING AD-TEAM CONFIRMATION
+# AD DS role install + domain promotion: NOT Terraform-owned (resolved)
 #
-# deploy-runbook.tf §7.2 / §15 state that AD DS role install and domain
-# promotion are NOT Terraform-owned (preferred tooling: Ansible / PowerShell
-# DSC), and that domain-admin secrets never flow through Terraform variables.
+# deploy-runbook.tf §7.2 / §15 always said AD DS role install and domain
+# promotion should not be Terraform-owned (Ansible / PowerShell DSC instead),
+# and that domain-admin secrets should never flow through Terraform
+# variables. This pattern briefly carried a Terraform-owned bridge for both
+# (azurerm_virtual_machine_extension.ad_ds_role_install /
+# .ad_ds_promotion + var.ad_ds_promotion_passwords) to stand DCs up
+# end-to-end during early build-out.
 #
-# This pattern currently DOES drive both, via:
-#   - azurerm_virtual_machine_extension.ad_ds_role_install  (PowerShell)
-#   - azurerm_virtual_machine_extension.ad_ds_promotion      (PowerShell)
-#   - var.ad_ds_promotion_passwords  -> lands in Terraform state
-#
-# This is a TEMPORARY bridge so the DCs can stand up end-to-end. Before
-# production authorization, the AD team must confirm one of:
-#   (a) accept this as an approved deviation (record the exception), OR
-#   (b) set every `ad_ds_role_install.enabled` / `ad_ds_promotion.enabled` to
-#       false and hand promotion to the approved Ansible / DSC pipeline. The
-#       VM / NIC / disk / diagnostics / lock resources below stay Terraform-owned
-#       either way.
-#
-# TODO(ad-team): confirm (a) or (b); if (b), also remove
-#                var.ad_ds_promotion_passwords and the related validations.
+# Confirmed with the network/AD team: Terraform stops at a domain-joined,
+# ready-to-promote VM. AD DS role installation and domain-controller
+# promotion happen manually (or via the approved Ansible/DSC pipeline) once
+# the VM has joined the domain. The Terraform-owned bridge has been removed
+# accordingly - VM / NIC / disk / diagnostics / lock / domain-join resources
+# below remain Terraform-owned.
 # =============================================================================
 
 module "tags" {
@@ -74,35 +69,6 @@ locals {
     if coalesce(try(controller.domain_join.enabled, null), false)
   }
 
-  ad_ds_role_installs = {
-    for controller_key, controller in var.domain_controllers : controller_key => controller.ad_ds_role_install
-    if coalesce(try(controller.ad_ds_role_install.enabled, null), false)
-  }
-
-  ad_ds_promotions = {
-    for controller_key, controller in var.domain_controllers : controller_key => controller.ad_ds_promotion
-    if coalesce(try(controller.ad_ds_promotion.enabled, null), false)
-  }
-
-  ad_ds_promotion_domain_admin_password_keys = {
-    for controller_key, promotion in local.ad_ds_promotions :
-    controller_key => coalesce(try(promotion.domain_admin_password_key, null), controller_key)
-  }
-
-  ad_ds_promotion_safe_mode_password_keys = {
-    for controller_key, promotion in local.ad_ds_promotions :
-    controller_key => coalesce(
-      try(promotion.safe_mode_admin_password_key, null),
-      try(promotion.domain_admin_password_key, null),
-      controller_key
-    )
-  }
-
-  powershell_bool = {
-    "false" = "$false"
-    "true"  = "$true"
-  }
-
   scope_ids = merge(
     {
       resource_group = module.resource_group.id
@@ -131,10 +97,8 @@ locals {
 
 resource "terraform_data" "controller_contract" {
   input = {
-    domain_controller_keys  = sort(keys(var.domain_controllers))
-    domain_join_keys        = sort(keys(local.domain_joins))
-    ad_ds_role_install_keys = sort(keys(local.ad_ds_role_installs))
-    ad_ds_promotion_keys    = sort(keys(local.ad_ds_promotions))
+    domain_controller_keys = sort(keys(var.domain_controllers))
+    domain_join_keys       = sort(keys(local.domain_joins))
   }
 
   lifecycle {
@@ -150,43 +114,6 @@ resource "terraform_data" "controller_contract" {
         for key, join in local.domain_joins : contains(keys(var.domain_join_passwords), coalesce(try(join.domain_password_key, null), key))
       ])
       error_message = "domain_join_passwords must contain a sensitive password entry for each enabled domain join."
-    }
-
-    precondition {
-      condition = alltrue([
-        for key, install in local.ad_ds_role_installs : length(try(install.features, [])) > 0
-      ])
-      error_message = "Each enabled AD DS role installation must include at least one Windows feature."
-    }
-
-    precondition {
-      # coalesce(x, "") errors ("no non-null, non-empty-string arguments")
-      # when x is null - it doesn't return "". That turned a missing
-      # domain_name/domain_admin_username into a cryptic function-call crash
-      # instead of this precondition's clean error message. Null-safe ternary
-      # avoids the error path.
-      condition = alltrue([
-        for key, promotion in local.ad_ds_promotions :
-        length(trimspace(try(promotion.domain_name, null) == null ? "" : promotion.domain_name)) > 0 &&
-        length(trimspace(try(promotion.domain_admin_username, null) == null ? "" : promotion.domain_admin_username)) > 0
-      ])
-      error_message = "Each enabled AD DS promotion must set domain_name and domain_admin_username."
-    }
-
-    precondition {
-      condition = alltrue([
-        for key, promotion in local.ad_ds_promotions :
-        contains(keys(var.ad_ds_promotion_passwords), local.ad_ds_promotion_domain_admin_password_keys[key])
-      ])
-      error_message = "ad_ds_promotion_passwords must contain a domain admin password for each enabled AD DS promotion."
-    }
-
-    precondition {
-      condition = alltrue([
-        for key, promotion in local.ad_ds_promotions :
-        contains(keys(var.ad_ds_promotion_passwords), local.ad_ds_promotion_safe_mode_password_keys[key])
-      ])
-      error_message = "ad_ds_promotion_passwords must contain a safe mode administrator password for each enabled AD DS promotion."
     }
   }
 }
@@ -274,32 +201,6 @@ resource "azurerm_virtual_machine_data_disk_attachment" "data" {
   caching            = try(each.value.caching, "ReadOnly")
 }
 
-# Confirm with the AD team whether Terraform should own AD DS/DNS role
-# installation before enabling this extension in an enterprise workspace.
-resource "azurerm_virtual_machine_extension" "ad_ds_role_install" {
-  for_each = local.ad_ds_role_installs
-
-  name                 = try(each.value.name, "install-ad-dns")
-  virtual_machine_id   = module.domain_controllers[each.key].id
-  publisher            = "Microsoft.Compute"
-  type                 = "CustomScriptExtension"
-  type_handler_version = try(each.value.type_handler_version, "1.10")
-
-  settings = jsonencode({
-    scriptVersion    = try(each.value.script_version, "v1")
-    commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"Install-WindowsFeature -Name ${join(",", try(each.value.features, ["AD-Domain-Services", "DNS"]))}${try(each.value.include_management_tools, true) ? " -IncludeManagementTools" : ""} -ErrorAction Stop\""
-  })
-
-  timeouts {
-    create = try(each.value.timeouts.create, "60m")
-    update = try(each.value.timeouts.update, "60m")
-    read   = try(each.value.timeouts.read, "5m")
-    delete = try(each.value.timeouts.delete, "60m")
-  }
-
-  depends_on = [terraform_data.controller_contract]
-}
-
 module "vm_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = {
@@ -333,57 +234,7 @@ module "domain_join" {
   join_options         = try(each.value.join_options, 3)
   type_handler_version = try(each.value.type_handler_version, "1.3")
 
-  depends_on = [
-    terraform_data.controller_contract,
-    azurerm_virtual_machine_extension.ad_ds_role_install
-  ]
-}
-
-# Confirm with the AD team whether Terraform should own domain controller
-# promotion. This is opt-in because promotion writes guest/AD state and places
-# sensitive promotion material in the Terraform execution path.
-resource "azurerm_virtual_machine_extension" "ad_ds_promotion" {
-  for_each = local.ad_ds_promotions
-
-  name                 = try(each.value.name, "promote-to-dc")
-  virtual_machine_id   = module.domain_controllers[each.key].id
-  publisher            = "Microsoft.Compute"
-  type                 = "CustomScriptExtension"
-  type_handler_version = try(each.value.type_handler_version, "1.10")
-
-  settings = jsonencode({
-    scriptVersion = try(each.value.script_version, "v1")
-  })
-
-  protected_settings = jsonencode({
-    commandToExecute = join(" ", compact([
-      "powershell -ExecutionPolicy Bypass -Command \"",
-      "$ErrorActionPreference = 'Stop';",
-      "Install-WindowsFeature -Name ${join(",", try(each.value.features, ["AD-Domain-Services", "DNS"]))}${try(each.value.include_management_tools, true) ? " -IncludeManagementTools" : ""} -ErrorAction Stop;",
-      "Import-Module ADDSDeployment;",
-      "if ((Get-CimInstance Win32_ComputerSystem).DomainRole -ge 4) { Write-Output 'This VM is already a domain controller; skipping promotion.'; exit 0 };",
-      "$domainPasswordPlain = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64encode(lookup(var.ad_ds_promotion_passwords, local.ad_ds_promotion_domain_admin_password_keys[each.key], ""))}'));",
-      "$safeModePasswordPlain = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64encode(lookup(var.ad_ds_promotion_passwords, local.ad_ds_promotion_safe_mode_password_keys[each.key], ""))}'));",
-      "$domainPassword = ConvertTo-SecureString $domainPasswordPlain -AsPlainText -Force;",
-      "$safeModePassword = ConvertTo-SecureString $safeModePasswordPlain -AsPlainText -Force;",
-      "$cred = New-Object System.Management.Automation.PSCredential('${coalesce(try(each.value.domain_admin_username, null), "")}', $domainPassword);",
-      "Install-ADDSDomainController -DomainName '${coalesce(try(each.value.domain_name, null), "")}' -Credential $cred -SafeModeAdministratorPassword $safeModePassword -InstallDns:${local.powershell_bool[tostring(try(each.value.install_dns, true))]} -NoGlobalCatalog:${local.powershell_bool[tostring(try(each.value.no_global_catalog, false))]}${try(each.value.site_name, null) == null ? "" : " -SiteName '${each.value.site_name}'"} -CriticalReplicationOnly:${local.powershell_bool[tostring(try(each.value.critical_replication_only, false))]} -NoRebootOnCompletion:${local.powershell_bool[tostring(try(each.value.no_reboot_on_completion, true))]} -Force:${local.powershell_bool[tostring(try(each.value.force, true))]} -Confirm:$false;",
-      "Write-Output 'Promotion command completed. Reboot may be required to finalize domain controller configuration.'\""
-    ]))
-  })
-
-  timeouts {
-    create = try(each.value.timeouts.create, "120m")
-    update = try(each.value.timeouts.update, "120m")
-    read   = try(each.value.timeouts.read, "5m")
-    delete = try(each.value.timeouts.delete, "120m")
-  }
-
-  depends_on = [
-    terraform_data.controller_contract,
-    azurerm_virtual_machine_extension.ad_ds_role_install,
-    module.domain_join
-  ]
+  depends_on = [terraform_data.controller_contract]
 }
 
 module "role_assignments" {

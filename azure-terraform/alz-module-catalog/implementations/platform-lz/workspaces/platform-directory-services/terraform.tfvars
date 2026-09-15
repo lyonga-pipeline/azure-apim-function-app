@@ -79,15 +79,6 @@ directory_services = {
       diagnostics = {
         enabled = false
       }
-      ad_ds_role_install = {
-        enabled = false
-      }
-      ad_ds_promotion = {
-        enabled               = false
-        domain_name           = "corp.example.com"
-        domain_admin_username = "CORP\\svc-ad-promotion"
-        site_name             = "Azure-CentralUS"
-      }
     }
     dc02 = {
       name                           = "AZR-SRV-ADDS-02"
@@ -122,24 +113,15 @@ directory_services = {
       diagnostics = {
         enabled = false
       }
-      ad_ds_role_install = {
-        enabled = false
-      }
-      ad_ds_promotion = {
-        enabled               = false
-        domain_name           = "corp.example.com"
-        domain_admin_username = "CORP\\svc-ad-promotion"
-        site_name             = "Azure-CentralUS"
-      }
     }
   }
 
   operational_contracts = {
     ad_promotion = {
       enabled              = false
-      implementation_state = "contract-only"
+      implementation_state = "manual-control"
       required_controls    = ["AD DS role installation", "AD team promotion runbook", "replication validation", "DNS forwarder validation"]
-      notes                = "Terraform includes disabled role-install and promotion hooks. Keep them disabled unless the AD team approves Terraform ownership; otherwise install AD DS/DNS roles and promote/configure controllers through the approved AD runbook or configuration-management process."
+      notes                = "Confirmed with the network/AD team: AD DS role installation and domain-controller promotion are not Terraform-owned. Terraform stops at a domain-joined, ready-to-promote VM; the AD team installs AD DS/DNS roles and promotes/configures controllers manually (or via the approved Ansible/DSC pipeline) once the VM has joined the domain."
     }
   }
 }
@@ -150,9 +132,3 @@ admin_passwords = {
   # dc02 = "<sensitive>"
 }
 domain_join_passwords = {}
-ad_ds_promotion_passwords = {
-  # Supply matching sensitive HCP Terraform variables only if AD DS promotion is
-  # approved for Terraform ownership:
-  # dc01 = "<domain-admin-or-safe-mode-password>"
-  # dc02 = "<domain-admin-or-safe-mode-password>"
-}

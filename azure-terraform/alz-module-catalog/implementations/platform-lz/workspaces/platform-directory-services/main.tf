@@ -62,7 +62,6 @@ module "directory_services" {
   domain_controllers        = local.domain_controllers
   admin_passwords           = var.admin_passwords
   domain_join_passwords     = var.domain_join_passwords
-  ad_ds_promotion_passwords = var.ad_ds_promotion_passwords
   role_assignments          = try(var.directory_services.role_assignments, {})
   management_locks          = try(var.directory_services.management_locks, {})
   additional_scopes         = try(var.directory_services.additional_scopes, {})

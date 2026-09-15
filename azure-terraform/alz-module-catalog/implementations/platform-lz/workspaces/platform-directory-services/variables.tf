@@ -94,9 +94,3 @@ variable "domain_join_passwords" {
   default     = {}
 }
 
-variable "ad_ds_promotion_passwords" {
-  description = "Sensitive AD DS promotion passwords keyed by domain controller key or configured promotion password keys."
-  type        = map(string)
-  sensitive   = true
-  default     = {}
-}

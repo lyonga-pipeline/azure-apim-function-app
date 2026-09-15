@@ -184,9 +184,7 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `network_interface_ids`
 - `data_disk_ids`
 - `data_disk_attachment_ids`
-- `ad_ds_role_install_extension_ids`
 - `domain_join_extension_ids`
-- `ad_ds_promotion_extension_ids`
 - `operational_contracts`
 
 `platform-cloudflare-connectors` publishes:
