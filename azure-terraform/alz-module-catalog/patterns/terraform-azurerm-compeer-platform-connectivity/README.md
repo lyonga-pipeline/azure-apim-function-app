@@ -56,6 +56,23 @@ NSGs, route tables, Private DNS zones, and VNet links are composed outside the V
 
 The current smoke-test tfvars deploy hub networking primitives only. They include reserved `GatewaySubnet` address space for ExpressRoute/VPN gateway enablement and dedicated Palo Alto trust, untrust, and management subnet reservations. They do not deploy paid firewall, gateway, DNS resolver, or DDoS services by default.
 
+**DDoS Protection stays off — a real cost/capability gap, not just a
+deferred decision.** The `ddos_protection_plan` module only wraps
+`azurerm_network_ddos_protection_plan` — Azure's **DDoS Network
+Protection**, a flat ~$2,944/month covering up to 100 public IPs. Azure's
+actual low-cost tier, **DDoS IP Protection** (~$199/month per protected
+public IP — far cheaper for a hub with only a handful of public IPs), has
+**no Terraform support today**: confirmed via an open, unresolved
+`hashicorp/terraform-provider-azurerm` GitHub issue (#27658, "Support for
+DDOS IP Protection for azurerm_public_ip resource"). `azurerm_public_ip`'s
+existing `ddos_protection_mode`/`ddos_protection_plan_id` arguments only
+associate a public IP with a **Network Protection** plan, not the newer
+per-IP tier. Decision: leave DDoS off entirely for now, rather than enable
+the ~$2,944/month plan just to have something on, or claim IP Protection
+coverage Terraform can't actually deliver yet. Revisit once the provider
+adds IP Protection support, or if the Network Protection cost becomes
+acceptable.
+
 Palo Alto is codified as a route, subnet, bootstrap, HA, and management contract in `palo_alto`. When `palo_alto.enabled = true`, every `VirtualAppliance` route next hop must match an approved Palo Alto private IP, and the declared Palo Alto subnet keys must exist in the hub VNet input. This lets the landing zone enforce the intended egress architecture while keeping VM-Series/Panorama deployment in a separate approved vendor lifecycle.
 
 DNS is codified through `dns_resolution`. The Phase 1 default is `dc-forwarders`, pointing hub VNet DNS to the approved domain-controller resolvers over ExpressRoute. Switch to `private-resolver` only after the NET-27 decision is approved and the resolver modules are intentionally enabled.

@@ -511,6 +511,16 @@ gaps, these are **deliberate, cost-driven decisions already documented in the
 pattern README** ("do not deploy paid firewall, gateway, DNS resolver, or DDoS
 services by default") — not something to force on.
 
+**DDoS — a real capability gap, checked and confirmed, not left off by
+default alone.** Azure's low-cost DDoS IP Protection tier (~$199/mo per
+public IP) has no Terraform support today (open,
+unresolved `hashicorp/terraform-provider-azurerm#27658`); only the classic
+DDoS Network Protection plan (~$2,944/mo flat, up to 100 public IPs) is
+buildable via `azurerm_network_ddos_protection_plan`. Decision: stay off
+rather than enable the flat-fee plan just to have something on, or claim
+IP-Protection-level coverage Terraform can't deliver. See the pattern
+README for the full writeup.
+
 Two contracts (`palo_alto_route_contract`, `dns_resolution_contract`) had zero
 test coverage before this pass despite gating a real security architecture
 decision (every egress route must point at an approved firewall IP). Added
