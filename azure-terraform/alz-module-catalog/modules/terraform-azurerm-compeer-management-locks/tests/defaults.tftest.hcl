@@ -4,7 +4,7 @@ run "empty_is_noop" {
   command = plan
 
   assert {
-    condition     = length(azurerm_management_lock.lock) == 0
+    condition     = length(azurerm_management_lock.resource_lock) == 0
     error_message = "no locks by default"
   }
 }
@@ -21,12 +21,12 @@ run "defaults_to_can_not_delete" {
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["rg-prod"].name == "rg-prod-lock"
+    condition     = azurerm_management_lock.resource_lock["rg-prod"].name == "rg-prod-lock"
     error_message = "default lock name should use the stable input key"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["rg-prod"].lock_level == "CanNotDelete"
+    condition     = azurerm_management_lock.resource_lock["rg-prod"].lock_level == "CanNotDelete"
     error_message = "lock level should default to CanNotDelete"
   }
 }
@@ -53,22 +53,22 @@ run "creates_explicit_can_not_delete_and_read_only_locks" {
   }
 
   assert {
-    condition     = length(azurerm_management_lock.lock) == 2
+    condition     = length(azurerm_management_lock.resource_lock) == 2
     error_message = "both explicit lock levels should create locks"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["rg-prod"].lock_level == "CanNotDelete"
+    condition     = azurerm_management_lock.resource_lock["rg-prod"].lock_level == "CanNotDelete"
     error_message = "explicit CanNotDelete lock level not wired"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["rg-prod"].notes == "Protect production resource group from accidental deletion."
+    condition     = azurerm_management_lock.resource_lock["rg-prod"].notes == "Protect production resource group from accidental deletion."
     error_message = "lock notes should be passed through"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["storage-readonly"].lock_level == "ReadOnly"
+    condition     = azurerm_management_lock.resource_lock["storage-readonly"].lock_level == "ReadOnly"
     error_message = "explicit ReadOnly lock level not wired"
   }
 }
@@ -96,22 +96,22 @@ run "supports_subscription_resource_group_and_resource_scopes" {
   }
 
   assert {
-    condition     = length(azurerm_management_lock.lock) == 3
+    condition     = length(azurerm_management_lock.resource_lock) == 3
     error_message = "subscription, resource group, and resource scopes should be accepted"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["subscription"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000"
+    condition     = azurerm_management_lock.resource_lock["subscription"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000"
     error_message = "subscription scope should be passed through"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["resource_group"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform"
+    condition     = azurerm_management_lock.resource_lock["resource_group"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform"
     error_message = "resource group scope should be passed through"
   }
 
   assert {
-    condition     = azurerm_management_lock.lock["resource"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform/providers/Microsoft.KeyVault/vaults/kv-platform"
+    condition     = azurerm_management_lock.resource_lock["resource"].scope == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform/providers/Microsoft.KeyVault/vaults/kv-platform"
     error_message = "resource scope should be passed through"
   }
 }

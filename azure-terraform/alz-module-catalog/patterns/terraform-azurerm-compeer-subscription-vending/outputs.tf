@@ -33,7 +33,7 @@ output "vended_subscription_resource_ids" {
 output "subscription_management_group_association_ids" {
   description = "Management group association IDs for vended subscriptions."
   value = {
-    for key, association in azurerm_management_group_subscription_association.association : key => association.id
+    for key, association in azurerm_management_group_subscription_association.this : key => association.id
   }
 }
 

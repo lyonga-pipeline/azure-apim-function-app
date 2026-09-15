@@ -1,6 +1,6 @@
 output "subscription_placement_ids" {
   description = "Management-group subscription-association IDs keyed by subscription logical name."
-  value       = { for key, a in azurerm_management_group_subscription_association.placement : key => a.id }
+  value       = { for key, a in azurerm_management_group_subscription_association.this : key => a.id }
 }
 
 output "onboarded_subscription_ids" {

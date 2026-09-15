@@ -151,7 +151,7 @@ resource "azurerm_management_group" "level_5" {
   depends_on = [azurerm_management_group.level_4]
 }
 
-resource "azurerm_management_group_subscription_association" "association" {
+resource "azurerm_management_group_subscription_association" "this" {
   for_each = local.subscription_associations
 
   management_group_id = local.management_group_ids[each.value.management_group_key]

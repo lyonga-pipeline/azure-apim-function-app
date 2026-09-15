@@ -181,7 +181,7 @@ resource "azurerm_subscription" "subscription" {
   depends_on = [terraform_data.subscription_vending_contract]
 }
 
-resource "azurerm_management_group_subscription_association" "association" {
+resource "azurerm_management_group_subscription_association" "this" {
   for_each = azurerm_subscription.subscription
 
   management_group_id = local.subscription_inputs[each.key].management_group_id
@@ -193,5 +193,5 @@ module "subscription_role_assignments" {
 
   assignments = local.subscription_role_assignment_inputs
 
-  depends_on = [azurerm_management_group_subscription_association.association]
+  depends_on = [azurerm_management_group_subscription_association.this]
 }

@@ -42,11 +42,11 @@ run "places_and_assigns" {
   command = apply
 
   assert {
-    condition     = azurerm_management_group_subscription_association.placement["hub"].subscription_id == "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    condition     = azurerm_management_group_subscription_association.this["hub"].subscription_id == "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     error_message = "hub subscription not wired to its association"
   }
   assert {
-    condition     = azurerm_management_group_subscription_association.placement["app_alpha"].management_group_id == "/providers/Microsoft.Management/managementGroups/corp"
+    condition     = azurerm_management_group_subscription_association.this["app_alpha"].management_group_id == "/providers/Microsoft.Management/managementGroups/corp"
     error_message = "bare MG name not normalized to a full ID"
   }
   # 2 subscriptions x 2 baseline entries = 4 baseline assignments

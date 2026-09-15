@@ -26,7 +26,7 @@ Compeer's CSP-partner billing model is in effect.
 ## What It Does
 
 - Creates Azure subscriptions through `azurerm_subscription.subscription`.
-- Associates each vended subscription to the target management group with `azurerm_management_group_subscription_association.association`.
+- Associates each vended subscription to the target management group with `azurerm_management_group_subscription_association.this`.
 - Creates optional subscription-scope RBAC assignments through the shared `role-assignments` module.
 - Applies enterprise subscription tags from `default_tags` plus per-subscription tags.
 - Keeps the full target subscription catalog in `terraform.tfvars`, with actual creation gated by `vending_enabled` and per-subscription `enabled` flags.

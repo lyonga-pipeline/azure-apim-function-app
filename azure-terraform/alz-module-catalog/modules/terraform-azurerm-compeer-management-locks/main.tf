@@ -1,4 +1,4 @@
-resource "azurerm_management_lock" "lock" {
+resource "azurerm_management_lock" "resource_lock" {
   for_each = var.locks
 
   name       = coalesce(try(each.value.name, null), "${each.key}-lock")

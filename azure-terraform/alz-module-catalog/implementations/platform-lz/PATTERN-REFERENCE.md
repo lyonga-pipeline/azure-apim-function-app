@@ -131,7 +131,36 @@ chaining-order bug, caught and fixed, unrelated to whether any workspace has
 actually applied. Those 6 pre-existing historical `moved` blocks are a
 separate, older piece of history that this pass didn't create and left in
 place; since no workspace has ever applied, they're currently inert too, but
-removing them wasn't requested and wasn't done.
+removing them wasn't requested and wasn't done. (The label mentioned in that
+bug, `.lock`, was itself later renamed to `.resource_lock` — see the next
+paragraph — so the historical account above no longer matches the current
+label; the bug and its cause are otherwise unchanged.)
+
+**Aligning with Compeer's already-published modules.** Two resource types
+in this catalog overlap with modules Compeer has already defined and
+published for real (`terraform-azurerm-compeer-management-group` and
+`terraform-azurerm-compeer-management-group-lock`), and this catalog's
+initial rename picked different labels than those published modules use.
+Corrected for consistency:
+
+- `azurerm_management_lock` → **`resource_lock`** (not `.lock`) in
+  `modules/terraform-azurerm-compeer-management-locks`, matching the
+  published lock module exactly.
+- `azurerm_management_group_subscription_association` → **`.this`** (not
+  `.association`) in `modules/terraform-azurerm-compeer-management-groups`
+  and `patterns/terraform-azurerm-compeer-subscription-vending`, matching
+  the published management-group module — which keeps this one resource
+  labeled `.this` deliberately, since it's the single obvious
+  "the association" resource in its file. `patterns/terraform-azurerm-compeer-subscription-onboarding`
+  had a third, independent label for the same resource type
+  (`.placement`, predating this rename pass entirely) and is now aligned
+  to `.this` too, for the same reason.
+
+This is the one deliberate exception to "always rename away from `this`":
+where Compeer has already published a real module using `.this` for a
+resource, matching that published precedent takes priority over the
+blanket rename, since consistency with what's actually live matters more
+than a blanket rule.
 
 **Verification:** `terraform validate` passes on all 68 touched directories;
 `terraform test` passes on all 67 of them that have a test suite (the 68th,
@@ -296,7 +325,7 @@ creates subscriptions.
 | Block | Resource(s) | Why |
 |---|---|---|
 | `terraform_data.onboarding_contract` | — | Precondition: every `target_management_group_key` and `principal_group_key` must resolve, before anything is placed |
-| `azurerm_management_group_subscription_association.placement` | — | Moves the subscription from Tenant Root Group to its target MG |
+| `azurerm_management_group_subscription_association.this` | — | Moves the subscription from Tenant Root Group to its target MG |
 | `baseline_role_assignments` / `app_role_assignments` | `terraform-azurerm-compeer-role-assignments` | Standing RBAC at subscription scope. `principal_group_key` resolves against `platform-authorization.group_object_ids`; `principal_type = "User"` is rejected outright |
 
 ---

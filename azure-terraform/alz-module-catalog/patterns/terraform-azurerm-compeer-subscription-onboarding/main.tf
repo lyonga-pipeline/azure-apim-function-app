@@ -117,7 +117,7 @@ resource "terraform_data" "onboarding_contract" {
 # target management group. Azure enforces single-MG membership, so creating this
 # association relocates the subscription; destroying it returns the subscription
 # to the root group.
-resource "azurerm_management_group_subscription_association" "placement" {
+resource "azurerm_management_group_subscription_association" "this" {
   for_each = local.subscriptions
 
   management_group_id = local.subscription_target_mg_ids[each.key]
@@ -131,7 +131,7 @@ module "baseline_role_assignments" {
 
   assignments = local.baseline_assignment_inputs
 
-  depends_on = [azurerm_management_group_subscription_association.placement]
+  depends_on = [azurerm_management_group_subscription_association.this]
 }
 
 module "app_role_assignments" {
@@ -139,5 +139,5 @@ module "app_role_assignments" {
 
   assignments = local.app_assignment_inputs
 
-  depends_on = [azurerm_management_group_subscription_association.placement]
+  depends_on = [azurerm_management_group_subscription_association.this]
 }

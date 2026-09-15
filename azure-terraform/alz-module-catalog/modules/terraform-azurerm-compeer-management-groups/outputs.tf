@@ -71,5 +71,5 @@ output "management_groups" {
 
 output "subscription_association_ids" {
   description = "Management group subscription association IDs keyed by management group and subscription."
-  value       = { for key, association in azurerm_management_group_subscription_association.association : key => association.id }
+  value       = { for key, association in azurerm_management_group_subscription_association.this : key => association.id }
 }
