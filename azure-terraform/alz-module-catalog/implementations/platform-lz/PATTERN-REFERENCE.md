@@ -376,6 +376,31 @@ Phase 3 §7-8, Phase 5 §6-9, Phase 6 §3.
 | `remediation.tf` | `azurerm_management_group_policy_assignment.remediation` (+ system-assigned identity) | Generic DeployIfNotExists bundle — Defender-plan auto-enablement, diagnostic-settings auto-deployment, etc. |
 | `private_only_baseline.tf` | (via the generic definition/assignment mechanism) | `deny-public-ip-address` + `deny-nic-public-ip` — Compeer forces all inbound through Cloudflare Tunnels; there's no single Azure "setting" for that, so it's a policy initiative |
 
+**`cmp-required-tags` — two real bugs found and fixed during the client
+deployment-readiness review, both in `global-governance`:**
+
+1. **Wrong tag vocabulary.** `pb_required_tags`' default list still had the
+   pre-Phase-7 tag names (`env`, `bt_owner`, `tf_workspace`, `recovery`,
+   `compliance_boundary`) — the vocabulary `terraform-azurerm-compeer-platform-tags`
+   was renamed *away from* in its Phase 7 rebuild (see `HARDENING_STATUS.md`).
+   The real `platform-governance/terraform.tfvars` never overrides
+   `required_tag_names` (its own comment says it "defaults to the platform-tags
+   frozen key set" — which was false). Every resource tagged through the real,
+   current tags module would have failed this guardrail on day one. Fixed to
+   the module's actual `mandatory_keys`: `environment`, `application`, `owner`,
+   `source_repo`, `created_on`, `criticality_tier`, `data_classification`,
+   `lifecycle_state`, `cost_center`, `gl_category`.
+2. **A more serious latent bug underneath it:** `variables.tf`'s
+   `required_tag_names = optional(list(string))` had no type-level default, so
+   it resolved to a real `null` for every caller that left it unset (i.e.
+   every real tfvars). `try(local.pb.required_tag_names, [...])` does **not**
+   substitute its fallback for a legitimate `null` — `try()` only catches
+   evaluation *errors* — so `pb_required_tags` was silently `null`, not the
+   intended default list, regardless of what that list said. Fixed by giving
+   `required_tag_names` a real type-level default (the same list above); the
+   `try()` fallback in `policy_baseline.tf` is now redundant but harmless.
+   Covered by a new regression assertion in `tests/defaults.tftest.hcl`.
+
 ### Full policy picture — live vs. designed, cross-referenced
 
 | Policy / guardrail | Effect (today) | Scope | Status | Where | Design-doc reference |

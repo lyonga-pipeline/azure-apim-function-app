@@ -21,9 +21,14 @@ locals {
   pb_enforce    = try(local.pb.enforce, true)
   pb_not_scopes = try(local.pb.not_scopes, [])
   pb_locations  = try(local.pb.allowed_locations, ["centralus"])
+  # Must track terraform-azurerm-compeer-platform-tags' local.mandatory_keys
+  # exactly - this policy audits tags the real tags module actually emits, not
+  # the pre-Phase-7 vocabulary (env/bt_owner/tf_workspace/recovery/
+  # compliance_boundary) that module was renamed away from.
   pb_required_tags = try(local.pb.required_tag_names, [
-    "env", "application", "bt_owner", "source_repo", "tf_workspace",
-    "recovery", "cost_center", "data_classification", "compliance_boundary",
+    "environment", "application", "owner", "source_repo", "created_on",
+    "criticality_tier", "data_classification", "lifecycle_state",
+    "cost_center", "gl_category",
   ])
   pb_assign_mcsb = try(local.pb.assign_security_benchmark, true)
   # Resource groups carved out of deny-public-PaaS / secure-storage - the

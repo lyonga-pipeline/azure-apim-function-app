@@ -175,8 +175,19 @@ variable "policy_baseline" {
     management_group_key      = optional(string)
     effect                    = optional(string, "Audit")
     enforce                   = optional(bool, true)
-    allowed_locations         = optional(list(string), ["centralus"])
-    required_tag_names        = optional(list(string))
+    allowed_locations = optional(list(string), ["centralus"])
+    # Must track terraform-azurerm-compeer-platform-tags' local.mandatory_keys.
+    # A type-level default (not just the try() fallback in policy_baseline.tf)
+    # is required here: optional(list(string)) with no default resolves to a
+    # real `null`, and try(local.pb.required_tag_names, [...]) does NOT
+    # substitute a fallback for a null value - only for an evaluation error -
+    # so every caller that left this unset got requiredTagNames = null on the
+    # live policy, not the intended list.
+    required_tag_names = optional(list(string), [
+      "environment", "application", "owner", "source_repo", "created_on",
+      "criticality_tier", "data_classification", "lifecycle_state",
+      "cost_center", "gl_category",
+    ])
     assign_security_benchmark = optional(bool, true)
     not_scopes                = optional(list(string), [])
     # Resource groups carved out of deny-public-PaaS / secure-storage - the

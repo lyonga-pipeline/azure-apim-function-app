@@ -80,4 +80,4 @@ prefer `policy_baseline` with Audit-first for a fresh deployment.
 
 This root is expected to pass the current OPA landing-zone workload policy because it deploys governance controls rather than workload/PaaS resources. Use Azure Policy for runtime guardrails and OPA for plan-time review of workload/platform deployment plans.
 
-The Azure Policy required tag names are aligned with the platform tag module and OPA data file: `env`, `application`, `bt_owner`, `source_repo`, `tf_workspace`, `recovery`, `cost_center`, `data_classification`, and `compliance_boundary`.
+The Azure Policy required tag names are aligned with `terraform-azurerm-compeer-platform-tags`' `mandatory_keys` (its Phase 7 rebuild): `environment`, `application`, `owner`, `source_repo`, `created_on`, `criticality_tier`, `data_classification`, `lifecycle_state`, `cost_center`, and `gl_category`. (This repo doesn't contain the OPA policy-code repo referenced by `azure-pipelines-opa-policy-code.yml` — verify its tag data file separately if it also encodes this vocabulary.)

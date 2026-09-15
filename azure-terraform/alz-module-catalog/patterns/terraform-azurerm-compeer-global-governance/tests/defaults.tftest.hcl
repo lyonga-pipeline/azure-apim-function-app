@@ -59,6 +59,20 @@ run "policy_baseline_on" {
     condition     = contains(keys(azurerm_policy_definition.definition), "cmp-required-tags")
     error_message = "baseline definitions not merged into the pattern's for_each"
   }
+  assert {
+    # Regression: cmp-required-tags must audit the tags
+    # terraform-azurerm-compeer-platform-tags' mandatory_keys actually emits
+    # today (environment/owner/created_on/...), not the pre-Phase-7 names
+    # (env/bt_owner/tf_workspace/recovery/compliance_boundary) that module was
+    # renamed away from - that mismatch made every correctly-tagged resource
+    # fail the guardrail.
+    condition = sort(local.pb_required_tags) == sort([
+      "environment", "application", "owner", "source_repo", "created_on",
+      "criticality_tier", "data_classification", "lifecycle_state",
+      "cost_center", "gl_category",
+    ])
+    error_message = "cmp-required-tags default list has drifted from platform-tags' mandatory_keys"
+  }
 }
 
 run "policy_baseline_packages_into_one_initiative" {
