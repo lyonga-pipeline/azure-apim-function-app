@@ -593,11 +593,6 @@ locals {
   }
 }
 
-moved {
-  from = azurerm_management_lock.this
-  to   = module.management_locks.azurerm_management_lock.this
-}
-
 module "management_locks" {
   source = "../../modules/terraform-azurerm-compeer-management-locks"
 

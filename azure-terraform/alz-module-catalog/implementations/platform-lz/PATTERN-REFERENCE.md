@@ -128,13 +128,18 @@ module's own then-current internal address broke `terraform plan` for 3
 patterns (`cloudflare-connectors`, `platform-connectivity`,
 `platform-management`) with "Ambiguous move statements" — a genuine
 chaining-order bug, caught and fixed, unrelated to whether any workspace has
-actually applied. Those 6 pre-existing historical `moved` blocks are a
-separate, older piece of history that this pass didn't create and left in
-place; since no workspace has ever applied, they're currently inert too, but
-removing them wasn't requested and wasn't done. (The label mentioned in that
-bug, `.lock`, was itself later renamed to `.resource_lock` — see the next
-paragraph — so the historical account above no longer matches the current
-label; the bug and its cause are otherwise unchanged.)
+actually applied. Those 6 pre-existing historical `moved` blocks were a
+separate, older piece of history that this pass didn't originally create —
+but the `.resource_lock` rename below made them doubly stale (their `to`
+address named the module's label from *before* either rename, which no
+longer exists anywhere), and since no workspace has ever applied, they were
+confirmed inert and removed (all 6, from `cloudflare-connectors`,
+`directory-services`, `platform-connectivity`, `platform-identity`,
+`platform-management`, `workload-spoke`). Re-verified: `terraform test`
+still passes on all 6 plus `shared-services` (which wraps `workload-spoke`).
+(The label mentioned in the bug account above, `.lock`, was itself later
+renamed to `.resource_lock` — see the next paragraph; the bug and its cause
+are otherwise unchanged.)
 
 **Aligning with Compeer's already-published modules.** Two resource types
 in this catalog overlap with modules Compeer has already defined and
