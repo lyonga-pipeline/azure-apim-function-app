@@ -52,14 +52,20 @@ workspace only for a genuine exception.
 11. `platform-palo-alto` -> HCP workspace `platform-palo-alto`
 12. `platform-directory-services` -> HCP workspace `platform-directory-services`
 13. `platform-cloudflare-connectors` -> HCP workspace `platform-cloudflare-connectors`
-14. `platform-shared-services` -> HCP workspace `platform-shared-services`
-15. `platform-workload-spoke` -> template root for one workspace per workload/environment, such as `workload-spoke-internal-apps-prod`
-16. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
-17. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
+14. `platform-workload-spoke` -> template root for one workspace per workload/environment, such as `workload-spoke-internal-apps-prod`
+15. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
+16. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
 
 `platform-policy` step 6 can also run late (after step 7) — its DeployIfNotExists
 remediation reads `log_analytics_workspace_id` from `platform-management`.
-Steps 8 through 14 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
+Steps 8 through 13 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
+
+**Retired:** `platform-shared-services` (was step 14) — its whole premise
+(a dedicated VNet spoke, peered to the hub, for domain-controller-adjacent
+"shared services") was corrected in design review: those services belong
+directly in the hub, not a separate peered VNet. See
+`PATTERN-REFERENCE.md`'s "Deployment order" section for the full writeup.
+Deleted outright — it was never populated in the real tfvars.
 
 The identity / RBAC IaC boundary (what is codified vs. deliberately manual across
 all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
@@ -193,12 +199,6 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `connector_vm_private_ips`
 - `network_interface_ids`
 - `operational_contracts`
-
-`platform-shared-services` publishes:
-
-- `shared_services_virtual_network_id`
-- `subnet_ids`
-- `private_endpoint_subnet_id`
 
 `platform-cloudflare-edge` publishes:
 

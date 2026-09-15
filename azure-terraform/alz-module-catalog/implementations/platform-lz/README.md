@@ -22,7 +22,6 @@ workspaces/platform-hybrid-connectivity
 workspaces/platform-palo-alto
 workspaces/platform-directory-services
 workspaces/platform-cloudflare-connectors
-workspaces/platform-shared-services
 workspaces/platform-workload-spoke
 workspaces/platform-network-peering
 workspaces/platform-cloudflare-edge
@@ -48,7 +47,6 @@ Examples:
 - `platform-hybrid-connectivity` can read `platform-connectivity.subnet_ids["GatewaySubnet"]`.
 - `platform-directory-services` can read `platform-connectivity.subnet_ids` and `platform-management.log_analytics_workspace_id`.
 - `platform-cloudflare-connectors` can read the connector subnet from `platform-connectivity` and monitoring outputs from `platform-management`.
-- `platform-shared-services` can read hub VNet and Private DNS outputs from `platform-connectivity`.
 - workload spoke roots can read hub VNet, private DNS, and Log Analytics outputs.
 - `network-peering` reads connectivity and workload-spoke outputs to create the peering and DNS links.
 - `platform-cloudflare-edge` owns Cloudflare account resources only; Azure connector VMs stay in `platform-cloudflare-connectors`.

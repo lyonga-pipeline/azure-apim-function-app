@@ -14,8 +14,7 @@ Vault (see that README) — building the final object with
 avoids a `coalesce()` crash ("all arguments must have the same type") when
 `network_acls` is left unset, which is the common case for a workload that
 just wants Key Vault defaults. `tests/defaults.tftest.hcl`'s middle run is
-the direct regression test — this pattern is also wrapped by
-`shared-services`, which inherits the same fix.
+the direct regression test.
 
 ---
 

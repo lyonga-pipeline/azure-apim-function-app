@@ -67,11 +67,19 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 | `platform-compeer-cloudflare-edge` | cloudflare-edge | `platform-cloudflare-edge` | Cloudflare zones, tunnels, tunnel configs, **public DNS records**, Access applications + policies — `cloudflare` provider, `CLOUDFLARE_API_TOKEN` env var |
 | `platform-compeer-hybrid-connectivity` | hybrid-connectivity | `platform-hybrid-connectivity` | ExpressRoute circuit + gateway + connections, VPN gateway + local network gateways + connections, gateway public IPs |
 
-### Phase 4 — Shared services
+### Phase 4 — Platform buffers
+
+**Retired: `platform-compeer-shared-services`.** Its whole premise — a
+dedicated VNet spoke, peered to the hub, for domain-controller-adjacent
+"shared services" — was corrected in design review: those services belong
+directly in the hub, not a separate peered VNet. A shared-services *workload*
+(e.g. a shared APIM instance) is now just an ordinary `workload-spoke`
+instantiation like any other spoke — see the `prod-compeer-lz-sharedservices-apim`
+example under Templates below — not a dedicated pattern. See
+`PATTERN-REFERENCE.md`'s "Deployment order" section for the full writeup.
 
 | Workspace | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-shared-services` | shared-services | `platform-shared-services` | Shared-services VNet + subnets, shared platform Key Vault, shared workload resources, private endpoints |
 | `platform-compeer-image-gallery` *(buffer)* | image-gallery | *new* | Azure Compute Gallery, shared image definitions + versions, build automation |
 | `platform-compeer-container-registry` *(buffer)* | container-registry | *new* | Shared premium ACR with private endpoints, geo-replication, token/scope maps |
 
@@ -95,7 +103,7 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 | `platform-compeer-entra-config` | The Identity team wants Conditional Access / authentication-method / PIM-policy settings under change control via the `azuread` provider once coverage + lockout guardrails are approved | portal-managed today; tracked in `platform-authorization` / `platform-privileged-access` `operational_contracts` |
 | `platform-compeer-palo-alto-bootstrap` | The network team wants the bootstrap storage/KV provisioned **and validated** before the firewall VMs boot (two-phase) | `platform-compeer-palo-alto` (the pattern creates bootstrap storage + KV inline) |
 | `platform-compeer-image-gallery` | Shared golden-image pipeline is in scope for this phase | not needed for the base LZ |
-| `platform-compeer-container-registry` | A shared platform ACR is required (vs per-workload ACR) | `platform-compeer-shared-services` or per-workload |
+| `platform-compeer-container-registry` | A shared platform ACR is required (vs per-workload ACR) | per-workload |
 | `platform-compeer-tfe-bootstrap` | HCP itself (project, variable sets, VCS, these workspaces) is managed as code (`tfe` provider) | done once by hand |
 
 ### Not needed — the design doc capability is already covered
@@ -109,17 +117,18 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 
 ## Count
 
-- **Core platform workspaces to create now:** 15 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
+- **Core platform workspaces to create now:** 14 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
 - **Buffer / conditional:** 5 (create only on the trigger above)
 - **Templates:** 2 (peering, workload-spoke) — instantiated many times
-- **Total platform footprint with buffer:** ~20 + templates + N workload LZs
+- **Total platform footprint with buffer:** ~19 + templates + N workload LZs
 
 ## Deployment order
 
 `governance → authorization → workload-identity → privileged-access →
 subscription-onboarding → policy → management → connectivity → identity →
 directory-services → hybrid-connectivity → palo-alto → cloudflare-connectors →
-cloudflare-edge → shared-services`, then peering + workload LZs.
+cloudflare-edge`, then peering + workload LZs (including a shared-services
+workload spoke, if/when one is instantiated — see the retirement note above).
 
 - `authorization` runs right after `governance` — its role assignments target the
   MG scopes `governance` creates, and every downstream RBAC consumer reads its

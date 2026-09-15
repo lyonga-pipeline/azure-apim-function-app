@@ -27,20 +27,34 @@ files (e.g. `platform-management`'s alerts live in `platform_alerts.tf`, not
 11. `palo-alto-hub` → workspace `platform-palo-alto`
 12. `directory-services` → workspace `platform-directory-services`
 13. `cloudflare-connectors` → workspace `platform-cloudflare-connectors`
-14. `shared-services` → workspace `platform-shared-services`
-15. `workload-spoke` (template) → one workspace per workload × environment
-16. `network-peering` (template) → one workspace per hub↔spoke pair
-17. `terraform-cloudflare-compeer-edge-baseline` → workspace `platform-cloudflare-edge`
+14. `workload-spoke` (template) → one workspace per workload × environment
+15. `network-peering` (template) → one workspace per hub↔spoke pair
+16. `terraform-cloudflare-compeer-edge-baseline` → workspace `platform-cloudflare-edge`
 
 Not deployed: `subscription-vending` (creates subscriptions; Compeer's CSP
 creates them instead — kept for a future EA/MCA billing model only).
 
-## Test coverage audit (all 17 patterns)
+**Retired: `shared-services` (was #14, workspace `platform-shared-services`).**
+Its whole premise — a dedicated VNet spoke, peered to the hub, for
+domain-controller-adjacent "shared services" — was the exact architecture
+the design doc's page-19 diagram showed and the network/LZ architects
+corrected in review: those services belong directly in the hub, not a
+separate peered VNet (`directory-services` already places domain
+controllers straight into hub subnets, confirming this). The pattern and
+workspace were deleted outright rather than left disabled, since nothing in
+the real tfvars ever populated it (`enabled = false`, and even its own
+`platform_identity` / `platform_key_vault` sub-blocks were `enabled =
+false`) and its only reason to exist no longer holds.
+
+## Test coverage audit (all 16 patterns)
 
 Before this pass, only 2 of the 17 patterns (`global-governance`,
 `palo-alto-hub`) had meaningful test coverage; several with real safety-
 critical `terraform_data` contracts had **zero**. All 17 now have a passing
-`terraform test` suite — 86 test runs total, 0 failures — and validating
+`terraform test` suite — 86 test runs total, 0 failures (`shared-services`,
+one of the 17 at the time, contributed 2 of those runs; it was later retired
+— see the "Deployment order" section above — so the current total across
+the remaining 16 patterns is 84) — and validating
 against `terraform plan` (not just `terraform validate`, which does not
 evaluate resource preconditions or runtime function calls with real values)
 surfaced three real, previously-latent bugs:
@@ -57,9 +71,13 @@ surfaced three real, previously-latent bugs:
 2. **`platform-directory-services`** — the same `coalesce(x, "")` pattern in
    the AD DS promotion precondition turned a missing `domain_name`/
    `domain_admin_username` into the same cryptic crash instead of the
-   precondition's intended clean error message. Same fix.
-3. **`platform-identity` and `workload-spoke`** (the latter also reused by
-   `shared-services`) — `network_acls = coalesce(try(x.network_acls, null), {bypass=.., default_action=..})`
+   precondition's intended clean error message. Same fix at the time (that
+   whole precondition, and the Terraform-owned AD DS promotion capability it
+   guarded, was later removed entirely — see §12 — once AD DS role install
+   and promotion were confirmed not Terraform-owned; this bug account is
+   historical).
+3. **`platform-identity` and `workload-spoke`** —
+   `network_acls = coalesce(try(x.network_acls, null), {bypass=.., default_action=..})`
    crashed with *"all arguments must have the same type"* whenever
    `network_acls` was left unset, because the literal default object and the
    variable's declared object type (which also allows `ip_rules` /
@@ -94,7 +112,8 @@ See §1 for the full rationale.
 A separate, catalog-wide pass — resource labels, not behavior — requested
 after review feedback that the generic Terraform default label `"this"`
 made diffs and cross-references hard to follow for a team reviewing changes
-across 18 patterns and 106 modules.
+across 18 patterns (17 today — `shared-services` was one of the 18 at the
+time and has since been retired) and 106 modules.
 
 **1. Every `resource`/`data` block labeled `"this"` was renamed to a
 purpose-specific name** (e.g. `azurerm_policy_definition.this` →
@@ -136,7 +155,9 @@ longer exists anywhere), and since no workspace has ever applied, they were
 confirmed inert and removed (all 6, from `cloudflare-connectors`,
 `directory-services`, `platform-connectivity`, `platform-identity`,
 `platform-management`, `workload-spoke`). Re-verified: `terraform test`
-still passes on all 6 plus `shared-services` (which wraps `workload-spoke`).
+still passes on all 6 (plus `shared-services`, which wrapped
+`workload-spoke` at the time and has since been retired — see the
+"Deployment order" section above).
 (The label mentioned in the bug account above, `.lock`, was itself later
 renamed to `.resource_lock` — see the next paragraph; the bug and its cause
 are otherwise unchanged.)
@@ -195,16 +216,16 @@ All removed on the same confirmed basis as the 68 `moved.tf` files: no
 bookkeeping to protect — a plain rename/refactor is sufficient until the
 first real apply happens. Re-verified: `terraform validate` and
 `terraform test` pass on every affected directory (the 6 lock-consuming
-patterns, `shared-services` which wraps `workload-spoke`, and
-`global-governance`).
+patterns, `shared-services` — since retired — which wrapped
+`workload-spoke` at the time, and `global-governance`).
 
 **2. File organization ("a single parameter file where useful") — already
-compliant, no changes needed.** Every one of the 18 patterns and 106 modules
-already has exactly one `variables.tf` and one `outputs.tf`, with no
-variable/output declarations scattered across other files. Nothing to
-consolidate here.
+compliant, no changes needed.** Every one of the 18 patterns (17 today, see
+above) and 106 modules already has exactly one `variables.tf` and one
+`outputs.tf`, with no variable/output declarations scattered across other
+files. Nothing to consolidate here.
 
-**3. Every one of the 18 patterns now has a README `## Overview` section**
+**3. Every one of the 18 patterns (17 today) had a README `## Overview` section**
 stating what it deploys and why, plus — where the pattern carries a
 `terraform_data` contract, a merge-into-`var.*` pattern, or another piece of
 configuration that isn't self-explanatory from the code alone — a short
@@ -652,35 +673,19 @@ without any inbound public IP. Design doc §8.6.
 
 | Block | Resource(s) | Why |
 |---|---|---|
-| `network_interfaces` (no public IPs) / `azurerm_linux_virtual_machine.this` | — | Connector VMs |
-| `azurerm_virtual_machine_extension.this` | — | `cloudflared` install |
+| `network_interfaces` (no public IPs) / `azurerm_linux_virtual_machine.vm` | — | Connector VMs |
+| `azurerm_virtual_machine_extension.extension` | — | `cloudflared` install |
 | `vm_diagnostics` | — | → LAW |
 | `role_assignments`, `management_locks` | — | Group-based RBAC + lock protection |
 | `operational_contracts` | — | Connector runtime tokens are injected via sensitive workspace variables or external config-management, not tracked here |
 | `terraform_data.connector_contract` | — | Precondition on connector configuration completeness |
 
 Does **not** own Cloudflare tunnels, DNS, Access policy, WAF, or account
-settings — that's `terraform-cloudflare-compeer-edge-baseline` (§17).
+settings — that's `terraform-cloudflare-compeer-edge-baseline` (§16).
 
 ---
 
-## 14. `shared-services` — workspace `platform-shared-services`
-
-**Purpose:** the dedicated shared-services VNet spoke for platform-adjacent
-capabilities (API management, enterprise scheduling, data platform, messaging)
-— design doc §6.1/§8.7, dormant until activated.
-
-A thin wrapper: `main.tf` is a single `module "shared_services" { source =
-"../terraform-azurerm-compeer-workload-spoke" ... }` call. It reuses the exact
-same spoke composition as any workload (§15) — VNet, subnets, NSGs, route
-tables, hub peering, private DNS links, diagnostics, RBAC, locks, identity,
-optional Key Vault — under a **separate platform workspace boundary** so
-shared-services lifecycle doesn't couple to any one workload team's apply
-cadence.
-
----
-
-## 15. `workload-spoke` (template) — one workspace per workload × environment
+## 14. `workload-spoke` (template) — one workspace per workload × environment
 
 **Purpose:** an application landing-zone network boundary. Instantiated many
 times (`prod-compeer-lz-internalapps-apim`, `dev-compeer-lz-internalapps-scheduler`, …).
@@ -703,7 +708,7 @@ and locks.
 
 ---
 
-## 16. `network-peering` (template) — one workspace per hub↔spoke pair
+## 15. `network-peering` (template) — one workspace per hub↔spoke pair
 
 **Purpose:** owns the cross-subscription VNet peering + shared private-DNS
 zone links between one hub and one spoke, in a dedicated workspace so exactly
@@ -721,7 +726,7 @@ Consumes `platform-connectivity` and the target `workload-spoke` outputs via
 
 ---
 
-## 17. `terraform-cloudflare-compeer-edge-baseline` — workspace `platform-cloudflare-edge`
+## 16. `terraform-cloudflare-compeer-edge-baseline` — workspace `platform-cloudflare-edge`
 
 **Purpose:** the Cloudflare-owned control-plane resources for external-app
 ingress. Design doc §8.6.
