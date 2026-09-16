@@ -49,4 +49,40 @@ module "subscription_onboarding" {
   default_tags              = try(var.onboarding.default_tags, {})
   baseline_role_assignments = try(var.onboarding.baseline_role_assignments, {})
   subscriptions             = try(var.onboarding.subscriptions, {})
+  legacy_policy_removals    = try(var.onboarding.legacy_policy_removals, {})
+}
+
+# -----------------------------------------------------------------------------
+# Legacy policy assignment removal — import blocks
+#
+# The pattern module declares azurerm_subscription_policy_assignment.legacy_removal
+# / azurerm_resource_group_policy_assignment.legacy_removal, but Terraform only
+# allows `import` blocks in the ROOT module — this workspace root is that root.
+# See the pattern's variables.tf (legacy_policy_removals) and README for the
+# full two-phase import-then-destroy workflow and rationale.
+# -----------------------------------------------------------------------------
+
+locals {
+  legacy_policy_removals   = try(var.onboarding.legacy_policy_removals, {})
+  onboarding_subscriptions = try(var.onboarding.subscriptions, {})
+
+  legacy_sub_removals = { for k, r in local.legacy_policy_removals : k => r if r.scope_type == "subscription" }
+  legacy_rg_removals  = { for k, r in local.legacy_policy_removals : k => r if r.scope_type == "resource_group" }
+  legacy_removal_subscription_ids = {
+    for k, r in local.legacy_policy_removals : k => local.onboarding_subscriptions[r.subscription_key].subscription_id
+  }
+}
+
+import {
+  for_each = local.legacy_sub_removals
+
+  to = module.subscription_onboarding[0].azurerm_subscription_policy_assignment.legacy_removal[each.key]
+  id = "/subscriptions/${local.legacy_removal_subscription_ids[each.key]}/providers/Microsoft.Authorization/policyAssignments/${each.value.assignment_name}"
+}
+
+import {
+  for_each = local.legacy_rg_removals
+
+  to = module.subscription_onboarding[0].azurerm_resource_group_policy_assignment.legacy_removal[each.key]
+  id = "/subscriptions/${local.legacy_removal_subscription_ids[each.key]}/resourceGroups/${each.value.resource_group_name}/providers/Microsoft.Authorization/policyAssignments/${each.value.assignment_name}"
 }

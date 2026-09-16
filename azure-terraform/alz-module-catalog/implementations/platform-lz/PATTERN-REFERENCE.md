@@ -376,9 +376,31 @@ creates subscriptions.
 
 | Block | Resource(s) | Why |
 |---|---|---|
-| `terraform_data.onboarding_contract` | — | Precondition: every `target_management_group_key` and `principal_group_key` must resolve, before anything is placed |
+| `terraform_data.onboarding_contract` | — | Precondition: every `target_management_group_key`, `principal_group_key`, and `legacy_policy_removals[*].subscription_key` must resolve, before anything is placed |
 | `azurerm_management_group_subscription_association.this` | — | Moves the subscription from Tenant Root Group to its target MG |
 | `baseline_role_assignments` / `app_role_assignments` | `terraform-azurerm-compeer-role-assignments` | Standing RBAC at subscription scope. `principal_group_key` resolves against `platform-authorization.group_object_ids`; `principal_type = "User"` is rejected outright |
+| `azurerm_subscription_policy_assignment.legacy_removal` / `azurerm_resource_group_policy_assignment.legacy_removal` | — | See "Legacy policy removal" below |
+
+**Legacy policy removal (`var.legacy_policy_removals`).** Moving a subscription
+to a new MG is native Azure behaviour and automatically stops old-MG-inherited
+policy from applying — nothing extra needed there. What doesn't move on its
+own is a policy assignment made **directly** at the subscription or a resource
+group inside it (not inherited from any MG); that stays attached regardless of
+which MG the subscription moves to and must be explicitly removed. This
+variable does that safely: each entry is `import`ed into state as a real
+`azurerm_subscription_policy_assignment` / `azurerm_resource_group_policy_assignment`,
+then intentionally left undeclared once removed from the map, so the next plan
+proposes a clean, reviewable destroy instead of an implicit one.
+
+`import` blocks are only valid in a **root** module, so this pattern
+(a child module everywhere it's used) only declares the two resources —
+the actual `import` blocks live in the consuming workspace root,
+`implementations/platform-lz/workspaces/platform-subscription-onboarding/main.tf`,
+referencing `module.subscription_onboarding[0].azurerm_..._policy_assignment.legacy_removal[key]`.
+Workflow: (1) add the entry + apply → Terraform imports it (no-op, since the
+pattern declares matching arguments); (2) remove the entry from the map →
+next plan shows the destroy; review, then apply. See the pattern's README
+("Legacy policy removal") for the full Portal-lookup-to-destroy walkthrough.
 
 ---
 

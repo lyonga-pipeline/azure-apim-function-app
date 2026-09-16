@@ -27,3 +27,11 @@ output "app_role_assignment_ids" {
   description = "Subscription-scope app-specific RBAC assignment IDs."
   value       = module.app_role_assignments.ids
 }
+
+output "legacy_policy_removal_ids" {
+  description = "Legacy subscription/resource-group-scope policy assignments currently imported and tracked for removal (see var.legacy_policy_removals). Non-empty here means the next plan, once an entry is dropped from that map, will show a destroy for it."
+  value = merge(
+    { for key, a in azurerm_subscription_policy_assignment.legacy_removal : key => a.id },
+    { for key, a in azurerm_resource_group_policy_assignment.legacy_removal : key => a.id },
+  )
+}

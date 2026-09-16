@@ -20,3 +20,8 @@ output "baseline_role_assignment_ids" {
 output "app_role_assignment_ids" {
   value = try(module.subscription_onboarding[0].app_role_assignment_ids, {})
 }
+
+output "legacy_policy_removal_ids" {
+  description = "Legacy subscription/resource-group-scope policy assignments currently imported and tracked for removal."
+  value       = try(module.subscription_onboarding[0].legacy_policy_removal_ids, {})
+}

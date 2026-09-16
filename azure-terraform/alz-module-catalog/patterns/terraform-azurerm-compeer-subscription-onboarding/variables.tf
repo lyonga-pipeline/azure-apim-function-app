@@ -155,6 +155,66 @@ variable "baseline_role_assignments" {
   }
 }
 
+variable "legacy_policy_removals" {
+  description = <<-EOT
+    Subscription-scope (or resource-group-scope) policy ASSIGNMENTS to remove
+    during onboarding — found by reviewing the CSP-handed-over subscription in
+    the Portal before/during onboarding.
+
+    Why this exists: moving a subscription to a new management group (below)
+    automatically and immediately stops MG-inherited policies from the OLD
+    parent/root from applying, and starts the NEW landing-zone MG's policies
+    applying instead — that part is Azure's native behaviour, not something
+    this pattern needs to do anything extra for. What Azure does NOT do on
+    its own is remove a policy assignment that was made DIRECTLY at the
+    subscription (or a resource group inside it) rather than inherited from
+    an MG — that kind of assignment stays attached to the subscription
+    regardless of which MG it moves under, and will keep evaluating
+    alongside the new landing-zone baseline unless explicitly removed. This
+    variable is how that removal happens, safely: each entry is imported
+    into Terraform state (see the `import` blocks in main.tf) as a real
+    `azurerm_subscription_policy_assignment` / `azurerm_resource_group_policy_assignment`,
+    then intentionally left undeclared everywhere else, so the plan proposes
+    destroying it — visible and reviewable before it happens, not implicit.
+
+    `policy_definition_id` is the full resource ID of whatever the legacy
+    assignment points to — a plain policy OR an initiative (Azure's API uses
+    the same field for both; find it on the assignment's Portal "Definition"
+    link).
+  EOT
+  type = map(object({
+    subscription_key     = string
+    scope_type           = string # "subscription" | "resource_group"
+    resource_group_name  = optional(string)
+    assignment_name      = string
+    policy_definition_id = string
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for r in values(var.legacy_policy_removals) :
+      contains(["subscription", "resource_group"], r.scope_type)
+    ])
+    error_message = "legacy_policy_removals[*].scope_type must be \"subscription\" or \"resource_group\"."
+  }
+
+  validation {
+    condition = alltrue([
+      for r in values(var.legacy_policy_removals) :
+      r.scope_type != "resource_group" || try(r.resource_group_name, null) != null
+    ])
+    error_message = "legacy_policy_removals[*].resource_group_name is required when scope_type is \"resource_group\"."
+  }
+
+  # NOTE: cross-referencing var.subscriptions here is not possible - a variable
+  # validation condition can only refer to the variable itself (Terraform <1.9
+  # limit; this repo targets >= 1.5.0). That check lives instead as a
+  # precondition on terraform_data.onboarding_contract in main.tf, alongside
+  # the other cross-variable checks (unresolved_target_keys, etc.) that already
+  # use that pattern for the same reason.
+}
+
 variable "group_object_ids" {
   description = "Entra security group object IDs keyed by platform-authorization rbac_groups key. Used to resolve principal_group_key for baseline and app subscription RBAC."
   type        = map(string)

@@ -108,6 +108,7 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `onboarded_subscription_ids`
 - `onboarded_subscription_resource_ids`
 - `baseline_role_assignment_ids`
+- `legacy_policy_removal_ids` (legacy subscription/RG-scope policy assignments imported and pending removal — see the pattern's README)
 
 `platform-policy` publishes:
 

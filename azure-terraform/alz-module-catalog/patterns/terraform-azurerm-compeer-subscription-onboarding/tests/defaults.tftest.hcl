@@ -1,3 +1,8 @@
+# NOTE: the `import` blocks in main.tf (legacy_policy_removals -> azurerm_subscription_policy_assignment
+# / azurerm_resource_group_policy_assignment) are not covered here. Import requires a real provider
+# read against a real API-shaped ID; mock_provider has no equivalent, so the import mechanism itself
+# can only be verified against a real subscription. The tests below cover what mock_provider CAN
+# verify: the variable's own validation rules, which run before any resource/import evaluation.
 mock_provider "azurerm" {}
 
 variables {
@@ -144,4 +149,58 @@ run "rejects_direct_user_principal" {
   }
 
   expect_failures = [var.baseline_role_assignments]
+}
+
+run "rejects_invalid_legacy_removal_scope_type" {
+  command = plan
+
+  variables {
+    legacy_policy_removals = {
+      old_tag_policy = {
+        subscription_key     = "hub"
+        scope_type           = "management_group"
+        assignment_name      = "legacy-tag-policy"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-a204-c1c3969c6d62"
+      }
+    }
+  }
+
+  expect_failures = [var.legacy_policy_removals]
+}
+
+run "rejects_legacy_removal_missing_resource_group_name" {
+  command = plan
+
+  variables {
+    legacy_policy_removals = {
+      old_tag_policy = {
+        subscription_key     = "hub"
+        scope_type           = "resource_group"
+        assignment_name      = "legacy-tag-policy"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-a204-c1c3969c6d62"
+      }
+    }
+  }
+
+  expect_failures = [var.legacy_policy_removals]
+}
+
+run "rejects_legacy_removal_unknown_subscription_key" {
+  command = plan
+
+  variables {
+    legacy_policy_removals = {
+      old_tag_policy = {
+        subscription_key     = "does-not-exist"
+        scope_type           = "subscription"
+        assignment_name      = "legacy-tag-policy"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-a204-c1c3969c6d62"
+      }
+    }
+  }
+
+  # subscription_key cross-references var.subscriptions, so this is caught by
+  # the onboarding_contract precondition, not a variable validation block
+  # (see the NOTE on legacy_policy_removals in variables.tf).
+  expect_failures = [terraform_data.onboarding_contract]
 }

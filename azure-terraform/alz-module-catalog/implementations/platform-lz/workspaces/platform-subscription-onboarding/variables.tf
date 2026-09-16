@@ -52,6 +52,7 @@ variable "onboarding" {
     default_tags              = optional(map(string), {})
     baseline_role_assignments = optional(any, {})
     subscriptions             = optional(any, {})
+    legacy_policy_removals    = optional(any, {})
   })
   default = {}
 }

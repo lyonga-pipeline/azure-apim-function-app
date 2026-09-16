@@ -43,4 +43,21 @@ onboarding = {
   # platform-authorization, or principal_id + principal_type = "Group" for a
   # pre-existing workload group owned by the client's IGA process.
   subscriptions = {}
+
+  # Populate per subscription, found by reviewing it in the Portal before/
+  # during onboarding: legacy policy ASSIGNMENTS made directly at the
+  # subscription or a resource group (not inherited from an MG - those are
+  # handled automatically when the subscription moves MG above). Two-phase:
+  # add an entry + apply (imports it, no-op), then remove the entry + apply
+  # (destroys it). See the pattern README's "Legacy policy removal" section.
+  # Example:
+  # legacy_policy_removals = {
+  #   old_tag_policy = {
+  #     subscription_key     = "<a key in subscriptions above>"
+  #     scope_type            = "subscription"
+  #     assignment_name       = "<assignment name from the Portal>"
+  #     policy_definition_id  = "/providers/Microsoft.Authorization/policyDefinitions/<guid>"
+  #   }
+  # }
+  legacy_policy_removals = {}
 }
