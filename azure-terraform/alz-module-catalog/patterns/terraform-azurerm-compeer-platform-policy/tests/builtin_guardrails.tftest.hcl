@@ -47,10 +47,10 @@ run "builtin_audit_guardrails" {
         identity             = { type = "SystemAssigned" }
       }
       vm_backup_required = {
-        name                  = "cmp-vm-backup"
-        management_group_key  = "workloads-mg"
-        policy_definition_id  = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d"
-        display_name          = "Compeer require VM backup"
+        name                 = "cmp-vm-backup"
+        management_group_key = "workloads-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d"
+        display_name         = "Compeer require VM backup"
       }
       cis_benchmark = {
         name                     = "cmp-cis-benchmark"

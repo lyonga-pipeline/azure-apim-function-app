@@ -171,11 +171,11 @@ variable "policy_baseline" {
     effect defaults to "Audit" - promote to "Deny" per policy after review.
   EOT
   type = object({
-    enabled                   = optional(bool, false)
-    management_group_key      = optional(string)
-    effect                    = optional(string, "Audit")
-    enforce                   = optional(bool, true)
-    allowed_locations = optional(list(string), ["centralus"])
+    enabled              = optional(bool, false)
+    management_group_key = optional(string)
+    effect               = optional(string, "Audit")
+    enforce              = optional(bool, true)
+    allowed_locations    = optional(list(string), ["centralus"])
     # Must track terraform-azurerm-compeer-platform-tags' local.mandatory_keys.
     # A type-level default (not just the try() fallback in policy_baseline.tf)
     # is required here: optional(list(string)) with no default resolves to a

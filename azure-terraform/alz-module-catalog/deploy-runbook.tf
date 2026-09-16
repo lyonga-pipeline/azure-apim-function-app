@@ -859,14 +859,19 @@ Phase 2:
 9. SHARED SERVICES / PRIVATE DNS
 ===============================================================================
 
-The L3 design includes a dedicated shared-services VNet:
-  platform-cus-prod-shared-vnet
-peered to the hub.
+CORRECTED (network/LZ architect review, post-v7 design doc): the original L3
+design's dedicated shared-services VNet (platform-cus-prod-shared-vnet, peered
+to the hub) was wrong and is NOT implemented. Domain controllers and other
+platform-adjacent shared services live directly in the hub VNet as a
+centralized shared service - there is no separate peered VNet for them. The
+`terraform-azurerm-compeer-shared-services` pattern that implemented the old
+design has been deleted from the catalog entirely; `directory-services` is the
+reference for the correct hub-hosted approach.
 
-Do not omit this from the implementation plan.
-
-Use it for platform-adjacent shared services only where architecture/ownership
-requires. It is not a dumping ground for unrelated resources.
+A shared-services *workload* (e.g. a shared APIM instance, as opposed to
+platform infrastructure like domain controllers) is just an ordinary
+workload-spoke instantiation like any other spoke - not a dedicated pattern.
+See `prod-compeer-lz-sharedservices-apim` in HCP-WORKSPACES.md for that case.
 
 Private DNS:
   - centralized
@@ -1044,14 +1049,15 @@ WAVE 7 - CLOUDFLARE
   7.8 Configure Palo Alto connector-to-origin policy.
   7.9 Validate outbound-only tunnel, HA, failure, and no public inbound bypass.
 
-WAVE 8 - SHARED SERVICES / SPOKES
-  8.1 Deploy/peer shared-services VNet if active.
-  8.2 Deploy internal/external workload spokes.
-  8.3 UDR -> Palo Alto.
-  8.4 Private DNS links.
-  8.5 Private endpoints.
-  8.6 NSGs.
-  8.7 diagnostics.
+WAVE 8 - WORKLOAD SPOKES
+  8.1 Deploy internal/external workload spokes (a shared-services workload,
+      e.g. a shared APIM instance, is just an ordinary spoke here - no
+      dedicated shared-services VNet/pattern; see section 9).
+  8.2 UDR -> Palo Alto.
+  8.3 Private DNS links.
+  8.4 Private endpoints.
+  8.5 NSGs.
+  8.6 diagnostics.
 
 WAVE 9 - PRODUCTION READINESS
   9.1 Validate Policy.
