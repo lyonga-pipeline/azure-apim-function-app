@@ -42,6 +42,11 @@ output "workload_key_vault_id" {
   value = try(module.workload_key_vault[0].id, null)
 }
 
+output "workload_key_vault_uri" {
+  description = "Platform_Output_Contracts_IAC-10 spoke_key_vault (vault_uri half - combine with workload_key_vault_id). Reference only, never a secret value."
+  value       = try(module.workload_key_vault[0].vault_uri, null)
+}
+
 output "workload_key_vault_name" {
   value = try(module.workload_key_vault[0].name, null)
 }

@@ -10,6 +10,12 @@ data "tfe_outputs" "connectivity" {
   workspace    = var.connectivity_workspace_name
 }
 
+data "tfe_outputs" "governance" {
+  count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
+  organization = var.tfe_organization
+  workspace    = var.governance_workspace_name
+}
+
 locals {
   enabled = try(var.workload_spoke.enabled, false)
 
@@ -24,6 +30,17 @@ locals {
   )
 
   log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
+
+  governance_outputs = merge(
+    try(data.tfe_outputs.governance[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.governance[0].values, {})
+  )
+
+  # Platform_Output_Contracts_IAC-10: an application root needs the mandatory
+  # tag keys but should never get a state-sharing grant on platform-governance
+  # for the sake of one list - this workspace reads it once via tfe_outputs
+  # and re-publishes it as spoke_mandatory_tag_keys (see outputs.tf).
+  mandatory_tag_keys = try(local.governance_outputs.mandatory_tag_keys, [])
 
   hub_connection = try(var.workload_spoke.hub_connection, null) != null ? var.workload_spoke.hub_connection : (
     try(local.connectivity_outputs.hub_virtual_network_id, null) == null ? null : {

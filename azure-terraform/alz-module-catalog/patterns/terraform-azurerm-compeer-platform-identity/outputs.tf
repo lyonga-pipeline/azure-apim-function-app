@@ -10,6 +10,11 @@ output "platform_identity_principal_ids" {
   value = { for key, value in module.platform_identities : key => value.principal_id }
 }
 
+output "platform_identity_client_ids" {
+  description = "Client (application) IDs of the shared platform user-assigned identities, keyed by input key - the piece Platform_Output_Contracts_IAC-10's identity_shared_user_assigned_identity_ids (map(object({id, principal_id, client_id}))) needs that wasn't published before."
+  value       = { for key, value in module.platform_identities : key => value.client_id }
+}
+
 output "key_vault_id" {
   value = module.key_vault.id
 }

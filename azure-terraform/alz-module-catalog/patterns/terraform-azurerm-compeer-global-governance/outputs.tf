@@ -35,3 +35,8 @@ output "role_assignment_ids" {
 output "management_group_budget_ids" {
   value = { for key, value in azurerm_consumption_budget_management_group.management_group_budget : key => value.id }
 }
+
+output "mandatory_tag_keys" {
+  description = "Tag keys enforced by the cmp-required-tags baseline policy (Platform_Output_Contracts_IAC-10 governance_mandatory_tag_keys) - re-published from policy_baseline.tf so every root and workload-spoke can validate against the same list without hand-copying it."
+  value       = local.pb_required_tags
+}

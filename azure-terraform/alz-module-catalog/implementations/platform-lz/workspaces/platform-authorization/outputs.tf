@@ -23,3 +23,8 @@ output "manual_control_keys" {
   description = "Identity / RBAC controls tracked here but deliberately not Terraform-managed."
   value       = try(module.authorization[0].manual_control_keys, [])
 }
+
+output "contract_version" {
+  description = "Platform_Output_Contracts_IAC-10 identity_contract_version (this workspace covers IAM-01/02 of that contract; domain controllers live in platform-directory-services, shared managed identities in platform-identity-security)."
+  value       = "0.1.0"
+}

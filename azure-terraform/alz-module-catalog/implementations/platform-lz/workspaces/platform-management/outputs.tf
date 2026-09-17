@@ -14,6 +14,16 @@ output "log_analytics_workspace_guid" {
   value = try(module.management[0].log_analytics_workspace_guid, null)
 }
 
+output "log_analytics_workspace_ids" {
+  description = "Platform_Output_Contracts_IAC-10 management_log_analytics_workspace_ids."
+  value       = try(module.management[0].log_analytics_workspace_ids, {})
+}
+
+output "log_analytics_workspace_guids" {
+  description = "Platform_Output_Contracts_IAC-10 management_log_analytics_workspace_guids."
+  value       = try(module.management[0].log_analytics_workspace_guids, {})
+}
+
 output "log_analytics_workspace_resource_group_name" {
   value = try(module.management[0].log_analytics_workspace_resource_group_name, null)
 }
@@ -44,6 +54,16 @@ output "action_group_name" {
 
 output "action_group_enabled" {
   value = try(module.management[0].action_group_enabled, null)
+}
+
+output "action_group_ids" {
+  description = "Platform_Output_Contracts_IAC-10 management_action_group_ids."
+  value       = try(module.management[0].action_group_ids, {})
+}
+
+output "defender_plan_ids" {
+  description = "Platform_Output_Contracts_IAC-10 security_defender_enabled_plans."
+  value       = try(module.management[0].defender_plan_ids, {})
 }
 
 output "platform_storage_account_ids" {
@@ -141,4 +161,9 @@ output "sentinel_data_connector_contract" {
 
 output "defender_soc_posture" {
   value = try(module.management[0].defender_soc_posture, null)
+}
+
+output "contract_version" {
+  description = "Platform_Output_Contracts_IAC-10 management_contract_version."
+  value       = "0.1.0"
 }

@@ -66,6 +66,12 @@ variable "connectivity_workspace_name" {
   default     = "platform-connectivity"
 }
 
+variable "governance_workspace_name" {
+  description = "Workspace that publishes mandatory_tag_keys (Platform_Output_Contracts_IAC-10 governance_mandatory_tag_keys, re-published here as spoke_mandatory_tag_keys)."
+  type        = string
+  default     = "platform-governance"
+}
+
 variable "log_analytics_workspace_id" {
   description = "Explicit Log Analytics workspace ID. Overrides management workspace output when set."
   type        = string

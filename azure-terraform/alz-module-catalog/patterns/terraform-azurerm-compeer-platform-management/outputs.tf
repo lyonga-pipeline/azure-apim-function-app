@@ -14,6 +14,16 @@ output "log_analytics_workspace_guid" {
   value = module.log_analytics.workspace_id
 }
 
+output "log_analytics_workspace_ids" {
+  description = "Platform_Output_Contracts_IAC-10 management_log_analytics_workspace_ids - map(string) keyed by environment. v7 sec 9.2 wants one centralised workspace per environment; the real deployment today is one platform workspace - that conflict is unresolved (per the contract doc sec 7), so this map absorbs either outcome without a breaking change later: with one workspace, the map just has one key that every environment resolves to."
+  value       = { (var.environment) = module.log_analytics.id }
+}
+
+output "log_analytics_workspace_guids" {
+  description = "Platform_Output_Contracts_IAC-10 management_log_analytics_workspace_guids - map(string) keyed by environment, same rationale as log_analytics_workspace_ids."
+  value       = { (var.environment) = module.log_analytics.workspace_id }
+}
+
 output "log_analytics_workspace_resource_group_name" {
   value = module.log_analytics.resource_group_name
 }
@@ -44,6 +54,11 @@ output "action_group_name" {
 
 output "action_group_enabled" {
   value = module.action_group.enabled
+}
+
+output "action_group_ids" {
+  description = "Platform_Output_Contracts_IAC-10 management_action_group_ids. The design doc's OBS-04 keys this by severity and audience (multiple groups) - that's Phase 2; today there's one action group, so this is a single-key map (\"primary\") for forward compatibility. Not the reserved-empty-map placeholder the contract doc describes for an undelivered OBS-04, since a real action group already exists here."
+  value       = { primary = module.action_group.id }
 }
 
 output "platform_storage_account_ids" {
