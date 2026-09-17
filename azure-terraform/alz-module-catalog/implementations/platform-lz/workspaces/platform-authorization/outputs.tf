@@ -3,20 +3,29 @@ output "group_object_ids" {
   value       = try(module.authorization[0].group_object_ids, {})
 }
 
+output "group_ids" {
+  description = "Entra security group resource IDs keyed by rbac_groups key."
+  value       = try(module.authorization[0].group_ids, {})
+}
+
 output "group_display_names" {
-  value = try(module.authorization[0].group_display_names, {})
+  description = "Entra security group display names keyed by rbac_groups key."
+  value       = try(module.authorization[0].group_display_names, {})
 }
 
 output "custom_role_definition_ids" {
-  value = try(module.authorization[0].custom_role_definition_ids, {})
+  description = "Custom role definition GUIDs keyed by custom_role_definitions key. Platform_Output_Contracts_IAC-10 identity_custom_role_definition_ids."
+  value       = try(module.authorization[0].custom_role_definition_ids, {})
 }
 
 output "role_assignment_ids" {
-  value = try(module.authorization[0].role_assignment_ids, {})
+  description = "Role assignment resource IDs keyed by role_assignments key."
+  value       = try(module.authorization[0].role_assignment_ids, {})
 }
 
 output "operational_contracts" {
-  value = try(module.authorization[0].operational_contracts, {})
+  description = "Declared identity / RBAC operational controls that are not provisioned here."
+  value       = try(module.authorization[0].operational_contracts, {})
 }
 
 output "manual_control_keys" {

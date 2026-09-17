@@ -290,6 +290,88 @@ prove both directions: an entry with diagnostics enabled but no explicit
 `logs`/`metrics` gets the platform default, and an entry with its own
 explicit `logs`/`metrics` is never overridden.
 
+## Follow-up: output best-practice audit (documentation, secrets, wiring)
+
+After the diagnostic-profile / contract_version work above, every output in
+the catalog - not just the fields this contract document names - was audited
+against three plain Terraform best practices: no unmarked secret exposure,
+every output has a `description`, and every pattern-level output that's part
+of a real cross-workspace contract is actually surfaced at the workspace
+level (not stranded where `tfe_outputs` can't reach it).
+
+**Secrets: clean, nothing changed.** Every output value across all 34
+`outputs.tf` files (patterns and workspaces) was checked for raw secret
+material - connection strings, keys, passwords, certificate data, tokens.
+None found. Exactly three outputs are `sensitive = true` catalog-wide, and
+both patterns are correct: `terraform-cloudflare-compeer-edge-baseline`'s
+`tunnel_tokens` (an actual Cloudflare secret), and
+`terraform-azurerm-compeer-network-peering`'s two `resolved_*_virtual_network_id`
+outputs - not secrets by content, but Terraform forces the flag because they
+derive from a `tfe_outputs` data source's `.values` attribute, which the TFE
+provider itself types sensitive; the merge-locals convention this whole
+catalog uses (`merge(nonsensitive_values, values)`) makes that unavoidable
+wherever a value survives that merge.
+
+**Descriptions: added everywhere they were missing.** Every output added in
+the original IAC-10 pass already had a description. Nearly everything that
+predated it did not - 320 undocumented outputs across the catalog. Added a
+`description` to every output in the 14 pattern/workspace pairs that
+actually participate in the tfe_outputs contract network (the same set the
+"11 real cross-workspace consumers" table above is drawn from, plus their
+producers): `platform-management`, `platform-connectivity`,
+`global-governance`/`platform-governance`, `platform-authorization`,
+`platform-identity`/`platform-identity-security`, `directory-services`,
+`platform-hybrid-connectivity`, `workload-spoke`, `platform-policy`,
+`subscription-onboarding`, `cloudflare-connectors`, `palo-alto-hub`,
+`privileged-access`, `subscription-vending`/`platform-subscriptions` - both
+the pattern's own `outputs.tf` and its workspace wrapper's. Left untouched:
+`network-peering`, `cloudflare-edge`/`cloudflare-edge-baseline`, and
+`workload-identity` - real patterns, but outside the tfe_outputs contract
+network this document and the earlier pass are both scoped to, so adding
+descriptions there is a separate, smaller cleanup if ever wanted.
+
+**Wiring: closed every gap in that same scope.** Diffing each in-scope
+pattern's outputs against its workspace wrapper found outputs that exist at
+the pattern level but were never passed through to the workspace - meaning
+`terraform output <name>` at that workspace couldn't see them even though
+the pattern created the underlying resource. Wired through everywhere found:
+`role_assignment_ids` and `management_lock_ids` (present in nearly every
+pattern, missing from most of their workspaces), `diagnostic_setting_ids`,
+plus pattern-specific ones - `platform-management`'s
+`entra_diagnostic_setting_id`, `subscription_activity_log_diagnostic_setting_id`,
+`subscription_budget_ids`, `resource_provider_registration_ids`,
+`platform_metric_alert_ids`, `service_health_alert_id`, three
+`platform_*_private_endpoint_subresources`/`blob_endpoints` outputs;
+`platform-connectivity`'s `load_balancer_ids`,
+`load_balancer_backend_pool_ids`, `network_watcher_ids`,
+`network_watcher_flow_log_ids`, five per-zone private-DNS-zone convenience
+accessors, `bastion_public_ip_id`; `workload-spoke`'s `route_table_ids`,
+`network_security_group_ids`, `private_endpoint_ids`,
+`workload_key_vault_name`, `workload_key_vault_diagnostic_setting_id`,
+`spoke_to_hub_peering_id`, `app_service_integration_subnet_id`;
+`directory-services`' `dc_backup_protected_vm_ids`;
+`platform-authorization`'s `group_ids`; `global-governance`'s
+`management_group_budget_ids` (wired through to `platform-governance`);
+`platform-policy`'s `resource_group_policy_assignment_ids`,
+`policy_exemption_ids`, `remediation_assignment_ids`,
+`remediation_assignment_principal_ids`; `subscription-onboarding`'s
+`subscription_target_management_group_ids`; `palo-alto-hub`'s
+`bootstrap_key_vault_id`/`_uri`; `subscription-vending`'s
+`subscription_management_group_association_ids` and
+`subscription_role_assignment_ids`. All additive - no resource, variable, or
+existing-output behavior changed, so this carries the same zero-migration
+property as the diagnostic-profile fix: nothing is deployed yet, so there is
+no existing `terraform output` consumer to break by adding more outputs.
+
+**Verification for this pass specifically:** every one of the 14 pattern and
+workspace pairs re-ran `terraform validate` and (where a test suite exists)
+`terraform test` clean after the edits - 108 pattern-level test runs across
+the touched patterns, 0 failed. A full repo-wide `terraform validate` sweep
+across every pattern and workspace in the catalog afterward shows the same
+single pre-existing `network-peering` standalone-validate limitation noted
+above and nothing else; a full repo-wide `terraform test` sweep shows zero
+failures anywhere.
+
 ## Verification
 
 Every pattern and workspace touched: `terraform validate` clean,

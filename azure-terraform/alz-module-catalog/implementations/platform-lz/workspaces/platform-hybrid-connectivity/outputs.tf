@@ -1,45 +1,56 @@
 output "resource_group_name" {
-  value = try(module.hybrid_connectivity[0].resource_group_name, null)
+  description = "Name of the hybrid-connectivity resource group."
+  value       = try(module.hybrid_connectivity[0].resource_group_name, null)
 }
 
 output "expressroute_posture" {
-  value = try(module.hybrid_connectivity[0].expressroute_posture, null)
+  description = "ExpressRoute readiness contract object."
+  value       = try(module.hybrid_connectivity[0].expressroute_posture, null)
 }
 
 output "expressroute_circuit_ids" {
-  value = try(module.hybrid_connectivity[0].expressroute_circuit_ids, {})
+  description = "Resource IDs of the ExpressRoute circuits."
+  value       = try(module.hybrid_connectivity[0].expressroute_circuit_ids, {})
 }
 
 output "expressroute_gateway_id" {
-  value = try(module.hybrid_connectivity[0].expressroute_gateway_id, null)
+  description = "Resource ID of the ExpressRoute virtual network gateway, or null if not deployed. Platform_Output_Contracts_IAC-10 connectivity_expressroute_gateway_id."
+  value       = try(module.hybrid_connectivity[0].expressroute_gateway_id, null)
 }
 
 output "expressroute_connection_ids" {
-  value = try(module.hybrid_connectivity[0].expressroute_connection_ids, {})
+  description = "Resource IDs of the ExpressRoute connections."
+  value       = try(module.hybrid_connectivity[0].expressroute_connection_ids, {})
 }
 
 output "vpn_posture" {
-  value = try(module.hybrid_connectivity[0].vpn_posture, null)
+  description = "Site-to-site VPN readiness contract object."
+  value       = try(module.hybrid_connectivity[0].vpn_posture, null)
 }
 
 output "vpn_gateway_public_ip_ids" {
-  value = try(module.hybrid_connectivity[0].vpn_gateway_public_ip_ids, {})
+  description = "Resource IDs of the VPN gateway public IPs."
+  value       = try(module.hybrid_connectivity[0].vpn_gateway_public_ip_ids, {})
 }
 
 output "vpn_gateway_id" {
-  value = try(module.hybrid_connectivity[0].vpn_gateway_id, null)
+  description = "Resource ID of the site-to-site VPN virtual network gateway, or null if not deployed. Platform_Output_Contracts_IAC-10 connectivity_vpn_gateway_id."
+  value       = try(module.hybrid_connectivity[0].vpn_gateway_id, null)
 }
 
 output "local_network_gateway_ids" {
-  value = try(module.hybrid_connectivity[0].local_network_gateway_ids, {})
+  description = "Resource IDs of the local network gateways (on-prem VPN endpoints)."
+  value       = try(module.hybrid_connectivity[0].local_network_gateway_ids, {})
 }
 
 output "local_network_gateways" {
-  value = try(module.hybrid_connectivity[0].local_network_gateways, {})
+  description = "Full detail (id, name, gateway address, address space) for each local network gateway."
+  value       = try(module.hybrid_connectivity[0].local_network_gateways, {})
 }
 
 output "vpn_connection_ids" {
-  value = try(module.hybrid_connectivity[0].vpn_connection_ids, {})
+  description = "Resource IDs of the VPN gateway connections."
+  value       = try(module.hybrid_connectivity[0].vpn_connection_ids, {})
 }
 
 output "vpn_certificate_key_vault_id" {
@@ -48,7 +59,8 @@ output "vpn_certificate_key_vault_id" {
 }
 
 output "vpn_certificate_key_vault_uri" {
-  value = try(module.hybrid_connectivity[0].vpn_certificate_key_vault_uri, null)
+  description = "Vault URI of the VPN certificate Key Vault, or null if not deployed. Reference only, never a secret value."
+  value       = try(module.hybrid_connectivity[0].vpn_certificate_key_vault_uri, null)
 }
 
 output "vpn_certificate_identity_id" {
@@ -57,11 +69,13 @@ output "vpn_certificate_identity_id" {
 }
 
 output "vpn_certificate_identity_principal_id" {
-  value = try(module.hybrid_connectivity[0].vpn_certificate_identity_principal_id, null)
+  description = "Principal (object) ID of the VPN certificate identity, or null if not deployed."
+  value       = try(module.hybrid_connectivity[0].vpn_certificate_identity_principal_id, null)
 }
 
 output "vpn_certificate_identity_client_id" {
-  value = try(module.hybrid_connectivity[0].vpn_certificate_identity_client_id, null)
+  description = "Client (application) ID of the VPN certificate identity, or null if not deployed."
+  value       = try(module.hybrid_connectivity[0].vpn_certificate_identity_client_id, null)
 }
 
 output "contract_version" {

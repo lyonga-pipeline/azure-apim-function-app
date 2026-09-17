@@ -44,5 +44,6 @@ output "bootstrap_key_vault_id" {
 }
 
 output "bootstrap_key_vault_uri" {
-  value = try(module.bootstrap_key_vault[0].vault_uri, null)
+  description = "Vault URI of the bootstrap Key Vault, or null if not deployed. Reference only, never a secret value."
+  value       = try(module.bootstrap_key_vault[0].vault_uri, null)
 }

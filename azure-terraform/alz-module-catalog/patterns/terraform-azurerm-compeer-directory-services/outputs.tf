@@ -1,25 +1,31 @@
 output "resource_group_name" {
-  value = module.resource_group.name
+  description = "Name of the directory-services resource group."
+  value       = module.resource_group.name
 }
 
 output "network_interface_ids" {
-  value = { for key, value in module.network_interfaces : key => value.id }
+  description = "Resource IDs of the domain controller NICs, keyed the same as var.domain_controllers."
+  value       = { for key, value in module.network_interfaces : key => value.id }
 }
 
 output "network_interface_private_ip_addresses" {
-  value = { for key, value in module.network_interfaces : key => value.private_ip_addresses }
+  description = "Private IP addresses of the domain controller NICs, keyed the same as var.domain_controllers."
+  value       = { for key, value in module.network_interfaces : key => value.private_ip_addresses }
 }
 
 output "domain_controller_ids" {
-  value = { for key, value in module.domain_controllers : key => value.id }
+  description = "Resource IDs of the domain controller VMs, keyed the same as var.domain_controllers."
+  value       = { for key, value in module.domain_controllers : key => value.id }
 }
 
 output "domain_controller_names" {
-  value = { for key, value in module.domain_controllers : key => value.name }
+  description = "Names of the domain controller VMs, keyed the same as var.domain_controllers."
+  value       = { for key, value in module.domain_controllers : key => value.name }
 }
 
 output "domain_controller_private_ips" {
-  value = { for key, value in module.domain_controllers : key => value.private_ips }
+  description = "Private IP addresses of each domain controller, keyed the same as var.domain_controllers - per-controller shape, see domain_controller_private_ip_list for the flat list."
+  value       = { for key, value in module.domain_controllers : key => value.private_ips }
 }
 
 output "domain_controller_private_ip_list" {
@@ -36,31 +42,38 @@ output "ad_domain_fqdn" {
 }
 
 output "data_disk_ids" {
-  value = { for key, value in azurerm_managed_disk.data : key => value.id }
+  description = "Resource IDs of the domain controller data disks, keyed the same as var.domain_controllers."
+  value       = { for key, value in azurerm_managed_disk.data : key => value.id }
 }
 
 output "data_disk_attachment_ids" {
-  value = { for key, value in azurerm_virtual_machine_data_disk_attachment.data : key => value.id }
+  description = "IDs of the data disk attachments to their domain controller VMs, keyed the same as var.domain_controllers."
+  value       = { for key, value in azurerm_virtual_machine_data_disk_attachment.data : key => value.id }
 }
 
 output "diagnostic_setting_ids" {
-  value = { for key, value in module.vm_diagnostics : key => value.id }
+  description = "IDs of the diagnostic settings on the domain controller VMs, keyed the same as each VM's diagnostics entry."
+  value       = { for key, value in module.vm_diagnostics : key => value.id }
 }
 
 output "domain_join_extension_ids" {
-  value = { for key, value in module.domain_join : key => value.id }
+  description = "IDs of the domain-join VM extensions, keyed the same as var.domain_controllers (only present for entries with domain_join.enabled = true)."
+  value       = { for key, value in module.domain_join : key => value.id }
 }
 
 output "role_assignment_ids" {
-  value = module.role_assignments.ids
+  description = "IDs of the role assignments this pattern creates."
+  value       = module.role_assignments.ids
 }
 
 output "management_lock_ids" {
-  value = module.management_locks.ids
+  description = "IDs of the management locks (CanNotDelete/ReadOnly) this pattern applies."
+  value       = module.management_locks.ids
 }
 
 output "operational_contracts" {
-  value = module.operational_contracts.contracts
+  description = "Operational-readiness contract object - see module.operational_contracts for what it asserts."
+  value       = module.operational_contracts.contracts
 }
 
 output "dc_backup_protected_vm_ids" {
