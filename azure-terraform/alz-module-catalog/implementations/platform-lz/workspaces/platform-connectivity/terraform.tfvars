@@ -113,16 +113,17 @@ connectivity = {
 
   # UDR that forces spoke / connector / DC / PE / app-integration traffic to the
   # Palo Alto Trust ILB frontend (runbook §4.2, §5.5). Replace the appliance IP.
-  # STALE: 10.0.1.132 was inside the old palo_alto_trusted subnet
-  # (10.0.1.128/26). prod-fw-trust-subnet is now 10.102.4.32/27 - this next hop
-  # must be updated to the Trust ILB's real frontend IP in that range before
-  # this route table is ever applied. Not guessed here; get the real IP from
-  # Dan/the Palo Alto build.
+  # 10.102.4.42 = platform-palo-alto's "trust" load balancer's "fe-trust"
+  # frontend (prod-fw-trust-subnet, 10.102.4.32/27) - kept in sync with that
+  # workspace's tfvars by hand, since Terraform variable defaults can't
+  # reference another workspace's value here. Not confirmed by the network/
+  # Palo Alto team - verify both files agree before this route table is ever
+  # applied.
   route_tables = {
     to_firewall = {
       bgp_route_propagation_enabled = false
       routes = {
-        default = { name = "to-firewall", address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.0.1.132" }
+        default = { name = "to-firewall", address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.4.42" }
       }
     }
   }

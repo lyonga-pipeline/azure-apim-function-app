@@ -30,10 +30,12 @@ locals {
       name     = module.naming_dc[key].domain_controller_vm
       nic_name = module.naming_dc[key].network_interface
       }, controller, {
+      # No single fallback subnet key anymore: the hub's domain controller
+      # subnet is split per domain (prod-extdc-subnet / prod-intdc-subnet) -
+      # every controller entry must set its own subnet_key or subnet_id.
       subnet_id = coalesce(
         try(controller.subnet_id, null),
-        try(local.connectivity_outputs.subnet_ids[controller.subnet_key], null),
-        try(local.connectivity_outputs.subnet_ids["domain_controllers"], null)
+        try(local.connectivity_outputs.subnet_ids[controller.subnet_key], null)
       )
       diagnostics = (
         coalesce(try(controller.diagnostics.enabled, null), false) &&

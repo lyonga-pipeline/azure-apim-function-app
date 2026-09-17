@@ -21,6 +21,16 @@ tags = {
 # and a Sunstream ILB, storage bootstrap. subnet_key values resolve against the
 # connectivity workspace's subnet_ids output.
 #
+# subnet_key values and private IPs below were realigned to connectivity's
+# current hub plan (10.102.0.0/16 - Dan's Teams post, 2026-09-17): the old
+# "fw-mgmt"/"fw-untrust"/"fw-trust"/"fw-sunstream" keys never matched any real
+# connectivity subnet (this pattern predates that reconciliation), so every
+# subnet_id here was previously resolving to null. Private IPs were recomputed
+# using this file's own existing convention (fw1 = subnet base + 4, fw2 = base
+# + 5, ILB frontend = base + 10 - i.e. the first two/eleventh usable addresses
+# after Azure's 4 reserved addresses per subnet) applied to the new subnet
+# bases. Not confirmed by the network/Palo Alto team - verify before go-live.
+#
 # Image/license: paloaltonetworks/vmseries-flex, plan "bundle2" - Azure
 # Marketplace PAYG (pay-as-you-go, hourly), NOT BYOL. bundle2 is the fuller
 # PAYG bundle (NGFW + Threat Prevention + DNS Security + WildFire + URL
@@ -53,7 +63,7 @@ palo_alto = {
     network_rules = {
       default_action      = "Deny"
       bypass              = ["AzureServices"]
-      allowed_subnet_keys = ["palo_alto_management"] # resolved from the connectivity output
+      allowed_subnet_keys = ["prod-mgmt-subnet"] # resolved from the connectivity output
       # allowed_ip_ranges = []                        # on-prem CIDR only if genuinely needed
     }
     file_shares = {
@@ -103,14 +113,14 @@ palo_alto = {
   }
 
   network_interfaces = {
-    fw1_mgmt      = { name = "nic-fw1-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "fw-mgmt", primary = true, private_ip_address_allocation = "Dynamic", public_ip_key = "fw_mgmt" } } }
-    fw1_untrust   = { name = "nic-fw1-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-untrust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.2.4", public_ip_key = "fw_untrust" } } }
-    fw1_trust     = { name = "nic-fw1-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-trust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.3.4" } } }
-    fw1_sunstream = { name = "nic-fw1-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-sunstream", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.4.4" } } }
-    fw2_mgmt      = { name = "nic-fw2-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "fw-mgmt", primary = true, private_ip_address_allocation = "Dynamic" } } }
-    fw2_untrust   = { name = "nic-fw2-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-untrust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.2.5" } } }
-    fw2_trust     = { name = "nic-fw2-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-trust", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.3.5" } } }
-    fw2_sunstream = { name = "nic-fw2-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "fw-sunstream", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.0.4.5" } } }
+    fw1_mgmt      = { name = "nic-fw1-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "prod-mgmt-subnet", primary = true, private_ip_address_allocation = "Dynamic", public_ip_key = "fw_mgmt" } } }
+    fw1_untrust   = { name = "nic-fw1-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-untrust-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.68", public_ip_key = "fw_untrust" } } }
+    fw1_trust     = { name = "nic-fw1-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-trust-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.36" } } }
+    fw1_sunstream = { name = "nic-fw1-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-partner-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.100" } } }
+    fw2_mgmt      = { name = "nic-fw2-mgmt", ip_configurations = { primary = { name = "ipc", subnet_key = "prod-mgmt-subnet", primary = true, private_ip_address_allocation = "Dynamic" } } }
+    fw2_untrust   = { name = "nic-fw2-untrust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-untrust-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.69" } } }
+    fw2_trust     = { name = "nic-fw2-trust", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-trust-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.37" } } }
+    fw2_sunstream = { name = "nic-fw2-sunstream", ip_forwarding_enabled = true, ip_configurations = { primary = { name = "ipc", subnet_key = "prod-fw-partner-subnet", primary = true, private_ip_address_allocation = "Static", private_ip_address = "10.102.4.101" } } }
   }
 
   load_balancers = {
@@ -118,7 +128,7 @@ palo_alto = {
       name = "lb-fw-trust"
       sku  = "Standard"
       frontend_ip_configurations = {
-        trust = { name = "fe-trust", subnet_key = "fw-trust", private_ip_address_allocation = "Static", private_ip_address = "10.0.3.10" }
+        trust = { name = "fe-trust", subnet_key = "prod-fw-trust-subnet", private_ip_address_allocation = "Static", private_ip_address = "10.102.4.42" }
       }
       backend_address_pools = { fw = {} }
       probes                = { https = { port = 443, protocol = "Tcp" } }
@@ -130,7 +140,7 @@ palo_alto = {
       name = "lb-fw-sunstream"
       sku  = "Standard"
       frontend_ip_configurations = {
-        sunstream = { name = "fe-sunstream", subnet_key = "fw-sunstream", private_ip_address_allocation = "Static", private_ip_address = "10.0.4.10" }
+        sunstream = { name = "fe-sunstream", subnet_key = "prod-fw-partner-subnet", private_ip_address_allocation = "Static", private_ip_address = "10.102.4.106" }
       }
       backend_address_pools = { fw = {} }
       probes                = { https = { port = 443, protocol = "Tcp" } }

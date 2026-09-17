@@ -30,7 +30,7 @@ locals {
       subnet_id = coalesce(
         try(connector.subnet_id, null),
         try(local.connectivity_outputs.subnet_ids[connector.subnet_key], null),
-        try(local.connectivity_outputs.subnet_ids["cloudflare_connectors"], null)
+        try(local.connectivity_outputs.subnet_ids["prod-cftagent-subnet"], null)
       )
       diagnostics = (
         coalesce(try(connector.diagnostics.enabled, null), false) &&

@@ -41,7 +41,13 @@ directory_services = {
   domain_controllers = {
     # Replace subnet_key, private IPs, zone placement, image SKU, and sizing with
     # approved values from IPAM, AD, Windows, and architecture owners before
-    # enabling this workspace.
+    # enabling this workspace. subnet_key must be "prod-extdc-subnet"
+    # (compeer.ext) or "prod-intdc-subnet" (agstar.local) per the hub's current
+    # subnet plan - "domain_controllers" (the old combined subnet) no longer
+    # exists. dc01/dc02 are assumed compeer.ext/agstar.local respectively below
+    # - confirm the actual domain assignment with the AD team; private IPs
+    # (10.0.10.x) are untouched since that range was never tied to the hub's
+    # own addressing in the first place and needs its own IPAM confirmation.
     #
     # DC VM `name` / `computer_name` are kept explicit here on purpose: they use
     # the established AD server convention (AZR-SRV-ADDS-0N), which the AD team
@@ -51,7 +57,7 @@ directory_services = {
       name                           = "AZR-SRV-ADDS-01"
       computer_name                  = "AZR-SRV-ADDS-01"
       nic_name                       = "nic-azr-srv-adds-01"
-      subnet_key                     = "domain_controllers"
+      subnet_key                     = "prod-extdc-subnet" # compeer.ext - confirm with AD team
       private_ip_address             = "10.0.10.10"
       vm_size                        = "Standard_D2s_v5"
       zone                           = "1"
@@ -84,7 +90,7 @@ directory_services = {
       name                           = "AZR-SRV-ADDS-02"
       computer_name                  = "AZR-SRV-ADDS-02"
       nic_name                       = "nic-azr-srv-adds-02"
-      subnet_key                     = "domain_controllers"
+      subnet_key                     = "prod-intdc-subnet" # agstar.local - confirm with AD team
       private_ip_address             = "10.0.10.11"
       dns_servers                    = ["10.0.10.10"]
       vm_size                        = "Standard_D2s_v5"
