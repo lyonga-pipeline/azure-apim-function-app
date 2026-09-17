@@ -124,14 +124,6 @@ output "network_watcher_ids" {
   value = { for key, value in azurerm_network_watcher.watcher : key => value.id }
 }
 
-output "local_network_gateway_ids" {
-  value = module.local_network_gateways.ids
-}
-
-output "local_network_gateways" {
-  value = module.local_network_gateways.gateways
-}
-
 output "network_watcher_flow_log_ids" {
   value = module.network_watcher_flow_logs.ids
 }

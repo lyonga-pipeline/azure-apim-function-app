@@ -104,12 +104,15 @@ connectivity = {
   # Network engineer confirmed: a public IP should be declared alongside the
   # specific resource that needs it (e.g. palo-alto-hub declares its own
   # mgmt/untrust public IPs), not generically here. Left empty deliberately.
-  public_ips                = {}
-  route_server_public_ips   = {}
-  route_servers             = {}
+  public_ips = {}
+
+  # Network engineer confirmed: not needed for this environment - left empty
+  # deliberately, not simply unpopulated.
+  route_server_public_ips = {}
+  route_servers           = {}
+
   load_balancers            = {}
   network_watchers          = {}
-  local_network_gateways    = {}
   network_watcher_flow_logs = {}
 
   # Canonical private-link DNS zones - list only the services the platform

@@ -151,7 +151,6 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `route_server_ids`
 - `route_servers`
 - `route_server_bgp_connections`
-- `local_network_gateways`
 - `network_watcher_flow_logs`
 
 `platform-identity-security` publishes:

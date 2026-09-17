@@ -543,12 +543,11 @@ consume this), Phase 4 §4/§6 (Bastion, private endpoints).
 | `network_security_groups` / `subnet_nsg_associations` | — | Per-subnet NSGs |
 | `route_tables` / `subnet_route_table_associations` | — | UDRs — see the Palo Alto route contract below |
 | `ddos_protection_plan` | — | Optional, off by default (cost) |
-| `public_ips`, `route_server_public_ips`, `route_server` | — | Optional hooks for Palo Alto egress / BGP route injection |
+| `public_ips`, `route_server_public_ips`, `route_server` | — | Optional hooks for Palo Alto egress / BGP route injection — real tfvars leaves all three empty (network engineer confirmed: not needed for this environment) |
 | `private_dns_zones` / `private_dns_hub_links` / `private_dns_zones_resource_group` / `private_dns_resolver` | — | Private DNS. Confirmed: the real tfvars reuses every catalogue zone from the existing landing zone (`existing = true` + `resource_group_name`, real tfvars carries a placeholder name `net-ncus-plfc-rg` pending confirmation) — only the hub VNet link is created, not the zone. The pattern also supports creating a zone fresh in a dedicated resource group (`<naming.resource_group>-dns`) for a zone that genuinely doesn't exist yet — not the current real-tfvars path. Resolution: Phase 1 default is `dc-forwarders` (hub VNet DNS → approved DC resolvers over ExpressRoute); `private-resolver` is switched on only after the NET-27 decision |
 | `bastion_public_ip` / `bastion` / `bastion_diagnostics` | `terraform-azurerm-compeer-bastion-host` | Eliminates public admin RDP/SSH. Phase 4 §4 |
 | `load_balancers` | — | Palo Alto egress / HA hooks |
 | `azurerm_network_watcher` + `network_watcher_flow_logs` | — | NSG flow logs |
-| `local_network_gateways` | — | On-prem VPN peer definitions (paired with `platform-hybrid-connectivity`'s VPN gateway) |
 | `terraform_data.palo_alto_route_contract` | — | Precondition: when `palo_alto.enabled=true`, every `VirtualAppliance` route next-hop must match an approved Palo Alto private IP, and declared Palo Alto subnet keys must exist in the hub VNet |
 | `terraform_data.dns_resolution_contract` | — | Precondition guarding the DNS mode switch above |
 | `role_assignments`, `management_locks`, `diagnostic_settings` | — | RBAC (group-based), lock protection, hub-resource diagnostics → LAW |
@@ -559,6 +558,19 @@ and `dns_resolution.enabled` are all `false` today. Unlike the policy pattern's
 gaps, these are **deliberate, cost-driven decisions already documented in the
 pattern README** ("do not deploy paid firewall, gateway, DNS resolver, or DDoS
 services by default") — not something to force on.
+
+**Removed: `local_network_gateways`.** Dan (network architect), reviewing this
+pattern: *"Local Network Gateway can be moved to the Hybrid Connectivity Code
+(actually, it already is there)"* — `platform-hybrid-connectivity` already
+declares the same `terraform-azurerm-compeer-local-network-gateway` module,
+paired with the VPN gateway it actually connects to. Both copies were empty
+(`{}`) in every real tfvars, so removing the duplicate from
+`platform-connectivity` (module, variable, both outputs, the
+`connectivity_scope_ids` merge entry, and the workspace wrapper's pass-through)
+was a zero-risk cleanup — confirmed via `terraform validate`/`test` on both
+the pattern and workspace, plus a full `terraform plan` against the real
+tfvars (dummy credentials) that built the entire graph and only failed on
+Azure/TFE auth.
 
 **DDoS — a real capability gap, checked and confirmed, not left off by
 default alone.** Azure's low-cost DDoS IP Protection tier (~$199/mo per

@@ -68,7 +68,6 @@ module "connectivity" {
   route_servers                   = try(var.connectivity.route_servers, {})
   load_balancers                  = try(var.connectivity.load_balancers, {})
   network_watchers                = try(var.connectivity.network_watchers, {})
-  local_network_gateways          = try(var.connectivity.local_network_gateways, {})
   network_watcher_flow_logs       = try(var.connectivity.network_watcher_flow_logs, {})
   private_dns_zones               = try(var.connectivity.private_dns_zones, {})
   privatelink_zone_catalogue      = try(var.connectivity.privatelink_zone_catalogue, [])

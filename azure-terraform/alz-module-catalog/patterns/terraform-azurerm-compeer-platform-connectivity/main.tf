@@ -483,9 +483,6 @@ locals {
     {
       for key, value in azurerm_network_watcher.watcher : "network_watcher:${key}" => value.id
     },
-    {
-      for key, value in module.local_network_gateways.ids : "local_network_gateway:${key}" => value
-    },
     var.additional_scopes
   )
 
@@ -527,23 +524,6 @@ resource "azurerm_network_watcher" "watcher" {
   location            = coalesce(try(each.value.location, null), module.resource_group.location)
   resource_group_name = coalesce(try(each.value.resource_group_name, null), module.resource_group.name)
   tags                = merge(module.tags.tags, try(each.value.tags, {}))
-}
-
-module "local_network_gateways" {
-  source = "../../modules/terraform-azurerm-compeer-local-network-gateway"
-
-  local_network_gateways = {
-    for key, gateway in var.local_network_gateways : key => {
-      name                = gateway.name
-      resource_group_name = coalesce(try(gateway.resource_group_name, null), module.resource_group.name)
-      location            = coalesce(try(gateway.location, null), module.resource_group.location)
-      gateway_address     = gateway.gateway_address
-      address_space       = gateway.address_space
-      bgp_settings        = try(gateway.bgp_settings, null)
-      timeouts            = try(gateway.timeouts, {})
-      tags                = merge(module.tags.tags, try(gateway.tags, {}))
-    }
-  }
 }
 
 module "network_watcher_flow_logs" {

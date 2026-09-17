@@ -54,10 +54,6 @@ output "route_server_bgp_connections" {
   value = try(module.connectivity[0].route_server_bgp_connections, {})
 }
 
-output "local_network_gateways" {
-  value = try(module.connectivity[0].local_network_gateways, {})
-}
-
 output "network_watcher_flow_logs" {
   value = try(module.connectivity[0].network_watcher_flow_logs, {})
 }
