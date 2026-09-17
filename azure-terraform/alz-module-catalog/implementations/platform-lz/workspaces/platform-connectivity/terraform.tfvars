@@ -63,16 +63,13 @@ connectivity = {
     enabled             = false
     enable_for_hub_vnet = true
   }
+  # Network engineer confirmed: conditional forwarders on the existing domain
+  # controllers, not Azure DNS Private Resolver - the resolver-based path
+  # (private_dns_resolver variable/module) was removed from this pattern.
   dns_resolution = {
-    enabled                  = false
-    mode                     = "dc-forwarders"
-    private_resolver_enabled = false
-    dns_server_ips           = []
-  }
-  private_dns_resolver = {
-    enabled            = false
-    inbound_endpoints  = {}
-    outbound_endpoints = {}
+    enabled        = false
+    mode           = "dc-forwarders"
+    dns_server_ips = []
   }
   bastion = {
     enabled            = false
@@ -101,15 +98,11 @@ connectivity = {
   }
   subnet_route_table_associations = {} # derived from subnet.route_table_key above
 
-  # Network engineer confirmed: a public IP should be declared alongside the
-  # specific resource that needs it (e.g. palo-alto-hub declares its own
-  # mgmt/untrust public IPs), not generically here. Left empty deliberately.
-  public_ips = {}
-
-  # Network engineer confirmed: not needed for this environment - left empty
-  # deliberately, not simply unpopulated.
-  route_server_public_ips = {}
-  route_servers           = {}
+  # Network engineer confirmed: a public IP is declared alongside the specific
+  # resource that needs it (e.g. palo-alto-hub declares its own mgmt/untrust
+  # public IPs; a load balancer frontend can still take a direct
+  # public_ip_address_id) - the generic public_ips/route_server_public_ips
+  # modules and the route_server module itself were removed from this pattern.
 
   load_balancers            = {}
   network_watchers          = {}

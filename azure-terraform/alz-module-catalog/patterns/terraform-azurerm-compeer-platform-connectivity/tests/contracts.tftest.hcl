@@ -149,3 +149,31 @@ run "dns_resolution_rejects_unknown_mode" {
   }
   expect_failures = [var.dns_resolution]
 }
+
+# Regression: private_dns_resolver (the module that would have actually built
+# a resolver-based DNS path) was removed - network engineer confirmed this
+# environment uses conditional forwarders on the existing domain controllers,
+# not Azure DNS Private Resolver. dc-forwarders is the only mode this pattern
+# can still fulfil, so private-resolver/hybrid must be rejected, not silently
+# accepted as a no-op.
+run "dns_resolution_rejects_private_resolver_mode" {
+  command = plan
+  variables {
+    dns_resolution = {
+      enabled = true
+      mode    = "private-resolver"
+    }
+  }
+  expect_failures = [var.dns_resolution]
+}
+
+run "dns_resolution_rejects_hybrid_mode" {
+  command = plan
+  variables {
+    dns_resolution = {
+      enabled = true
+      mode    = "hybrid"
+    }
+  }
+  expect_failures = [var.dns_resolution]
+}

@@ -76,11 +76,10 @@ palo_alto = {
 }
 
 dns_resolution = {
-  enabled                  = true
-  mode                     = "dc-forwarders"
-  private_resolver_enabled = false
-  dns_server_ips           = ["10.10.10.10", "10.10.10.11"]
-  notes                    = "MVP uses DC-hosted DNS over ExpressRoute. Set mode to private-resolver and enable resolver modules after NET-27 is approved."
+  enabled        = true
+  mode           = "dc-forwarders"
+  dns_server_ips = ["10.10.10.10", "10.10.10.11"]
+  notes          = "DC-hosted DNS over ExpressRoute. Network engineer confirmed a resolver-based path isn't needed - dc-forwarders is the only supported mode."
 }
 
 network_security_groups = {
@@ -125,23 +124,15 @@ subnet_route_table_associations = {
   }
 }
 
-# Optional Palo Alto-facing platform resources. Keep these empty for the
+# Optional Palo Alto-facing platform resource. Keep this empty for the
 # cost-safe baseline; populate only after the firewall HA/egress design is
-# approved.
-public_ips     = {}
+# approved. (The generic public_ips/route_server/private_dns_resolver
+# capabilities were removed entirely - network engineer confirmed they're
+# not needed for this environment; a public IP is declared alongside the
+# specific resource that needs it instead, e.g. a load balancer frontend's
+# direct public_ip_address_id below.)
 load_balancers = {}
 
-# Example public egress IP for a future approved Palo Alto untrust design:
-#
-# public_ips = {
-#   palo_egress_01 = {
-#     name              = "pip-palo-egress-np-001"
-#     allocation_method = "Static"
-#     sku               = "Standard"
-#     zones             = ["1", "2", "3"]
-#   }
-# }
-#
 # Example internal trust load balancer for a future approved HA design:
 #
 # load_balancers = {

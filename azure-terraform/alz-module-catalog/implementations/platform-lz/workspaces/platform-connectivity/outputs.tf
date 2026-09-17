@@ -34,24 +34,8 @@ output "ddos_protection_plan_id" {
   value = try(module.connectivity[0].ddos_protection_plan_id, null)
 }
 
-output "private_dns_resolver_id" {
-  value = try(module.connectivity[0].private_dns_resolver_id, null)
-}
-
 output "bastion_id" {
   value = try(module.connectivity[0].bastion_id, null)
-}
-
-output "route_server_ids" {
-  value = try(module.connectivity[0].route_server_ids, {})
-}
-
-output "route_servers" {
-  value = try(module.connectivity[0].route_servers, {})
-}
-
-output "route_server_bgp_connections" {
-  value = try(module.connectivity[0].route_server_bgp_connections, {})
 }
 
 output "network_watcher_flow_logs" {

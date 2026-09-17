@@ -148,9 +148,6 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `private_dns_zone_names`
 - `private_dns_zone_resource_group_names`
 - `bastion_id`
-- `route_server_ids`
-- `route_servers`
-- `route_server_bgp_connections`
 - `network_watcher_flow_logs`
 
 `platform-identity-security` publishes:

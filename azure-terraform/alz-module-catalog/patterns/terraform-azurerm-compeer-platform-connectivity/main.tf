@@ -30,7 +30,6 @@ module "naming" {
   storage_uniqueness = try(var.naming.storage_uniqueness, "")
   nsg_keys           = keys(var.network_security_groups)
   route_table_keys   = keys(var.route_tables)
-  public_ip_keys     = keys(var.public_ips)
   load_balancer_keys = keys(var.load_balancers)
 }
 
@@ -160,75 +159,6 @@ module "subnet_route_table_associations" {
   route_table_id = module.route_tables[each.value.route_table_key].id
 }
 
-module "public_ips" {
-  source   = "../../modules/terraform-azurerm-compeer-public-ip"
-  for_each = var.public_ips
-
-  name                    = coalesce(try(each.value.name, null), local.nm.public_ip_names[each.key])
-  resource_group_name     = module.resource_group.name
-  location                = module.resource_group.location
-  allocation_method       = each.value.allocation_method
-  sku                     = each.value.sku
-  sku_tier                = each.value.sku_tier
-  ip_version              = each.value.ip_version
-  edge_zone               = try(each.value.edge_zone, null)
-  domain_name_label       = try(each.value.domain_name_label, null)
-  domain_name_label_scope = try(each.value.domain_name_label_scope, null)
-  idle_timeout_in_minutes = each.value.idle_timeout_in_minutes
-  public_ip_prefix_id     = try(each.value.public_ip_prefix_id, null)
-  reverse_fqdn            = try(each.value.reverse_fqdn, null)
-  ddos_protection_mode    = try(each.value.ddos_protection_mode, null)
-  ddos_protection_plan_id = try(each.value.ddos_protection_plan_id, null)
-  ip_tags                 = try(each.value.ip_tags, {})
-  zones                   = each.value.zones
-  timeouts                = try(each.value.timeouts, {})
-  tags                    = module.tags.tags
-}
-
-module "route_server_public_ips" {
-  source   = "../../modules/terraform-azurerm-compeer-public-ip"
-  for_each = var.route_server_public_ips
-
-  name                    = each.value.name
-  resource_group_name     = coalesce(try(each.value.resource_group_name, null), module.resource_group.name)
-  location                = coalesce(try(each.value.location, null), module.resource_group.location)
-  allocation_method       = try(each.value.allocation_method, "Static")
-  sku                     = try(each.value.sku, "Standard")
-  sku_tier                = try(each.value.sku_tier, "Regional")
-  ip_version              = try(each.value.ip_version, "IPv4")
-  edge_zone               = try(each.value.edge_zone, null)
-  domain_name_label       = try(each.value.domain_name_label, null)
-  domain_name_label_scope = try(each.value.domain_name_label_scope, null)
-  idle_timeout_in_minutes = try(each.value.idle_timeout_in_minutes, 4)
-  public_ip_prefix_id     = try(each.value.public_ip_prefix_id, null)
-  reverse_fqdn            = try(each.value.reverse_fqdn, null)
-  ddos_protection_mode    = try(each.value.ddos_protection_mode, null)
-  ddos_protection_plan_id = try(each.value.ddos_protection_plan_id, null)
-  ip_tags                 = try(each.value.ip_tags, {})
-  zones                   = try(each.value.zones, [])
-  timeouts                = try(each.value.timeouts, {})
-  tags                    = merge(module.tags.tags, try(each.value.tags, {}))
-}
-
-module "route_server" {
-  source = "../../modules/terraform-azurerm-compeer-route-server"
-
-  route_servers = {
-    for key, route_server in var.route_servers : key => {
-      name                             = route_server.name
-      resource_group_name              = coalesce(try(route_server.resource_group_name, null), module.resource_group.name)
-      location                         = coalesce(try(route_server.location, null), module.resource_group.location)
-      sku                              = try(route_server.sku, "Standard")
-      subnet_id                        = coalesce(try(route_server.subnet_id, null), try(module.hub_vnet.subnet_ids[route_server.subnet_key], null))
-      public_ip_address_id             = coalesce(try(route_server.public_ip_address_id, null), try(module.route_server_public_ips[route_server.public_ip_key].id, null), try(module.public_ips[route_server.public_ip_key].id, null))
-      branch_to_branch_traffic_enabled = try(route_server.branch_to_branch_traffic_enabled, true)
-      timeouts                         = try(route_server.timeouts, {})
-      bgp_connections                  = try(route_server.bgp_connections, {})
-      tags                             = merge(module.tags.tags, try(route_server.tags, {}))
-    }
-  }
-}
-
 module "private_dns_zones_resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
   count  = length(local.private_dns_zones_to_create) > 0 ? 1 : 0
@@ -280,40 +210,6 @@ module "private_dns_hub_links" {
       if zone.link_to_hub
     }
   )
-  tags = module.tags.tags
-}
-
-module "private_dns_resolver" {
-  source = "../../modules/terraform-azurerm-compeer-private-dns-resolver"
-  count  = coalesce(try(var.private_dns_resolver.enabled, null), false) ? 1 : 0
-
-  name                = coalesce(try(var.private_dns_resolver.name, null), local.nm.private_dns_resolver)
-  resource_group_name = coalesce(try(var.private_dns_resolver.resource_group_name, null), module.resource_group.name)
-  location            = coalesce(try(var.private_dns_resolver.location, null), module.resource_group.location)
-  virtual_network_id  = coalesce(try(var.private_dns_resolver.virtual_network_id, null), module.hub_vnet.id)
-  inbound_endpoints = {
-    for key, endpoint in try(var.private_dns_resolver.inbound_endpoints, {}) : key => {
-      subnet_id                    = coalesce(try(endpoint.subnet_id, null), try(module.hub_vnet.subnet_ids[endpoint.subnet_key], null))
-      private_ip_allocation_method = try(endpoint.private_ip_allocation_method, "Dynamic")
-      private_ip_address           = try(endpoint.private_ip_address, null)
-      tags                         = merge(module.tags.tags, try(endpoint.tags, {}))
-    }
-  }
-  outbound_endpoints = {
-    for key, endpoint in try(var.private_dns_resolver.outbound_endpoints, {}) : key => {
-      subnet_id = coalesce(try(endpoint.subnet_id, null), try(module.hub_vnet.subnet_ids[endpoint.subnet_key], null))
-      tags      = merge(module.tags.tags, try(endpoint.tags, {}))
-    }
-  }
-  forwarding_rulesets = try(var.private_dns_resolver.forwarding_rulesets, {})
-  forwarding_rules    = try(var.private_dns_resolver.forwarding_rules, {})
-  forwarding_ruleset_vnet_links = {
-    for key, link in try(var.private_dns_resolver.forwarding_ruleset_vnet_links, {}) : key => {
-      ruleset_key        = link.ruleset_key
-      virtual_network_id = coalesce(try(link.virtual_network_id, null), module.hub_vnet.id)
-      metadata           = try(link.metadata, null)
-    }
-  }
   tags = module.tags.tags
 }
 
@@ -398,12 +294,11 @@ locals {
           private_ip_address            = try(frontend.private_ip_address, null)
           private_ip_address_allocation = try(frontend.private_ip_address_allocation, null)
           private_ip_address_version    = try(frontend.private_ip_address_version, null)
-          public_ip_address_id = try(coalesce(
-            try(frontend.public_ip_address_id, null),
-            try(module.public_ips[frontend.public_ip_key].id, null)
-            ),
-            null
-          )
+          # Network engineer confirmed: a public IP is declared alongside the
+          # specific resource that needs it (see palo-alto-hub), not sourced
+          # from a generic hub-level pool - so only a direct ID is supported
+          # here, no public_ip_key lookup against a removed generic module.
+          public_ip_address_id                               = try(frontend.public_ip_address_id, null)
           public_ip_prefix_id                                = try(frontend.public_ip_prefix_id, null)
           gateway_load_balancer_frontend_ip_configuration_id = try(frontend.gateway_load_balancer_frontend_ip_configuration_id, null)
           zones                                              = try(frontend.zones, null)
@@ -459,22 +354,10 @@ locals {
       for key, value in module.route_tables : "route_table:${key}" => value.id
     },
     {
-      for key, value in module.public_ips : "public_ip:${key}" => value.id
-    },
-    {
-      for key, value in module.route_server_public_ips : "route_server_public_ip:${key}" => value.id
-    },
-    {
-      for key, value in module.route_server.ids : "route_server:${key}" => value
-    },
-    {
       for key, value in module.load_balancers : "load_balancer:${key}" => value.id
     },
     {
       for key, value in module.private_dns_zones.ids : "private_dns_zone:${key}" => value
-    },
-    length(module.private_dns_resolver) == 0 ? {} : {
-      private_dns_resolver = module.private_dns_resolver[0].id
     },
     length(module.bastion) == 0 ? {} : {
       bastion           = module.bastion[0].id
@@ -585,12 +468,11 @@ resource "terraform_data" "palo_alto_route_contract" {
 
 resource "terraform_data" "dns_resolution_contract" {
   input = {
-    enabled                  = local.dns_resolution_enabled
-    mode                     = local.dns_resolution_mode
-    private_resolver_enabled = coalesce(try(var.dns_resolution.private_resolver_enabled, null), false)
-    dns_server_ips           = local.dns_resolution_server_ips
-    hub_vnet_dns_servers     = try(var.hub_vnet.dns_servers, [])
-    notes                    = try(var.dns_resolution.notes, null)
+    enabled              = local.dns_resolution_enabled
+    mode                 = local.dns_resolution_mode
+    dns_server_ips       = local.dns_resolution_server_ips
+    hub_vnet_dns_servers = try(var.hub_vnet.dns_servers, [])
+    notes                = try(var.dns_resolution.notes, null)
   }
 
   lifecycle {

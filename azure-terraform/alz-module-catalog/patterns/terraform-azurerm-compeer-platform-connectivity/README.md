@@ -5,10 +5,23 @@
 **What this deploys:** the hub VNet, subnets, and the two enforcement
 contracts (Palo Alto routing, DNS resolution mode) that other patterns
 (`platform-hybrid-connectivity`, `palo-alto-hub`, `directory-services`) rely
-on being correct before they run. Bastion, DDoS Protection Plan, and
-private DNS resolver are wired but left **off by default** — this is a
-deliberate cost-safe baseline (each is a paid, always-on Azure service), not
-an oversight; see `implementations/platform-lz/PATTERN-REFERENCE.md` §8.
+on being correct before they run. Bastion and DDoS Protection Plan are wired
+but left **off by default** — this is a deliberate cost-safe baseline (each
+is a paid, always-on Azure service), not an oversight; see
+`implementations/platform-lz/PATTERN-REFERENCE.md` §8.
+
+**Removed, not just left off: generic `public_ips`, `route_server`,
+`route_server_public_ips`, `private_dns_resolver`.** Network engineer
+review confirmed none of these are needed for this environment — a public
+IP is declared alongside the specific resource that needs it (Bastion,
+Palo Alto, a load balancer frontend via a direct `public_ip_address_id`),
+Route Server isn't part of this design, and DNS resolution uses conditional
+forwarders on the existing domain controllers, not Azure DNS Private
+Resolver. Leaving the module/variable in place with an empty default would
+mean a later tfvars change could deploy real infrastructure that was
+already reviewed and rejected, so the code itself was removed rather than
+just zeroed out — see `implementations/platform-lz/PATTERN-REFERENCE.md` §8
+for the full writeup.
 
 | Resource | Purpose |
 |---|---|
@@ -45,10 +58,11 @@ checks it at plan time rather than relying on code review to catch it:
   IP, and every subnet key `palo_alto` declares must actually exist in the
   hub VNet. This keeps egress routing and the firewall's actual subnet
   layout from silently drifting apart.
-- **`dns_resolution_contract`** — enforces which of the two supported DNS
-  modes (`dc-forwarders` today, `private-resolver` after the NET-27 decision)
-  is actually wired up, so a half-configured switch between the two modes
-  fails the plan instead of producing broken name resolution at apply time.
+- **`dns_resolution_contract`** — enforces that `dc-forwarders` (the only
+  mode this pattern supports; the network engineer confirmed a
+  resolver-based path isn't needed here) has at least one DNS server IP
+  configured when enabled, so a half-configured DNS posture fails the plan
+  instead of producing broken name resolution at apply time.
 
 See `tests/contracts.tftest.hcl` for the exact pass/fail scenarios both
 contracts cover.
@@ -82,24 +96,26 @@ acceptable.
 
 Palo Alto is codified as a route, subnet, bootstrap, HA, and management contract in `palo_alto`. When `palo_alto.enabled = true`, every `VirtualAppliance` route next hop must match an approved Palo Alto private IP, and the declared Palo Alto subnet keys must exist in the hub VNet input. This lets the landing zone enforce the intended egress architecture while keeping VM-Series/Panorama deployment in a separate approved vendor lifecycle.
 
-DNS is codified through `dns_resolution`. The Phase 1 default is `dc-forwarders`, pointing hub VNet DNS to the approved domain-controller resolvers over ExpressRoute. Switch to `private-resolver` only after the NET-27 decision is approved and the resolver modules are intentionally enabled.
+DNS is codified through `dns_resolution`. `dc-forwarders` — pointing hub VNet DNS to the approved domain-controller resolvers over ExpressRoute — is the only mode this pattern supports; the resolver-based path (Azure DNS Private Resolver) was removed after network engineer review confirmed it isn't needed for this environment.
 
-Optional `public_ips` and `load_balancers` expose the deployable hooks for Palo Alto egress and HA load-balancing controls from the ALZ workbook:
+Optional `load_balancers` expose the deployable hooks for Palo Alto egress and HA load-balancing controls from the ALZ workbook (a frontend can take a direct `public_ip_address_id` if it needs one — declared alongside the load balancer itself, not sourced from a generic hub-level pool):
 
 | Component | Root input | Baseline posture |
 | --- | --- | --- |
 | `NET-13` Internal Load Balancer - Trust | `load_balancers` | Empty map, no resource created |
 | `NET-14` Internal Load Balancer - Untrust | `load_balancers` | Empty map, no resource created |
-| `NET-37` Public IPs for firewall egress | `public_ips` | Empty map, no resource created |
 
-Populate those maps only after the Palo Alto HA, bootstrap, Panorama/Strata onboarding, routing, and cost-ownership design is approved.
+Populate that map only after the Palo Alto HA, bootstrap, Panorama/Strata onboarding, routing, and cost-ownership design is approved.
 
 Integrate these enterprise controls into this root when approved:
 
 - Palo Alto VM-Series/Panorama modules or marketplace deployment automation after the vendor design, licensing, HA, bootstrap, and operations model are approved.
 - Azure Firewall and Firewall Policy only if Compeer chooses Azure Firewall for a specific landing-zone path.
 - DDoS Network Protection using the `ddos-protection-plan` module, then associate the plan to production VNets.
-- Azure DNS Private Resolver using the `private-dns-resolver` module for inbound on-prem queries and outbound conditional forwarding.
 - NAT Gateway only for explicit outbound scenarios where the approved egress authority is not used.
+
+(Public IPs, Route Server, and Azure DNS Private Resolver are **not** on this
+list — network engineer review confirmed none are needed for this
+environment, and the code was removed rather than left as an unused hook.)
 
 Keep ExpressRoute circuit and gateway lifecycle in `platform-hybrid-connectivity`; consume the hub `GatewaySubnet` output there.

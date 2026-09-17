@@ -543,13 +543,12 @@ consume this), Phase 4 §4/§6 (Bastion, private endpoints).
 | `network_security_groups` / `subnet_nsg_associations` | — | Per-subnet NSGs |
 | `route_tables` / `subnet_route_table_associations` | — | UDRs — see the Palo Alto route contract below |
 | `ddos_protection_plan` | — | Optional, off by default (cost) |
-| `public_ips`, `route_server_public_ips`, `route_server` | — | Optional hooks for Palo Alto egress / BGP route injection — real tfvars leaves all three empty (network engineer confirmed: not needed for this environment) |
-| `private_dns_zones` / `private_dns_hub_links` / `private_dns_zones_resource_group` / `private_dns_resolver` | — | Private DNS. Confirmed: the real tfvars reuses every catalogue zone from the existing landing zone (`existing = true` + `resource_group_name`, real tfvars carries a placeholder name `net-ncus-plfc-rg` pending confirmation) — only the hub VNet link is created, not the zone. The pattern also supports creating a zone fresh in a dedicated resource group (`<naming.resource_group>-dns`) for a zone that genuinely doesn't exist yet — not the current real-tfvars path. Resolution: Phase 1 default is `dc-forwarders` (hub VNet DNS → approved DC resolvers over ExpressRoute); `private-resolver` is switched on only after the NET-27 decision |
+| `private_dns_zones` / `private_dns_hub_links` / `private_dns_zones_resource_group` | — | Private DNS. Confirmed: the real tfvars reuses every catalogue zone from the existing landing zone (`existing = true` + `resource_group_name`, real tfvars carries a placeholder name `net-ncus-plfc-rg` pending confirmation) — only the hub VNet link is created, not the zone. The pattern also supports creating a zone fresh in a dedicated resource group (`<naming.resource_group>-dns`) for a zone that genuinely doesn't exist yet — not the current real-tfvars path |
 | `bastion_public_ip` / `bastion` / `bastion_diagnostics` | `terraform-azurerm-compeer-bastion-host` | Eliminates public admin RDP/SSH. Phase 4 §4 |
 | `load_balancers` | — | Palo Alto egress / HA hooks |
 | `azurerm_network_watcher` + `network_watcher_flow_logs` | — | NSG flow logs |
 | `terraform_data.palo_alto_route_contract` | — | Precondition: when `palo_alto.enabled=true`, every `VirtualAppliance` route next-hop must match an approved Palo Alto private IP, and declared Palo Alto subnet keys must exist in the hub VNet |
-| `terraform_data.dns_resolution_contract` | — | Precondition guarding the DNS mode switch above |
+| `terraform_data.dns_resolution_contract` | — | Precondition: `dc-forwarders` (the only supported mode) must have at least one DNS server IP configured when enabled |
 | `role_assignments`, `management_locks`, `diagnostic_settings` | — | RBAC (group-based), lock protection, hub-resource diagnostics → LAW |
 
 **Verified against the real deployed `platform-connectivity` tfvars** (not just
@@ -558,6 +557,53 @@ and `dns_resolution.enabled` are all `false` today. Unlike the policy pattern's
 gaps, these are **deliberate, cost-driven decisions already documented in the
 pattern README** ("do not deploy paid firewall, gateway, DNS resolver, or DDoS
 services by default") — not something to force on.
+
+**Removed entirely, not just left off: `public_ips`, `route_server`,
+`route_server_public_ips`, `private_dns_resolver`.** These were first found
+still empty (`{}`/`enabled = false`) in the real tfvars, correctly matching
+Dan's (network architect) review — but the module/variable/output code
+itself was still present in the pattern. Left that way, a later tfvars
+change alone could deploy infrastructure that was already reviewed and
+rejected, with no code review needed to catch it. Removed:
+
+- `public_ips` — Dan: *"I think we can remove as any public IP address
+  should be tied to the specific resource. For example, the Palo FWs need a
+  public IP."* The `naming` module's `public_ip_keys` input, the module
+  block, its variable, both outputs (`public_ip_ids`, `public_ip_addresses`),
+  its `connectivity_scope_ids` merge entry, and the `public_ip_key` lookup
+  option on `load_balancers.frontend_ip_configurations` (narrowed to a
+  direct `public_ip_address_id` only) are all gone. Bastion's own dedicated
+  public IP (`bastion_public_ip`) is unaffected — it's a separate module
+  instantiation, already declared alongside the specific resource that needs
+  it, exactly matching Dan's principle.
+- `route_server_public_ips`, `route_server` — Dan confirmed not needed for
+  this environment. Module blocks, variables, and 5 outputs
+  (`route_server_public_ip_ids`, `route_server_ids`, `route_servers`,
+  `route_server_bgp_connection_ids`, `route_server_bgp_connections`) removed.
+  The underlying `terraform-azurerm-compeer-route-server` leaf module is now
+  unused anywhere in the catalog (flagged, not deleted, pending a decision on
+  whether to keep it for a future deployment).
+- `private_dns_resolver` — Dan: *"Azure Private DNS Resolver can be removed
+  as we are not using private resolver in this environment as they have
+  domain controllers"* (same reasoning for inbound/outbound endpoints and DNS
+  forwarding rulesets — conditional forwarders on the DCs handle it
+  instead). Module block, variable (including all endpoint/forwarding-ruleset
+  nested schema), and 3 outputs removed. The sibling `dns_resolution`
+  contract variable — a documentation/decision-record variable with no
+  resource of its own — had its `private-resolver`/`hybrid` mode options and
+  `private_resolver_enabled` field removed too, since `dc-forwarders` is now
+  the only mode any code path can actually fulfil; new tests
+  (`dns_resolution_rejects_private_resolver_mode`,
+  `dns_resolution_rejects_hybrid_mode`) confirm those modes are rejected, not
+  silently accepted as a no-op. The underlying
+  `terraform-azurerm-compeer-private-dns-resolver` leaf module is likewise
+  now unused anywhere in the catalog.
+
+Verified: pattern tests 17/17 (2 new dns_resolution mode-rejection runs);
+pattern and workspace both validate clean; a `terraform plan` against the
+real tfvars (dummy credentials) builds the whole graph and only fails on
+Azure/TFE auth; a `terraform plan` against `terraform.tfvars.example` (the
+separate smoke-test file, also updated) plans cleanly.
 
 **Removed: `local_network_gateways`.** Dan (network architect), reviewing this
 pattern: *"Local Network Gateway can be moved to the Hybrid Connectivity Code

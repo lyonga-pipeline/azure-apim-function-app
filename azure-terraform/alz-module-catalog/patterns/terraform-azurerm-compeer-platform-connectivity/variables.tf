@@ -156,75 +156,23 @@ variable "palo_alto" {
 
 variable "dns_resolution" {
   type = object({
-    enabled                  = optional(bool, false)
-    mode                     = optional(string, "dc-forwarders")
-    private_resolver_enabled = optional(bool, false)
-    dns_server_ips           = optional(list(string), [])
-    notes                    = optional(string)
+    enabled        = optional(bool, false)
+    mode           = optional(string, "dc-forwarders")
+    dns_server_ips = optional(list(string), [])
+    notes          = optional(string)
   })
-  description = "DNS resolution posture contract for NET-27. This root records the approved mode without deploying Azure DNS Private Resolver unless a future module integration enables it."
+  description = <<-EOT
+    DNS resolution posture contract for NET-27. Network engineer confirmed:
+    this environment uses conditional forwarders on the existing domain
+    controllers, not Azure DNS Private Resolver - dc-forwarders is the only
+    supported mode. (The private_dns_resolver variable/module that would
+    have built the resolver-based path was removed for the same reason.)
+  EOT
   default     = {}
 
   validation {
-    condition     = contains(["dc-forwarders", "private-resolver", "hybrid"], coalesce(try(var.dns_resolution.mode, null), "dc-forwarders"))
-    error_message = "dns_resolution.mode must be dc-forwarders, private-resolver, or hybrid."
-  }
-}
-
-variable "private_dns_resolver" {
-  type = object({
-    enabled             = optional(bool, false)
-    name                = optional(string)
-    resource_group_name = optional(string)
-    location            = optional(string)
-    virtual_network_id  = optional(string)
-    inbound_endpoints = optional(map(object({
-      subnet_key                   = optional(string)
-      subnet_id                    = optional(string)
-      private_ip_allocation_method = optional(string, "Dynamic")
-      private_ip_address           = optional(string)
-      tags                         = optional(map(string), {})
-    })), {})
-    outbound_endpoints = optional(map(object({
-      subnet_key = optional(string)
-      subnet_id  = optional(string)
-      tags       = optional(map(string), {})
-    })), {})
-    forwarding_rulesets = optional(map(object({
-      outbound_endpoint_keys = list(string)
-      tags                   = optional(map(string), {})
-    })), {})
-    forwarding_rules = optional(map(object({
-      ruleset_key = string
-      domain_name = string
-      enabled     = optional(bool, true)
-      metadata    = optional(map(string))
-      target_dns_servers = list(object({
-        ip_address = string
-        port       = optional(number, 53)
-      }))
-    })), {})
-    forwarding_ruleset_vnet_links = optional(map(object({
-      ruleset_key        = string
-      virtual_network_id = optional(string)
-      metadata           = optional(map(string))
-    })), {})
-  })
-  description = "Optional Azure Private DNS Resolver deployment for NET-27 when the architecture chooses resolver-based forwarding."
-  default     = {}
-
-  validation {
-    condition = alltrue(concat(
-      [
-        for endpoint in values(try(var.private_dns_resolver.inbound_endpoints, {})) :
-        (try(endpoint.subnet_key, null) != null) != (try(endpoint.subnet_id, null) != null)
-      ],
-      [
-        for endpoint in values(try(var.private_dns_resolver.outbound_endpoints, {})) :
-        (try(endpoint.subnet_key, null) != null) != (try(endpoint.subnet_id, null) != null)
-      ]
-    ))
-    error_message = "Each private DNS resolver endpoint must set exactly one of subnet_key or subnet_id."
+    condition     = coalesce(try(var.dns_resolution.mode, null), "dc-forwarders") == "dc-forwarders"
+    error_message = "dns_resolution.mode must be dc-forwarders - this catalog no longer builds a resolver-based path (network engineer confirmed: not needed, domain controllers handle it)."
   }
 }
 
@@ -326,115 +274,6 @@ variable "route_tables" {
   default = {}
 }
 
-variable "public_ips" {
-  type = map(object({
-    name                    = optional(string)
-    allocation_method       = optional(string, "Static")
-    sku                     = optional(string, "Standard")
-    sku_tier                = optional(string, "Regional")
-    ip_version              = optional(string, "IPv4")
-    edge_zone               = optional(string)
-    domain_name_label       = optional(string)
-    domain_name_label_scope = optional(string)
-    idle_timeout_in_minutes = optional(number, 4)
-    public_ip_prefix_id     = optional(string)
-    reverse_fqdn            = optional(string)
-    ddos_protection_mode    = optional(string)
-    ddos_protection_plan_id = optional(string)
-    ip_tags                 = optional(map(string), {})
-    zones                   = optional(list(string), [])
-    timeouts = optional(object({
-      create = optional(string)
-      update = optional(string)
-      read   = optional(string)
-      delete = optional(string)
-    }), {})
-  }))
-  description = "Optional public IPs for approved egress or ingress patterns such as firewall untrust interfaces. Defaults to no resources."
-  default     = {}
-}
-
-variable "route_server_public_ips" {
-  type = map(object({
-    name                    = string
-    resource_group_name     = optional(string)
-    location                = optional(string)
-    allocation_method       = optional(string, "Static")
-    sku                     = optional(string, "Standard")
-    sku_tier                = optional(string, "Regional")
-    ip_version              = optional(string, "IPv4")
-    edge_zone               = optional(string)
-    domain_name_label       = optional(string)
-    domain_name_label_scope = optional(string)
-    idle_timeout_in_minutes = optional(number, 4)
-    public_ip_prefix_id     = optional(string)
-    reverse_fqdn            = optional(string)
-    ddos_protection_mode    = optional(string)
-    ddos_protection_plan_id = optional(string)
-    ip_tags                 = optional(map(string), {})
-    zones                   = optional(list(string), [])
-    timeouts = optional(object({
-      create = optional(string)
-      update = optional(string)
-      read   = optional(string)
-      delete = optional(string)
-    }), {})
-    tags = optional(map(string), {})
-  }))
-  description = "Optional public IPs for Azure Route Server."
-  default     = {}
-}
-
-variable "route_servers" {
-  type = map(object({
-    name                             = string
-    resource_group_name              = optional(string)
-    location                         = optional(string)
-    sku                              = optional(string, "Standard")
-    subnet_key                       = optional(string)
-    subnet_id                        = optional(string)
-    public_ip_key                    = optional(string)
-    public_ip_address_id             = optional(string)
-    branch_to_branch_traffic_enabled = optional(bool, true)
-    timeouts = optional(object({
-      create = optional(string)
-      read   = optional(string)
-      update = optional(string)
-      delete = optional(string)
-    }), {})
-    bgp_connections = optional(map(object({
-      name                 = string
-      peer_asn             = number
-      peer_ip              = string
-      ipv4_route_server_id = optional(string)
-      timeouts = optional(object({
-        create = optional(string)
-        read   = optional(string)
-        delete = optional(string)
-      }), {})
-    })), {})
-    tags = optional(map(string), {})
-  }))
-  description = "Optional Azure Route Server instances and BGP peerings."
-  default     = {}
-
-  validation {
-    condition = alltrue([
-      for route_server in values(var.route_servers) :
-      (try(route_server.subnet_key, null) != null) != (try(route_server.subnet_id, null) != null)
-    ])
-    error_message = "Each route_servers item must set exactly one of subnet_key or subnet_id."
-  }
-
-  validation {
-    condition = alltrue([
-      for route_server in values(var.route_servers) :
-      (try(route_server.public_ip_key, null) != null) != (try(route_server.public_ip_address_id, null) != null)
-    ])
-    error_message = "Each route_servers item must set exactly one of public_ip_key or public_ip_address_id."
-  }
-}
-
 variable "load_balancers" {
   type = map(object({
     name      = optional(string)
@@ -447,7 +286,6 @@ variable "load_balancers" {
       private_ip_address                                 = optional(string)
       private_ip_address_allocation                      = optional(string)
       private_ip_address_version                         = optional(string)
-      public_ip_key                                      = optional(string)
       public_ip_address_id                               = optional(string)
       public_ip_prefix_id                                = optional(string)
       gateway_load_balancer_frontend_ip_configuration_id = optional(string)
