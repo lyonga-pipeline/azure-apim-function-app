@@ -65,7 +65,23 @@ Key Vault and storage-account names are &le;24 chars. The module fails the plan
 with a clear message (and the exact character budget) if a computed name is too
 long &mdash; **keep Key Vault / storage map keys short** (`sec`, `app`, `hsm`,
 `audit`). Set `storage_uniqueness = <subscription id>` for a 4-hex suffix on
-storage names (they must be globally unique).
+storage names (they must be globally unique). The suffix is appended *after*
+truncating the descriptive part of the name to what's left of the 24-char
+budget, specifically so a long discriminator/key can never chop the suffix
+itself off (that would silently defeat the whole point of it — two
+different roots' storage accounts colliding on the same truncated name).
+
+Every other resource type this module names that has a real Azure length
+limit is checked the same way, as an output `precondition` that fails the
+plan with the actual computed name(s) and the limit, not a generic message:
+virtual machines (64 chars), network interfaces / public IPs / load
+balancers / private endpoints (80 chars), resource groups (90 chars),
+automation accounts (6&ndash;50 chars, must start with a letter), and
+user-assigned identities (3&ndash;128 chars), in addition to the pre-existing
+Key Vault (3&ndash;24), Recovery Services Vault (2&ndash;50), and Log
+Analytics workspace (4&ndash;63) checks. NSGs, route tables, subnets, and
+disks have no meaningful Azure length limit at the lengths this module's
+patterns can produce, so they're left unchecked.
 
 ## Two calling conventions exist in this catalog today — use the front door for anything new
 
@@ -122,12 +138,14 @@ the root might already be applied for real, treat this as a default for *new*
 entries only, the same way `directory-services/naming.tf` already does for its
 DC VM naming deviation.
 
-### Legacy single-token inputs
+### Legacy single-token inputs (deprecated for new use)
 
 `purpose` / `destination` / `resource` still drive the singular `nsg` /
 `route_table` / `public_ip` / `resource_group` (per-component) outputs, for
-callers not yet migrated to the `*_keys` front door. A name whose tokens were
-not supplied is `null`.
+callers not yet migrated to the `*_keys` front door, and `purpose` remains the
+only way to set `policy_initiative` and `load_balancer` (no keyed equivalent
+exists for those two). A name whose tokens were not supplied is `null`. **Do
+not start a new caller on these three** — see "Two calling conventions" above.
 
 ## Inputs
 
@@ -135,15 +153,19 @@ not supplied is `null`.
 |---|---|---|
 | `region` | yes | almost every name (validated against the approved region list) |
 | `environment` | yes | almost every name (`prod\|uat\|test\|dev\|np\|sandbox\|shared`) |
-| `domain` | no | `mg_workload_domain*`, `private_dns_zone`, `policy_initiative` |
-| `purpose` | no | `subnet`, `nsg`, `policy_initiative` |
-| `destination` | no | `route_table` |
-| `resource` | no | `public_ip` |
-| `appcode` | no | `key_vault` |
+| `scope` | no (default `platform`) | selects the platform vs. workload identity/resource-group/stem logic; `platform` or `workload` |
+| `component` | no | platform-root discriminator (`management`, `connectivity`, ...) — `resource_group`, `disc`/`disc_abbr` (Key Vault, storage, user-assigned identity keyed names) when `scope = platform` |
+| `domain` | no | workload-root discriminator — `mg_workload_domain*`, `workload_resource_group`, `workload_vnet`, `private_dns_zone`, `policy_initiative`, `disc`/`disc_abbr` when `scope = workload`; **required** when `scope = workload` (enforced by a `check` block, not a variable validation — see "Cross-input checks" below) |
+| `appcode` | no | optional finer workload discriminator; also drives the legacy singular `key_vault` output |
+| `purpose` | no, **deprecated** | legacy `subnet`, `nsg`, `route_table`... discriminator; still the only way to set `policy_initiative` / `load_balancer` |
+| `destination` | no, **deprecated** | legacy `route_table` discriminator |
+| `resource` | no, **deprecated** | legacy `public_ip` / `network_interface` / `private_endpoint` discriminator |
 | `name` | no | `subscription_workload` |
-| `policy`, `scope` | no | `policy_assignment` |
-| `instance` | no (default 1) | `firewall_vm`, `cloudflare_connector` (zero-padded) |
+| `policy`, `policy_scope` | no | `policy_assignment` |
+| `instance` | no (default 1) | `firewall_vm`, `domain_controller_vm`, `cloudflare_connector` (zero-padded) |
 | `entra_domain`, `entra_role` | no | `entra_security_group` (`AZ-<DOMAIN>-<Role>`) |
+| `storage_uniqueness` | no (default `""`) | seeds the 4-hex uniqueness suffix on `storage_account_names` entries; pass the subscription ID |
+| `key_vault_keys`, `storage_account_keys`, `user_assigned_identity_keys`, `nsg_keys`, `route_table_keys`, `public_ip_keys`, `private_endpoint_keys`, `network_interface_keys`, `load_balancer_keys`, `virtual_machine_keys`, `disk_keys`, `recovery_services_vault_keys`, `subnet_keys` | no (default `[]`) | the front door — one list per keyed resource type; produces the matching `*_names` map output |
 
 ## Outputs
 
@@ -191,6 +213,35 @@ call today (see `platform-palo-alto/naming.tf`'s `naming_vm` and
 legitimate remaining use of the per-instance style, not a migration gap, unless
 you also add the keyed variant (see below).
 
+## Cross-input checks (`checks.tf`)
+
+A variable's own `validation` block can only see that one variable, so three
+identity/collision problems that span multiple inputs are enforced as
+module-level `check` blocks instead, each with a plan-time error naming the
+actual problem:
+
+- **`platform_scope_needs_component_for_keyed_disc_abbr_resources`** —
+  `scope = "platform"` with no `component` set, requesting any of
+  `key_vault_keys` / `storage_account_keys` / `user_assigned_identity_keys`,
+  falls back to the generic `"platform"` discriminator (`disc_abbr` `"plat"`)
+  for those names. Two different platform roots that both forget `component`
+  would compute identical names. Caught here instead of silently succeeding.
+- **`workload_scope_needs_domain`** — `scope = "workload"` with no `domain`
+  already crashes when `local.stem` tries to interpolate a null value, but
+  with an internal, unattributed Terraform error. This check gives the exact
+  same situation a clear, actionable message instead.
+- **`keyed_names_have_no_case_collisions`** — two keys in the same `*_keys`
+  list that only differ by case (`"Primary"` vs. `"primary"`) lower-case into
+  the *same* rendered name — a real Azure-side collision hiding behind two
+  distinct `for_each` keys, not a Terraform-level error. Checked once, across
+  every keyed collection at once, rather than repeating the same
+  `distinct(values(...))` assertion in all thirteen keyed outputs.
+
+`check` blocks (Terraform &ge;1.5, matching this module's `required_version`)
+were chosen over adding these as variable `validation` blocks because a
+`validation` block can only reference the variable it's declared on in
+Terraform versions before 1.9, and this module supports 1.5+.
+
 ## Rules baked in
 
 - Approved region short codes (`centralus` &rarr; `cus`, &hellip;) and the
@@ -198,9 +249,13 @@ you also add the keyed variant (see below).
   change, never ad hoc in a consumer.
 - Lowercase + `trimspace` on every token the standard writes lowercase.
   `entra_domain` is upper-cased; `entra_role` case is preserved.
-- **No universal truncation.** Length/character rules are applied (as output
-  preconditions) only where the resource needs them: Key Vault 3&ndash;24,
-  Recovery Services vault 2&ndash;50, Log Analytics 4&ndash;63.
+- **No silent universal truncation.** Length/character rules are applied (as
+  output preconditions) per resource type — see "Length constraints" above
+  for the full list. The one place this module truncates instead of failing
+  is `storage_account`/`storage_account_names` (Azure storage names can't
+  exceed 24 chars and there's no shorter alternative to fall back to), and
+  even there the uniqueness suffix is protected from truncation - see "Length
+  constraints" above.
 - Management groups, subscriptions, policy and Entra names are handled as their
   own explicit patterns, not derived from an Azure-resource formula.
 
@@ -237,50 +292,68 @@ Appendix F doesn't cover every Azure resource type this catalog will ever
 need, and the design doc's own instruction is to adapt the closest relative
 rather than invent an unrelated shape. To add a new one:
 
-1. **Find the closest existing row.** Skim `main.tf`'s `names` map for a
-   resource in the same family (a load-balanced network appliance, a
-   diagnostic sink, a per-key managed resource, ...). Reuse its token order
-   and separators unless you have a documented reason not to.
-2. **Add the pattern to `main.tf`.** A singleton goes in `local.names` next to
-   its closest relative, with a one-line comment stating whether it's a
-   verbatim Appendix F row or `# ADAPTED (closest: <row>)` and why. A resource
-   a root may deploy more than one of goes in `local.keyed` instead, following
-   the `{ for k in var.X_keys : k => "..." }` shape every other keyed row uses.
-   Guard any token the pattern needs with `local.X == null ? null : "..."` so
-   an unsupplied token fails loud (`null` referenced downstream) rather than
-   silently baking in an empty string.
-3. **Add the variable(s).** A new singleton token goes in the "Identity" or
-   "Legacy single-token inputs" section of `variables.tf` with a `default =
-   null` (never required — see "how roots differ" above; a root that doesn't
-   need this name shouldn't have to supply anything for it). A new keyed
-   resource gets a `<resource>_keys` list variable, `default = []`, in the
-   "Instance keys" section.
-4. **Add the output(s) in `outputs.tf`**, next to the closest relative, with a
-   `description` that states the exact pattern in the same
-   `<token>-<token>-...` shorthand every other description uses. If the target
-   Azure resource has a real length or character-set constraint, add a
-   `precondition` block like the Key Vault or Recovery Services Vault ones —
-   fail at plan time with the actual computed value(s) and the reason, not a
-   generic message.
-5. **Update `abbr`** if the new row is character-budget-constrained and keys
-   off a `component`/`domain`/`appcode` that isn't already in the map (see
-   above).
-6. **Add a test run** in `tests/defaults.tftest.hcl` — assert the exact string
-   for at least one populated case and, if the tokens are optional, that the
-   output is `null` when they're withheld (follow the existing
-   `core_platform_names_region_and_env_only` / `token_dependent_names` runs as
-   templates). `terraform test` is the only thing standing between "matches
-   Appendix F" and "looks close enough" — don't skip it.
-7. **Update this README** — add the output to the appropriate table above
-   (verbatim list, ADAPTED table, or a new row if it doesn't fit either), and
-   the input to the Inputs table if you added one.
-8. **Call it from the front door**, not a new per-instance `module "naming_xxx"`
-   block (see "Two calling conventions" above) — add the new `*_keys` input to
-   the pattern's existing `module "naming"` call and read `module.naming.
-   <resource>_names[key]` in the resource's `for_each`.
+1. **Confirm the approved naming standard.** Check Appendix F itself (or
+   whoever owns the design doc) for a verbatim row before assuming ADAPTED is
+   right. If none exists, find the closest existing relative in `main.tf`'s
+   `names` map (a load-balanced network appliance, a diagnostic sink, a
+   per-key managed resource, ...) and reuse its token order and separators
+   unless you have a documented reason not to.
+2. **Add a keyed input for anything a root may deploy more than one of.** A
+   new keyed resource gets a `<resource>_keys` list variable, `default = []`,
+   in the "Instance keys" section of `variables.tf`. Don't add a new singular
+   `purpose`/`destination`/`resource`-style legacy token for a resource type
+   that can have multiples — that's exactly the pattern this module is moving
+   away from (see "Two calling conventions" above).
+3. **Add the explicit formula.** A true singleton (region+env is the whole
+   identity, or Appendix F names it as fixed) goes in `local.names`; anything
+   keyed goes in `local.keyed`, following the `{ for k in var.X_keys : k =>
+   "..." }` shape every other keyed row uses. Guard any token the pattern
+   needs with `local.X == null ? null : "..."` so an unsupplied token fails
+   loud (`null` referenced downstream) rather than silently baking in an
+   empty string or a wrong-but-plausible name.
+4. **Add a stable output** in `outputs.tf`, next to the closest relative, with
+   a `description` that states the exact pattern in the same
+   `<token>-<token>-...` shorthand every other description uses, and whether
+   it's a verbatim Appendix F row or `ADAPTED (closest: <row>)`.
+5. **Implement Azure length and character validation** as an output
+   `precondition` — fail at plan time with the actual computed value(s), the
+   real Azure limit, and which input to shorten, not a generic message.
+   Confirm the real constraint (Microsoft's published "Naming rules and
+   restrictions for Azure resources" reference, not a guess) before writing
+   the check.
+6. **Test at least one platform name and one workload name** (if the resource
+   type applies to both scopes) — assert the exact string, not just that it's
+   non-null.
+7. **Test invalid input, maximum length, and normalized collisions** — a
+   `run` block with `command = plan` and `expect_failures` for: a token long
+   enough to blow the new precondition, and (if the row is keyed) two keys
+   that only differ by case, to confirm `keyed_names_have_no_case_collisions`
+   in `checks.tf` catches your new resource type too (it's generic across
+   every entry in `local.keyed`, so a new keyed row is covered automatically
+   — write the test to prove it, don't assume it). Follow the existing
+   `rejects_*` runs in `tests/defaults.tftest.hcl` as templates.
+8. **Document whether the formula is authoritative or adapted** — the
+   `description` in step 4 already carries this; also add the output to this
+   README's verbatim list or ADAPTED table (whichever applies), and the input
+   to the Inputs table if you added one.
+9. **Identify whether the change is backward compatible.** A brand-new
+   output/local is additive and safe. Changing the string an *existing*
+   output produces for inputs already in use in a real, applied tfvars is a
+   **major-version, breaking change** (see "Versioning contract" below) — it
+   is never "just a small tweak," because it forces resource replacement
+   downstream.
+10. **Update the consuming pattern to call the new output**, not to construct
+    the name itself — add the `*_keys` input to the pattern's existing
+    `module "naming"` call (front door — see "Two calling conventions" above)
+    and read `module.naming.<resource>_names[key]` in the resource's
+    `for_each`. Don't add a new per-instance `module "naming_xxx" { for_each =
+    ... }` block, and don't hand-build the string in the consuming pattern
+    even "just this once."
 
-None of this touches an *existing* output's pattern - see the versioning
-contract below for why that's a different, much more careful kind of change.
+If your new row also needs an `abbr` entry (Key Vault/storage-account-style
+character budget, keyed off a `component`/`domain`/`appcode` not already in
+the map) or new `abbr` extension, add it as part of step 3 — see "The `abbr`
+map and `disc_abbr`" above.
 
 ## Versioning contract
 
@@ -295,6 +368,8 @@ tfvars edit.
 
 ## Tests
 
-`terraform test` &mdash; every Appendix F pattern, token-absent `null` behaviour,
-input normalisation, region/environment rejection, and the Key Vault 24-char
-guard.
+`terraform test` &mdash; 22 runs: every Appendix F pattern, token-absent `null`
+behaviour, input normalisation, region/environment rejection, the Key Vault
+24-char guard, the storage-suffix-survives-truncation fix, all three
+cross-input checks (`checks.tf`), and the new resource-group /
+network-interface / virtual-machine length preconditions.

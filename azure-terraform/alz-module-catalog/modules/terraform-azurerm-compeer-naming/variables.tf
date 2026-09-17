@@ -167,21 +167,31 @@ variable "instance" {
 }
 
 # ---- Legacy single-token inputs (still used by MG / policy / Entra rows) -----
+#
+# DEPRECATED for `subnet`/`nsg`/`route_table`/`public_ip`/`network_interface`/
+# `private_endpoint`/`policy_initiative` new usage: every one of those resource
+# types now has a `*_keys` / `*_names` keyed equivalent (see the front door in
+# README.md) that lets a root call this module once instead of once per
+# resource instance. `purpose`/`destination`/`resource` remain here only
+# because policy_initiative and the still-unmigrated workspace-level
+# naming.tf wrappers (README.md, "Two calling conventions") read them - do not
+# start a NEW consumer on these three inputs; migrate an existing one to the
+# *_keys front door when you touch it.
 
 variable "purpose" {
-  description = "Legacy single-token discriminator (subnet / nsg / policy-initiative). Prefer the *_keys inputs."
+  description = "DEPRECATED for new callers - prefer nsg_keys/subnet_keys/load_balancer_keys. Legacy single-token discriminator (subnet / nsg / policy-initiative / load_balancer). Still the only way to set `policy_initiative`, which has no keyed equivalent."
   type        = string
   default     = null
 }
 
 variable "destination" {
-  description = "Legacy route-table destination token. Prefer route_table_keys."
+  description = "DEPRECATED for new callers - prefer route_table_keys. Legacy route-table destination token."
   type        = string
   default     = null
 }
 
 variable "resource" {
-  description = "Legacy public-IP / NIC / PE discriminator. Prefer the *_keys inputs."
+  description = "DEPRECATED for new callers - prefer public_ip_keys/network_interface_keys/private_endpoint_keys. Legacy public-IP / NIC / PE discriminator."
   type        = string
   default     = null
 }

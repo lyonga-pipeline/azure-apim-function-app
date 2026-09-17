@@ -84,9 +84,15 @@ locals {
   # Short form of the discriminator for the length-constrained rows.
   disc_abbr = lookup(local.abbr, local.disc, substr(replace(local.disc, "-", ""), 0, 10))
 
-  # Common stem for the "<disc>-<region>-<env>" rows.
+  # Common stem for the "<disc>-<region>-<env>" rows. `coalesce(local.domain,
+  # "MISSING-DOMAIN")` only exists so this doesn't crash on a raw null-
+  # interpolation error when scope = "workload" and domain was never set -
+  # the workload_scope_needs_domain check in checks.tf is the intended,
+  # clearly-attributed failure for that case; this is just a safety net so
+  # that check can actually run instead of the plan crashing on this local
+  # before the check gets a chance to report anything.
   stem = local.scope == "workload" ? (
-    local.appcode == null ? "${local.domain}-${local.region}-${local.env}" : "${local.domain}-${local.appcode}-${local.region}-${local.env}"
+    local.appcode == null ? "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.region}-${local.env}" : "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.appcode}-${local.region}-${local.env}"
   ) : "platform-${local.region}-${local.env}"
 
   # Optional global-uniqueness suffix for storage-account names.
@@ -94,8 +100,20 @@ locals {
 
   # ---- Keyed collections: <resource> => { key => name } --------------------
   keyed = {
-    key_vault               = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-kv" }
-    storage_account         = { for k in var.storage_account_keys : k => substr(lower(replace("st${local.disc_abbr}${k}${local.region}${local.env}${local.st_suffix}", "-", "")), 0, 24) }
+    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-kv" }
+    # The suffix must survive truncation intact - it's the only thing that
+    # makes two otherwise-identical names globally unique. Truncate the
+    # descriptive base to whatever's left of the 24-char budget AFTER
+    # reserving room for the suffix, then append the suffix - never the
+    # other way around (truncating a "base+suffix" string as one unit can
+    # chop the suffix off entirely, silently reintroducing a collision).
+    storage_account = {
+      for k in var.storage_account_keys : k => "${substr(
+        lower(replace("st${local.disc_abbr}${k}${local.region}${local.env}", "-", "")),
+        0,
+        24 - length(local.st_suffix)
+      )}${local.st_suffix}"
+    }
     user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-id" }
     nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${lower(k)}-nsg" }
     route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${lower(k)}-rt" }

@@ -382,3 +382,144 @@ run "rejects_key_vault_over_24_chars" {
 
   expect_failures = [output.key_vault]
 }
+
+# ---- Storage-account uniqueness suffix must survive truncation intact -----
+
+run "storage_suffix_survives_truncation" {
+  command = apply
+
+  variables {
+    region               = "centralus"
+    environment          = "prod"
+    component            = "management"
+    storage_account_keys = ["averyverylongstoragekeyname"]
+    storage_uniqueness   = "00000000-0000-0000-0000-000000000000"
+  }
+
+  assert {
+    condition     = length(output.storage_account_names["averyverylongstoragekeyname"]) == 24
+    error_message = "an over-budget storage name should truncate the descriptive base, not overflow past 24"
+  }
+  assert {
+    condition     = substr(output.storage_account_names["averyverylongstoragekeyname"], 20, 4) == substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)
+    error_message = "the 4-char uniqueness suffix must be the LAST 4 characters intact - truncating base+suffix as one string (the pre-fix bug) can chop the suffix off entirely, silently reintroducing a name collision"
+  }
+}
+
+# ---- Cross-input identity checks --------------------------------------------
+
+run "rejects_platform_scope_without_component_for_keyed_disc_abbr_resources" {
+  command = plan
+
+  variables {
+    region         = "centralus"
+    environment    = "prod"
+    key_vault_keys = ["primary"]
+  }
+
+  expect_failures = [check.platform_scope_needs_component_for_keyed_disc_abbr_resources]
+}
+
+run "platform_scope_without_component_is_fine_for_non_disc_abbr_resources" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    nsg_keys    = ["web"]
+  }
+
+  assert {
+    condition     = output.nsg_names["web"] == "cus-prod-web-nsg"
+    error_message = "nsg naming doesn't use disc_abbr, so it shouldn't require `component`"
+  }
+}
+
+run "rejects_workload_scope_without_domain" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "workload"
+  }
+
+  expect_failures = [check.workload_scope_needs_domain]
+}
+
+run "rejects_case_collision_in_keyed_names" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    component   = "management"
+    nsg_keys    = ["Web", "web"]
+  }
+
+  expect_failures = [check.keyed_names_have_no_case_collisions]
+}
+
+# ---- New Azure length-constraint preconditions ------------------------------
+
+run "rejects_resource_group_over_90_chars" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "workload"
+    # No appcode here on purpose: key_vault also keys off appcode and would
+    # fail its own precondition first, masking the resource_group failure
+    # this test actually targets. Domain alone, well past 78 chars, is enough
+    # to push "<domain>-cus-prod-rg" past Azure's 90-character RG limit.
+    domain = "this-is-an-extremely-long-workload-domain-name-that-will-not-possibly-fit-into-the-limit"
+  }
+
+  # workload_resource_group shares the same overlong `domain` and fails its
+  # own, separate 90-char precondition too - both are correct, expected
+  # failures from one bad input, not a masking issue like the key_vault case
+  # above.
+  expect_failures = [output.resource_group, output.workload_resource_group]
+}
+
+run "rejects_network_interface_over_80_chars" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    resource    = "this-resource-token-is-deliberately-far-too-long-to-fit-into-the-eighty-character-azure-limit-for-network-interfaces"
+  }
+
+  # `resource` also drives public_ip and private_endpoint (same ADAPTED
+  # token), so all three fail together on one bad input.
+  expect_failures = [output.network_interface, output.public_ip, output.private_endpoint]
+}
+
+run "rejects_keyed_virtual_machine_over_64_chars" {
+  command = plan
+
+  variables {
+    region               = "centralus"
+    environment          = "prod"
+    component            = "management"
+    virtual_machine_keys = ["this-virtual-machine-key-is-deliberately-far-too-long-to-fit-into-sixty-four-characters"]
+  }
+
+  expect_failures = [output.virtual_machine_names]
+}
+
+run "accepts_automation_account_within_bounds" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+  }
+
+  assert {
+    condition     = output.automation_account == "platform-cus-prod-aa"
+    error_message = "automation_account should always be well within the 6-50 char / starts-with-letter Azure limit given the fixed token set"
+  }
+}
