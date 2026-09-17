@@ -124,8 +124,14 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 `platform-management` publishes:
 
 - `log_analytics_workspace_id`
+- `log_analytics_workspace_ids` (map keyed by environment — Platform_Output_Contracts_IAC-10)
 - `log_analytics_workspace_guid`
+- `log_analytics_workspace_guids` (map keyed by environment)
 - `action_group_id`
+- `action_group_ids` (map — Platform_Output_Contracts_IAC-10)
+- `diagnostic_profile` (canonical default diagnostic-settings profile — Platform_Output_Contracts_IAC-10)
+- `defender_plan_ids`
+- `contract_version`
 - `platform_storage_account_ids`
 - `platform_key_vault_ids`
 - `platform_key_vault_names`

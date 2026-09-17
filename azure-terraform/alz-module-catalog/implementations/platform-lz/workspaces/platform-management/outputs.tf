@@ -2,6 +2,11 @@ output "resource_group_name" {
   value = try(module.management[0].resource_group_name, null)
 }
 
+output "diagnostic_profile" {
+  description = "Platform_Output_Contracts_IAC-10 management_diagnostic_profile."
+  value       = try(module.management[0].diagnostic_profile, null)
+}
+
 output "log_analytics_workspace_id" {
   value = try(module.management[0].log_analytics_workspace_id, null)
 }

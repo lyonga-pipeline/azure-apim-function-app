@@ -2,6 +2,11 @@ output "resource_group_name" {
   value = module.resource_group.name
 }
 
+output "diagnostic_profile" {
+  description = "Platform_Output_Contracts_IAC-10 management_diagnostic_profile - the platform's canonical default diagnostic-settings profile (see modules/terraform-azurerm-compeer-diagnostic-profile for what this recommends vs. enforces)."
+  value       = module.diagnostic_profile.profile
+}
+
 output "log_analytics_workspace_id" {
   value = module.log_analytics.id
 }

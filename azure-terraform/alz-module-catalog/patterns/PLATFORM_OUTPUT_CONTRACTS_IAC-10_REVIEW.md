@@ -109,7 +109,7 @@ All 10 fields: **N/A** — no bootstrap-as-code root exists in this catalog
 | `management_contract_version` | 🔧 added | `contract_version` |
 | `management_log_analytics_workspace_ids` | 🔧 added | Only a singular `log_analytics_workspace_id` existed. Added `log_analytics_workspace_ids`, a `map(string)` keyed by `var.environment` — exactly the forward-compatible shape the document itself recommends for the still-unresolved v7 §9.2 vs. component-list conflict ("a map absorbs either outcome... with one workspace, the map has one key"). The original singular output is untouched. |
 | `management_log_analytics_workspace_guids` | 🔧 added | Same treatment as above, from `log_analytics_workspace_guid`. |
-| `management_diagnostic_profile` | ❌ | No single "default diagnostic settings profile" object exists as a reusable, named contract in this catalog — each pattern's `diagnostic_settings` map is caller-authored per resource, not derived from one shared profile object. Flagged; building this would mean introducing a new shared convention across every pattern's diagnostic-settings inputs, a larger change than an output addition. |
+| `management_diagnostic_profile` | 🔧 added (follow-up pass) | Built properly rather than left flagged: a new pure-constants module, [`terraform-azurerm-compeer-diagnostic-profile`](../modules/terraform-azurerm-compeer-diagnostic-profile), defines the canonical `{log_categories, metric_categories, destination_key}` (Azure's own `allLogs`/`AllMetrics` "send everything" category groups, plus a symbolic pointer to which management output names the destination). `platform-management` instantiates it and publishes `diagnostic_profile`. This is a real, reusable definition — not a hollow output describing behavior nothing follows — but it's a *recommendation* for new `diagnostic_settings` entries and for keeping the GOV-07 DINE policy's parameters aligned, not a forced retrofit of every existing pattern's diagnostic settings: defaulting every resource to `allLogs` would be a real Log Analytics ingestion cost increase, and that's a decision for whoever owns that budget, not something to force silently through a shared module. See the module's own README for the full reasoning. |
 | `management_action_group_ids` | 🔧 added | Only a singular `action_group_id` existed. The document describes this as *"Published as an empty map until delivered"* (OBS-04 is Phase 2 in the design doc) — but this catalog already has a real action group, so added `action_group_ids = { primary = ... }` rather than an empty placeholder map. True severity/audience keying is still Phase 2 per the document's own framing; not fabricated here. |
 | `management_recovery_services_vault_ids` | ✅ | `recovery_services_vault_ids` (keyed by vault/purpose in this catalog, not literally "region" — same information). |
 | `management_backup_policy_ids` | ✅ | `backup_policy_vm_ids` (keyed `<vault>.<tier>`) + `backup_policy_file_share_ids`. |
@@ -149,10 +149,12 @@ pattern):
 
 - `terraform-azurerm-compeer-global-governance`: `mandatory_tag_keys`
 - `terraform-azurerm-compeer-platform-connectivity`: `hub_virtual_network_address_space`, `dns_server_ips`, `load_balancer_frontend_private_ip_addresses`, `private_dns_zones_resource_group_id`
-- `terraform-azurerm-compeer-platform-management`: `log_analytics_workspace_ids`, `log_analytics_workspace_guids`, `action_group_ids`
+- `terraform-azurerm-compeer-platform-management`: `log_analytics_workspace_ids`, `log_analytics_workspace_guids`, `action_group_ids`, `diagnostic_profile` (new `module.diagnostic_profile` instantiation)
 - `terraform-azurerm-compeer-platform-identity`: `platform_identity_client_ids`
 - `terraform-azurerm-compeer-directory-services`: `domain_controller_private_ip_list`, `ad_domain_fqdn`
 - `terraform-azurerm-compeer-workload-spoke`: `workload_key_vault_uri`
+
+**New module**: [`modules/terraform-azurerm-compeer-diagnostic-profile`](../modules/terraform-azurerm-compeer-diagnostic-profile) — pure constants, no resources, 2 tests.
 
 **Workspaces** (`implementations/platform-lz/workspaces/…/outputs.tf` — the
 pass-through consumers actually read via `tfe_outputs`):
@@ -160,11 +162,22 @@ pass-through consumers actually read via `tfe_outputs`):
 - `platform-governance`: `subscription_placement_ids` (wired through), `mandatory_tag_keys`, `contract_version`
 - `platform-authorization`: `contract_version`
 - `platform-connectivity`: `hub_virtual_network_address_space`, `dns_server_ips`, `network_security_group_ids` (wired through), `route_table_ids` (wired through), `load_balancer_frontend_private_ip_addresses`, `private_dns_zones_resource_group_id`, `contract_version`
-- `platform-management`: `log_analytics_workspace_ids`, `log_analytics_workspace_guids`, `action_group_ids`, `defender_plan_ids` (wired through), `contract_version`
+- `platform-management`: `log_analytics_workspace_ids`, `log_analytics_workspace_guids`, `action_group_ids`, `defender_plan_ids` (wired through), `diagnostic_profile`, `contract_version`
 - `platform-identity-security`: `platform_identity_client_ids`, `contract_version`
 - `platform-directory-services`: `domain_controller_private_ip_list`, `ad_domain_fqdn`, `contract_version`
 - `platform-hybrid-connectivity`: `vpn_certificate_key_vault_id`, `vpn_certificate_key_vault_uri`, `vpn_certificate_identity_id`, `vpn_certificate_identity_principal_id`, `vpn_certificate_identity_client_id` (all wired through), `contract_version`
 - `platform-workload-spoke`: `workload_identity_id`, `workload_identity_client_id` (wired through), `workload_key_vault_uri`, `spoke_log_analytics_workspace_id`, `spoke_mandatory_tag_keys` (new `tfe_outputs.governance` data source + `governance_workspace_name` variable), `contract_version`
+
+**New file in every one of the 11 real cross-workspace consumers** —
+`implementations/platform-lz/workspaces/<name>/contract_versions.tf`:
+`platform-cloudflare-connectors`, `platform-connectivity`,
+`platform-directory-services`, `platform-hybrid-connectivity`,
+`platform-identity-security`, `platform-palo-alto`, `platform-policy`,
+`platform-privileged-access`, `platform-subscription-onboarding`,
+`platform-subscriptions`, `platform-workload-spoke` — each with a
+`terraform_data.contract_versions` resource asserting every producer it
+reads is still on the exact `contract_version` it was built against (see
+"Follow-up" below).
 
 ## What was flagged but not built
 
@@ -174,18 +187,73 @@ fabricated:
 1. **`governance_platform_subscription_ids` / `governance_platform_resource_group_ids`** — structurally can't be governance's own output in this catalog's deployment order (governance runs before the workspaces it would need to aggregate even exist). If a single "where does everything live" catalog is wanted, it would need to be assembled *after* every platform workspace has applied at least once — a new, later root, not an addition to governance.
 2. **`governance_sandbox_subscription_ids`** — no sandbox subscription catalog exists yet; revisit when the sandbox spoke (WKL-08) is built.
 3. **`governance_subscription_baseline_version`** — no "subscription baseline module" concept exists in this catalog to version.
-4. **`management_diagnostic_profile`** — would require a new shared diagnostic-profile convention across every pattern, not just an output.
-5. **platform-bootstrap, all 10 fields** — out of scope until HCP itself is managed as code (a deliberate, already-documented decision in `HCP-WORKSPACES.md`).
+4. **platform-bootstrap, all 10 fields** — out of scope until HCP itself is managed as code (a deliberate, already-documented decision in `HCP-WORKSPACES.md`).
+
+`management_diagnostic_profile` was originally on this list; it's now built
+properly instead (see the platform-management table row above and the
+follow-up section below), because on reflection a hollow output — a field
+that exists but that no code actually follows — would have been worse than
+not publishing it at all.
+
+## Follow-up: making `contract_version` and `management_diagnostic_profile` real
+
+The first pass added `contract_version = "0.1.0"` to every workspace as a
+placeholder with nothing reading it, and flagged `management_diagnostic_profile`
+as too large to build. Both were revisited to actually earn their keep:
+
+**`contract_version` — a consumer-side check, not just a published string.**
+Nearly every cross-workspace consumer in this catalog reads a producer's
+outputs via `try(local.producer_outputs.field, default)` — a `tfe_outputs`
+data source that returns a genuinely wrong or missing value because a field
+was renamed or removed upstream fails *silently*, falling back to the default
+instead of erroring. A version string that nothing checks doesn't fix that.
+Every one of the 11 real cross-workspace consumers (mapped by grepping every
+`data "tfe_outputs"` block in `implementations/platform-lz/workspaces/`) now
+has a `contract_versions.tf` with a `terraform_data.contract_versions`
+resource — the same `lifecycle.precondition` idiom already used elsewhere in
+this catalog (`dns_resolution_contract`, `palo_alto_route_contract`) — that
+asserts each producer's published `contract_version` still equals the exact
+literal this consumer was built and tested against, and fails the plan with
+a clear message if it doesn't. The check is null-safe (`producer_version ==
+null || producer_version == "0.1.0"`), so it's a no-op whenever `tfe_outputs`
+isn't reachable (`use_tfe_outputs = false`, or no real TFE token in this
+offline validation environment) instead of a false failure.
+
+Consumer map (producer → consumers), all now checked:
+
+| Producer | Consumers |
+|---|---|
+| `platform-management` | cloudflare-connectors, connectivity, directory-services, identity-security, policy, privileged-access, workload-spoke |
+| `platform-connectivity` | cloudflare-connectors, directory-services, hybrid-connectivity, identity-security, palo-alto, workload-spoke |
+| `platform-governance` | policy, subscription-onboarding, subscriptions, workload-spoke |
+| `platform-authorization` | privileged-access, subscription-onboarding |
+
+This is exact-match by design, not a semver-range check: at `0.x`, semver's
+own convention is "anything can change," so an exact match is the correct
+conservative default pre-1.0 — no new provider dependency needed, since
+Terraform has no built-in semver comparison. The convention going forward:
+bump a producer's `contract_version` only when its published field set or
+shape actually changes, and update the matching literal in every consumer's
+`contract_versions.tf` only after confirming the fields that consumer reads
+are still compatible — that review step is the entire point of the check.
+
+**`management_diagnostic_profile` — built as a real, reusable definition.**
+See the platform-management table row above; full design reasoning is in
+[`modules/terraform-azurerm-compeer-diagnostic-profile/README.md`](../modules/terraform-azurerm-compeer-diagnostic-profile/README.md).
 
 ## Verification
 
 Every pattern and workspace touched: `terraform validate` clean,
-`terraform test` clean (no test file needed changes — every addition is a
-new, additive output, not a behavior change), and a `terraform plan` against
-real tfvars (dummy credentials) for `platform-connectivity`,
-`platform-directory-services`, and `platform-workload-spoke` built the whole
-graph successfully, failing only on Azure/TFE auth as expected. A full
-repo-wide sweep after all changes shows zero regressions in any other
-pattern or workspace (the one pre-existing `network-peering` standalone-validate
-limitation — it needs its provider aliases supplied by its own workspace
-wrapper — is unrelated and already documented).
+`terraform test` clean (including the new `terraform-azurerm-compeer-diagnostic-profile`
+module's own 2 tests; no existing test file needed changes for any of this -
+every change is a new, additive output/resource, not a behavior change to
+anything already deployed), and a `terraform plan` against real tfvars (dummy
+credentials) for `platform-connectivity`, `platform-directory-services`,
+`platform-workload-spoke`, and `platform-management` built the whole graph
+successfully, failing only on Azure/TFE auth as expected - confirming the new
+`contract_versions.tf` preconditions don't produce a false failure when
+`tfe_outputs` isn't reachable. A full repo-wide sweep after all changes shows
+zero regressions in any other pattern or workspace (the one pre-existing
+`network-peering` standalone-validate limitation — it needs its provider
+aliases supplied by its own workspace wrapper — is unrelated and already
+documented).

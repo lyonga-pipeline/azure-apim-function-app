@@ -19,6 +19,10 @@ module "tags" {
   additional_tags       = var.platform_tags.additional_tags
 }
 
+module "diagnostic_profile" {
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-profile"
+}
+
 module "naming" {
   source = "../../modules/terraform-azurerm-compeer-naming"
 
