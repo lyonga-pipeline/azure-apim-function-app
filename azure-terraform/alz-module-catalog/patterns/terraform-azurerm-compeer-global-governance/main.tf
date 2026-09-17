@@ -38,19 +38,6 @@ locals {
     module.management_groups.management_group_ids
   )
 
-  policy_definition_ids = {
-    for key, value in azurerm_policy_definition.definition : key => value.id
-  }
-
-  policy_set_definition_ids = {
-    for key, value in azurerm_policy_set_definition.initiative : key => value.id
-  }
-
-  policy_assignment_definition_ids = merge(
-    local.policy_definition_ids,
-    local.policy_set_definition_ids
-  )
-
   role_assignment_inputs = {
     for key, assignment in var.role_assignments : key => merge(assignment, {
       scope = coalesce(
@@ -59,45 +46,61 @@ locals {
       )
     })
   }
-}
 
-resource "azurerm_policy_definition" "definition" {
-  for_each = merge(var.custom_policy_definitions, local.pb_definitions)
+  # -----------------------------------------------------------------------
+  # Everything below resolves management_group_key -> a concrete
+  # management_group_id and drops the key before handing entries to
+  # module.policy - that module has no concept of this pattern's MG catalog
+  # (see modules/terraform-azurerm-compeer-policy's README "Boundary"
+  # section). policy_definition_key / policy_set_definition_key are left
+  # untouched: those resolve against sibling definitions/initiatives the
+  # module itself creates in the same call, so the module keeps doing that
+  # resolution internally. module.policy's variables are typed `any` (not a
+  # strict object schema) specifically so this filter-then-merge works: real
+  # policy parameters/policy_rule/metadata have a genuinely different
+  # attribute key set per policy, and only `any` avoids a "cannot find a
+  # common base type" module-boundary error across such a map.
+  # -----------------------------------------------------------------------
 
-  name                = each.key
-  display_name        = each.value.display_name
-  policy_type         = try(each.value.policy_type, "Custom")
-  mode                = try(each.value.mode, "Indexed")
-  management_group_id = local.management_group_scope_ids[each.value.management_group_key]
-  description         = try(each.value.description, null)
-  metadata            = jsonencode(try(each.value.metadata, {}))
-  parameters          = jsonencode(try(each.value.parameters, {}))
-  policy_rule         = jsonencode(each.value.policy_rule)
-}
-
-resource "azurerm_policy_set_definition" "initiative" {
-  for_each = merge(var.custom_policy_set_definitions, local.pb_initiative)
-
-  name                = each.key
-  display_name        = each.value.display_name
-  policy_type         = try(each.value.policy_type, "Custom")
-  management_group_id = local.management_group_scope_ids[each.value.management_group_key]
-  description         = try(each.value.description, null)
-  metadata            = jsonencode(try(each.value.metadata, {}))
-  parameters          = jsonencode(try(each.value.parameters, {}))
-
-  dynamic "policy_definition_reference" {
-    for_each = each.value.policy_definition_references
-    content {
-      policy_definition_id = coalesce(
-        try(policy_definition_reference.value.policy_definition_id, null),
-        try(local.policy_definition_ids[policy_definition_reference.value.policy_definition_key], null)
-      )
-      parameter_values   = jsonencode(try(policy_definition_reference.value.parameter_values, {}))
-      reference_id       = try(policy_definition_reference.value.reference_id, policy_definition_reference.key)
-      policy_group_names = try(policy_definition_reference.value.policy_group_names, null)
-    }
+  policy_definitions_input = {
+    for k, v in merge(var.custom_policy_definitions, local.pb_definitions) : k => merge(
+      { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" },
+      { management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null)) }
+    )
   }
+
+  policy_set_definitions_input = {
+    for k, v in merge(var.custom_policy_set_definitions, local.pb_initiative) : k => merge(
+      { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" },
+      { management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null)) }
+    )
+  }
+
+  management_group_policy_assignments_input = {
+    for k, v in merge(var.management_group_policy_assignments, local.pb_assignments) : k => merge(
+      { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" && ik != "location" },
+      {
+        management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null))
+        location            = try(v.identity, null) == null ? null : try(v.location, var.policy_assignment_location)
+      }
+    )
+  }
+
+  subscription_policy_assignments_input = {
+    for k, v in var.subscription_policy_assignments : k => merge(
+      { for ik, iv in v : ik => iv if ik != "location" },
+      { location = try(v.identity, null) == null ? null : try(v.location, var.policy_assignment_location) }
+    )
+  }
+}
+
+module "policy" {
+  source = "../../modules/terraform-azurerm-compeer-policy"
+
+  policy_definitions           = local.policy_definitions_input
+  policy_set_definitions       = local.policy_set_definitions_input
+  management_group_assignments = local.management_group_policy_assignments_input
+  subscription_assignments     = local.subscription_policy_assignments_input
 }
 
 module "custom_role_definitions" {
@@ -119,78 +122,6 @@ module "role_assignments" {
   source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = local.role_assignment_inputs
-}
-
-resource "azurerm_management_group_policy_assignment" "mg_assignment" {
-  for_each = merge(var.management_group_policy_assignments, local.pb_assignments)
-
-  name                = try(each.value.name, each.key)
-  management_group_id = local.management_group_scope_ids[each.value.management_group_key]
-  policy_definition_id = coalesce(
-    try(each.value.policy_definition_id, null),
-    try(each.value.policy_set_definition_id, null),
-    try(local.policy_definition_ids[each.value.policy_definition_key], null),
-    try(local.policy_set_definition_ids[each.value.policy_set_definition_key], null)
-  )
-  display_name = try(each.value.display_name, null)
-  description  = try(each.value.description, null)
-  enforce      = try(each.value.enforce, true)
-  location     = try(each.value.identity, null) == null ? null : try(each.value.location, var.policy_assignment_location)
-  metadata     = jsonencode(try(each.value.metadata, {}))
-  parameters   = jsonencode(try(each.value.parameters, {}))
-  not_scopes   = try(each.value.not_scopes, null)
-
-  dynamic "identity" {
-    for_each = try(each.value.identity, null) == null ? [] : [each.value.identity]
-    content {
-      type         = identity.value.type
-      identity_ids = try(identity.value.identity_ids, null)
-    }
-  }
-
-  dynamic "non_compliance_message" {
-    for_each = try(each.value.non_compliance_messages, {})
-    content {
-      content                        = non_compliance_message.value.content
-      policy_definition_reference_id = try(non_compliance_message.value.policy_definition_reference_id, null)
-    }
-  }
-}
-
-resource "azurerm_subscription_policy_assignment" "subscription_assignment" {
-  for_each = var.subscription_policy_assignments
-
-  name            = try(each.value.name, each.key)
-  subscription_id = each.value.subscription_id
-  policy_definition_id = coalesce(
-    try(each.value.policy_definition_id, null),
-    try(each.value.policy_set_definition_id, null),
-    try(local.policy_definition_ids[each.value.policy_definition_key], null),
-    try(local.policy_set_definition_ids[each.value.policy_set_definition_key], null)
-  )
-  display_name = try(each.value.display_name, null)
-  description  = try(each.value.description, null)
-  enforce      = try(each.value.enforce, true)
-  location     = try(each.value.identity, null) == null ? null : try(each.value.location, var.policy_assignment_location)
-  metadata     = jsonencode(try(each.value.metadata, {}))
-  parameters   = jsonencode(try(each.value.parameters, {}))
-  not_scopes   = try(each.value.not_scopes, null)
-
-  dynamic "identity" {
-    for_each = try(each.value.identity, null) == null ? [] : [each.value.identity]
-    content {
-      type         = identity.value.type
-      identity_ids = try(identity.value.identity_ids, null)
-    }
-  }
-
-  dynamic "non_compliance_message" {
-    for_each = try(each.value.non_compliance_messages, {})
-    content {
-      content                        = non_compliance_message.value.content
-      policy_definition_reference_id = try(non_compliance_message.value.policy_definition_reference_id, null)
-    }
-  }
 }
 
 resource "azurerm_consumption_budget_management_group" "management_group_budget" {

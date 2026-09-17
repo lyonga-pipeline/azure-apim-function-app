@@ -8,11 +8,24 @@ on top of — it runs first in the deployment order.
 | Area | Resource / module | Purpose |
 |---|---|---|
 | Management groups | `module.management_groups` | The 25-entry go-live management-group tree under `compeer-enterprise-mg` (platform, workloads, internal/external/regulated apps, shared services, sandbox, decommissioned) |
-| Policy definitions | `azurerm_policy_definition.definition` | Custom policy rules — both hand-authored (`var.custom_policy_definitions`) and the built-in landing-zone baseline (`policy_baseline.tf`, merged in) |
-| Policy initiatives | `azurerm_policy_set_definition.initiative` | Packages related policy definitions into one assignable initiative — see "The policy baseline" below |
-| Policy assignments | `azurerm_management_group_policy_assignment.mg_assignment`, `azurerm_subscription_policy_assignment.subscription_assignment` | Applies definitions/initiatives at a management-group or subscription scope |
+| Policy definitions, initiatives, assignments | [`module.policy`](../../modules/terraform-azurerm-compeer-policy) | Custom policy rules — both hand-authored (`var.custom_policy_definitions` / `var.custom_policy_set_definitions` / `var.management_group_policy_assignments` / `var.subscription_policy_assignments`) and the built-in landing-zone baseline (`policy_baseline.tf`, merged in) — see "The policy baseline" below |
 | Custom roles + RBAC | `module.custom_role_definitions`, `module.role_assignments` | Custom Azure roles (kept minimal by design) and any standing role assignments declared here (rare — see `platform-authorization`) |
 | Budgets | `azurerm_consumption_budget_management_group.management_group_budget` | MG-scope cost budgets |
+
+**`module.policy` — this pattern decides what, the module knows how.**
+`modules/terraform-azurerm-compeer-policy` is generic Azure-Policy plumbing
+shared with `platform-policy`; it has no concept of this pattern's
+management-group catalog. `main.tf`'s resolved-input locals
+(`policy_definitions_input`, `policy_set_definitions_input`,
+`management_group_policy_assignments_input`,
+`subscription_policy_assignments_input`) do the one thing the module can't:
+resolve each entry's `management_group_key` against
+`local.management_group_scope_ids` into a concrete `management_group_id`
+before the module ever sees it. Previously each of `global-governance` and
+`platform-policy` declared its own copy of the `azurerm_policy_definition`
+/ `azurerm_policy_set_definition` / assignment resources inline — the two
+copies had already drifted (see the module's README "History") before this
+was consolidated, pre-first-deployment, into the one shared module.
 
 **The policy baseline (`policy_baseline.tf`) — why it's not just 6 plain policy resources:**
 this file exists because the deployable workspace needs real, working guardrails
@@ -24,12 +37,13 @@ on a first read:
 1. **It merges into the pattern's own variables, it doesn't add separate
    resources.** `local.pb_definitions` / `local.pb_assignments` are merged
    into `var.custom_policy_definitions` / the assignment map via
-   `merge(var.x, local.pb_y)` in `main.tf` — so `var.custom_policy_definitions`
-   still works for anything hand-authored on top, and the baseline is just
-   more entries in the same `for_each` map, not a parallel code path.
+   `merge(var.x, local.pb_y)` in `main.tf` before being handed to
+   `module.policy` — so `var.custom_policy_definitions` still works for
+   anything hand-authored on top, and the baseline is just more entries in
+   the same map, not a parallel code path.
 2. **The 6 policies are packaged into one initiative, not 6 separate
-   assignments.** `azurerm_policy_set_definition.initiative` bundles all 6
-   under `compeer-landing-zone-baseline`, assigned once
+   assignments.** `module.policy`'s `azurerm_policy_set_definition.initiative`
+   bundles all 6 under `compeer-landing-zone-baseline`, assigned once
    (`cmp-landing-zone-baseline`). This is what lets the *same* initiative be
    assigned again at a different management-group scope later (a future
    `regulated-apps-mg`, say) with its own parameter/`not_scopes` overrides,

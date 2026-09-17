@@ -63,19 +63,19 @@ run "builtin_audit_guardrails" {
   }
 
   assert {
-    condition     = length(azurerm_management_group_policy_assignment.mg_assignment) == 5
+    condition     = length(local.management_group_policy_assignments_input) == 5
     error_message = "expected the 5 built-in guardrail assignments to be created"
   }
   assert {
-    condition     = azurerm_management_group_policy_assignment.mg_assignment["cis_benchmark"].enforce == false
+    condition     = local.management_group_policy_assignments_input["cis_benchmark"].enforce == false
     error_message = "CIS benchmark is a reporting initiative, never enforced"
   }
   assert {
-    condition     = azurerm_management_group_policy_assignment.mg_assignment["allowed_resource_types"].enforce == false
+    condition     = local.management_group_policy_assignments_input["allowed_resource_types"].enforce == false
     error_message = "allowed_resource_types should stay Audit-only (enforce=false) until the catalog is confirmed"
   }
   assert {
-    condition     = length(azurerm_management_group_policy_assignment.mg_assignment["disk_encryption_windows_vm"].identity) == 1
+    condition     = local.management_group_policy_assignments_input["disk_encryption_windows_vm"].identity.type == "SystemAssigned"
     error_message = "disk encryption guest-configuration audits need a system-assigned identity to evaluate"
   }
 }

@@ -56,8 +56,8 @@ run "policy_baseline_on" {
     error_message = "baseline should assign in Audit by default"
   }
   assert {
-    condition     = contains(keys(azurerm_policy_definition.definition), "cmp-required-tags")
-    error_message = "baseline definitions not merged into the pattern's for_each"
+    condition     = contains(keys(local.policy_definitions_input), "cmp-required-tags")
+    error_message = "baseline definitions not merged into the module's policy_definitions input"
   }
   assert {
     # Regression: cmp-required-tags must audit the tags
@@ -92,12 +92,12 @@ run "policy_baseline_packages_into_one_initiative" {
     error_message = "expected the initiative to reference all 6 baseline policy definitions"
   }
   assert {
-    condition     = contains(keys(azurerm_policy_set_definition.initiative), "compeer-landing-zone-baseline")
-    error_message = "baseline initiative not merged into the pattern's azurerm_policy_set_definition.initiative for_each"
+    condition     = contains(keys(local.policy_set_definitions_input), "compeer-landing-zone-baseline")
+    error_message = "baseline initiative not merged into the module's policy_set_definitions input"
   }
   assert {
     # exactly 2 assignments now: the one bundled initiative + MCSB - not 7
-    condition     = length(azurerm_management_group_policy_assignment.mg_assignment) == 2
+    condition     = length(local.management_group_policy_assignments_input) == 2
     error_message = "expected the 6 individual baseline assignments to collapse into 1 initiative assignment (+ MCSB)"
   }
   assert {

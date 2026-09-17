@@ -46,8 +46,8 @@ run "baseline_on_creates_defs_initiative_assignment" {
     error_message = "allow-list not passed to the assignment"
   }
   assert {
-    condition     = contains(keys(azurerm_policy_definition.definition), "deny-public-ip-address")
-    error_message = "custom definition not merged into the pattern's for_each"
+    condition     = contains(keys(local.policy_definitions_input), "deny-public-ip-address")
+    error_message = "custom definition not merged into the module's policy_definitions input"
   }
 }
 

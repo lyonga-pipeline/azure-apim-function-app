@@ -7,24 +7,33 @@ Policy governance — everything that needs to promote from Audit→Deny, carry
 a remediation identity, or grant a scoped exemption, separate from the
 one-time management-group scaffold in `global-governance`.
 
-| Area | Resource | Purpose |
+| Area | Resource / module | Purpose |
 |---|---|---|
-| Policy definitions | `azurerm_policy_definition.definition` | Custom rules (e.g. `cmp-allowed-res-types`, `cmp-disk-encrypt-win`) |
-| Policy initiatives | `azurerm_policy_set_definition.initiative` | e.g. `compeer-private-only-connectivity` (see below) |
-| Assignments | `azurerm_management_group_policy_assignment.mg_assignment`, `.subscription_assignment` (subscription-scope), `.rg_assignment` (resource-group-scope, `policy_extensions.tf`) | Applies a definition/initiative at the named scope; only `mg_assignment` carries a remediation `identity` block |
-| Exemptions | `azurerm_management_group_policy_exemption.mg_exemption`, `.rg_exemption`, `.subscription_exemption` (all `policy_extensions.tf`) | Time-boxed or permanent carve-outs for a specific scope |
+| Policy definitions, initiatives, assignments (all 3 scopes), exemptions (all 3 scopes) | [`module.policy`](../../modules/terraform-azurerm-compeer-policy) | e.g. `cmp-allowed-res-types`, `cmp-disk-encrypt-win`, `compeer-private-only-connectivity` (see below) |
+
+`module.policy` is the same generic Azure-Policy module `global-governance`
+calls — it has no concept of this pattern's MG catalog or its remediation/
+exemption business rules. `main.tf`'s resolved-input locals
+(`policy_definitions_input`, `policy_set_definitions_input`,
+`management_group_policy_assignments_input`,
+`subscription_policy_assignments_input`) and `policy_extensions.tf`'s
+(`resource_group_policy_assignments_input`, `policy_exemptions_input`) do
+the one thing the module can't: resolve `management_group_key` against
+`local.management_group_scope_ids` into a concrete `management_group_id`
+before the module ever sees an entry. `remediation.tf`'s DINE assignments
+(`local.remediation_assignments_input`) fold into the same
+management-group-assignments map under a `rem-<key>` prefix — remediation is
+just an assignment with a SystemAssigned identity and LAW-parameter-injection
+business logic that stays here; the resource mechanics live in the module.
 
 **Why 3 assignment types and 3 exemption types instead of one generic
 "assignment" resource:** Azure Policy assignments and exemptions are scoped
 resources — an assignment at a resource group is a *different Terraform
 resource type* (`azurerm_resource_group_policy_assignment`) than one at a
 management group (`azurerm_management_group_policy_assignment`), even though
-they take nearly identical arguments. This pattern mirrors that split 1:1
+they take nearly identical arguments. `module.policy` mirrors that split 1:1
 rather than hiding it behind one abstraction, so `terraform plan` always
-shows exactly which scope a change lands at. `main.tf` holds the two most
-commonly used (`mg_assignment`, `subscription_assignment`);
-`policy_extensions.tf` holds the narrower/rarer ones (`rg_assignment`, and
-all 3 exemption types) so the common path stays short.
+shows exactly which scope a change lands at.
 
 **`var.remediation.dine_assignments` — a real, documented limitation:** this
 mechanism only accepts a single `policy_definition_id` (no
@@ -161,8 +170,10 @@ is a separate review — owned outside this repo.
 | **DeployIfNotExists remediation** | **`platform-policy`** | `var.remediation` (needs identity + Log Analytics) |
 | Private-only connectivity guardrail | **`platform-policy`** | `var.private_only_connectivity` |
 
-The old `policy-baseline` module is retired — this pattern is the single home for
-exemptions and remediation.
+This pattern is the single home for the *decisions* — exemptions, remediation,
+private-only-connectivity, RG-scoped assignments; the actual policy resource
+mechanics live in the shared [`module.policy`](../../modules/terraform-azurerm-compeer-policy),
+alongside `global-governance`.
 
 ## Exemptions
 

@@ -9,19 +9,19 @@ output "subscription_placement_ids" {
 }
 
 output "custom_policy_definition_ids" {
-  value = { for key, value in azurerm_policy_definition.definition : key => value.id }
+  value = module.policy.policy_definition_ids
 }
 
 output "custom_policy_set_definition_ids" {
-  value = { for key, value in azurerm_policy_set_definition.initiative : key => value.id }
+  value = module.policy.policy_set_definition_ids
 }
 
 output "management_group_policy_assignment_ids" {
-  value = { for key, value in azurerm_management_group_policy_assignment.mg_assignment : key => value.id }
+  value = module.policy.management_group_assignment_ids
 }
 
 output "subscription_policy_assignment_ids" {
-  value = { for key, value in azurerm_subscription_policy_assignment.subscription_assignment : key => value.id }
+  value = module.policy.subscription_assignment_ids
 }
 
 output "custom_role_definition_ids" {

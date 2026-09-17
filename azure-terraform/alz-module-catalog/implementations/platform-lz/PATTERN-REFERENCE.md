@@ -248,9 +248,8 @@ Doc Phase 3 in full.
 | Block | Resource(s) | Why |
 |---|---|---|
 | `management_groups` | `terraform-azurerm-compeer-management-groups` | MG hierarchy: `compeer-enterprise-mg` → `platform-mg`/`workloads-mg`/`sandbox-mg`/`decommissioned-mg` → capability/domain MGs → domain+env MGs. Phase 3 §1-2 |
-| `policy_baseline.tf` | `azurerm_policy_definition`, `azurerm_management_group_policy_assignment` | The 6 `cmp-*` policies + MCSB initiative — see the policy table below. Phase 3 §6 |
-| `azurerm_policy_definition` / `azurerm_policy_set_definition` (main.tf) | — | Generic passthrough for hand-authored custom policies/initiatives on top of the baseline (`var.custom_policy_definitions` / `var.custom_policy_set_definitions`) |
-| `azurerm_management_group_policy_assignment` / `azurerm_subscription_policy_assignment` (main.tf) | — | Generic passthrough for hand-authored assignments |
+| `policy_baseline.tf` + `module.policy` | `terraform-azurerm-compeer-policy` (`azurerm_policy_definition`, `azurerm_management_group_policy_assignment`) | The 6 `cmp-*` policies + MCSB initiative — see the policy table below. Phase 3 §6. `policy_baseline.tf` decides the 6 policies + how they're bundled/assigned; `module.policy` (shared with `platform-policy`, §6 below) is the generic resource mechanics |
+| `module.policy` (main.tf resolved-input locals) | — | Same module also takes hand-authored custom policies/initiatives/assignments on top of the baseline (`var.custom_policy_definitions` / `var.custom_policy_set_definitions` / `var.management_group_policy_assignments` / `var.subscription_policy_assignments`) — `management_group_key` is resolved to a concrete `management_group_id` here, before the module ever sees an entry (see the module's README "Boundary") |
 | `custom_role_definitions` | `terraform-azurerm-compeer-role-definition` | Custom Azure roles when a built-in doesn't fit (kept minimal by design — Phase 3 §4) |
 | `role_assignments` | `terraform-azurerm-compeer-role-assignments` | Resolves `management_group_key` → scope for any role assignment declared here (rare — standing RBAC now lives in `platform-authorization`) |
 | `azurerm_consumption_budget_management_group` | — | MG-scope cost budgets |
@@ -276,13 +275,21 @@ was wired end to end (`variables.tf` → `resource "azurerm_policy_set_definitio
 but never populated — not in the real workspace `terraform.tfvars`, not even
 in `terraform.tfvars.example`. `policy_baseline.tf` is now its first real
 caller: the 6 `cmp-*` policies above are packaged into one initiative,
-`compeer-landing-zone-baseline` (merged into the pattern's own
-`azurerm_policy_set_definition.this` for_each exactly like `pb_definitions`
-already merges into `var.custom_policy_definitions`), and assigned once —
-`cmp-lz-baseline` — instead of as 6 separate management-group policy
-assignments. This is the packaging the README always described ("approved
-regions, required tags, public access, ... as one scoped package"); it had
-just never been implemented until now.
+`compeer-landing-zone-baseline` (merged into `var.custom_policy_set_definitions`
+exactly like `pb_definitions` already merges into `var.custom_policy_definitions`),
+and assigned once — `cmp-lz-baseline` — instead of as 6 separate
+management-group policy assignments. This is the packaging the README always
+described ("approved regions, required tags, public access, ... as one
+scoped package"); it had just never been implemented until now.
+
+*(Historical note: at the time this was written, the merged map fed a
+`resource "azurerm_policy_set_definition" "this"` declared directly in this
+pattern's `main.tf`. That resource — renamed to `"initiative"` in a later
+pass — was itself extracted into the shared `module.policy` before the first
+client deployment, once `global-governance` and `platform-policy`'s
+independently-inlined copies had already drifted from each other; see the
+module's README "History". The packaging decision described above is
+unchanged, only where the resource is declared.)*
 
 Why this and not 6 standalone assignments: it's the same shape Microsoft's
 own ALZ policy architecture uses at scale — author the guardrail set once,
@@ -413,11 +420,10 @@ Phase 3 §7-8, Phase 5 §6-9, Phase 6 §3.
 
 | Block | Resource(s) | Why |
 |---|---|---|
-| `azurerm_policy_definition` / `azurerm_policy_set_definition` (main.tf) | — | Same generic custom-definition/initiative mechanism as governance, scoped to this narrower workspace |
-| `azurerm_management_group_policy_assignment` / `azurerm_subscription_policy_assignment` (main.tf) | — | Assignment mechanism |
-| `policy_extensions.tf` | `azurerm_resource_group_policy_assignment`, `*_policy_exemption` (MG/sub/RG) | RG-scope assignments; the exemption mechanism for all 3 scopes — mandatory before promoting any baseline policy to Deny |
-| `remediation.tf` | `azurerm_management_group_policy_assignment.remediation` (+ system-assigned identity) | Generic DeployIfNotExists bundle — Defender-plan auto-enablement, diagnostic-settings auto-deployment, etc. |
-| `private_only_baseline.tf` | (via the generic definition/assignment mechanism) | `deny-public-ip-address` + `deny-nic-public-ip` — Compeer forces all inbound through Cloudflare Tunnels; there's no single Azure "setting" for that, so it's a policy initiative |
+| `module.policy` (main.tf resolved-input locals) | [`terraform-azurerm-compeer-policy`](../../modules/terraform-azurerm-compeer-policy) | Same generic definition/initiative/assignment/exemption module `global-governance` calls (§1 above) — this pattern only resolves `management_group_key` and decides which entries exist |
+| `policy_extensions.tf` | (feeds `module.policy`'s `resource_group_assignments` / `exemptions` inputs) | RG-scope assignments; the exemption mechanism for all 3 scopes — mandatory before promoting any baseline policy to Deny |
+| `remediation.tf` | (feeds `module.policy`'s `management_group_assignments` input, keyed `rem-<key>`, + a `terraform_data.remediation_contract` precondition check) | Generic DeployIfNotExists bundle — Defender-plan auto-enablement, diagnostic-settings auto-deployment, etc. — SystemAssigned identity + LAW-parameter-injection is this file's own business logic |
+| `private_only_baseline.tf` | (feeds `module.policy`'s definition/initiative/assignment inputs) | `deny-public-ip-address` + `deny-nic-public-ip` — Compeer forces all inbound through Cloudflare Tunnels; there's no single Azure "setting" for that, so it's a policy initiative |
 
 **`cmp-required-tags` — two real bugs found and fixed during the client
 deployment-readiness review, both in `global-governance`:**
