@@ -36,27 +36,52 @@ connectivity = {
   enabled        = true
   resource_group = {}
   hub_vnet = {
-    address_space = ["10.0.0.0/16"] # REPLACE with approved IPAM allocation
-    dns_servers   = []              # set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6)
+    # TENTATIVE re-address per Dan's 2026-09-17 Teams post ("New Landing Zone
+    # Discussion" - Regional Allocation / Hub Subnets tables). Dan's own words:
+    # "I will eventually send this to Compeer to get their approval" - NOT yet
+    # approved. Still marked REPLACE-if-Compeer-changes-it, same as before.
+    address_space = ["10.102.0.0/16"] # REPLACE if Compeer's approval changes this
+    dns_servers   = []                # set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6)
     # Every subnet a downstream workspace resolves by subnet_key must exist here
     # (runbook §4.1 - the hub pattern owns all subnets). route_table_key /
     # nsg_key wire the association from one place.
     subnets = {
-      GatewaySubnet      = { address_prefixes = ["10.0.0.0/27"] }
-      RouteServerSubnet  = { address_prefixes = ["10.0.0.64/27"] }
-      AzureBastionSubnet = { address_prefixes = ["10.0.0.128/26"] }
+      GatewaySubnet      = { address_prefixes = ["10.102.0.0/26"] }
+      AzureBastionSubnet = { address_prefixes = ["10.102.0.64/26"] }
+      # RouteServerSubnet removed - Route Server was dropped from this pattern
+      # (network engineer confirmed removal earlier; also absent from Dan's
+      # new table).
+
+      prod-shared-subnet = { address_prefixes = ["10.102.1.0/24"] }
+      prod-appgw-subnet0 = { address_prefixes = ["10.102.2.0/24"] }
+
+      # Was one combined "domain_controllers" subnet; Dan's table splits it by
+      # domain. Both share the domain_controllers NSG/route table for now
+      # since no per-domain rules exist yet - split the nsg_key too if that
+      # changes.
+      prod-extdc-subnet    = { address_prefixes = ["10.102.3.0/27"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }  # compeer.ext
+      prod-intdc-subnet    = { address_prefixes = ["10.102.3.32/27"], route_table_key = "to_firewall", nsg_key = "domain_controllers" } # agstar.local
+      prod-cftagent-subnet = { address_prefixes = ["10.102.3.64/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
+
       # service_endpoints let the bootstrap storage account / Key Vault firewall
       # to this subnet without a public endpoint (see GUARDRAIL-EXCEPTIONS.md).
-      palo_alto_management  = { address_prefixes = ["10.0.1.0/26"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
-      palo_alto_untrusted   = { address_prefixes = ["10.0.1.64/26"] }
-      palo_alto_trusted     = { address_prefixes = ["10.0.1.128/26"] }
-      palo_alto_ha          = { address_prefixes = ["10.0.1.192/26"] }
-      cloudflare_connectors = { address_prefixes = ["10.0.2.0/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
-      domain_controllers    = { address_prefixes = ["10.0.2.64/26"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }
-      dns_resolver_inbound  = { address_prefixes = ["10.0.2.128/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
-      dns_resolver_outbound = { address_prefixes = ["10.0.2.144/28"], delegations = { r = { name = "Microsoft.Network/dnsResolvers", actions = [] } } }
-      private_endpoints     = { address_prefixes = ["10.0.3.0/24"], route_table_key = "to_firewall" }
-      app_integration       = { address_prefixes = ["10.0.4.0/24"], route_table_key = "to_firewall" }
+      prod-mgmt-subnet     = { address_prefixes = ["10.102.4.0/27"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
+      prod-fw-trust-subnet = { address_prefixes = ["10.102.4.32/27"] }
+      # Dan's table showed 10.10.4.64/27 and 10.10.4.96/27 for these two - read
+      # as typos for 10.102.4.64/27 / 10.102.4.96/27 (consistent with the rest
+      # of this /24 and the Central US 10.102.0.0/16 allocation). Confirm with
+      # Dan before this goes to Compeer.
+      prod-fw-untrust-subnet = { address_prefixes = ["10.102.4.64/27"] }
+      prod-fw-partner-subnet = { address_prefixes = ["10.102.4.96/27"] } # was palo_alto_ha
+
+      # Not in Dan's table - relocated into the new range rather than left
+      # outside the VNet's address space. Confirm real prefixes once approved.
+      private_endpoints = { address_prefixes = ["10.102.5.0/24"], route_table_key = "to_firewall" }
+      app_integration   = { address_prefixes = ["10.102.6.0/24"], route_table_key = "to_firewall" }
+
+      # dns_resolver_inbound / dns_resolver_outbound dropped: nothing in this
+      # pattern creates a Private DNS Resolver (dc-forwarders mode below was
+      # the confirmed approach), and they're absent from Dan's plan too.
     }
   }
   ddos_protection_plan = {
@@ -88,6 +113,11 @@ connectivity = {
 
   # UDR that forces spoke / connector / DC / PE / app-integration traffic to the
   # Palo Alto Trust ILB frontend (runbook §4.2, §5.5). Replace the appliance IP.
+  # STALE: 10.0.1.132 was inside the old palo_alto_trusted subnet
+  # (10.0.1.128/26). prod-fw-trust-subnet is now 10.102.4.32/27 - this next hop
+  # must be updated to the Trust ILB's real frontend IP in that range before
+  # this route table is ever applied. Not guessed here; get the real IP from
+  # Dan/the Palo Alto build.
   route_tables = {
     to_firewall = {
       bgp_route_propagation_enabled = false
