@@ -109,7 +109,7 @@ All 10 fields: **N/A** — no bootstrap-as-code root exists in this catalog
 | `management_contract_version` | 🔧 added | `contract_version` |
 | `management_log_analytics_workspace_ids` | 🔧 added | Only a singular `log_analytics_workspace_id` existed. Added `log_analytics_workspace_ids`, a `map(string)` keyed by `var.environment` — exactly the forward-compatible shape the document itself recommends for the still-unresolved v7 §9.2 vs. component-list conflict ("a map absorbs either outcome... with one workspace, the map has one key"). The original singular output is untouched. |
 | `management_log_analytics_workspace_guids` | 🔧 added | Same treatment as above, from `log_analytics_workspace_guid`. |
-| `management_diagnostic_profile` | 🔧 added (follow-up pass) | Built properly rather than left flagged: a new pure-constants module, [`terraform-azurerm-compeer-diagnostic-profile`](../modules/terraform-azurerm-compeer-diagnostic-profile), defines the canonical `{log_categories, metric_categories, destination_key}` (Azure's own `allLogs`/`AllMetrics` "send everything" category groups, plus a symbolic pointer to which management output names the destination). `platform-management` instantiates it and publishes `diagnostic_profile`. This is a real, reusable definition — not a hollow output describing behavior nothing follows — but it's a *recommendation* for new `diagnostic_settings` entries and for keeping the GOV-07 DINE policy's parameters aligned, not a forced retrofit of every existing pattern's diagnostic settings: defaulting every resource to `allLogs` would be a real Log Analytics ingestion cost increase, and that's a decision for whoever owns that budget, not something to force silently through a shared module. See the module's own README for the full reasoning. |
+| `management_diagnostic_profile` | 🔧 added, and now actually consumed | A pure-constants module, [`terraform-azurerm-compeer-diagnostic-profile`](../modules/terraform-azurerm-compeer-diagnostic-profile), defines the canonical `{log_categories, metric_categories, destination_key}` (Azure's own `allLogs`/`AllMetrics` "send everything" category groups). `platform-management` instantiates it and publishes `diagnostic_profile`. It was first built as a recommendation-only output with nothing else consuming it; since this catalog has no deployed resources yet, that changed to a real fallback default — every `diagnostic_settings`-shaped variable across the catalog now defaults `logs`/`metrics` to this profile when a caller opts a resource into diagnostics but doesn't specify what to log, while an entry with its own explicit `logs`/`metrics` keeps exactly what it asked for. See "Follow-up" below for the full reasoning and a real gap it closed in the process. |
 | `management_action_group_ids` | 🔧 added | Only a singular `action_group_id` existed. The document describes this as *"Published as an empty map until delivered"* (OBS-04 is Phase 2 in the design doc) — but this catalog already has a real action group, so added `action_group_ids = { primary = ... }` rather than an empty placeholder map. True severity/audience keying is still Phase 2 per the document's own framing; not fabricated here. |
 | `management_recovery_services_vault_ids` | ✅ | `recovery_services_vault_ids` (keyed by vault/purpose in this catalog, not literally "region" — same information). |
 | `management_backup_policy_ids` | ✅ | `backup_policy_vm_ids` (keyed `<vault>.<tier>`) + `backup_policy_file_share_ids`. |
@@ -237,9 +237,58 @@ shape actually changes, and update the matching literal in every consumer's
 `contract_versions.tf` only after confirming the fields that consumer reads
 are still compatible — that review step is the entire point of the check.
 
-**`management_diagnostic_profile` — built as a real, reusable definition.**
-See the platform-management table row above; full design reasoning is in
-[`modules/terraform-azurerm-compeer-diagnostic-profile/README.md`](../modules/terraform-azurerm-compeer-diagnostic-profile/README.md).
+**`management_diagnostic_profile` — from a recommendation to an actual
+default.** The first pass built the profile module and stopped at publishing
+it, reasoning that retrofitting every pattern's diagnostic settings to
+`allLogs`/`AllMetrics` would be a real Log Analytics ingestion cost increase
+that shouldn't be forced silently. That reasoning holds for a landing zone
+with resources already deployed and generating log volume today — but this
+catalog has none. Re-examined on that basis: the cost question is still
+real (verbose logging always costs something once resources exist), but the
+"protect already-deployed resources from a silent behavior change" concern
+doesn't apply here, and leaving each pattern's own resource-specific
+defaults intact still matters (Bastion's `BastionAuditLogs`-only default,
+for example, is a deliberate, more-precise choice for that resource type,
+not an oversight to flatten).
+
+The actual fix is narrower and safer than "retrofit everything": every
+`diagnostic_settings`-shaped variable's `logs`/`metrics` fields are
+`optional(type, default)` at the type level, and Terraform resolves that
+default **per map entry** at the point a caller creates an entry without
+specifying it — an entry that already sets `logs`/`metrics` is completely
+unaffected, and a pattern with its own more-specific default (workload-spoke's
+Key Vault diagnostics, `platform-identity`'s Key Vault diagnostics — both
+already independently defaulted to `allLogs`/`AllMetrics` before this pass,
+which is what confirmed this was already the de facto convention, not a new
+idea) keeps working exactly as before. So the change was: replace the `{}`
+(no logs/metrics at all) default with the canonical profile's `{allLogs =
+{category_group = "allLogs"}}` / `{AllMetrics = {category = "AllMetrics"}}`
+in the 7 places that still had it — `platform-connectivity` (generic
+`diagnostic_settings`), `platform-management` (storage accounts, Key Vaults,
+Recovery Services Vaults), `directory-services` and `cloudflare-connectors`
+(per-VM diagnostics), and `workload-spoke` (generic `diagnostic_settings` -
+not its Key Vault one, which already had its own correct default). Each
+site carries a comment pointing back to the shared module as the source of
+truth to keep the two in sync (variable defaults must be constant
+expressions in Terraform, so these are literal copies of the module's
+values, not a live reference to it).
+
+**A real, concrete gap this closed, not a hypothetical one:** the actual
+deployed tfvars for `platform-management` has a
+`platform_storage_diagnostics.audit` entry — a storage account literally
+named for audit purposes — that sets `metrics` (`Transaction`) but never set
+`logs` at all. Before this fix, that meant the audit storage account's
+diagnostic setting would have shipped zero actual logs, only one metric.
+After this fix, it now defaults to `allLogs`. Confirmed directly against
+this real tfvars entry via `terraform plan`, not assumed. Since nothing is
+deployed yet, this is a zero-cost, zero-migration correction rather than a
+change to something already running.
+
+New regression tests added
+(`patterns/terraform-azurerm-compeer-platform-management/tests/diagnostic_defaults.tftest.hcl`)
+prove both directions: an entry with diagnostics enabled but no explicit
+`logs`/`metrics` gets the platform default, and an entry with its own
+explicit `logs`/`metrics` is never overridden.
 
 ## Verification
 

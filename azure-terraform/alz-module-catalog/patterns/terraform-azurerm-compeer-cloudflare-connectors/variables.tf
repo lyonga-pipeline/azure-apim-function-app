@@ -103,14 +103,19 @@ variable "connectors" {
       eventhub_name                  = optional(string)
       partner_solution_id            = optional(string)
       log_analytics_destination_type = optional(string)
+      # Platform_Output_Contracts_IAC-10 management_diagnostic_profile - keep
+      # in sync with modules/terraform-azurerm-compeer-diagnostic-profile's
+      # defaults (allLogs / AllMetrics). Only applies when a connector VM has
+      # diagnostics.enabled = true but leaves logs/metrics unset - an
+      # explicit value here always wins.
       logs = optional(map(object({
         category       = optional(string)
         category_group = optional(string)
-      })), {})
+      })), { allLogs = { category_group = "allLogs" } })
       metrics = optional(map(object({
         category = string
         enabled  = optional(bool, true)
-      })), {})
+      })), { AllMetrics = { category = "AllMetrics" } })
     }), {})
     extensions = optional(map(object({
       name                       = optional(string)
