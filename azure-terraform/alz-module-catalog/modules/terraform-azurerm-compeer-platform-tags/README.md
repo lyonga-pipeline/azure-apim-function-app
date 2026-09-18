@@ -15,16 +15,63 @@ for and the output map drops the rest.
 
 | Category | Tags | Required |
 |---|---|---|
-| Operational | `environment`, `application`, `owner`, `source_repo`, `created_on` | **Mandatory** |
+| Operational | `environment`, `application`, `appcode`, `owner`, `source_repo`, `created_on` | **Mandatory** |
 | Governance | `criticality_tier`, `data_classification`, `lifecycle_state` | **Mandatory** |
 | Financial | `cost_center`, `gl_category` | **Mandatory** |
 | Operational | `application_component`, `modified_on` | Optional |
 | Operational / Governance | `created_by`, `dr_tier` | Conditional |
-| Governance | `expiration_date` | Required for sandbox / temporary / POC / exception resources |
+| Governance | `expiration_date` | Required when `environment` is `sandbox` or anything other than `dev`/`test`/`uat`/`prod` - enforced by a `check` block, see below |
 
 Plus `additional_tags` (`map(string)`) for client- or workload-specific tags.
 First-class standard tag inputs win on key collision so a caller cannot
 accidentally override a standard tag value with an escape-hatch value.
+
+### Validated value sets
+
+Every tag below fails the plan with a clear message if set to anything outside
+its approved list (source: the FinOps tagging standard's own tag tables):
+
+| Tag | Approved values |
+|---|---|
+| `data_classification` | `public`, `internal`, `confidential`, `restricted` |
+| `lifecycle_state` | `active`, `temporary`, `pilot`, `decommission-pending`, `retired`, `exempt` |
+| `criticality_tier` | `tier-0` (foundational platform/enterprise service), `tier-1` (mission-critical business workload), `tier-2` (important business/operational workload), `tier-3` (low-criticality/non-production/temporary/disposable), `tier-4` |
+| `dr_tier` | `gold`, `silver`, `bronze`, `none` |
+| `appcode` | 1-9 letters only - the same identifier the naming module's own `appcode` input uses, so a resource's tag matches its actual name prefix |
+| `created_on`, `modified_on`, `expiration_date` | `YYYY-MM-DD` |
+
+### `created_by` defaults to `"Terraform"`
+
+Every resource this module tags is deployed by Terraform - that's what actually
+created it, so it's the accurate default rather than a placeholder. Override it
+with a real pipeline/service-principal identity only when a caller has a more
+specific one and wants that recorded instead of the deployment mechanism.
+
+### `created_on` is never computed with `timestamp()`
+
+`created_on` is meant to record when a resource was **first** deployed, not
+today's date. Terraform's `timestamp()` function re-evaluates on every single
+`plan`, which would put a diff on this tag - and therefore on every resource
+carrying it - on every run, forever. That directly violates this tagging
+standard's own core principle: *"Tag values are durable and do not frequently
+change... tag changes must not require redeployment."* The design doc's
+"Auto-populated by CI/CD pipeline" note means the **pipeline** captures "first
+deployed" once (e.g. only passing `-var created_on=...` on a resource's actual
+first apply, or reading an existing value back from state/tags on every
+subsequent one) and hands Terraform a frozen literal - Terraform itself has no
+built-in way to know "is this really the first apply" without the same state
+inspection the pipeline already has to do. This module stays a pure
+string-in-string-out variable for exactly that reason.
+
+### `expiration_date` and `environment`
+
+A `check` block (`checks.tf`) enforces the design doc's "Required for sandbox,
+POC, temporary, and exception resources" rule directly: if `environment` is
+`"sandbox"` or anything other than `dev`/`test`/`uat`/`prod`, `expiration_date`
+must be set. This is a `check` block rather than a `variable` `validation`
+block because a `validation` block can only see the variable it's declared on
+in Terraform versions before 1.9, and this module supports 1.5+ (the same
+reason the naming module uses `check` blocks for its own cross-input rules).
 
 ## Enforcing the mandatory set
 
@@ -41,6 +88,18 @@ lifecycle {
   }
 }
 ```
+
+**Is `mandatory_keys`/`missing_mandatory` redundant, given every mandatory
+variable defaults to `null`?** No - tested directly (`all_mandatory_tags_unset_does_not_error`
+in the test suite): calling the module with every mandatory variable left at
+its `null` default does not error. `missing_mandatory` simply reports all of
+them as missing, exactly as designed; nothing in the module itself ever fails
+because of it. The mechanism *would* cause an error only if a **consuming
+root** added the `precondition` shown above - and that's the intended trigger,
+not a bug. Nothing in this module does that today (enforcement is OPA/Azure
+Policy's job per the design above), so keep the block: it's the machinery a
+workspace opts into for Terraform-side enforcement if it ever wants it,
+verified safe to leave wired in even when unused.
 
 ## Outputs
 
@@ -71,7 +130,11 @@ workload patterns.
 
 ## Tests
 
-`terraform test` (offline): only-supplied tags emitted, `missing_mandatory`
-reporting, conditional + sandbox tags, `additional_tags` fill behavior,
-standard-tag precedence, `data_classification` validation, and date-format
-validation.
+`terraform test` (offline, 22 runs): only-supplied tags emitted,
+`missing_mandatory` reporting, conditional + sandbox tags, `additional_tags`
+fill behavior (including that the `created_by` default wins over an
+`additional_tags` workaround value), standard-tag precedence,
+`data_classification`/`lifecycle_state`/`criticality_tier`/`dr_tier`/`appcode`
+validation (valid and invalid cases for each), the `expiration_date` +
+`environment` cross-check (both directions), and the "does an all-null
+mandatory-tag call actually error" investigation above.

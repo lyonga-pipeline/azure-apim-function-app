@@ -36,6 +36,7 @@ variable "naming" {
 variable "platform_tags" {
   type = object({
     application           = optional(string)
+    appcode               = optional(string)
     owner                 = optional(string)
     source_repo           = optional(string)
     created_on            = optional(string)

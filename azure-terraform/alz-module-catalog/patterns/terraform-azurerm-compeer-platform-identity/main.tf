@@ -5,6 +5,7 @@ module "tags" {
 
   environment           = var.environment
   application           = var.platform_tags.application
+  appcode               = var.platform_tags.appcode
   owner                 = var.platform_tags.owner
   source_repo           = var.platform_tags.source_repo
   created_on            = var.platform_tags.created_on

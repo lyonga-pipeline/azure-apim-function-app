@@ -21,17 +21,30 @@ location    = "centralus"
 environment = "prod"
 
 platform_tags = {
-  application         = "alz-platform-management"
-  owner               = "Cloud Enablement"
-  source_repo         = "ado://Compeer/landing-zone"
-  created_on          = "2026-01-01"
-  criticality_tier    = "tier-2"
+  application = "alz-platform-management"
+  # Same short code the naming module's abbr map uses for this component
+  # (management -> mgmt), so the tag matches the actual name prefix.
+  appcode     = "mgmt"
+  owner       = "Cloud Enablement"
+  source_repo = "ado://Compeer/landing-zone"
+  created_on  = "2026-01-01"
+  # Platform tier-0: foundational enterprise/platform service (shared
+  # observability, Sentinel/Defender, backup) required for other systems.
+  criticality_tier    = "tier-0"
   data_classification = "confidential"
   lifecycle_state     = "active"
   cost_center         = "CC-0000"
   gl_category         = "cloud-infrastructure"
-  created_by          = "terraform"
-  dr_tier             = "standard"
+  # created_by intentionally omitted - defaults to "Terraform" now, which is
+  # accurate (this workspace IS how the resource gets created) and replaces
+  # the old lowercase "terraform" override.
+  # dr_tier: "standard" isn't one of the doc's four values (gold/silver/
+  # bronze/none) and would fail the new validation. Read as "silver" -
+  # shared platform/observability infra needing formal DR with less
+  # aggressive RTO/RPO than a member-facing system - but this is my
+  # inference, not a confirmed decision; get this confirmed with whoever
+  # owns the actual DR posture for this workspace.
+  dr_tier = "silver"
 }
 
 management = {

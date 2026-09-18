@@ -3,6 +3,7 @@ module "tags" {
 
   environment           = var.environment
   application           = var.workload_tags.application
+  appcode               = var.workload_tags.appcode
   owner                 = var.workload_tags.owner
   source_repo           = var.workload_tags.source_repo
   created_on            = var.workload_tags.created_on

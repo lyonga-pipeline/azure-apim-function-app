@@ -4,6 +4,7 @@ locals {
   candidate = {
     environment           = var.environment
     application           = var.application
+    appcode               = var.appcode
     owner                 = var.owner
     source_repo           = var.source_repo
     created_on            = var.created_on
@@ -20,7 +21,7 @@ locals {
   }
 
   mandatory_keys = [
-    "environment", "application", "owner", "source_repo", "created_on",
+    "environment", "application", "appcode", "owner", "source_repo", "created_on",
     "criticality_tier", "data_classification", "lifecycle_state",
     "cost_center", "gl_category",
   ]

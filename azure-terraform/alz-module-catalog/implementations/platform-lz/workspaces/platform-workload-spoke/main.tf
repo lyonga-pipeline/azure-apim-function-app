@@ -91,11 +91,17 @@ module "workload_spoke" {
     azurerm = azurerm
   }
 
-  subscription_id                 = var.subscription_id
-  tenant_id                       = var.tenant_id
-  location                        = var.location
-  environment                     = var.environment
-  workload_tags                   = merge(var.workload_tags, try(var.workload_spoke.workload_tags, try(var.workload_spoke.platform_tags, {})))
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
+  location        = var.location
+  environment     = var.environment
+  # {appcode = var.workload_appcode} sits at the LOWEST merge priority - it's
+  # a default, not an override, so an explicit workload_tags.appcode (or the
+  # equivalent nested under workload_spoke.workload_tags/.platform_tags)
+  # still wins. This keeps the tag and the naming module's own appcode-based
+  # names (Key Vault, storage accounts) tracking the same one value instead
+  # of two separately hand-maintained copies.
+  workload_tags                   = merge({ appcode = var.workload_appcode }, var.workload_tags, try(var.workload_spoke.workload_tags, try(var.workload_spoke.platform_tags, {})))
   resource_group                  = merge({ name = local.std_names.resource_group }, try(var.workload_spoke.resource_group, {}))
   spoke_vnet                      = merge({ name = local.std_names.spoke_vnet }, try(var.workload_spoke.spoke_vnet, {}))
   hub_connection                  = local.hub_connection

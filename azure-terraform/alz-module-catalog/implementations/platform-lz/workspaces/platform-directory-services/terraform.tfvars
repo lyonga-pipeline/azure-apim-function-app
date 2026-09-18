@@ -13,11 +13,16 @@ management_workspace_name   = "platform-management"
 connectivity_workspace_name = "platform-connectivity"
 
 platform_tags = {
-  application         = "alz-platform-directory-services"
-  owner               = "Cloud Enablement"
-  source_repo         = "ado://Compeer/landing-zone"
-  created_on          = "2026-01-01"
-  criticality_tier    = "tier-2"
+  application = "alz-platform-directory-services"
+  # Same short code the naming module's abbr map uses for this component
+  # (directory-services -> ds), so the tag matches the actual name prefix.
+  appcode     = "ds"
+  owner       = "Cloud Enablement"
+  source_repo = "ado://Compeer/landing-zone"
+  created_on  = "2026-01-01"
+  # Platform tier-0: foundational enterprise/platform service (identity -
+  # domain controllers) required for other systems.
+  criticality_tier    = "tier-0"
   data_classification = "confidential"
   lifecycle_state     = "active"
   cost_center         = "CC-0000"
@@ -25,12 +30,17 @@ platform_tags = {
   # optional / conditional - set where you have a value
   # application_component = "..."
   # modified_on           = "2026-01-01"
-  # created_by            = "terraform"
-  dr_tier = "tier-0"
+  # created_by intentionally omitted - defaults to "Terraform" now (accurate:
+  # this workspace IS how the resource gets created), replacing the old
+  # additional_tags workaround below.
+  # dr_tier was "tier-0" here - that's a criticality_tier value, not one of
+  # the doc's four dr_tier values (gold/silver/bronze/none), and would now
+  # fail validation outright. Read as "silver" - this is my inference, not a
+  # confirmed decision; get this confirmed with whoever owns the actual DR
+  # posture (domain controllers are core identity infra, so "gold" may
+  # actually be more appropriate - flagging rather than guessing further).
+  dr_tier = "silver"
   # expiration_date      = "2026-12-31"   # sandbox / temporary / POC only
-  additional_tags = {
-    created_by = "terraform"
-  }
 }
 
 directory_services = {
