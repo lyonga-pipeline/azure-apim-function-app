@@ -311,17 +311,14 @@ run "rejects_invalid_environment" {
   expect_failures = [var.environment]
 }
 
-run "accepts_poc_environment" {
-  command = apply
+run "rejects_poc_as_environment" {
+  command = plan
 
   variables {
     environment = "poc"
   }
 
-  assert {
-    condition     = output.tags["environment"] == "poc"
-    error_message = "poc must be a valid environment"
-  }
+  expect_failures = [var.environment]
 }
 
 run "accepts_existing_lz_np_environments" {
@@ -347,19 +344,6 @@ run "rejects_sandbox_without_expiration_date" {
   }
 
   expect_failures = [check.expiration_date_required]
-}
-
-run "poc_without_expiration_date_passes" {
-  command = apply
-
-  variables {
-    environment = "poc"
-  }
-
-  assert {
-    condition     = !contains(keys(output.tags), "expiration_date")
-    error_message = "poc must not require expiration_date"
-  }
 }
 
 run "temporary_lifecycle_without_expiration_date_passes" {

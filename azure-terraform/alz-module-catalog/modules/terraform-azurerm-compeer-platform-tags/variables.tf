@@ -21,12 +21,12 @@
 # ---- Mandatory (Required = Yes) --------------------------------------------
 variable "environment" {
   type        = string
-  description = "Mandatory. Deployment environment: dev, test, uat, prod, sandbox, poc, np1, np2, or np3. The existing-LZ aliases np1, np2, and np3 represent dev, test, and uat respectively."
+  description = "Mandatory. Deployment environment: dev, test, uat, prod, sandbox, np1, np2, or np3. POC deployments use sandbox. The existing-LZ aliases np1, np2, and np3 represent dev, test, and uat respectively."
   default     = null
 
   validation {
-    condition     = var.environment == null ? true : contains(["dev", "test", "uat", "prod", "sandbox", "poc", "np1", "np2", "np3"], lower(trimspace(var.environment)))
-    error_message = "environment must be one of: dev, test, uat, prod, sandbox, poc, np1, np2, np3."
+    condition     = var.environment == null ? true : contains(["dev", "test", "uat", "prod", "sandbox", "np1", "np2", "np3"], lower(trimspace(var.environment)))
+    error_message = "environment must be one of: dev, test, uat, prod, sandbox, np1, np2, np3. POC deployments must use sandbox."
   }
 }
 

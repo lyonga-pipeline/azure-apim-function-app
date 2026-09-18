@@ -36,7 +36,7 @@ its approved list (source: the FinOps tagging standard's own tag tables):
 
 | Tag | Approved values |
 |---|---|
-| `environment` | `dev`, `test`, `uat`, `prod`, `sandbox`, `poc`, `np1`, `np2`, `np3`; existing-LZ aliases `np1`/`np2`/`np3` represent dev/test/uat |
+| `environment` | `dev`, `test`, `uat`, `prod`, `sandbox`, `np1`, `np2`, `np3`; POC deployments use `sandbox`, and existing-LZ aliases `np1`/`np2`/`np3` represent dev/test/uat |
 | `data_classification` | `public`, `internal`, `confidential`, `restricted` |
 | `lifecycle_state` | `active`, `temporary`, `pilot`, `decommission-pending`, `retired`, `exempt` - exact meanings below |
 | `criticality_tier` | `tier-0` (foundational platform/enterprise service), `tier-1` (mission-critical business workload), `tier-2` (important business/operational workload), `tier-3` (low-criticality/non-production/temporary/disposable), `tier-4` |
@@ -150,7 +150,8 @@ Two `check` blocks (`checks.tf`) make the environment boundary explicit:
 
 - `environment = "sandbox"` requires `expiration_date`.
 - Every other approved environment rejects `expiration_date`, including
-  `dev`, `test`, `uat`, `prod`, `poc`, `np1`, `np2`, and `np3`.
+  `dev`, `test`, `uat`, `prod`, `np1`, `np2`, and `np3`. POC deployments
+  are represented by `sandbox` and therefore follow the sandbox expiration rule.
 
 `time_bound_exception = true` is permitted only for a sandbox resource with
 `lifecycle_state = "exempt"`. `lifecycle_state = "temporary"` does not by
@@ -261,7 +262,7 @@ key appears in `mandatory_keys`.
 
 ## Tests
 
-`terraform test` (offline, 48 runs across `tests/defaults.tftest.hcl`), plus
+`terraform test` (offline, 47 runs across `tests/defaults.tftest.hcl`), plus
 2 example test suites (`examples/basic/tests`, 2 runs;
 `examples/keyed_deployment_timestamps/tests`, 2 runs) exercising the real
 `hashicorp/time` provider rather than mocks. Coverage: only-supplied tags
