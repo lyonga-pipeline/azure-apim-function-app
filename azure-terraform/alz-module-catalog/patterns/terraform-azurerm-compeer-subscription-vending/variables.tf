@@ -56,17 +56,27 @@ variable "management_groups" {
   default     = {}
 }
 
+variable "naming" {
+  description = "Naming-module identity for this pattern. Subscriptions aren't region-scoped in the usual sense, but the naming module's subscription_scoped output still needs region/environment - environment defaults to \"shared\" since a subscription doesn't itself have a single environment (workload does)."
+  type = object({
+    region      = optional(string)
+    environment = optional(string, "shared")
+  })
+  default = {}
+}
+
 variable "subscriptions" {
   type = map(object({
     subscription_name    = optional(string)
     alias                = optional(string)
+    purpose              = optional(string)
     billing_scope_id     = optional(string)
     management_group_key = string
     workload             = optional(string, "Production")
     enabled              = optional(bool, true)
     tags                 = optional(map(string), {})
   }))
-  description = "Subscriptions to vend and place under the target management group."
+  description = "Subscriptions to vend and place under the target management group. subscription_name/alias default to the naming module's subscription_scoped pattern (sub-<purpose>-<env>-<region>) when `purpose` is set - an explicit subscription_name/alias always overrides, and the map key remains the final fallback (unchanged prior behaviour) when neither is set."
   default     = {}
 }
 

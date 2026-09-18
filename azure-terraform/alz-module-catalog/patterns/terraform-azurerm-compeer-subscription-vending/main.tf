@@ -10,6 +10,16 @@
 # is hard-disabled and must stay disabled.
 # =============================================================================
 
+# One naming instance per subscription: each needs its own `purpose` token,
+# the way each management group needs its own domain.
+module "naming_subscription" {
+  source      = "../../modules/terraform-azurerm-compeer-naming"
+  for_each    = var.subscriptions
+  region      = coalesce(try(var.naming.region, null), "centralus")
+  environment = try(var.naming.environment, "shared")
+  purpose     = try(each.value.purpose, null)
+}
+
 locals {
   billing_account_name     = trimspace(var.billing_account_name == null ? "" : var.billing_account_name)
   billing_profile_name     = trimspace(var.billing_profile_name == null ? "" : var.billing_profile_name)
@@ -48,8 +58,8 @@ locals {
 
   subscription_inputs = {
     for key, subscription in local.enabled_subscriptions : key => {
-      alias             = coalesce(try(subscription.alias, null), key)
-      subscription_name = coalesce(try(subscription.subscription_name, null), key)
+      alias             = coalesce(try(subscription.alias, null), module.naming_subscription[key].subscription_scoped, key)
+      subscription_name = coalesce(try(subscription.subscription_name, null), module.naming_subscription[key].subscription_scoped, key)
       billing_scope_id = (
         trimspace(try(subscription.billing_scope_id, null) == null ? "" : subscription.billing_scope_id) != ""
         ? trimspace(subscription.billing_scope_id)
