@@ -1,14 +1,15 @@
 variable "naming" {
   description = "Naming-module identity for this pattern. Entra groups aren't region/environment-scoped, so these exist only to satisfy the naming module's required inputs and don't affect entra_security_group's computed value."
   type = object({
-    region             = optional(string)
-    environment        = optional(string, "shared")
-    scope              = optional(string, "platform")
-    component          = optional(string, "authorization")
-    domain             = optional(string)
-    appcode            = optional(string)
-    abbreviation       = optional(string)
-    storage_uniqueness = optional(string, "")
+    region               = optional(string)
+    environment          = optional(string, "shared")
+    scope                = optional(string, "platform")
+    component            = optional(string, "authorization")
+    domain               = optional(string)
+    appcode              = optional(string)
+    abbreviation         = optional(string)
+    key_vault_name_token = optional(string, "vault")
+    storage_uniqueness   = optional(string, "")
   })
   default = {}
 }

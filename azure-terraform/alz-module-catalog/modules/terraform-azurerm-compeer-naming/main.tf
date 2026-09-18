@@ -74,6 +74,7 @@ locals {
   policy       = var.policy == null ? null : lower(trimspace(var.policy))
   policy_scope = var.policy_scope == null ? null : lower(trimspace(var.policy_scope))
   instance     = format("%02d", var.instance)
+  kv_token     = lower(trimspace(var.key_vault_name_token))
   entra_dom    = var.entra_domain == null ? null : upper(trimspace(var.entra_domain))
   entra_role   = var.entra_role == null ? null : trimspace(var.entra_role)
 
@@ -96,11 +97,13 @@ locals {
   ) : "platform-${local.region}-${local.env}"
 
   # Optional global-uniqueness suffix for storage-account names.
-  st_suffix = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)
+  st_suffix   = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)
+  storage_env = local.env == "prod" ? "prd" : local.env
+  vm_env      = local.env == "prod" ? "AZR" : upper(local.env)
 
   # ---- Keyed collections: <resource> => { key => name } --------------------
   keyed = {
-    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-kv" }
+    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}" }
     # The suffix must survive truncation intact - it's the only thing that
     # makes two otherwise-identical names globally unique. Truncate the
     # descriptive base to whatever's left of the 24-char budget AFTER
@@ -108,11 +111,11 @@ locals {
     # other way around (truncating a "base+suffix" string as one unit can
     # chop the suffix off entirely, silently reintroducing a collision).
     storage_account = {
-      for k in var.storage_account_keys : k => "${substr(
-        lower(replace(replace("st${local.disc_abbr}${k}${local.region}${local.env}", "-", ""), "_", "")),
+      for k in var.storage_account_keys : k => "cf${substr(
+        lower(replace(replace(trimspace(k), "-", ""), "_", "")),
         0,
-        24 - length(local.st_suffix)
-      )}${local.st_suffix}"
+        24 - length("cf${local.st_suffix}${local.region}${local.storage_env}sa")
+      )}${local.st_suffix}${local.region}${local.storage_env}sa"
     }
     user_assigned_identity = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-id" }
     # ADAPTED (closest: key_vault) - not in Appendix F. Leads with disc_abbr
@@ -120,14 +123,14 @@ locals {
     # key_vault/storage_account/user_assigned_identity, so a workload
     # function app genuinely starts with the app's own code rather than
     # "platform" or the workload's domain.
-    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-func" }
+    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-azfn-${try(format("%02d", tonumber(k)), "00")}" }
     nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nsg" }
     route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-rt" }
     public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pip" }
     private_endpoint        = { for k in var.private_endpoint_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pe" }
     network_interface       = { for k in var.network_interface_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nic" }
     load_balancer           = { for k in var.load_balancer_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-ilb" }
-    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}" }
+    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.vm_env}-${upper(replace(trimspace(k), "_", "-"))}" }
     disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-disk" }
     recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-rsv" }
     subnet                  = { for k in var.subnet_keys : k => "${local.env}-${replace(lower(trimspace(k)), "_", "-")}-subnet" }
@@ -222,8 +225,8 @@ locals {
     #                           than the name silently defaulting to the
     #                           literal word "platform")
     key_vault = (
-      local.scope == "workload" ? (local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-vault") :
-      local.component != null ? "${local.disc_abbr}-${local.region}-${local.env}-vault" :
+      local.scope == "workload" ? (local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-${local.kv_token}") :
+      local.component != null ? "${local.disc_abbr}-${local.region}-${local.env}-${local.kv_token}" :
       null
     )
     platform_resource_group = "platform-${local.region}-${local.env}-rg"
@@ -241,12 +244,12 @@ locals {
     # ADAPTED: workload spoke RG (closest: mg_environment <domain>-<env>-mg)
     workload_resource_group = local.domain == null ? null : "${local.domain}-${local.env}-rg"
     # ADAPTED: no-separator storage account (<=24, lower). Legacy single-token.
-    storage_account = local.purpose == null ? null : substr(lower(replace("st${local.purpose}${local.region}${local.env}", "-", "")), 0, 24)
+    storage_account = local.purpose == null ? null : substr(lower(replace("cf${local.purpose}${local.region}${local.storage_env}sa", "-", "")), 0, 24)
     # ADAPTED: user-assigned identity (closest: key_vault <appcode>-<region>-<env>-*)
     user_assigned_identity = local.purpose == null ? null : "${local.purpose}-${local.region}-${local.env}-id"
     # ADAPTED: function app (closest: key_vault). Needs `appcode` - leads with
     # the app's own code, the same as key_vault, not "platform" or a domain.
-    function_app = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-func"
+    function_app = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-azfn-${local.instance}"
 
     # ---- Policy ----
     policy_initiative = (local.domain == null || local.purpose == null) ? null : "initiative-${local.domain}-${local.purpose}"

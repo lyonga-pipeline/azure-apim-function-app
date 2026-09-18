@@ -104,7 +104,7 @@ run "approved_abbreviation_overrides_fallback" {
   }
 
   assert {
-    condition     = output.key_vault_names["primary"] == "cpc-cus-prod-primary-kv"
+    condition     = output.key_vault_names["primary"] == "cpc-cus-prod-primary"
     error_message = "an approved abbreviation must control constrained resource prefixes"
   }
 }
@@ -135,6 +135,44 @@ run "normalizes_underscore_resource_keys" {
   assert {
     condition     = output.network_interface_names["fw1_mgmt"] == "cus-prod-fw1-mgmt-nic"
     error_message = "stable underscore keys must render Azure-compatible hyphenated names"
+  }
+}
+
+run "supplemental_resource_standards" {
+  command = apply
+
+  variables {
+    region               = "northcentralus"
+    environment          = "prod"
+    scope                = "workload"
+    domain               = "internal-apps"
+    appcode              = "cropins"
+    key_vault_name_token = "secret"
+    key_vault_keys       = ["vault", "certs"]
+    storage_account_keys = ["cropins"]
+    function_app_keys    = ["1", "2"]
+    virtual_machine_keys = ["srv-dhcp-02"]
+  }
+
+  assert {
+    condition     = output.key_vault == "cropins-ncus-prod-secret"
+    error_message = "the singular Key Vault final token must be caller-controlled"
+  }
+  assert {
+    condition     = output.key_vault_names["vault"] == "cropins-ncus-prod-vault" && output.key_vault_names["certs"] == "cropins-ncus-prod-certs"
+    error_message = "keyed Key Vault names must use the caller key as the final differentiator"
+  }
+  assert {
+    condition     = output.storage_account_names["cropins"] == "cfcropinsncusprdsa"
+    error_message = "storage account names must follow cf<purpose><region><environment>sa with prod rendered prd"
+  }
+  assert {
+    condition     = output.function_app_names["1"] == "cropins-ncus-prod-azfn-01" && output.function_app_names["2"] == "cropins-ncus-prod-azfn-02"
+    error_message = "Function App names must follow the azfn numeric-instance standard"
+  }
+  assert {
+    condition     = output.virtual_machine_names["srv-dhcp-02"] == "AZR-SRV-DHCP-02"
+    error_message = "production VM names must use the AZR environment exception"
   }
 }
 
@@ -240,7 +278,7 @@ run "adapted_names" {
     error_message = "scoped subscription adapted pattern"
   }
   assert {
-    condition     = output.storage_account == "stconnectivitycusprod" && length(output.storage_account) <= 24
+    condition     = output.storage_account == "cfconnectivitycusprdsa" && length(output.storage_account) <= 24
     error_message = "storage account no-dash <=24"
   }
   assert {
@@ -278,11 +316,11 @@ run "platform_root_identity_and_keyed_names" {
     error_message = "discriminator resolves to component"
   }
   assert {
-    condition     = output.key_vault_names["primary"] == "mgmt-cus-prod-primary-kv" && output.key_vault_names["secrets"] == "mgmt-cus-prod-secrets-kv"
+    condition     = output.key_vault_names["primary"] == "mgmt-cus-prod-primary" && output.key_vault_names["secrets"] == "mgmt-cus-prod-secrets"
     error_message = "keyed key-vault names (abbreviated component)"
   }
   assert {
-    condition     = output.storage_account_names["audit"] == "stmgmtauditcusprod" && length(output.storage_account_names["audit"]) <= 24
+    condition     = output.storage_account_names["audit"] == "cfauditcusprdsa" && length(output.storage_account_names["audit"]) <= 24
     error_message = "keyed storage-account names (no dash, <=24)"
   }
   assert {
@@ -322,7 +360,7 @@ run "workload_root_identity" {
     error_message = "workload discriminator resolves to appcode"
   }
   assert {
-    condition     = output.key_vault_names["app"] == "orders-cus-prod-app-kv"
+    condition     = output.key_vault_names["app"] == "orders-cus-prod-app"
     error_message = "workload keyed KV names"
   }
   assert {
@@ -394,7 +432,7 @@ run "storage_uniqueness_suffix" {
   }
 
   assert {
-    condition     = length(output.storage_account_names["audit"]) <= 24 && output.storage_account_names["audit"] != "stmgmtauditcusprod"
+    condition     = length(output.storage_account_names["audit"]) <= 24 && output.storage_account_names["audit"] != "cfauditcusprdsa"
     error_message = "storage_uniqueness appends a hash suffix"
   }
 }
@@ -539,8 +577,8 @@ run "storage_suffix_survives_truncation" {
     error_message = "an over-budget storage name should truncate the descriptive base, not overflow past 24"
   }
   assert {
-    condition     = substr(output.storage_account_names["averyverylongstoragekeyname"], 20, 4) == substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)
-    error_message = "the 4-char uniqueness suffix must be the LAST 4 characters intact - truncating base+suffix as one string (the pre-fix bug) can chop the suffix off entirely, silently reintroducing a name collision"
+    condition     = strcontains(output.storage_account_names["averyverylongstoragekeyname"], substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)) && endswith(output.storage_account_names["averyverylongstoragekeyname"], "cusprdsa")
+    error_message = "the uniqueness suffix and required <region><environment>sa ending must both survive truncation"
   }
 }
 
@@ -674,8 +712,8 @@ run "function_app_singular_needs_appcode" {
   }
 
   assert {
-    condition     = output.function_app == "orders-cus-prod-func"
-    error_message = "function_app should default to <appcode>-<region>-<env>-func"
+    condition     = output.function_app == "orders-cus-prod-azfn-01"
+    error_message = "function_app should default to <appcode>-<region>-<env>-azfn-<number>"
   }
 }
 
@@ -702,11 +740,11 @@ run "keyed_function_app_leads_with_appcode_for_workload_scope" {
     scope             = "workload"
     domain            = "internal-apps"
     appcode           = "orders"
-    function_app_keys = ["api", "worker"]
+    function_app_keys = ["1", "2"]
   }
 
   assert {
-    condition     = output.function_app_names["api"] == "orders-cus-prod-api-func" && output.function_app_names["worker"] == "orders-cus-prod-worker-func"
+    condition     = output.function_app_names["1"] == "orders-cus-prod-azfn-01" && output.function_app_names["2"] == "orders-cus-prod-azfn-02"
     error_message = "keyed function_app_names should lead with appcode (not domain) for a workload-scoped caller, the same as key_vault_names/storage_account_names"
   }
 }
@@ -718,24 +756,24 @@ run "keyed_function_app_leads_with_component_for_platform_scope" {
     region            = "centralus"
     environment       = "prod"
     component         = "management"
-    function_app_keys = ["ops"]
+    function_app_keys = ["2"]
   }
 
   assert {
-    condition     = output.function_app_names["ops"] == "mgmt-cus-prod-ops-func"
+    condition     = output.function_app_names["2"] == "mgmt-cus-prod-azfn-02"
     error_message = "keyed function_app_names should lead with the abbreviated component for a platform-scoped caller"
   }
 }
 
-run "rejects_function_app_over_60_chars" {
+run "rejects_invalid_function_app_instance" {
   command = plan
 
   variables {
     region            = "centralus"
     environment       = "prod"
     appcode           = "warehouse"
-    function_app_keys = ["this-key-is-deliberately-far-too-long-to-fit-into-sixty-characters-total"]
+    function_app_keys = ["api"]
   }
 
-  expect_failures = [output.function_app_names]
+  expect_failures = [check.function_app_keys_are_instance_numbers]
 }

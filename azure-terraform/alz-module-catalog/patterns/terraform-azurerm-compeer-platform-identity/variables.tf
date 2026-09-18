@@ -22,14 +22,15 @@ variable "environment" {
 variable "naming" {
   description = "Root identity for the naming module. Component 'identity'; only region + environment needed. A `name` on a resource block still wins. The Key Vault name now leads with the component's own abbreviation (e.g. \"id-cus-prod-vault\"), not a hardcoded workload-style appcode of \"platform\"."
   type = object({
-    region             = optional(string)
-    environment        = optional(string)
-    scope              = optional(string, "platform")
-    component          = optional(string, "identity")
-    domain             = optional(string)
-    appcode            = optional(string)
-    abbreviation       = optional(string)
-    storage_uniqueness = optional(string, "")
+    region               = optional(string)
+    environment          = optional(string)
+    scope                = optional(string, "platform")
+    component            = optional(string, "identity")
+    domain               = optional(string)
+    appcode              = optional(string)
+    abbreviation         = optional(string)
+    key_vault_name_token = optional(string, "vault")
+    storage_uniqueness   = optional(string, "")
   })
   default = {}
 }

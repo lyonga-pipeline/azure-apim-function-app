@@ -84,6 +84,7 @@ Vault, storage accounts, identities, and Function Apps.
 | `domain` | Workload or governance domain, for example `internal-apps` |
 | `appcode` | Optional workload application code, 1-9 letters |
 | `abbreviation` | Optional approved 1-10 character short discriminator |
+| `key_vault_name_token` | Final token for the singular Key Vault name; defaults to `vault` |
 | `storage_uniqueness` | Stable seed for the storage-account uniqueness suffix |
 
 Approved resource environments are `dev`, `test`, `uat`, `prod`, `sandbox`,
@@ -138,7 +139,36 @@ configuration belongs to the consuming pattern.
 
 ## Constrained and Global Names
 
-Key Vault and storage-account names have tight length limits. The module uses:
+Key Vault and storage-account names follow the approved supplemental standards:
+
+```text
+Key Vault:       <appcode-or-component>-<region>-<environment>-<key>
+Storage account: cf<purpose>[uniqueness]<region><environment>sa
+Function App:    <appcode-or-component>-<region>-<environment>-azfn-<number>
+Virtual machine: <environment>-<type>-<appcode-or-purpose>-<number>
+```
+
+For keyed Key Vaults, the stable map key is the final caller-controlled token.
+Using `vault` reproduces the documented default, while `secrets` and
+`certificates` allow two vaults in the same project without changing this
+module. The singular output uses `key_vault_name_token`, which defaults to
+`vault` but can be overridden.
+
+Storage keys represent the approved appcode or purpose token. Storage names
+start with `cf`, end with `sa`, use lowercase alphanumeric characters, and
+render production as `prd`. A stable uniqueness suffix is inserted before the
+region when supplied.
+
+Function App keys are instance numbers from 1 to 99 and render as two digits.
+For example, keys `1` and `2` produce `azfn-01` and `azfn-02` endings.
+
+Generic VM keys provide the tokens after environment, for example
+`srv-dhcp-02`. The module uppercases the result and renders production as
+`AZR`, matching the documented production exception. Specialized Palo Alto
+and domain-controller VM conventions remain explicit in their consumers.
+
+Key Vault and storage-account names have tight length limits. For their
+application/component prefix, the module uses:
 
 1. An explicit `abbreviation`, when supplied.
 2. The built-in approved abbreviation map.
@@ -156,8 +186,8 @@ storage_uniqueness = var.subscription_id
 ```
 
 The module hashes the seed to a stable four-character suffix and preserves the
-suffix when truncating to Azure's 24-character limit. Do not use a changing or
-random seed.
+suffix plus the required region/environment ending when truncating to Azure's
+24-character limit. Do not use a changing or random seed.
 
 Function App names are also globally unique, but the module does not append a
 hash. Use a distinctive stable resource key or an explicit approved name.

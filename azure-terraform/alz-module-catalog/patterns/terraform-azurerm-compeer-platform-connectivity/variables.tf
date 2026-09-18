@@ -16,14 +16,15 @@ variable "environment" {
 variable "naming" {
   description = "Root identity for the naming module. This pattern's component is 'connectivity'; only region + environment are needed from the caller. A `name` on any resource block still overrides the computed name."
   type = object({
-    region             = optional(string)
-    environment        = optional(string)
-    scope              = optional(string, "platform")
-    component          = optional(string, "connectivity")
-    domain             = optional(string)
-    appcode            = optional(string)
-    abbreviation       = optional(string)
-    storage_uniqueness = optional(string, "")
+    region               = optional(string)
+    environment          = optional(string)
+    scope                = optional(string, "platform")
+    component            = optional(string, "connectivity")
+    domain               = optional(string)
+    appcode              = optional(string)
+    abbreviation         = optional(string)
+    key_vault_name_token = optional(string, "vault")
+    storage_uniqueness   = optional(string, "")
   })
   default = {}
 }

@@ -83,6 +83,17 @@ variable "abbreviation" {
   }
 }
 
+variable "key_vault_name_token" {
+  description = "Caller-controlled final token for the singular Key Vault name. Defaults to vault. Use key_vault_keys when creating multiple vaults."
+  type        = string
+  default     = "vault"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$", trimspace(var.key_vault_name_token)))
+    error_message = "key_vault_name_token must contain alphanumeric segments separated by single hyphens."
+  }
+}
+
 # ---- Instance keys: one list per keyed resource type the root deploys --------
 
 variable "key_vault_keys" {
@@ -140,7 +151,7 @@ variable "load_balancer_keys" {
 }
 
 variable "virtual_machine_keys" {
-  description = "Map keys of the VMs this root deploys. Output: virtual_machine_names (key trailing digits -> instance number)."
+  description = "VM naming tokens after the environment, for example srv-dhcp-02. Output: virtual_machine_names."
   type        = list(string)
   default     = []
 }
@@ -158,7 +169,7 @@ variable "recovery_services_vault_keys" {
 }
 
 variable "function_app_keys" {
-  description = "Map keys of the Function Apps this root deploys. Output: function_app_names. ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type."
+  description = "Function App instance numbers (1-99). Output: function_app_names using the approved azfn pattern."
   type        = list(string)
   default     = []
 }

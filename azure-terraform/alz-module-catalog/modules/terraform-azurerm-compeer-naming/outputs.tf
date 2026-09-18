@@ -29,17 +29,17 @@ output "stem" {
 # ---- Keyed collections: <resource>_names = { <map key> => <name> } ---------
 
 output "key_vault_names" {
-  description = "Key Vault name per key_vault_keys entry. Pattern: <disc>-<region>-<env>-<key>-kv (<=24)."
+  description = "Key Vault name per key. Pattern: <appcode-or-component>-<region>-<env>-<key>. Use keys such as vault, secrets, or certificates."
   value       = local.keyed.key_vault
 
   precondition {
     condition     = alltrue([for n in values(local.keyed.key_vault) : length(n) >= 3 && length(n) <= 24 && can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", n))])
-    error_message = "Key Vault names must be 3-24 chars: ${jsonencode({ for k, n in local.keyed.key_vault : k => "${n} (${length(n)})" if length(n) > 24 || length(n) < 3 })}. Key Vault map keys must be short - budget is 24 - len('${local.disc_abbr}-${local.region}-${local.env}--kv') = ${24 - length("${local.disc_abbr}-${local.region}-${local.env}--kv")} chars for the key."
+    error_message = "Key Vault names must be 3-24 chars: ${jsonencode({ for k, n in local.keyed.key_vault : k => "${n} (${length(n)})" if length(n) > 24 || length(n) < 3 })}. Shorten the appcode/component abbreviation or the caller-controlled key."
   }
 }
 
 output "storage_account_names" {
-  description = "Storage account name per storage_account_keys entry. Pattern: st<disc><key><region><env>[<4hex>], lower, <=24."
+  description = "Storage account name per purpose key. Pattern: cf<purpose>[<4hex>]<region><env>sa, lowercase alphanumeric, <=24. prod is rendered prd."
   value       = local.keyed.storage_account
 
   precondition {
@@ -59,7 +59,7 @@ output "user_assigned_identity_names" {
 }
 
 output "function_app_names" {
-  description = "Function App name per function_app_keys entry. Pattern: <disc>-<region>-<env>-<key>-func (leads with appcode for workload scope). ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type. Azure limit: Microsoft.Web/sites names are 2-60 characters, alphanumeric and hyphens only, and globally unique (the default *.azurewebsites.net hostname) - this module doesn't add a uniqueness suffix the way storage_account does, so pick a distinctive key if collision risk is real."
+  description = "Function App name per numeric instance key. Pattern: <appcode-or-component>-<region>-<env>-azfn-<number>. Azure limit: 2-60 characters and globally unique."
   value       = local.keyed.function_app
 
   precondition {
@@ -121,7 +121,7 @@ output "load_balancer_names" {
 }
 
 output "virtual_machine_names" {
-  description = "VM name per virtual_machine_keys entry. Pattern: <stem>-<key>. Azure limit: the Microsoft.Compute/virtualMachines RESOURCE name is 1-64 characters for both Windows and Linux - this does NOT enforce the separate, tighter 15-character Windows computer_name (NetBIOS) limit, which this module never sets; keep that override in tfvars if the VM is Windows."
+  description = "VM name per key. Pattern: <environment>-<type>-<appcode-or-purpose>-<number>; the key supplies the tokens after environment, for example srv-dhcp-02. prod renders as AZR."
   value       = local.keyed.virtual_machine
 
   precondition {
@@ -372,7 +372,7 @@ output "recovery_services_vault" {
 
 # ---- Key Vault / Resource Group ----
 output "key_vault" {
-  description = "Key Vault (needs `appcode`). Pattern: <appcode>-<region>-<env>-vault. Enforced 3-24 chars."
+  description = "Singular Key Vault. Pattern: <appcode-or-component>-<region>-<env>-<key_vault_name_token>. The final token defaults to vault and is caller-controlled."
   value       = local.names.key_vault
 
   precondition {
@@ -413,7 +413,7 @@ output "workload_resource_group" {
   }
 }
 output "storage_account" {
-  description = "ADAPTED (no-separator resource). Needs `purpose`. Pattern: st<purpose><region><env>, lower-cased, truncated to 24. Not guaranteed globally unique - caller adds a suffix if needed."
+  description = "Storage account using purpose. Pattern: cf<purpose><region><env>sa, lowercase alphanumeric, truncated to 24. prod renders as prd."
   value       = local.names.storage_account
 }
 output "user_assigned_identity" {
@@ -427,7 +427,7 @@ output "user_assigned_identity" {
 }
 
 output "function_app" {
-  description = "ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type. Needs `appcode`. Pattern: <appcode>-<region>-<env>-func. Azure limit: 2-60 characters, alphanumeric and hyphens only, globally unique (the default *.azurewebsites.net hostname)."
+  description = "Function App using instance. Pattern: <appcode>-<region>-<env>-azfn-<number>. Azure limit: 2-60 characters and globally unique."
   value       = local.names.function_app
 
   precondition {

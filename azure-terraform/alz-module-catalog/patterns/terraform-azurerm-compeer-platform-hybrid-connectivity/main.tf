@@ -24,13 +24,14 @@ module "tags" {
 module "naming" {
   source = "../../modules/terraform-azurerm-compeer-naming"
 
-  region       = coalesce(try(var.naming.region, null), var.location)
-  environment  = coalesce(try(var.naming.environment, null), var.environment)
-  scope        = try(var.naming.scope, "platform")
-  component    = coalesce(try(var.naming.component, null), "hybrid")
-  domain       = try(var.naming.domain, null)
-  appcode      = try(var.naming.appcode, null)
-  abbreviation = try(var.naming.abbreviation, null)
+  region               = coalesce(try(var.naming.region, null), var.location)
+  environment          = coalesce(try(var.naming.environment, null), var.environment)
+  scope                = try(var.naming.scope, "platform")
+  component            = coalesce(try(var.naming.component, null), "hybrid")
+  domain               = try(var.naming.domain, null)
+  appcode              = try(var.naming.appcode, null)
+  abbreviation         = try(var.naming.abbreviation, null)
+  key_vault_name_token = try(var.naming.key_vault_name_token, "vault")
 
   storage_uniqueness = try(var.naming.storage_uniqueness, "")
   public_ip_keys     = concat(keys(var.gateway_public_ips), keys(var.vpn_gateway_public_ips))
