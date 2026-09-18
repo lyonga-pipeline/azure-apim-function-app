@@ -1,11 +1,3 @@
-# =============================================================================
-# Cross-input checks that a single variable's own `validation` block can't
-# express (a variable can only validate itself). These catch identity
-# combinations that would otherwise either fail later with a cryptic internal
-# interpolation error, or - worse - silently succeed with a generic,
-# collision-prone name.
-# =============================================================================
-
 check "platform_scope_needs_component_for_keyed_disc_abbr_resources" {
   assert {
     condition = !(
@@ -24,13 +16,6 @@ check "workload_scope_needs_domain" {
   }
 }
 
-# A caller passing two keys that only differ by case (e.g. "Primary" and
-# "primary") gets two DISTINCT map entries whose rendered names are IDENTICAL,
-# since every keyed pattern lower-cases the key but not the map key itself.
-# That's a real Azure-side collision (two resources computing the same name)
-# hiding behind two different `for_each` keys, not a Terraform error - check
-# every keyed collection for it in one place rather than repeating the same
-# `distinct(values(...))` assertion in all thirteen keyed outputs.
 check "keyed_names_have_no_case_collisions" {
   assert {
     condition = alltrue([

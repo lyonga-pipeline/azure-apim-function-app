@@ -209,6 +209,10 @@ New consumers should use the resource-specific `*_keys` inputs. These legacy
 inputs will remain until a major release removes them after all consumers have
 migrated.
 
+The `mg_workload_domain` outputs are compatibility aliases for `mg`. New
+consumers should use `mg` and `mg_environment`; the aliases can be removed only
+in a future major version.
+
 Specialized firewall and domain-controller VM names still use `instance`
 because their approved formats contain a zero-padded numeric instance. Their
 current consumers therefore retain per-instance module calls.
@@ -220,6 +224,15 @@ cross-input requirements, case-normalized collisions, and Azure length rules.
 Changing an already-published naming formula can replace downstream Azure
 resources. Treat such changes as breaking changes and publish a new major
 module version with migration guidance.
+
+The design standard does not define every Azure resource type. Where a formula
+is adapted from the closest approved resource pattern, document that mapping in
+this README and tests. Current adaptations cover scoped subscriptions, workload
+VNets and resource groups, NICs, private endpoints, hub network services,
+hybrid-connectivity resources, internal load balancers, domain controllers,
+automation accounts, action groups, identities, storage accounts, and Function
+Apps. Treat a later change from an adapted formula to a newly approved formula
+as a breaking naming change.
 
 ## Extending the Module
 

@@ -32,7 +32,15 @@ run "initiative_name_defaults_to_naming_module_when_domain_is_set" {
 
   variables {
     custom_policy_set_definitions = {
-      security_baseline = {
+      # Hyphenated key on purpose: this pattern passes the map key straight
+      # through as the naming module's `purpose` token (`purpose = each.key`
+      # in module "naming_initiative"), and the naming module now validates
+      # single-value tokens more strictly than keyed map keys - tokens must
+      # be hyphen-separated, no underscores (keyed collections still accept
+      # underscores and convert them to hyphens; tokens don't get that
+      # conversion). A caller relying on this domain-based naming default
+      # must use a hyphenated map key for the same reason.
+      security-baseline = {
         domain                       = "security"
         display_name                 = "Security baseline"
         management_group_key         = "platform"
@@ -42,7 +50,7 @@ run "initiative_name_defaults_to_naming_module_when_domain_is_set" {
   }
 
   assert {
-    condition     = local.policy_set_definitions_input["security_baseline"].name == "initiative-security-security_baseline"
+    condition     = local.policy_set_definitions_input["security-baseline"].name == "initiative-security-security-baseline"
     error_message = "an entry with domain set but no explicit name should default to the naming module's policy_initiative pattern"
   }
 }
@@ -51,8 +59,15 @@ run "initiative_name_falls_back_to_key_without_domain_or_explicit_name" {
   command = plan
 
   variables {
+    # Hyphenated key: module "naming_initiative" is instantiated for_each
+    # over the WHOLE custom_policy_set_definitions map and unconditionally
+    # passes each.key as the naming module's `purpose` token, regardless of
+    # whether a given entry ever consumes the naming-default name - so every
+    # entry's map key must satisfy the naming module's (now stricter,
+    # hyphen-only) token format, even one like this that always keeps its
+    # last-resort key-as-name behavior.
     custom_policy_set_definitions = {
-      untouched_key = {
+      untouched-key = {
         display_name                 = "No domain, no explicit name"
         management_group_key         = "platform"
         policy_definition_references = [{ policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/00000000-0000-0000-0000-000000000000" }]
@@ -61,7 +76,7 @@ run "initiative_name_falls_back_to_key_without_domain_or_explicit_name" {
   }
 
   assert {
-    condition     = local.policy_set_definitions_input["untouched_key"].name == "untouched_key"
+    condition     = local.policy_set_definitions_input["untouched-key"].name == "untouched-key"
     error_message = "without domain or an explicit name, the map key itself remains the last-resort name (unchanged pre-existing behaviour)"
   }
 }

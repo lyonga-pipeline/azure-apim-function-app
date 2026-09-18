@@ -1,16 +1,3 @@
-# =============================================================================
-# The naming module has ONE job: given a root's identity + the keys of the
-# resources it deploys, return every name.
-#
-#   Identity  ->  scope (platform|workload) + component OR domain[/appcode]
-#                 + region + environment
-#   Instances ->  <resource>_keys = ["primary", "audit", ...]  per keyed type
-#   Output    ->  <resource>_names = { primary = "...", audit = "..." }
-#
-# Pure utility: no providers, no resources. Any change to an ALREADY-PUBLISHED
-# name is a BREAKING change - bump the module major version.
-# =============================================================================
-
 # ---- Identity: the "one thing per root" --------------------------------------
 
 variable "region" {
@@ -199,17 +186,7 @@ variable "instance" {
   }
 }
 
-# ---- Legacy single-token inputs (still used by MG / policy / Entra rows) -----
-#
-# DEPRECATED for `subnet`/`nsg`/`route_table`/`public_ip`/`network_interface`/
-# `private_endpoint`/`policy_initiative` new usage: every one of those resource
-# types now has a `*_keys` / `*_names` keyed equivalent (see the front door in
-# README.md) that lets a root call this module once instead of once per
-# resource instance. `purpose`/`destination`/`resource` remain here only
-# because policy_initiative and the still-unmigrated workspace-level
-# naming.tf wrappers (README.md, "Two calling conventions") read them - do not
-# start a NEW consumer on these three inputs; migrate an existing one to the
-# *_keys front door when you touch it.
+# ---- Compatibility inputs ----------------------------------------------------
 
 variable "purpose" {
   description = "DEPRECATED for new callers - prefer nsg_keys/subnet_keys/load_balancer_keys. Legacy single-token discriminator (subnet / nsg / policy-initiative / load_balancer). Still the only way to set `policy_initiative`, which has no keyed equivalent."

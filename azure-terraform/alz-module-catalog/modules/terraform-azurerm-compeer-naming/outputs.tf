@@ -1,11 +1,3 @@
-# =============================================================================
-# One flat output per Appendix F row. A name whose required tokens were not
-# supplied is `null` - reference it and Terraform stops, which is the intended
-# behaviour (you asked for a name you did not give the inputs for).
-#
-# `region_short` and `all` are conveniences; everything else is a finished name.
-# =============================================================================
-
 output "region_short" {
   description = "Resolved region short code (e.g. centralus -> cus)."
   value       = local.region
