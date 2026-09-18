@@ -76,7 +76,7 @@ run "token_dependent_names" {
     purpose     = "hub"
     destination = "default"
     resource    = "fw"
-    appcode     = "platform"
+    component   = "platform"
     name        = "apim"
     domain      = "internal-apps"
     instance    = 2
@@ -99,8 +99,8 @@ run "token_dependent_names" {
     error_message = "public ip pattern <region>-<env>-<resource>-pip"
   }
   assert {
-    condition     = output.key_vault == "platform-cus-prod-vault"
-    error_message = "key vault pattern <appcode>-<region>-<env>-vault"
+    condition     = output.key_vault == "plat-cus-prod-vault"
+    error_message = "key vault pattern <disc_abbr>-<region>-<env>-vault for platform scope (component \"platform\" abbreviates to \"plat\" in the abbreviation map)"
   }
   assert {
     condition     = output.subscription_workload == "sub-workload-apim-prod-cus"
@@ -255,6 +255,10 @@ run "workload_root_identity" {
     error_message = "workload keyed KV names"
   }
   assert {
+    condition     = output.key_vault == "orders-cus-prod-vault"
+    error_message = "singular key vault leads with appcode for workload scope"
+  }
+  assert {
     condition     = length(output.storage_account_names["uploads"]) <= 24 && can(regex("^[a-z0-9]+$", output.storage_account_names["uploads"]))
     error_message = "workload keyed storage names <=24, alphanumeric"
   }
@@ -273,6 +277,37 @@ run "workload_root_no_appcode" {
   assert {
     condition     = output.resource_group == "internal-apps-cus-prod-rg"
     error_message = "workload RG without appcode"
+  }
+}
+
+run "platform_scope_key_vault_leads_with_component_abbreviation" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "platform"
+    component   = "identity"
+  }
+
+  assert {
+    condition     = output.key_vault == "id-cus-prod-vault"
+    error_message = "singular key vault leads with disc_abbr (identity -> id) for platform scope, not the literal word platform - this is the real platform-identity pattern's shape, and matches the SAME token keyed key_vault_names already uses for platform scope rather than the raw, unbudgeted component word (management-cus-prod-vault would be 25 chars and overflow the 24-char limit)"
+  }
+}
+
+run "platform_scope_key_vault_needs_component_no_silent_platform_fallback" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "platform"
+  }
+
+  assert {
+    condition     = output.key_vault == null
+    error_message = "platform scope without component must stay null, not silently default to the literal word 'platform' - a platform root must pass component explicitly, exactly as a workload root must pass appcode"
   }
 }
 
@@ -378,8 +413,13 @@ run "rejects_key_vault_over_24_chars" {
     # appcode is capped at 9 letters (its own validation), so this uses the
     # longest legal appcode plus the longest region/environment combination
     # to still overflow 24 chars: "warehouse-ncus-sandbox-vault" is 28 chars.
+    # Explicit workload scope + domain: the singular key_vault output is now
+    # scope-aware (appcode for workload, component for platform), and
+    # workload scope requires domain regardless of key_vault usage.
     region      = "northcentralus"
     environment = "sandbox"
+    scope       = "workload"
+    domain      = "internal-apps"
     appcode     = "warehouse"
   }
 

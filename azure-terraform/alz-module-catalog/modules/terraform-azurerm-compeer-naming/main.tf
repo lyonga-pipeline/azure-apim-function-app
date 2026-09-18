@@ -204,7 +204,28 @@ locals {
     action_group       = "platform-${local.region}-${local.env}-ag"
 
     # ---- Key Vault / Resource Group ----
-    key_vault               = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-vault"
+    # Scope-aware, same shape as resource_group below:
+    #   workload            -> <appcode>-<region>-<env>-vault
+    #   platform + component -> <disc_abbr>-<region>-<env>-vault (the SAME
+    #                           abbreviated token keyed key_vault_names
+    #                           already uses for platform scope - reusing
+    #                           disc_abbr rather than the raw component
+    #                           keeps every platform pattern's existing
+    #                           component value (e.g. "management",
+    #                           "connectivity") safely inside the Key
+    #                           Vault 24-char budget instead of silently
+    #                           imposing a new, narrower length limit on
+    #                           `component` that nothing previously enforced)
+    #   platform (bare)      -> null (no silent "platform" fallback - a
+    #                           platform root must pass component, exactly
+    #                           as a workload root must pass appcode, rather
+    #                           than the name silently defaulting to the
+    #                           literal word "platform")
+    key_vault = (
+      local.scope == "workload" ? (local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-vault") :
+      local.component != null ? "${local.disc_abbr}-${local.region}-${local.env}-vault" :
+      null
+    )
     platform_resource_group = "platform-${local.region}-${local.env}-rg"
     # Scope-aware resource group:
     #   workload            -> <stem>-rg  (<domain>[-<appcode>]-<region>-<env>-rg)

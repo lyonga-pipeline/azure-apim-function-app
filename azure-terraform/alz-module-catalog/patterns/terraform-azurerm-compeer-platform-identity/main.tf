@@ -29,7 +29,6 @@ module "naming" {
   environment = coalesce(try(var.naming.environment, null), var.environment)
   scope       = try(var.naming.scope, "platform")
   component   = coalesce(try(var.naming.component, null), "identity")
-  appcode     = coalesce(try(var.naming.appcode, null), "platform")
 
   storage_uniqueness          = try(var.naming.storage_uniqueness, "")
   user_assigned_identity_keys = keys(var.platform_identities)
