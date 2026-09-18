@@ -38,7 +38,7 @@ locals {
   domain_controllers = {
     for key, controller in try(var.directory_services.domain_controllers, {}) : key => merge({
       name     = module.naming_dc[key].domain_controller_vm
-      nic_name = module.naming_dc[key].network_interface
+      nic_name = module.naming.network_interface_names[key]
       }, controller, {
       # No single fallback subnet key anymore: the hub's domain controller
       # subnet is split per domain (prod-extdc-subnet / prod-intdc-subnet) -

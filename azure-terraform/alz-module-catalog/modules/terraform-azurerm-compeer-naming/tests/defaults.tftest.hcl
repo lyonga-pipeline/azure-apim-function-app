@@ -67,6 +67,77 @@ run "core_platform_names_region_and_env_only" {
   }
 }
 
+run "accepts_existing_lz_environment_aliases" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "np2"
+  }
+
+  assert {
+    condition     = output.hub_vnet == "platform-cus-np2-hub-vnet"
+    error_message = "np1, np2, and np3 must be accepted consistently with the tagging module"
+  }
+}
+
+run "rejects_ambiguous_np_environment" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "np"
+  }
+
+  expect_failures = [var.environment]
+}
+
+run "approved_abbreviation_overrides_fallback" {
+  command = apply
+
+  variables {
+    region         = "centralus"
+    environment    = "prod"
+    component      = "custom-platform-component"
+    abbreviation   = "cpc"
+    key_vault_keys = ["primary"]
+  }
+
+  assert {
+    condition     = output.key_vault_names["primary"] == "cpc-cus-prod-primary-kv"
+    error_message = "an approved abbreviation must control constrained resource prefixes"
+  }
+}
+
+run "rejects_malformed_resource_key" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    component   = "management"
+    nsg_keys    = ["bad key"]
+  }
+
+  expect_failures = [check.tokens_use_supported_characters]
+}
+
+run "normalizes_underscore_resource_keys" {
+  command = apply
+
+  variables {
+    region                 = "centralus"
+    environment            = "prod"
+    component              = "palo-alto"
+    network_interface_keys = ["fw1_mgmt"]
+  }
+
+  assert {
+    condition     = output.network_interface_names["fw1_mgmt"] == "cus-prod-fw1-mgmt-nic"
+    error_message = "stable underscore keys must render Azure-compatible hyphenated names"
+  }
+}
+
 run "token_dependent_names" {
   command = apply
 

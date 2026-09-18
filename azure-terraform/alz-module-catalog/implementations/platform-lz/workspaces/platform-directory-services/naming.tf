@@ -10,7 +10,9 @@ module "naming" {
 
   region      = var.location
   environment = var.environment
-  purpose     = "directory-services"
+  component   = "directory-services"
+
+  network_interface_keys = keys(try(var.directory_services.domain_controllers, {}))
 }
 
 # DEVIATION (tracks A2): the adapted DC VM pattern platform-<region>-<env>-dc-0<n>
@@ -28,6 +30,6 @@ module "naming_dc" {
 
 locals {
   std_names = {
-    resource_group = module.naming.resource_group # platform-<region>-<env>-directory-services-rg
+    resource_group = module.naming.resource_group
   }
 }

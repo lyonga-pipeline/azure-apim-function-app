@@ -10,6 +10,11 @@ module "naming" {
 
   region      = var.location
   environment = var.environment
+  component   = "palo-alto"
+
+  network_interface_keys = keys(try(var.palo_alto.network_interfaces, {}))
+  load_balancer_keys     = keys(try(var.palo_alto.load_balancers, {}))
+  public_ip_keys         = keys(try(var.palo_alto.public_ips, {}))
 }
 
 module "naming_vm" {
@@ -20,32 +25,8 @@ module "naming_vm" {
   instance    = try(tonumber(regex("[0-9]+$", each.key)), 1)
 }
 
-module "naming_nic" {
-  source      = "../../../../modules/terraform-azurerm-compeer-naming"
-  for_each    = try(var.palo_alto.network_interfaces, {})
-  region      = var.location
-  environment = var.environment
-  resource    = each.key
-}
-
-module "naming_lb" {
-  source      = "../../../../modules/terraform-azurerm-compeer-naming"
-  for_each    = try(var.palo_alto.load_balancers, {})
-  region      = var.location
-  environment = var.environment
-  purpose     = each.key
-}
-
-module "naming_pip" {
-  source      = "../../../../modules/terraform-azurerm-compeer-naming"
-  for_each    = try(var.palo_alto.public_ips, {})
-  region      = var.location
-  environment = var.environment
-  resource    = each.key
-}
-
 locals {
   std_pip = {
-    for k, v in try(var.palo_alto.public_ips, {}) : k => merge({ name = module.naming_pip[k].public_ip }, v)
+    for k, v in try(var.palo_alto.public_ips, {}) : k => merge({ name = module.naming.public_ip_names[k] }, v)
   }
 }

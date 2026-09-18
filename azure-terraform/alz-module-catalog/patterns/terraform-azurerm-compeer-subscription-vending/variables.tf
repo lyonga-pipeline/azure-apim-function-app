@@ -59,8 +59,14 @@ variable "management_groups" {
 variable "naming" {
   description = "Naming-module identity for this pattern. Subscriptions aren't region-scoped in the usual sense, but the naming module's subscription_scoped output still needs region/environment - environment defaults to \"shared\" since a subscription doesn't itself have a single environment (workload does)."
   type = object({
-    region      = optional(string)
-    environment = optional(string, "shared")
+    region             = optional(string)
+    environment        = optional(string, "shared")
+    scope              = optional(string, "platform")
+    component          = optional(string, "subscription-vending")
+    domain             = optional(string)
+    appcode            = optional(string)
+    abbreviation       = optional(string)
+    storage_uniqueness = optional(string, "")
   })
   default = {}
 }

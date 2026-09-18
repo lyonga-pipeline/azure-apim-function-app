@@ -82,7 +82,7 @@ locals {
   disc = local.scope == "workload" ? coalesce(local.appcode, local.domain, "workload") : coalesce(local.component, "platform")
 
   # Short form of the discriminator for the length-constrained rows.
-  disc_abbr = lookup(local.abbr, local.disc, substr(replace(local.disc, "-", ""), 0, 10))
+  disc_abbr = var.abbreviation == null ? lookup(local.abbr, local.disc, substr(replace(local.disc, "-", ""), 0, 10)) : lower(trimspace(var.abbreviation))
 
   # Common stem for the "<disc>-<region>-<env>" rows. `coalesce(local.domain,
   # "MISSING-DOMAIN")` only exists so this doesn't crash on a raw null-
@@ -100,7 +100,7 @@ locals {
 
   # ---- Keyed collections: <resource> => { key => name } --------------------
   keyed = {
-    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-kv" }
+    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-kv" }
     # The suffix must survive truncation intact - it's the only thing that
     # makes two otherwise-identical names globally unique. Truncate the
     # descriptive base to whatever's left of the 24-char budget AFTER
@@ -109,28 +109,28 @@ locals {
     # chop the suffix off entirely, silently reintroducing a collision).
     storage_account = {
       for k in var.storage_account_keys : k => "${substr(
-        lower(replace("st${local.disc_abbr}${k}${local.region}${local.env}", "-", "")),
+        lower(replace(replace("st${local.disc_abbr}${k}${local.region}${local.env}", "-", ""), "_", "")),
         0,
         24 - length(local.st_suffix)
       )}${local.st_suffix}"
     }
-    user_assigned_identity = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-id" }
+    user_assigned_identity = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-id" }
     # ADAPTED (closest: key_vault) - not in Appendix F. Leads with disc_abbr
     # (appcode for workload scope, component for platform), the same as
     # key_vault/storage_account/user_assigned_identity, so a workload
     # function app genuinely starts with the app's own code rather than
     # "platform" or the workload's domain.
-    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-func" }
-    nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${lower(k)}-nsg" }
-    route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${lower(k)}-rt" }
-    public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${lower(k)}-pip" }
-    private_endpoint        = { for k in var.private_endpoint_keys : k => "${local.region}-${local.env}-${lower(k)}-pe" }
-    network_interface       = { for k in var.network_interface_keys : k => "${local.region}-${local.env}-${lower(k)}-nic" }
-    load_balancer           = { for k in var.load_balancer_keys : k => "${local.stem}-${lower(k)}-ilb" }
-    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.stem}-${lower(k)}" }
-    disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${lower(k)}-disk" }
-    recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${lower(k)}-rsv" }
-    subnet                  = { for k in var.subnet_keys : k => "${local.env}-${lower(k)}-subnet" }
+    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-func" }
+    nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nsg" }
+    route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-rt" }
+    public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pip" }
+    private_endpoint        = { for k in var.private_endpoint_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pe" }
+    network_interface       = { for k in var.network_interface_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nic" }
+    load_balancer           = { for k in var.load_balancer_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-ilb" }
+    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}" }
+    disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-disk" }
+    recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-rsv" }
+    subnet                  = { for k in var.subnet_keys : k => "${local.env}-${replace(lower(trimspace(k)), "_", "-")}-subnet" }
   }
 
   names = {

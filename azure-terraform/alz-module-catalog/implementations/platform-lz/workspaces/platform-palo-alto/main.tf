@@ -13,7 +13,7 @@ locals {
   resource_group_name = coalesce(try(var.palo_alto.resource_group_name, null), try(local.connectivity_outputs.hub_resource_group_name, null), try(local.connectivity_outputs.resource_group_name, null), "unused-disabled-rg")
 
   network_interfaces = {
-    for nic_key, nic in try(var.palo_alto.network_interfaces, {}) : nic_key => merge({ name = module.naming_nic[nic_key].network_interface }, nic, {
+    for nic_key, nic in try(var.palo_alto.network_interfaces, {}) : nic_key => merge({ name = module.naming.network_interface_names[nic_key] }, nic, {
       ip_configurations = {
         for ip_key, cfg in nic.ip_configurations : ip_key => merge(cfg, {
           subnet_id = coalesce(try(cfg.subnet_id, null), try(local.connectivity_outputs.subnet_ids[cfg.subnet_key], null))
@@ -23,7 +23,7 @@ locals {
   }
 
   load_balancers = {
-    for lb_key, lb in try(var.palo_alto.load_balancers, {}) : lb_key => merge({ name = module.naming_lb[lb_key].load_balancer }, lb, {
+    for lb_key, lb in try(var.palo_alto.load_balancers, {}) : lb_key => merge({ name = module.naming.load_balancer_names[lb_key] }, lb, {
       frontend_ip_configurations = {
         for frontend_key, frontend in lb.frontend_ip_configurations : frontend_key => merge(frontend, {
           subnet_id = coalesce(try(frontend.subnet_id, null), try(local.connectivity_outputs.subnet_ids[frontend.subnet_key], null))

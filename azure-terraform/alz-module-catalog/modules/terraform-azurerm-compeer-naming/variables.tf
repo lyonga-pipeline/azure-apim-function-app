@@ -29,12 +29,12 @@ variable "region" {
 }
 
 variable "environment" {
-  description = "Environment token: prod | uat | test | dev | np | sandbox | shared."
+  description = "Environment token: dev, test, uat, prod, sandbox, np1, np2, np3, or shared. shared is reserved for cross-environment governance objects."
   type        = string
 
   validation {
-    condition     = contains(["prod", "uat", "test", "dev", "np", "sandbox", "shared"], lower(trimspace(var.environment)))
-    error_message = "environment must be one of: prod, uat, test, dev, np, sandbox, shared."
+    condition     = contains(["dev", "test", "uat", "prod", "sandbox", "np1", "np2", "np3", "shared"], lower(trimspace(var.environment)))
+    error_message = "environment must be one of: dev, test, uat, prod, sandbox, np1, np2, np3, shared."
   }
 }
 
@@ -69,6 +69,17 @@ variable "appcode" {
   validation {
     condition     = var.appcode == null ? true : can(regex("^[a-zA-Z]{1,9}$", var.appcode))
     error_message = "appcode must be 1-9 letters only (no digits, hyphens, or underscores) - it becomes the leading token in workload resource names, several of which (Key Vault, storage account) have their own tight character budgets on top of it."
+  }
+}
+
+variable "abbreviation" {
+  description = "Optional approved short discriminator for length-constrained Key Vault and storage-account names. Defaults to the module abbreviation map or a deterministic fallback."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.abbreviation == null ? true : can(regex("^[a-zA-Z][a-zA-Z0-9]{0,9}$", trimspace(var.abbreviation)))
+    error_message = "abbreviation must be 1-10 alphanumeric characters and start with a letter."
   }
 }
 

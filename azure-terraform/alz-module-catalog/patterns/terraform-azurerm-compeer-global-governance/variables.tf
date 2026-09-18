@@ -21,8 +21,14 @@ variable "root_management_group_id" {
 variable "naming" {
   description = "Naming-module identity for this pattern. Management groups aren't region- or environment-scoped, so these exist only to satisfy the naming module's required inputs - environment defaults to \"shared\" (an approved naming-module value) since a single governance workspace names management groups spanning every real environment at once."
   type = object({
-    region      = optional(string)
-    environment = optional(string, "shared")
+    region             = optional(string)
+    environment        = optional(string, "shared")
+    scope              = optional(string, "platform")
+    component          = optional(string, "governance")
+    domain             = optional(string)
+    appcode            = optional(string)
+    abbreviation       = optional(string)
+    storage_uniqueness = optional(string, "")
   })
   default = {}
 }

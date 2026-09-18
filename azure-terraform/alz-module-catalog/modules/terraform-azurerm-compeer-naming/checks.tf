@@ -39,3 +39,33 @@ check "keyed_names_have_no_case_collisions" {
     error_message = "two or more keys for the same keyed resource type normalise to the identical Azure name (e.g. \"Primary\" and \"primary\" both lower-case into the same `<key>` token). Colliding resource type(s): ${jsonencode({ for resource_type, names in local.keyed : resource_type => names if length(distinct(values(names))) != length(values(names)) })}. Rename one of the keys so they differ after lower-casing."
   }
 }
+
+check "tokens_use_supported_characters" {
+  assert {
+    condition = alltrue(concat(
+      [
+        for token in [var.component, var.domain, var.purpose, var.destination, var.resource, var.name, var.policy, var.policy_scope] :
+        token == null || can(regex("^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$", trimspace(token)))
+      ],
+      flatten([
+        for keys in [
+          var.key_vault_keys,
+          var.storage_account_keys,
+          var.user_assigned_identity_keys,
+          var.nsg_keys,
+          var.route_table_keys,
+          var.public_ip_keys,
+          var.private_endpoint_keys,
+          var.network_interface_keys,
+          var.load_balancer_keys,
+          var.virtual_machine_keys,
+          var.disk_keys,
+          var.recovery_services_vault_keys,
+          var.function_app_keys,
+          var.subnet_keys,
+        ] : [for key in keys : can(regex("^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$", trimspace(key)))]
+      ])
+    ))
+    error_message = "Naming tokens must use alphanumeric segments separated by single hyphens. Stable resource keys may use single hyphens or underscores; underscores are rendered as hyphens in Azure names."
+  }
+}

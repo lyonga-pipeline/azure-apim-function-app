@@ -24,6 +24,9 @@ variable "naming" {
     environment        = optional(string)
     scope              = optional(string, "platform")
     component          = optional(string, "management")
+    domain             = optional(string)
+    appcode            = optional(string)
+    abbreviation       = optional(string)
     storage_uniqueness = optional(string, "")
   })
   default = {}
