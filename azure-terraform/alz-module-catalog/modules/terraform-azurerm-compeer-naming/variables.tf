@@ -62,9 +62,14 @@ variable "domain" {
 }
 
 variable "appcode" {
-  description = "Optional finer workload discriminator (e.g. orders). When set it becomes the leading token for workload resource names."
+  description = "Optional finer workload discriminator (e.g. orders). When set it becomes the leading token for workload resource names (key_vault, storage_account, user_assigned_identity, function_app, and disc/disc_abbr generally). At most 9 letters - it feeds Key Vault and storage-account names, which are already the most character-budget-constrained rows in the whole standard."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.appcode == null ? true : can(regex("^[a-zA-Z]{1,9}$", var.appcode))
+    error_message = "appcode must be 1-9 letters only (no digits, hyphens, or underscores) - it becomes the leading token in workload resource names, several of which (Key Vault, storage account) have their own tight character budgets on top of it."
+  }
 }
 
 # ---- Instance keys: one list per keyed resource type the root deploys --------
@@ -137,6 +142,12 @@ variable "disk_keys" {
 
 variable "recovery_services_vault_keys" {
   description = "Map keys of the Recovery Services vaults this root deploys. Output: recovery_services_vault_names."
+  type        = list(string)
+  default     = []
+}
+
+variable "function_app_keys" {
+  description = "Map keys of the Function Apps this root deploys. Output: function_app_names. ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type."
   type        = list(string)
   default     = []
 }

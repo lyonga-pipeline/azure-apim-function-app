@@ -114,7 +114,13 @@ locals {
         24 - length(local.st_suffix)
       )}${local.st_suffix}"
     }
-    user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-id" }
+    user_assigned_identity = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-id" }
+    # ADAPTED (closest: key_vault) - not in Appendix F. Leads with disc_abbr
+    # (appcode for workload scope, component for platform), the same as
+    # key_vault/storage_account/user_assigned_identity, so a workload
+    # function app genuinely starts with the app's own code rather than
+    # "platform" or the workload's domain.
+    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${lower(k)}-func" }
     nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${lower(k)}-nsg" }
     route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${lower(k)}-rt" }
     public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${lower(k)}-pip" }
@@ -217,6 +223,9 @@ locals {
     storage_account = local.purpose == null ? null : substr(lower(replace("st${local.purpose}${local.region}${local.env}", "-", "")), 0, 24)
     # ADAPTED: user-assigned identity (closest: key_vault <appcode>-<region>-<env>-*)
     user_assigned_identity = local.purpose == null ? null : "${local.purpose}-${local.region}-${local.env}-id"
+    # ADAPTED: function app (closest: key_vault). Needs `appcode` - leads with
+    # the app's own code, the same as key_vault, not "platform" or a domain.
+    function_app = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-func"
 
     # ---- Policy ----
     policy_initiative = (local.domain == null || local.purpose == null) ? null : "initiative-${local.domain}-${local.purpose}"

@@ -97,3 +97,9 @@ variable "workload_domain" {
   type        = string
   default     = "internal-apps"
 }
+
+variable "workload_appcode" {
+  description = "Optional app-specific naming token (1-9 letters, e.g. \"orders\"). When set, this becomes the leading token for per-app resource names the naming module already supports appcode-first (Key Vault, storage accounts) instead of the broader workload_domain - e.g. a Key Vault name becomes <appcode>-<region>-<env>-vault rather than defaulting to the domain's abbreviation. Leave unset for a spoke that isn't scoped to one specific app."
+  type        = string
+  default     = null
+}

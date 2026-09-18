@@ -10,6 +10,7 @@ module "naming" {
   region      = var.location
   environment = var.environment
   domain      = var.workload_domain
+  appcode     = var.workload_appcode
 
   # Storage accounts go through the keyed front door, not a per-instance
   # naming_xxx call like NSGs/route tables/PEs below - storage account names
@@ -49,6 +50,9 @@ locals {
   std_names = {
     resource_group = module.naming.workload_resource_group # <domain>-<env>-rg
     spoke_vnet     = module.naming.workload_vnet           # <domain>-<region>-<env>-vnet
+    # null unless workload_appcode is set - workload_key_vault.name in
+    # tfvars still wins either way via the coalesce() in main.tf.
+    workload_key_vault = module.naming.key_vault # <appcode>-<region>-<env>-vault
   }
 
   std_maps = {

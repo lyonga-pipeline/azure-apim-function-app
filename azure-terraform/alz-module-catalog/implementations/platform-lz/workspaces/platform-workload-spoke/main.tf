@@ -62,15 +62,25 @@ locals {
 
   private_dns_zone_links = length(try(var.workload_spoke.private_dns_zone_links, {})) > 0 ? var.workload_spoke.private_dns_zone_links : local.generated_private_dns_zone_links
 
+  # name defaults to the naming module's <appcode>-<region>-<env>-vault when
+  # workload_appcode is set - an explicit workload_key_vault.name in tfvars
+  # always wins. try() around the whole coalesce: when NEITHER is set (no
+  # appcode, no explicit name), coalesce(null, null) errors on its own -
+  # this preserves the prior, correct behaviour of staying null so the
+  # pattern's own "name is required when enabled" validation still fires,
+  # rather than silently falling back to an empty string.
+  workload_key_vault_name = try(coalesce(try(var.workload_spoke.workload_key_vault.name, null), local.std_names.workload_key_vault), null)
+
   workload_key_vault = (
     try(var.workload_spoke.workload_key_vault.enabled, false) &&
     local.log_analytics_workspace_id != null &&
     try(var.workload_spoke.workload_key_vault.diagnostics.log_analytics_workspace_id, null) == null
     ) ? merge(var.workload_spoke.workload_key_vault, {
+      name = local.workload_key_vault_name
       diagnostics = merge(try(var.workload_spoke.workload_key_vault.diagnostics, {}), {
         log_analytics_workspace_id = local.log_analytics_workspace_id
       })
-  }) : try(var.workload_spoke.workload_key_vault, { enabled = false })
+  }) : merge(try(var.workload_spoke.workload_key_vault, { enabled = false }), { name = local.workload_key_vault_name })
 }
 
 module "workload_spoke" {

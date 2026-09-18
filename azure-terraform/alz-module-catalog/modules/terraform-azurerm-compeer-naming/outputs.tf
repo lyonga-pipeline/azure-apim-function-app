@@ -58,6 +58,18 @@ output "user_assigned_identity_names" {
   }
 }
 
+output "function_app_names" {
+  description = "Function App name per function_app_keys entry. Pattern: <disc>-<region>-<env>-<key>-func (leads with appcode for workload scope). ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type. Azure limit: Microsoft.Web/sites names are 2-60 characters, alphanumeric and hyphens only, and globally unique (the default *.azurewebsites.net hostname) - this module doesn't add a uniqueness suffix the way storage_account does, so pick a distinctive key if collision risk is real."
+  value       = local.keyed.function_app
+
+  precondition {
+    condition = alltrue([
+      for n in values(local.keyed.function_app) : length(n) >= 2 && length(n) <= 60 && can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", n))
+    ])
+    error_message = "a function app name is outside Azure's 2-60 character, alphanumeric-and-hyphen (no leading/trailing hyphen) limit: ${jsonencode({ for k, n in local.keyed.function_app : k => "${n} (${length(n)})" if length(n) < 2 || length(n) > 60 || !can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", n)) })}."
+  }
+}
+
 output "nsg_names" {
   description = "NSG name per nsg_keys entry. Pattern: <region>-<env>-<key>-nsg."
   value       = local.keyed.nsg
@@ -411,6 +423,20 @@ output "user_assigned_identity" {
   precondition {
     condition     = local.names.user_assigned_identity == null ? true : length(local.names.user_assigned_identity) >= 3 && length(local.names.user_assigned_identity) <= 128
     error_message = "user_assigned_identity name is outside Azure's 3-128 character limit (${try(length(local.names.user_assigned_identity), 0)} chars)."
+  }
+}
+
+output "function_app" {
+  description = "ADAPTED (closest: key_vault) - no Appendix F row exists for this resource type. Needs `appcode`. Pattern: <appcode>-<region>-<env>-func. Azure limit: 2-60 characters, alphanumeric and hyphens only, globally unique (the default *.azurewebsites.net hostname)."
+  value       = local.names.function_app
+
+  precondition {
+    condition = local.names.function_app == null ? true : (
+      length(local.names.function_app) >= 2 &&
+      length(local.names.function_app) <= 60 &&
+      can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", local.names.function_app))
+    )
+    error_message = "function_app name is outside Azure's 2-60 character, alphanumeric-and-hyphen limit (${try(length(local.names.function_app), 0)} chars). Shorten `appcode`."
   }
 }
 

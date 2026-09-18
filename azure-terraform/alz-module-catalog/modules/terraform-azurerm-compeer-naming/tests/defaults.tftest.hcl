@@ -375,12 +375,39 @@ run "rejects_key_vault_over_24_chars" {
   command = plan
 
   variables {
+    # appcode is capped at 9 letters (its own validation), so this uses the
+    # longest legal appcode plus the longest region/environment combination
+    # to still overflow 24 chars: "warehouse-ncus-sandbox-vault" is 28 chars.
+    region      = "northcentralus"
+    environment = "sandbox"
+    appcode     = "warehouse"
+  }
+
+  expect_failures = [output.key_vault]
+}
+
+run "rejects_appcode_over_9_letters" {
+  command = plan
+
+  variables {
     region      = "centralus"
     environment = "prod"
     appcode     = "verylongapplicationcode"
   }
 
-  expect_failures = [output.key_vault]
+  expect_failures = [var.appcode]
+}
+
+run "rejects_appcode_with_non_letter_characters" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    appcode     = "app-01"
+  }
+
+  expect_failures = [var.appcode]
 }
 
 # ---- Storage-account uniqueness suffix must survive truncation intact -----
@@ -522,4 +549,82 @@ run "accepts_automation_account_within_bounds" {
     condition     = output.automation_account == "platform-cus-prod-aa"
     error_message = "automation_account should always be well within the 6-50 char / starts-with-letter Azure limit given the fixed token set"
   }
+}
+
+# ---- Function App: leads with appcode for workload, component for platform -
+
+run "function_app_singular_needs_appcode" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    appcode     = "orders"
+  }
+
+  assert {
+    condition     = output.function_app == "orders-cus-prod-func"
+    error_message = "function_app should default to <appcode>-<region>-<env>-func"
+  }
+}
+
+run "function_app_null_without_appcode" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+  }
+
+  assert {
+    condition     = output.function_app == null
+    error_message = "function_app should be null when appcode is not supplied"
+  }
+}
+
+run "keyed_function_app_leads_with_appcode_for_workload_scope" {
+  command = apply
+
+  variables {
+    region            = "centralus"
+    environment       = "prod"
+    scope             = "workload"
+    domain            = "internal-apps"
+    appcode           = "orders"
+    function_app_keys = ["api", "worker"]
+  }
+
+  assert {
+    condition     = output.function_app_names["api"] == "orders-cus-prod-api-func" && output.function_app_names["worker"] == "orders-cus-prod-worker-func"
+    error_message = "keyed function_app_names should lead with appcode (not domain) for a workload-scoped caller, the same as key_vault_names/storage_account_names"
+  }
+}
+
+run "keyed_function_app_leads_with_component_for_platform_scope" {
+  command = apply
+
+  variables {
+    region            = "centralus"
+    environment       = "prod"
+    component         = "management"
+    function_app_keys = ["ops"]
+  }
+
+  assert {
+    condition     = output.function_app_names["ops"] == "mgmt-cus-prod-ops-func"
+    error_message = "keyed function_app_names should lead with the abbreviated component for a platform-scoped caller"
+  }
+}
+
+run "rejects_function_app_over_60_chars" {
+  command = plan
+
+  variables {
+    region            = "centralus"
+    environment       = "prod"
+    appcode           = "warehouse"
+    function_app_keys = ["this-key-is-deliberately-far-too-long-to-fit-into-sixty-characters-total"]
+  }
+
+  expect_failures = [output.function_app_names]
 }
