@@ -1,3 +1,29 @@
+# Policy definitions have no Appendix F naming-module row at all (only
+# initiatives and assignments do) - real names here are explicit,
+# hand-chosen ("cmp-<topic>") by design, not a naming-module default. Policy
+# initiative names need BOTH a domain and a purpose token
+# (initiative-<domain>-<purpose>), which a single flat map key can't safely
+# supply without guessing a split - so these are opt-in: set `domain` on an
+# entry to compute a name via the naming module, otherwise the explicit
+# `name` (today's convention for all real entries) is required as before.
+module "naming_initiative" {
+  source      = "../../modules/terraform-azurerm-compeer-naming"
+  for_each    = merge(var.custom_policy_set_definitions, local.poc_set_definitions)
+  region      = "centralus"
+  environment = "shared"
+  domain      = try(each.value.domain, null)
+  purpose     = each.key
+}
+
+module "naming_assignment" {
+  source       = "../../modules/terraform-azurerm-compeer-naming"
+  for_each     = merge(var.management_group_policy_assignments, local.poc_assignments, var.subscription_policy_assignments)
+  region       = "centralus"
+  environment  = "shared"
+  policy       = try(each.value.policy, null)
+  policy_scope = try(each.value.policy_scope, null)
+}
+
 locals {
   management_group_scope_ids = {
     for key, value in var.management_group_ids : key => (
@@ -36,16 +62,20 @@ locals {
 
   policy_set_definitions_input = {
     for k, v in merge(var.custom_policy_set_definitions, local.poc_set_definitions) : k => merge(
-      { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" },
-      { management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null)) }
+      { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" && ik != "domain" },
+      {
+        name                = coalesce(try(v.name, null), module.naming_initiative[k].policy_initiative, k)
+        management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null))
+      }
     )
   }
 
   management_group_policy_assignments_input = merge(
     {
       for k, v in merge(var.management_group_policy_assignments, local.poc_assignments) : k => merge(
-        { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" && ik != "location" },
+        { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" && ik != "location" && ik != "policy" && ik != "policy_scope" },
         {
+          name                = coalesce(try(v.name, null), module.naming_assignment[k].policy_assignment, k)
           management_group_id = coalesce(try(v.management_group_id, null), try(local.management_group_scope_ids[v.management_group_key], null))
           location            = try(v.identity, null) == null ? null : try(v.location, var.policy_assignment_location)
         }
@@ -56,8 +86,11 @@ locals {
 
   subscription_policy_assignments_input = {
     for k, v in var.subscription_policy_assignments : k => merge(
-      { for ik, iv in v : ik => iv if ik != "location" },
-      { location = try(v.identity, null) == null ? null : try(v.location, var.policy_assignment_location) }
+      { for ik, iv in v : ik => iv if ik != "location" && ik != "policy" && ik != "policy_scope" },
+      {
+        name     = coalesce(try(v.name, null), module.naming_assignment[k].policy_assignment, k)
+        location = try(v.identity, null) == null ? null : try(v.location, var.policy_assignment_location)
+      }
     )
   }
 }

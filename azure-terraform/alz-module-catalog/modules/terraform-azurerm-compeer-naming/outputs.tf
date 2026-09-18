@@ -420,7 +420,7 @@ output "policy_initiative" {
   value       = local.names.policy_initiative
 }
 output "policy_assignment" {
-  description = "Policy assignment (needs `policy` + `scope`). Pattern: assign-<policy>-<scope>."
+  description = "Policy assignment (needs `policy` + `policy_scope`). Pattern: assign-<policy>-<policy_scope>. CAUTION (confirmed empirically, not documented by Azure as a universal limit): azurerm_management_group_policy_assignment enforces a hard 24-character name limit - this pattern has no length guard of its own since it doesn't know which scope (management group / subscription / resource group) will consume it, and only the management-group-scoped resource actually enforces 24 chars. Keep `policy` and `policy_scope` short for anything that might be management-group-scoped."
   value       = local.names.policy_assignment
 }
 
