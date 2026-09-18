@@ -1,8 +1,4 @@
 locals {
-  # Full enterprise tag vocabulary. Emitted key names are frozen - they are the
-  # tag keys applied to every resource. Controlled identifiers are emitted in
-  # canonical lowercase; free-form values are trimmed so reporting cannot split
-  # one value into multiple buckets because of casing or surrounding whitespace.
   candidate = {
     environment           = var.environment == null ? null : lower(trimspace(var.environment))
     application           = var.application == null ? null : lower(trimspace(var.application))
@@ -28,8 +24,6 @@ locals {
     "cost_center", "gl_category",
   ]
 
-  # Drop any tag the caller left unset so an omitted optional tag does not
-  # produce an empty tag on every resource.
   supplied_standard_tags = {
     for key, value in local.candidate : key => value
     if value != null && value != ""
