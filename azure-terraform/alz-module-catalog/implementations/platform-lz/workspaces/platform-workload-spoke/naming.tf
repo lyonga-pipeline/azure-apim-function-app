@@ -10,6 +10,14 @@ module "naming" {
   region      = var.location
   environment = var.environment
   domain      = var.workload_domain
+
+  # Storage accounts go through the keyed front door, not a per-instance
+  # naming_xxx call like NSGs/route tables/PEs below - storage account names
+  # are globally unique across all of Azure, not just this subscription, so
+  # they need the storage_uniqueness suffix mechanism the keyed
+  # storage_account_names output has and the legacy singular one doesn't.
+  storage_account_keys = keys(try(var.workload_spoke.workload_storage_accounts, {}))
+  storage_uniqueness   = var.subscription_id
 }
 
 
@@ -52,6 +60,9 @@ locals {
     }
     private_endpoints = {
       for k, val in try(var.workload_spoke.private_endpoints, {}) : k => merge({ name = module.naming_pe[k].private_endpoint }, val)
+    }
+    workload_storage_accounts = {
+      for k, val in try(var.workload_spoke.workload_storage_accounts, {}) : k => merge({ name = module.naming.storage_account_names[k] }, val)
     }
   }
 }

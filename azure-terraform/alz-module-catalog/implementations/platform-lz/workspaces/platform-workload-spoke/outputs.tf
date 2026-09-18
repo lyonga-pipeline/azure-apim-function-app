@@ -108,6 +108,31 @@ output "private_endpoint_ids" {
   value       = try(module.workload_spoke[0].private_endpoint_ids, {})
 }
 
+output "workload_storage_account_ids" {
+  description = "Resource IDs of the workload storage accounts."
+  value       = try(module.workload_spoke[0].workload_storage_account_ids, {})
+}
+
+output "workload_storage_account_names" {
+  description = "Names of the workload storage accounts."
+  value       = try(module.workload_spoke[0].workload_storage_account_names, {})
+}
+
+output "workload_storage_account_primary_endpoints" {
+  description = "Primary service endpoints per workload storage account."
+  value       = try(module.workload_spoke[0].workload_storage_account_primary_endpoints, {})
+}
+
+output "workload_storage_diagnostic_setting_ids" {
+  description = "IDs of the diagnostic settings on the workload storage accounts."
+  value       = try(module.workload_spoke[0].workload_storage_diagnostic_setting_ids, {})
+}
+
+output "workload_storage_private_endpoint_ids" {
+  description = "Resource IDs of the private endpoints created for the workload storage accounts."
+  value       = try(module.workload_spoke[0].workload_storage_private_endpoint_ids, {})
+}
+
 output "spoke_log_analytics_workspace_id" {
   description = "Platform_Output_Contracts_IAC-10 spoke_log_analytics_workspace_id - passthrough of management's log_analytics_workspace_id, so an application root never needs a state-sharing grant on platform-management for one string."
   value       = local.log_analytics_workspace_id

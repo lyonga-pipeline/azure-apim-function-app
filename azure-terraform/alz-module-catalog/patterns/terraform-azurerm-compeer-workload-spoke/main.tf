@@ -272,6 +272,103 @@ module "workload_key_vault_private_endpoint" {
   tags              = module.tags.tags
 }
 
+module "workload_storage_accounts" {
+  source   = "../../modules/terraform-azurerm-compeer-storage-account"
+  for_each = var.workload_storage_accounts
+
+  name                              = each.value.name
+  resource_group_name               = module.resource_group.name
+  location                          = module.resource_group.location
+  account_tier                      = each.value.account_tier
+  account_replication_type          = each.value.account_replication_type
+  account_kind                      = each.value.account_kind
+  access_tier                       = each.value.access_tier
+  edge_zone                         = each.value.edge_zone
+  min_tls_version                   = each.value.min_tls_version
+  https_traffic_only_enabled        = each.value.https_traffic_only_enabled
+  public_network_access_enabled     = each.value.public_network_access_enabled
+  allow_nested_items_to_be_public   = each.value.allow_nested_items_to_be_public
+  shared_access_key_enabled         = each.value.shared_access_key_enabled
+  infrastructure_encryption_enabled = each.value.infrastructure_encryption_enabled
+  is_hns_enabled                    = each.value.is_hns_enabled
+  sftp_enabled                      = each.value.sftp_enabled
+  local_user_enabled                = each.value.local_user_enabled
+  nfsv3_enabled                     = each.value.nfsv3_enabled
+  large_file_share_enabled          = each.value.large_file_share_enabled
+  cross_tenant_replication_enabled  = each.value.cross_tenant_replication_enabled
+  default_to_oauth_authentication   = each.value.default_to_oauth_authentication
+  allowed_copy_scope                = each.value.allowed_copy_scope
+  dns_endpoint_type                 = each.value.dns_endpoint_type
+  queue_encryption_key_type         = each.value.queue_encryption_key_type
+  table_encryption_key_type         = each.value.table_encryption_key_type
+  provisioned_billing_model_version = each.value.provisioned_billing_model_version
+  identity                          = each.value.identity
+  customer_managed_key              = each.value.customer_managed_key
+  network_rules                     = each.value.network_rules
+  blob_properties                   = each.value.blob_properties
+  queue_properties                  = each.value.queue_properties
+  share_properties                  = each.value.share_properties
+  azure_files_authentication        = each.value.azure_files_authentication
+  custom_domain                     = each.value.custom_domain
+  immutability_policy               = each.value.immutability_policy
+  routing                           = each.value.routing
+  sas_policy                        = each.value.sas_policy
+  static_website                    = each.value.static_website
+  timeouts                          = each.value.timeouts
+  tags                              = module.tags.tags
+}
+
+module "workload_storage_diagnostics" {
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  for_each = {
+    for key, value in var.workload_storage_accounts : key => value
+    if coalesce(try(value.diagnostics.enabled, null), true) && try(value.diagnostics.log_analytics_workspace_id, null) != null
+  }
+
+  name                           = coalesce(try(each.value.diagnostics.name, null), "${module.workload_storage_accounts[each.key].name}-diag")
+  target_resource_id             = module.workload_storage_accounts[each.key].id
+  log_analytics_workspace_id     = each.value.diagnostics.log_analytics_workspace_id
+  log_analytics_destination_type = try(each.value.diagnostics.log_analytics_destination_type, null)
+  storage_account_id             = try(each.value.diagnostics.storage_account_id, null)
+  eventhub_authorization_rule_id = try(each.value.diagnostics.eventhub_authorization_rule_id, null)
+  eventhub_name                  = try(each.value.diagnostics.eventhub_name, null)
+  partner_solution_id            = try(each.value.diagnostics.partner_solution_id, null)
+  logs                           = each.value.diagnostics.logs
+  metrics                        = each.value.diagnostics.metrics
+}
+
+module "workload_storage_private_endpoints" {
+  source = "../../modules/terraform-azurerm-compeer-private-endpoint"
+  for_each = {
+    for key, value in var.workload_storage_accounts : key => value
+    if value.private_endpoint != null
+  }
+
+  name                          = each.value.private_endpoint.name
+  custom_network_interface_name = try(each.value.private_endpoint.custom_network_interface_name, null)
+  resource_group_name           = module.resource_group.name
+  location                      = module.resource_group.location
+  edge_zone                     = try(each.value.private_endpoint.edge_zone, null)
+  subnet_id                     = coalesce(try(each.value.private_endpoint.subnet_id, null), try(module.spoke_vnet.subnet_ids[each.value.private_endpoint.subnet_key], null), try(module.spoke_vnet.subnet_ids["private_endpoints"], null))
+  private_service_connections = [
+    {
+      name                           = coalesce(try(each.value.private_endpoint.private_service_connection_name, null), "${each.value.private_endpoint.name}-psc")
+      is_manual_connection           = false
+      private_connection_resource_id = module.workload_storage_accounts[each.key].id
+      subresource_names              = [try(each.value.private_endpoint.subresource_name, "blob")]
+    }
+  ]
+  private_dns_zone_group = length(try(each.value.private_endpoint.private_dns_zone_ids, [])) == 0 ? [] : [
+    {
+      name                 = coalesce(try(each.value.private_endpoint.private_dns_zone_group_name, null), "default")
+      private_dns_zone_ids = each.value.private_endpoint.private_dns_zone_ids
+    }
+  ]
+  ip_configurations = try(each.value.private_endpoint.ip_configurations, [])
+  timeouts          = try(each.value.private_endpoint.timeouts, {})
+  tags              = module.tags.tags
+}
+
 locals {
   workload_scope_ids = merge(
     {
@@ -289,6 +386,9 @@ locals {
     },
     {
       for key, value in module.route_tables : "route_table:${key}" => value.id
+    },
+    {
+      for key, value in module.workload_storage_accounts : "storage:${key}" => value.id
     },
     var.additional_scopes
   )

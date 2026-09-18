@@ -107,3 +107,28 @@ output "private_endpoint_ids" {
   description = "Workload private endpoint IDs keyed by input key."
   value       = { for k, v in module.private_endpoints : k => v.id }
 }
+
+output "workload_storage_account_ids" {
+  description = "Resource IDs of the workload storage accounts, keyed the same as var.workload_storage_accounts."
+  value       = { for k, v in module.workload_storage_accounts : k => v.id }
+}
+
+output "workload_storage_account_names" {
+  description = "Names of the workload storage accounts, keyed the same as var.workload_storage_accounts."
+  value       = { for k, v in module.workload_storage_accounts : k => v.name }
+}
+
+output "workload_storage_account_primary_endpoints" {
+  description = "Primary service endpoints (blob/queue/table/file) per workload storage account, keyed the same as var.workload_storage_accounts."
+  value       = { for k, v in module.workload_storage_accounts : k => v.primary_endpoints }
+}
+
+output "workload_storage_diagnostic_setting_ids" {
+  description = "IDs of the diagnostic settings on the workload storage accounts."
+  value       = { for k, v in module.workload_storage_diagnostics : k => v.id }
+}
+
+output "workload_storage_private_endpoint_ids" {
+  description = "Resource IDs of the private endpoints created for the workload storage accounts."
+  value       = { for k, v in module.workload_storage_private_endpoints : k => v.id }
+}

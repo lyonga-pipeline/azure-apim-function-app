@@ -88,7 +88,12 @@ management = {
   platform_key_vault_private_endpoints = {}
   recovery_services_vaults = {
     main = {
-      storage_mode_type = "ZoneRedundant"
+      # Flipped back to the module's own default (GeoRedundant) from
+      # ZoneRedundant: backups are the one asset a region-level rebuild-from-
+      # IaC DR story can't replace - a zone-redundant-only vault goes down
+      # with a full regional outage, right when backups matter most. Nothing
+      # is deployed yet, so this is a zero-cost, zero-migration correction.
+      storage_mode_type = "GeoRedundant"
     }
   }
   recovery_services_vault_diagnostics = {

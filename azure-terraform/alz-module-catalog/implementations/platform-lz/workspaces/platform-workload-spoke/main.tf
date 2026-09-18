@@ -101,4 +101,5 @@ module "workload_spoke" {
   route_tables                    = local.std_maps.route_tables
   subnet_route_table_associations = try(var.workload_spoke.subnet_route_table_associations, {})
   private_endpoints               = local.std_maps.private_endpoints
+  workload_storage_accounts       = local.std_maps.workload_storage_accounts
 }

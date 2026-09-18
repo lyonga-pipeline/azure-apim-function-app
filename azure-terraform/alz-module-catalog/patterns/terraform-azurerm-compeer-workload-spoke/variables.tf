@@ -299,6 +299,231 @@ variable "workload_key_vault" {
   }
 }
 
+variable "workload_storage_accounts" {
+  description = <<-EOT
+    Optional workload storage accounts, keyed by logical name (an app can
+    deploy more than one - e.g. "data" and "logs"). Every DR/resiliency knob
+    the underlying module exposes is a caller-overridable default here, not a
+    fixed choice - account_replication_type defaults to ZRS (zone-redundant)
+    but a caller can set GRS/GZRS for cross-region resilience, or LRS for a
+    genuinely disposable/dev workload; blob versioning + soft-delete +
+    restore_policy are on by default for the same reason RSV backups exist -
+    protecting against accidental deletion/corruption, not just outages.
+    Defaults to no resources.
+  EOT
+  type = map(object({
+    name                              = string
+    account_tier                      = optional(string, "Standard")
+    account_replication_type          = optional(string, "ZRS")
+    account_kind                      = optional(string, "StorageV2")
+    access_tier                       = optional(string, "Hot")
+    edge_zone                         = optional(string)
+    min_tls_version                   = optional(string, "TLS1_2")
+    https_traffic_only_enabled        = optional(bool, true)
+    public_network_access_enabled     = optional(bool, false)
+    allow_nested_items_to_be_public   = optional(bool, false)
+    shared_access_key_enabled         = optional(bool, false)
+    infrastructure_encryption_enabled = optional(bool, true)
+    is_hns_enabled                    = optional(bool, false)
+    sftp_enabled                      = optional(bool, false)
+    local_user_enabled                = optional(bool, false)
+    nfsv3_enabled                     = optional(bool, false)
+    large_file_share_enabled          = optional(bool, false)
+    cross_tenant_replication_enabled  = optional(bool, false)
+    default_to_oauth_authentication   = optional(bool, true)
+    allowed_copy_scope                = optional(string)
+    dns_endpoint_type                 = optional(string)
+    queue_encryption_key_type         = optional(string)
+    table_encryption_key_type         = optional(string)
+    provisioned_billing_model_version = optional(string)
+    identity = optional(object({
+      type         = string
+      identity_ids = optional(list(string), [])
+    }))
+    customer_managed_key = optional(object({
+      key_vault_key_id          = optional(string)
+      managed_hsm_key_id        = optional(string)
+      user_assigned_identity_id = optional(string)
+    }))
+    network_rules = optional(object({
+      default_action             = string
+      bypass                     = optional(list(string), ["AzureServices"])
+      ip_rules                   = optional(list(string), [])
+      virtual_network_subnet_ids = optional(list(string), [])
+      private_link_access = optional(map(object({
+        endpoint_resource_id = string
+        endpoint_tenant_id   = optional(string)
+      })), {})
+    }))
+    # versioning + soft delete + restore_policy default ON: this is the data-
+    # protection equivalent of RSV backups for blob data (recover from
+    # accidental delete/overwrite, not just an outage).
+    blob_properties = optional(object({
+      versioning_enabled                = optional(bool, true)
+      change_feed_enabled               = optional(bool, true)
+      change_feed_retention_in_days     = optional(number)
+      default_service_version           = optional(string)
+      last_access_time_enabled          = optional(bool, false)
+      delete_retention_days             = optional(number, 30)
+      container_delete_retention_days   = optional(number, 30)
+      restore_policy                    = optional(object({ days = number }), { days = 29 })
+      delete_retention_policy           = optional(object({ days = optional(number), permanent_delete_enabled = optional(bool) }))
+      container_delete_retention_policy = optional(object({ days = optional(number) }))
+      cors_rules = optional(map(object({
+        allowed_headers    = list(string)
+        allowed_methods    = list(string)
+        allowed_origins    = list(string)
+        exposed_headers    = list(string)
+        max_age_in_seconds = number
+      })), {})
+    }), {})
+    queue_properties = optional(object({
+      logging = optional(object({
+        delete                = optional(bool, true)
+        read                  = optional(bool, true)
+        write                 = optional(bool, true)
+        version               = optional(string, "1.0")
+        retention_policy_days = optional(number)
+      }))
+      hour_metrics = optional(object({
+        enabled               = bool
+        version               = string
+        include_apis          = optional(bool)
+        retention_policy_days = optional(number)
+      }))
+      minute_metrics = optional(object({
+        enabled               = bool
+        version               = string
+        include_apis          = optional(bool)
+        retention_policy_days = optional(number)
+      }))
+      cors_rules = optional(map(object({
+        allowed_headers    = list(string)
+        allowed_methods    = list(string)
+        allowed_origins    = list(string)
+        exposed_headers    = list(string)
+        max_age_in_seconds = number
+      })), {})
+    }))
+    share_properties = optional(object({
+      retention_policy = optional(object({
+        days = optional(number)
+      }))
+      smb = optional(object({
+        versions                        = optional(set(string))
+        authentication_types            = optional(set(string))
+        kerberos_ticket_encryption_type = optional(set(string))
+        channel_encryption_type         = optional(set(string))
+        multichannel_enabled            = optional(bool)
+      }))
+      cors_rules = optional(map(object({
+        allowed_headers    = list(string)
+        allowed_methods    = list(string)
+        allowed_origins    = list(string)
+        exposed_headers    = list(string)
+        max_age_in_seconds = number
+      })), {})
+    }))
+    azure_files_authentication = optional(object({
+      directory_type                 = string
+      default_share_level_permission = optional(string)
+      active_directory = optional(object({
+        domain_name         = string
+        domain_guid         = string
+        domain_sid          = optional(string)
+        storage_sid         = optional(string)
+        forest_name         = optional(string)
+        netbios_domain_name = optional(string)
+      }))
+    }))
+    custom_domain = optional(object({
+      name          = string
+      use_subdomain = optional(bool)
+    }))
+    immutability_policy = optional(object({
+      allow_protected_append_writes = optional(bool)
+      period_since_creation_in_days = number
+      state                         = string
+    }))
+    routing = optional(object({
+      choice                      = optional(string)
+      publish_internet_endpoints  = optional(bool)
+      publish_microsoft_endpoints = optional(bool)
+    }))
+    sas_policy = optional(object({
+      expiration_period = string
+      expiration_action = optional(string)
+    }))
+    static_website = optional(object({
+      index_document     = string
+      error_404_document = optional(string)
+    }))
+    # No dedicated role_assignments field here: register this entry into
+    # workload_scope_ids ("storage:<key>") and use the pattern's existing
+    # generic var.role_assignments / var.management_locks with
+    # scope_key = "storage:<key>" - the same mechanism NSGs and route tables
+    # already use, instead of a third, redundant per-resource-type RBAC path.
+    diagnostics = optional(object({
+      enabled                        = optional(bool, true)
+      name                           = optional(string)
+      log_analytics_workspace_id     = optional(string)
+      storage_account_id             = optional(string)
+      eventhub_authorization_rule_id = optional(string)
+      eventhub_name                  = optional(string)
+      partner_solution_id            = optional(string)
+      log_analytics_destination_type = optional(string)
+      logs = optional(map(object({
+        category       = optional(string)
+        category_group = optional(string)
+      })), { allLogs = { category_group = "allLogs" } })
+      metrics = optional(map(object({
+        category = string
+        enabled  = optional(bool, true)
+      })), { AllMetrics = { category = "AllMetrics" } })
+    }), {})
+    private_endpoint = optional(object({
+      name                            = string
+      subnet_key                      = optional(string)
+      subnet_id                       = optional(string)
+      subresource_name                = optional(string, "blob")
+      custom_network_interface_name   = optional(string)
+      private_service_connection_name = optional(string)
+      private_dns_zone_group_name     = optional(string, "default")
+      private_dns_zone_ids            = optional(list(string), [])
+      edge_zone                       = optional(string)
+      ip_configurations = optional(list(object({
+        name               = string
+        private_ip_address = string
+        subresource_name   = string
+        member_name        = string
+      })), [])
+      timeouts = optional(object({
+        create = optional(string)
+        update = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
+    }))
+    timeouts = optional(object({
+      create = optional(string)
+      update = optional(string)
+      read   = optional(string)
+      delete = optional(string)
+    }), {})
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.workload_storage_accounts :
+      v.private_endpoint == null || (
+        try(v.private_endpoint.subnet_key, null) == null || try(v.private_endpoint.subnet_id, null) == null
+      )
+    ])
+    error_message = "workload_storage_accounts[*].private_endpoint must not set both subnet_key and subnet_id."
+  }
+}
+
 variable "additional_scopes" {
   type        = map(string)
   description = "Any Additional named scopes that can be referenced by locks, diagnostics, or role assignments."
