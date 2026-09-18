@@ -315,8 +315,7 @@ run "accepts_poc_environment" {
   command = apply
 
   variables {
-    environment     = "poc"
-    expiration_date = "2026-12-31"
+    environment = "poc"
   }
 
   assert {
@@ -325,7 +324,20 @@ run "accepts_poc_environment" {
   }
 }
 
-# ---- expiration_date required: sandbox / poc / temporary / time-bound-exception
+run "accepts_existing_lz_np_environments" {
+  command = apply
+
+  variables {
+    environment = "np2"
+  }
+
+  assert {
+    condition     = output.tags["environment"] == "np2" && !contains(keys(output.tags), "expiration_date")
+    error_message = "np1/np2/np3 must be accepted as existing-LZ environment aliases without expiration_date"
+  }
+}
+
+# ---- expiration_date is required and permitted only for sandbox ---------
 
 run "rejects_sandbox_without_expiration_date" {
   command = plan
@@ -337,59 +349,49 @@ run "rejects_sandbox_without_expiration_date" {
   expect_failures = [check.expiration_date_required]
 }
 
-run "rejects_poc_without_expiration_date" {
-  command = plan
+run "poc_without_expiration_date_passes" {
+  command = apply
 
   variables {
     environment = "poc"
   }
 
-  expect_failures = [check.expiration_date_required]
-}
-
-run "rejects_temporary_lifecycle_without_expiration_date" {
-  command = plan
-
-  variables {
-    environment     = "prod"
-    lifecycle_state = "temporary"
+  assert {
+    condition     = !contains(keys(output.tags), "expiration_date")
+    error_message = "poc must not require expiration_date"
   }
-
-  expect_failures = [check.expiration_date_required]
 }
 
-run "temporary_lifecycle_with_expiration_date_passes" {
+run "temporary_lifecycle_without_expiration_date_passes" {
   command = apply
 
   variables {
     environment     = "prod"
     lifecycle_state = "temporary"
-    expiration_date = "2026-12-31"
   }
 
   assert {
-    condition     = output.tags["lifecycle_state"] == "temporary" && output.tags["expiration_date"] == "2026-12-31"
-    error_message = "temporary lifecycle with an explicit expiration_date should pass the cross-variable check"
+    condition     = output.tags["lifecycle_state"] == "temporary" && !contains(keys(output.tags), "expiration_date")
+    error_message = "temporary lifecycle outside sandbox must not require expiration_date"
   }
 }
 
-run "rejects_time_bound_exception_without_expiration_date" {
+run "rejects_expiration_date_for_prod" {
   command = plan
 
   variables {
-    environment          = "prod"
-    lifecycle_state      = "exempt"
-    time_bound_exception = true
+    environment     = "prod"
+    expiration_date = "2026-12-31"
   }
 
-  expect_failures = [check.expiration_date_required]
+  expect_failures = [check.expiration_date_only_for_sandbox]
 }
 
 run "rejects_time_bound_exception_for_non_exempt_lifecycle" {
   command = plan
 
   variables {
-    environment          = "prod"
+    environment          = "sandbox"
     lifecycle_state      = "active"
     time_bound_exception = true
     expiration_date      = "2026-12-31"
@@ -398,7 +400,7 @@ run "rejects_time_bound_exception_for_non_exempt_lifecycle" {
   expect_failures = [check.time_bound_exception_requires_exempt_lifecycle]
 }
 
-run "exempt_without_time_bound_exception_does_not_require_expiration_date" {
+run "exempt_non_sandbox_without_time_bound_exception_does_not_require_expiration_date" {
   command = apply
 
   variables {
@@ -408,7 +410,7 @@ run "exempt_without_time_bound_exception_does_not_require_expiration_date" {
 
   assert {
     condition     = output.tags["lifecycle_state"] == "exempt" && !contains(keys(output.tags), "expiration_date")
-    error_message = "a permanent exemption (time_bound_exception left at its false default) must not require expiration_date"
+    error_message = "a non-sandbox exemption must not require expiration_date"
   }
 }
 

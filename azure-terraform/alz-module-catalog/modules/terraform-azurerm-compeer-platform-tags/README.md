@@ -23,7 +23,7 @@ only the tags it has values for and the output map drops the rest.
 | Operational | `application_component`, `modified_on` | Optional |
 | Governance | `dr_tier`, `time_bound_exception` | Conditional / Optional |
 | Operational | `created_by` | Fixed to `"Terraform"` |
-| Governance | `expiration_date` | Required when `environment` is `sandbox`/`poc` (or any value outside `dev`/`test`/`uat`/`prod`), `lifecycle_state` is `temporary`, or `time_bound_exception` is `true` - enforced by a `check` block, see below |
+| Governance | `expiration_date` | Required and permitted only when `environment` is `sandbox` - enforced by `check` blocks, see below |
 
 Plus `additional_tags` (`map(string)`) for organization-specific metadata
 **outside** this standard schema. It cannot contain a standard tag key at
@@ -36,7 +36,7 @@ its approved list (source: the FinOps tagging standard's own tag tables):
 
 | Tag | Approved values |
 |---|---|
-| `environment` | `dev`, `test`, `uat`, `prod`, `sandbox`, `poc` - extend only via a deliberate module version bump |
+| `environment` | `dev`, `test`, `uat`, `prod`, `sandbox`, `poc`, `np1`, `np2`, `np3`; existing-LZ aliases `np1`/`np2`/`np3` represent dev/test/uat |
 | `data_classification` | `public`, `internal`, `confidential`, `restricted` |
 | `lifecycle_state` | `active`, `temporary`, `pilot`, `decommission-pending`, `retired`, `exempt` - exact meanings below |
 | `criticality_tier` | `tier-0` (foundational platform/enterprise service), `tier-1` (mission-critical business workload), `tier-2` (important business/operational workload), `tier-3` (low-criticality/non-production/temporary/disposable), `tier-4` |
@@ -146,22 +146,15 @@ A pipeline-generated, persisted date is an equally valid source for
 
 ### `expiration_date` requirement (`expiration_date_required` check)
 
-A `check` block (`checks.tf`) enforces the design doc's "Required for
-sandbox, POC, temporary, and exception resources" rule: `expiration_date`
-must be set when
+Two `check` blocks (`checks.tf`) make the environment boundary explicit:
 
-- `environment` is outside the four standard, durable environments
-  (`dev`/`test`/`uat`/`prod`) - today that means `sandbox` or `poc`, and this
-  automatically covers any future environment value this module's vocabulary
-  is extended to include, with no matching update needed to this check, OR
-- `lifecycle_state` is `"temporary"`, OR
-- `time_bound_exception` is `true` (an approved `lifecycle_state = "exempt"`
-  resource whose exception was specifically approved with a planned end date
-  - a **permanent** exemption does not set this and correctly does not
-  require one).
+- `environment = "sandbox"` requires `expiration_date`.
+- Every other approved environment rejects `expiration_date`, including
+  `dev`, `test`, `uat`, `prod`, `poc`, `np1`, `np2`, and `np3`.
 
-`time_bound_exception = true` is rejected unless `lifecycle_state = "exempt"`.
-Use `lifecycle_state = "temporary"` for ordinary short-lived resources.
+`time_bound_exception = true` is permitted only for a sandbox resource with
+`lifecycle_state = "exempt"`. `lifecycle_state = "temporary"` does not by
+itself permit an expiration date outside sandbox.
 
 This is a `check` block rather than a `variable` `validation` block because a
 `validation` block can only see the variable it's declared on in Terraform
@@ -216,6 +209,14 @@ Policy's job per the design above), so keep the block: it's the machinery a
 workspace opts into for Terraform-side enforcement if it ever wants it,
 verified safe to leave wired in even when unused.
 
+Put another way, `default = null` means the reusable module will not invent
+business metadata such as an owner or cost center. `mandatory_keys` states
+which of those values a compliant deployment must eventually supply. Null
+values are filtered out of `tags`, reported through `missing_mandatory`, and
+enforced by OPA/Azure Policy (or optionally by a consuming root precondition).
+The defaults therefore do not need to be changed from `null` merely because a
+key appears in `mandatory_keys`.
+
 ## Outputs
 
 | Output | Description |
@@ -260,16 +261,15 @@ verified safe to leave wired in even when unused.
 
 ## Tests
 
-`terraform test` (offline, 46 runs across `tests/defaults.tftest.hcl`), plus
+`terraform test` (offline, 48 runs across `tests/defaults.tftest.hcl`), plus
 2 example test suites (`examples/basic/tests`, 2 runs;
 `examples/keyed_deployment_timestamps/tests`, 2 runs) exercising the real
 `hashicorp/time` provider rather than mocks. Coverage: only-supplied tags
 emitted, `missing_mandatory` reporting, `created_by` fixed-value enforcement
 (omitted, explicit-null, and non-`"Terraform"` cases), `additional_tags`
 standard-key rejection, every standard value-set validation (valid and
-invalid cases), the `expiration_date_required` cross-check (sandbox, poc,
-temporary lifecycle, time-bound exception, and the standard-environments/
-permanent-exemption non-cases), date-ordering checks (`modified_on`/
+invalid cases), the sandbox-only `expiration_date` required/permitted checks,
+the existing-LZ `np1`/`np2`/`np3` aliases, date-ordering checks (`modified_on`/
 `expiration_date` vs `created_on`), empty-mandatory-value rejection,
 malformed `owner`/`source_repo` rejection, impossible-calendar-date
 rejection, the `time_static` stability guarantee, the keyed-`time_static`

@@ -21,12 +21,12 @@
 # ---- Mandatory (Required = Yes) --------------------------------------------
 variable "environment" {
   type        = string
-  description = "Mandatory. Deployment environment: dev, test, uat, prod, sandbox, or poc. Extend this list only via a deliberate module version bump if a new durable or temporary environment is approved - see checks.tf for why the exact boundary of this list also drives the expiration_date requirement."
+  description = "Mandatory. Deployment environment: dev, test, uat, prod, sandbox, poc, np1, np2, or np3. The existing-LZ aliases np1, np2, and np3 represent dev, test, and uat respectively."
   default     = null
 
   validation {
-    condition     = var.environment == null ? true : contains(["dev", "test", "uat", "prod", "sandbox", "poc"], lower(trimspace(var.environment)))
-    error_message = "environment must be one of: dev, test, uat, prod, sandbox, poc."
+    condition     = var.environment == null ? true : contains(["dev", "test", "uat", "prod", "sandbox", "poc", "np1", "np2", "np3"], lower(trimspace(var.environment)))
+    error_message = "environment must be one of: dev, test, uat, prod, sandbox, poc, np1, np2, np3."
   }
 }
 
@@ -242,15 +242,14 @@ variable "dr_tier" {
 
 variable "time_bound_exception" {
   type        = bool
-  description = "Whether this specific approved lifecycle_state = \"exempt\" resource must carry an expiration_date. Exemptions are not automatically time-bound (a permanent exemption is valid and does not need one) - set this to true only when THIS exception was approved with a planned end date. Ignored for every lifecycle_state other than \"exempt\"; see checks.tf's expiration_date_required check."
+  description = "Whether this sandbox resource has an approved, time-bound exception. May be true only when environment is sandbox and lifecycle_state is exempt."
   default     = false
 }
 
-# ---- Required only for sandbox / POC / temporary / time-bound-exception ----
-# resources, or any environment outside the four standard durable ones -----
+# ---- Required and permitted only for sandbox resources -------------------
 variable "expiration_date" {
   type        = string
-  description = "Required when environment is sandbox or poc, lifecycle_state is temporary, or time_bound_exception is true (ISO-8601) - see checks.tf's expiration_date_required check. Optional otherwise. Must not be before created_on when both are set."
+  description = "Required when environment is sandbox and not permitted for any other environment. Must be a real YYYY-MM-DD date and must not be before created_on when both are set."
   default     = null
 
   validation {

@@ -7,45 +7,22 @@
 
 check "expiration_date_required" {
   assert {
-    # Design-doc Table 4: "expiration_date - Required for sandbox, POC,
-    # temporary, and exception resources." Expressed as: expiration_date is
-    # required when
-    #   - environment is outside the four standard, durable environments
-    #     (dev/test/uat/prod) - which today means sandbox or poc, and
-    #     automatically covers any future environment value this module's
-    #     own vocabulary is extended to include, without this check needing
-    #     a matching update, OR
-    #   - lifecycle_state is "temporary" (intentionally short-lived), OR
-    #   - time_bound_exception is true (an approved lifecycle_state =
-    #     "exempt" resource whose exception was specifically approved with
-    #     a planned end date - a permanent exemption does NOT set this and
-    #     is correctly not required to have one).
-    #
-    # coalesce(var.environment, "prod") is a null-safety guard, not a real
-    # fallback: `&&`/`||` do NOT short-circuit function evaluation in HCL
-    # (only the boolean result), so lower(var.environment) still gets
-    # evaluated - and crashes - even when var.environment is null and every
-    # other operand already makes this specific OR-branch irrelevant. When
-    # environment actually is null this substitutes "prod" purely so
-    # lower() doesn't error; that branch's contribution is then "prod" is a
-    # standard environment, i.e. false, exactly as if environment had never
-    # been set.
-    condition = !(
-      var.expiration_date == null &&
-      (
-        !contains(["dev", "test", "uat", "prod"], lower(trimspace(coalesce(var.environment, "prod")))) ||
-        var.lifecycle_state == "temporary" ||
-        var.time_bound_exception == true
-      )
-    )
-    error_message = "expiration_date is required when environment is sandbox/poc (or any value outside dev/test/uat/prod), lifecycle_state is \"temporary\", or time_bound_exception is true - sandbox, POC, temporary, and time-bound exception resources must have a planned end date (design doc: \"Required for sandbox, POC, temporary, and exception resources\")."
+    condition     = lower(trimspace(coalesce(var.environment, "__unset__"))) != "sandbox" || var.expiration_date != null
+    error_message = "expiration_date is required when environment is \"sandbox\"."
+  }
+}
+
+check "expiration_date_only_for_sandbox" {
+  assert {
+    condition     = var.expiration_date == null || lower(trimspace(coalesce(var.environment, "__unset__"))) == "sandbox"
+    error_message = "expiration_date may only be set when environment is \"sandbox\"."
   }
 }
 
 check "time_bound_exception_requires_exempt_lifecycle" {
   assert {
-    condition     = !var.time_bound_exception || var.lifecycle_state == "exempt"
-    error_message = "time_bound_exception may only be true when lifecycle_state is \"exempt\". Use lifecycle_state = \"temporary\" for ordinary short-lived resources."
+    condition     = !var.time_bound_exception || (var.lifecycle_state == "exempt" && lower(trimspace(coalesce(var.environment, "__unset__"))) == "sandbox")
+    error_message = "time_bound_exception may only be true for a sandbox resource whose lifecycle_state is \"exempt\"."
   }
 }
 
