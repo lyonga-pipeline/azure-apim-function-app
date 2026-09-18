@@ -15,7 +15,7 @@
 
 locals {
   policy_definition_ids = { for key, value in azurerm_policy_definition.definition : key => value.id }
-  policy_set_ids        = { for key, value in azurerm_policy_set_definition.initiative : key => value.id }
+  policy_set_ids        = { for key, value in azurerm_management_group_policy_set_definition.initiative : key => value.id }
 
   # Assignments this SAME module call creates, across all 3 scopes - lets an
   # exemption reference one by policy_assignment_key instead of a raw ID.
@@ -30,6 +30,15 @@ locals {
   resource_group_exemptions   = { for key, exemption in var.exemptions : key => exemption if exemption.scope_type == "resource_group" }
 }
 
+# azurerm_policy_definition.management_group_id is NOT deprecated in the
+# azurerm provider version this module pins (>= 4.42, < 5.0 - confirmed
+# empirically against the installed 4.81.0 schema: the attribute carries no
+# `deprecated` flag here). A generic Checkmarx/linter rule can still flag it
+# because it flags the argument name across every resource that has it,
+# regardless of per-resource deprecation status. There is also no dedicated
+# azurerm_management_group_policy_definition resource in this provider
+# version to migrate to. Left as-is; azurerm_policy_set_definition below is
+# the one that actually needed migrating.
 resource "azurerm_policy_definition" "definition" {
   for_each = var.policy_definitions
 
@@ -44,10 +53,21 @@ resource "azurerm_policy_definition" "definition" {
   policy_rule         = jsonencode(each.value.policy_rule)
 }
 
-resource "azurerm_policy_set_definition" "initiative" {
+# azurerm_policy_set_definition.management_group_id IS deprecated in this
+# provider version (confirmed empirically against the installed 4.81.0
+# schema: the attribute carries `deprecated: true`), in favor of this
+# dedicated resource - which also makes management_group_id required rather
+# than optional, matching this module's own contract that every
+# policy_set_definitions entry already supplies a concrete
+# management_group_id (see variables.tf), so no for_each split is needed.
+resource "azurerm_management_group_policy_set_definition" "initiative" {
   for_each = var.policy_set_definitions
 
-  name                = coalesce(try(each.value.name, null), each.key)
+  name = coalesce(try(each.value.name, null), each.key)
+  # policy_type is optional on the generic azurerm_policy_set_definition
+  # (defaults to "Custom" there) but required on this dedicated resource -
+  # try() already supplies a concrete value either way, so no behavior
+  # change for existing callers that never set it.
   policy_type         = try(each.value.policy_type, "Custom")
   display_name        = each.value.display_name
   description         = try(each.value.description, null)

@@ -42,8 +42,9 @@ on a first read:
    anything hand-authored on top, and the baseline is just more entries in
    the same map, not a parallel code path.
 2. **The 6 policies are packaged into one initiative, not 6 separate
-   assignments.** `module.policy`'s `azurerm_policy_set_definition.initiative`
-   bundles all 6 under `compeer-landing-zone-baseline`, assigned once
+   assignments.** `module.policy`'s
+   `azurerm_management_group_policy_set_definition.initiative` bundles all 6
+   under `compeer-landing-zone-baseline`, assigned once
    (`cmp-landing-zone-baseline`). This is what lets the *same* initiative be
    assigned again at a different management-group scope later (a future
    `regulated-apps-mg`, say) with its own parameter/`not_scopes` overrides,

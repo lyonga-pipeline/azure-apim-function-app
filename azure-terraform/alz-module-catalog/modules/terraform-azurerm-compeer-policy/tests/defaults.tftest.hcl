@@ -3,7 +3,7 @@ mock_provider "azurerm" {}
 run "empty_is_noop" {
   command = plan
   assert {
-    condition     = length(azurerm_policy_definition.definition) == 0 && length(azurerm_policy_set_definition.initiative) == 0
+    condition     = length(azurerm_policy_definition.definition) == 0 && length(azurerm_management_group_policy_set_definition.initiative) == 0
     error_message = "nothing managed by default"
   }
 }
@@ -48,7 +48,7 @@ run "definitions_and_initiative_reference_by_key" {
     error_message = "expected both custom definitions to be created"
   }
   assert {
-    condition     = length(azurerm_policy_set_definition.initiative["bundle"].policy_definition_reference) == 2
+    condition     = length(azurerm_management_group_policy_set_definition.initiative["bundle"].policy_definition_reference) == 2
     error_message = "expected the initiative to reference both sibling definitions"
   }
 }

@@ -170,15 +170,15 @@ locals {
   #
   # Packages the 6 cmp-* definitions above into one assignable initiative
   # instead of 6 separate management-group policy assignments. This is what
-  # var.custom_policy_set_definitions was built for (see main.tf's
-  # azurerm_policy_set_definition.initiative) but had zero callers - policy_baseline
-  # is now its first real one, merged in the same way pb_definitions already
-  # merges into var.custom_policy_definitions.
+  # var.custom_policy_set_definitions was built for (see the policy module's
+  # azurerm_management_group_policy_set_definition.initiative) but had zero
+  # callers - policy_baseline is now its first real one, merged in the same
+  # way pb_definitions already merges into var.custom_policy_definitions.
   #
   # Each member policy keeps its own parameter wiring via the initiative's
   # own declared parameters (ARM "[parameters('x')]" tokens in
-  # parameter_values, same idiom azurerm_policy_set_definition already uses
-  # for MCSB-style initiatives). Today all 6 already share one effect/enforce
+  # parameter_values, same idiom the policy module already uses for
+  # MCSB-style initiatives). Today all 6 already share one effect/enforce
   # toggle (var.policy_baseline.effect / .enforce), so bundling them changes
   # zero enforcement behavior - it only replaces 6 assignment objects with 1.
   # A future need for a policy-specific effect is additive from here (expose
