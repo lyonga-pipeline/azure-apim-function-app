@@ -50,21 +50,31 @@ its approved list (source: the FinOps tagging standard's own tag tables):
 
 ### `lifecycle_state` - exact meanings (FinOps tag standard)
 
-- **active** - Resource is approved, in use, and expected to continue running
-  under normal operations.
-- **temporary** - Resource is intentionally short-lived (e.g. sandbox, POC,
-  testing) and MUST carry an `expiration_date` - enforced by the
-  `expiration_date_required` check below.
-- **pilot** - Resource is part of a formal pilot or controlled rollout, not
-  yet a permanent production commitment.
-- **decommission-pending** - Resource is no longer strategically needed and
-  is scheduled for removal, but has not been deleted yet.
+- **active** - Resource is approved, in use, and expected to continue operating.
+  Use for production, shared, and long-lived non-production resources.
+- **temporary** - Resource is intentionally short-lived and must have an
+  expiration date. Use for sandboxes, POCs, test labs, one-time analysis, and
+  migration staging.
+- **pilot** - Resource supports a formal pilot or controlled rollout. Use for
+  early cloud workloads, limited production trials, and PLANT-related pilots.
+- **decommission-pending** - Resource is no longer strategically needed but has
+  not yet been removed. Use for post-migration cleanup, dual-run transition,
+  app retirement, and pending data/archive validation.
 - **retired** - Resource should no longer be running or incurring meaningful
-  cost; present for historical/audit visibility only.
-- **exempt** - Resource is an approved exception from normal lifecycle
-  automation. Not automatically time-bound - a permanent exemption does not
-  require an `expiration_date`. Set `time_bound_exception = true` only when
-  THIS specific exception was approved with a planned end date.
+  cost. Use only for records, snapshots, final archive, or audit evidence;
+  ideally time-boxed.
+- **exempt** - Resource has an approved exception from normal lifecycle
+  automation. Use for security tooling, shared platform services, DR
+  dependencies, legal/audit hold, or vendor constraints. Set
+  `time_bound_exception = true` only when the approved exception has a planned
+  end date.
+
+### Canonical emitted values
+
+The output normalizes controlled identifiers so case and surrounding whitespace
+cannot fragment cost reporting. `environment`, `application`, `appcode`, and
+`application_component` are trimmed and lowercased. `owner`, `source_repo`,
+`cost_center`, and `gl_category` are trimmed while preserving meaningful case.
 
 ### `created_by` is fixed to `"Terraform"`, not just defaulted
 
@@ -149,6 +159,9 @@ must be set when
   resource whose exception was specifically approved with a planned end date
   - a **permanent** exemption does not set this and correctly does not
   require one).
+
+`time_bound_exception = true` is rejected unless `lifecycle_state = "exempt"`.
+Use `lifecycle_state = "temporary"` for ordinary short-lived resources.
 
 This is a `check` block rather than a `variable` `validation` block because a
 `validation` block can only see the variable it's declared on in Terraform

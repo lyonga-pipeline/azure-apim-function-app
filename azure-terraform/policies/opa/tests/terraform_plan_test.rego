@@ -1,15 +1,17 @@
 package compeer.lz
 
 standard_tags := {
-	"env": "np1",
+	"environment": "test",
 	"application": "example",
-	"bt_owner": "cloud",
+	"appcode": "example",
+	"owner": "cloud",
 	"source_repo": "ado://example",
-	"tf_workspace": "lz-workload-example-np1",
-	"recovery": "standard",
-	"cost_center": "cc-1001",
+	"created_on": "2026-09-18",
+	"criticality_tier": "tier-2",
 	"data_classification": "internal",
-	"compliance_boundary": "finserv",
+	"lifecycle_state": "active",
+	"cost_center": "cc-1001",
+	"gl_category": "1000015",
 }
 
 test_secure_storage_with_diagnostics_passes if {

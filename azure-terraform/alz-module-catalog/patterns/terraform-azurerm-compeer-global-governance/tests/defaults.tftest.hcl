@@ -67,7 +67,7 @@ run "policy_baseline_on" {
     # renamed away from - that mismatch made every correctly-tagged resource
     # fail the guardrail.
     condition = sort(local.pb_required_tags) == sort([
-      "environment", "application", "owner", "source_repo", "created_on",
+      "environment", "application", "appcode", "owner", "source_repo", "created_on",
       "criticality_tier", "data_classification", "lifecycle_state",
       "cost_center", "gl_category",
     ])

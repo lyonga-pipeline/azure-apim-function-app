@@ -51,6 +51,35 @@ run "reports_missing_mandatory" {
   }
 }
 
+run "normalizes_controlled_and_trims_free_form_values" {
+  command = apply
+
+  variables {
+    environment           = " PROD "
+    application           = " Orders-API "
+    appcode               = " ORDERS "
+    application_component = " Interest-Calculator "
+    owner                 = " Team Alpha "
+    source_repo           = " ado://compeer/landing-zone "
+    cost_center           = " CC-1000 "
+    gl_category           = " 1000015 "
+  }
+
+  assert {
+    condition = (
+      output.tags["environment"] == "prod" &&
+      output.tags["application"] == "orders-api" &&
+      output.tags["appcode"] == "orders" &&
+      output.tags["application_component"] == "interest-calculator" &&
+      output.tags["owner"] == "Team Alpha" &&
+      output.tags["source_repo"] == "ado://compeer/landing-zone" &&
+      output.tags["cost_center"] == "CC-1000" &&
+      output.tags["gl_category"] == "1000015"
+    )
+    error_message = "controlled identifiers must be lowercase and all standard free-form values must be trimmed"
+  }
+}
+
 run "conditional_and_sandbox_tags" {
   command = apply
 
@@ -354,6 +383,19 @@ run "rejects_time_bound_exception_without_expiration_date" {
   }
 
   expect_failures = [check.expiration_date_required]
+}
+
+run "rejects_time_bound_exception_for_non_exempt_lifecycle" {
+  command = plan
+
+  variables {
+    environment          = "prod"
+    lifecycle_state      = "active"
+    time_bound_exception = true
+    expiration_date      = "2026-12-31"
+  }
+
+  expect_failures = [check.time_bound_exception_requires_exempt_lifecycle]
 }
 
 run "exempt_without_time_bound_exception_does_not_require_expiration_date" {

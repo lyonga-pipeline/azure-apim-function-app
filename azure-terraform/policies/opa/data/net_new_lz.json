@@ -4,15 +4,17 @@
       "centralus"
     ],
     "required_tags": [
-      "env",
+      "environment",
       "application",
-      "bt_owner",
+      "appcode",
+      "owner",
       "source_repo",
-      "tf_workspace",
-      "recovery",
-      "cost_center",
+      "created_on",
+      "criticality_tier",
       "data_classification",
-      "compliance_boundary"
+      "lifecycle_state",
+      "cost_center",
+      "gl_category"
     ],
     "exempt_resource_types": [
       "azurerm_role_assignment",

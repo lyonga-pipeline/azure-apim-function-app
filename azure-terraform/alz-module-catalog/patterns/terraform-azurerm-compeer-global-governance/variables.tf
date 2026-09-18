@@ -193,7 +193,7 @@ variable "policy_baseline" {
     # so every caller that left this unset got requiredTagNames = null on the
     # live policy, not the intended list.
     required_tag_names = optional(list(string), [
-      "environment", "application", "owner", "source_repo", "created_on",
+      "environment", "application", "appcode", "owner", "source_repo", "created_on",
       "criticality_tier", "data_classification", "lifecycle_state",
       "cost_center", "gl_category",
     ])

@@ -26,7 +26,7 @@ locals {
   # the pre-Phase-7 vocabulary (env/bt_owner/tf_workspace/recovery/
   # compliance_boundary) that module was renamed away from.
   pb_required_tags = try(local.pb.required_tag_names, [
-    "environment", "application", "owner", "source_repo", "created_on",
+    "environment", "application", "appcode", "owner", "source_repo", "created_on",
     "criticality_tier", "data_classification", "lifecycle_state",
     "cost_center", "gl_category",
   ])

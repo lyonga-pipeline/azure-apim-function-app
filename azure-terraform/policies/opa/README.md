@@ -50,7 +50,7 @@ Set `enforcement_level = "mandatory"` only after the findings have been remediat
 
 Expected pass conditions:
 
-- all tagged resources include the required enterprise tags: `env`, `application`, `bt_owner`, `source_repo`, `tf_workspace`, `recovery`, `cost_center`, `data_classification`, and `compliance_boundary`,
+- all tagged resources include the required enterprise tags: `environment`, `application`, `appcode`, `owner`, `source_repo`, `created_on`, `criticality_tier`, `data_classification`, `lifecycle_state`, `cost_center`, and `gl_category`,
 - resource locations are `centralus` or `global`,
 - no public IP addresses are created without an approved exception,
 - Storage Accounts do not enable public network access, shared access keys, public nested blob items, unsupported TLS, or disabled infrastructure encryption,

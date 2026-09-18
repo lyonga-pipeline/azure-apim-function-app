@@ -33,12 +33,19 @@ check "expiration_date_required" {
     condition = !(
       var.expiration_date == null &&
       (
-        !contains(["dev", "test", "uat", "prod"], lower(coalesce(var.environment, "prod"))) ||
+        !contains(["dev", "test", "uat", "prod"], lower(trimspace(coalesce(var.environment, "prod")))) ||
         var.lifecycle_state == "temporary" ||
         var.time_bound_exception == true
       )
     )
     error_message = "expiration_date is required when environment is sandbox/poc (or any value outside dev/test/uat/prod), lifecycle_state is \"temporary\", or time_bound_exception is true - sandbox, POC, temporary, and time-bound exception resources must have a planned end date (design doc: \"Required for sandbox, POC, temporary, and exception resources\")."
+  }
+}
+
+check "time_bound_exception_requires_exempt_lifecycle" {
+  assert {
+    condition     = !var.time_bound_exception || var.lifecycle_state == "exempt"
+    error_message = "time_bound_exception may only be true when lifecycle_state is \"exempt\". Use lifecycle_state = \"temporary\" for ordinary short-lived resources."
   }
 }
 

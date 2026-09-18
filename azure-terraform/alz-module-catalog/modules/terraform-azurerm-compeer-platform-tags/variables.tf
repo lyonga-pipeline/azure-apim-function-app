@@ -61,7 +61,7 @@ variable "source_repo" {
   default     = null
 
   validation {
-    condition     = var.source_repo == null ? true : can(regex("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$", var.source_repo))
+    condition     = var.source_repo == null ? true : can(regex("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$", trimspace(var.source_repo)))
     error_message = "source_repo must be a non-empty URI with a scheme, e.g. ado://Compeer/landing-zone or https://github.com/org/repo."
   }
 }
@@ -131,26 +131,26 @@ variable "lifecycle_state" {
     Mandatory. Resource lifecycle status (FinOps tag standard, exact
     meanings and usage guidance):
       active                - Resource is approved, in use, and expected to
-                               continue running under normal operations.
-      temporary             - Resource is intentionally short-lived (e.g.
-                               sandbox, POC, testing) and MUST carry an
-                               expiration_date - enforced by this module's
-                               expiration_date_required check.
-      pilot                 - Resource is part of a formal pilot or
-                               controlled rollout, not yet a permanent
-                               production commitment.
-      decommission-pending  - Resource is no longer strategically needed and
-                               is scheduled for removal, but has not been
-                               deleted yet.
-      retired               - Resource should no longer be running or
-                               incurring meaningful cost; present for
-                               historical/audit visibility only.
-      exempt                - Resource is an approved exception from normal
-                               lifecycle automation. Not automatically
-                               time-bound - set time_bound_exception = true
-                               if THIS specific exception was approved with
-                               an expiration date; a permanent exemption does
-                               not require one.
+                               continue operating. Use for production, shared,
+                               and long-lived non-production resources.
+      temporary             - Resource is intentionally short-lived and must
+                               have an expiration date. Use for sandboxes,
+                               POCs, test labs, one-time analysis, and migration
+                               staging.
+      pilot                 - Resource supports a formal pilot or controlled
+                               rollout. Use for early cloud workloads, limited
+                               production trials, and PLANT-related pilots.
+      decommission-pending  - Resource is no longer strategically needed but
+                               has not yet been removed. Use for post-migration
+                               cleanup, dual-run transition, app retirement,
+                               and pending data/archive validation.
+      retired               - Resource should no longer be running or incurring
+                               meaningful cost. Use only for records, snapshots,
+                               final archive, or audit evidence; ideally time-boxed.
+      exempt                - Resource has an approved exception from normal
+                               lifecycle automation. Use for security tooling,
+                               shared platform services, DR dependencies,
+                               legal/audit hold, or vendor constraints.
   EOT
   default     = null
 
@@ -188,7 +188,7 @@ variable "appcode" {
   default     = null
 
   validation {
-    condition     = var.appcode == null ? true : can(regex("^[a-zA-Z]{1,9}$", var.appcode))
+    condition     = var.appcode == null ? true : can(regex("^[a-zA-Z]{1,9}$", trimspace(var.appcode)))
     error_message = "appcode must be 1-9 letters only (no digits, hyphens, or underscores) - the same constraint the naming module enforces on its own appcode input, since this tag exists to mirror it."
   }
 }

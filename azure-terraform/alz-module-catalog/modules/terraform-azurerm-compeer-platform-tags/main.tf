@@ -1,19 +1,21 @@
 locals {
   # Full enterprise tag vocabulary. Emitted key names are frozen - they are the
-  # tag keys applied to every resource.
+  # tag keys applied to every resource. Controlled identifiers are emitted in
+  # canonical lowercase; free-form values are trimmed so reporting cannot split
+  # one value into multiple buckets because of casing or surrounding whitespace.
   candidate = {
-    environment           = var.environment
-    application           = var.application
-    appcode               = var.appcode
-    owner                 = var.owner
-    source_repo           = var.source_repo
+    environment           = var.environment == null ? null : lower(trimspace(var.environment))
+    application           = var.application == null ? null : lower(trimspace(var.application))
+    appcode               = var.appcode == null ? null : lower(trimspace(var.appcode))
+    owner                 = var.owner == null ? null : trimspace(var.owner)
+    source_repo           = var.source_repo == null ? null : trimspace(var.source_repo)
     created_on            = var.created_on
     criticality_tier      = var.criticality_tier
     data_classification   = var.data_classification
     lifecycle_state       = var.lifecycle_state
-    cost_center           = var.cost_center
-    gl_category           = var.gl_category
-    application_component = var.application_component
+    cost_center           = var.cost_center == null ? null : trimspace(var.cost_center)
+    gl_category           = var.gl_category == null ? null : trimspace(var.gl_category)
+    application_component = var.application_component == null ? null : lower(trimspace(var.application_component))
     modified_on           = var.modified_on
     created_by            = var.created_by
     dr_tier               = var.dr_tier
