@@ -49,7 +49,7 @@ variable "domain" {
 }
 
 variable "appcode" {
-  description = "Optional finer workload discriminator (e.g. orders). When set it becomes the leading token for workload resource names (key_vault, storage_account, user_assigned_identity, function_app, and disc/disc_abbr generally). At most 9 letters - it feeds Key Vault and storage-account names, which are already the most character-budget-constrained rows in the whole standard."
+  description = "Optional finer workload discriminator (e.g. orders), 1-9 letters. See README."
   type        = string
   default     = null
 
@@ -60,7 +60,7 @@ variable "appcode" {
 }
 
 variable "abbreviation" {
-  description = "Optional approved short discriminator for length-constrained Key Vault and storage-account names. Defaults to the module abbreviation map or a deterministic fallback."
+  description = "Optional approved short discriminator override for Key Vault/storage names. See README."
   type        = string
   default     = null
 
@@ -71,7 +71,7 @@ variable "abbreviation" {
 }
 
 variable "key_vault_name_token" {
-  description = "Caller-controlled final token for the singular Key Vault name. Defaults to vault. Use key_vault_keys when creating multiple vaults."
+  description = "Final token for the singular Key Vault name. Defaults to vault."
   type        = string
   default     = "vault"
 

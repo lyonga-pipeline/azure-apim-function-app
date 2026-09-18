@@ -9,7 +9,7 @@ output "all" {
 }
 
 output "discriminator" {
-  description = "The resolved root discriminator (component for platform, appcode|domain for workload)."
+  description = "Resolved root discriminator (component for platform, appcode|domain for workload)."
   value       = local.disc
 }
 
@@ -21,7 +21,7 @@ output "stem" {
 # ---- Keyed collections: <resource>_names = { <map key> => <name> } ---------
 
 output "key_vault_names" {
-  description = "Key Vault name per key. Pattern: <appcode-or-component>-<region>-<env>-<key>. Use keys such as vault, secrets, or certificates."
+  description = "Key Vault name per key_vault_keys entry. See README."
   value       = local.keyed.key_vault
 
   precondition {
@@ -31,7 +31,7 @@ output "key_vault_names" {
 }
 
 output "storage_account_names" {
-  description = "Storage account name per purpose key. Pattern: cf<purpose>[<4hex>]<region><env>sa, lowercase alphanumeric, <=24. prod is rendered prd."
+  description = "Storage account name per storage_account_keys entry. See README."
   value       = local.keyed.storage_account
 
   precondition {
@@ -41,7 +41,7 @@ output "storage_account_names" {
 }
 
 output "user_assigned_identity_names" {
-  description = "User-assigned identity name per user_assigned_identity_keys entry. Pattern: <disc>-<region>-<env>-<key>-id. Azure limit: Microsoft.ManagedIdentity/userAssignedIdentities names are 3-128 characters."
+  description = "User-assigned identity name per user_assigned_identity_keys entry."
   value       = local.keyed.user_assigned_identity
 
   precondition {
@@ -51,7 +51,7 @@ output "user_assigned_identity_names" {
 }
 
 output "function_app_names" {
-  description = "Function App name per numeric instance key. Pattern: <appcode-or-component>-<region>-<env>-azfn-<number>. Azure limit: 2-60 characters and globally unique."
+  description = "Function App name per function_app_keys instance number. See README."
   value       = local.keyed.function_app
 
   precondition {
@@ -63,17 +63,17 @@ output "function_app_names" {
 }
 
 output "nsg_names" {
-  description = "NSG name per nsg_keys entry. Pattern: <region>-<env>-<key>-nsg."
+  description = "NSG name per nsg_keys entry."
   value       = local.keyed.nsg
 }
 
 output "route_table_names" {
-  description = "Route table name per route_table_keys entry. Pattern: <region>-<env>-<key>-rt."
+  description = "Route table name per route_table_keys entry."
   value       = local.keyed.route_table
 }
 
 output "network_interface_names" {
-  description = "NIC name per network_interface_keys entry. Pattern: <region>-<env>-<key>-nic. Azure limit: Microsoft.Network/networkInterfaces names are 1-80 characters."
+  description = "NIC name per network_interface_keys entry."
   value       = local.keyed.network_interface
 
   precondition {
@@ -83,7 +83,7 @@ output "network_interface_names" {
 }
 
 output "private_endpoint_names" {
-  description = "Private endpoint name per private_endpoint_keys entry. Pattern: <region>-<env>-<key>-pe. Azure limit: Microsoft.Network/privateEndpoints names are 1-80 characters."
+  description = "Private endpoint name per private_endpoint_keys entry."
   value       = local.keyed.private_endpoint
 
   precondition {
@@ -93,7 +93,7 @@ output "private_endpoint_names" {
 }
 
 output "public_ip_names" {
-  description = "Public IP name per public_ip_keys entry. Pattern: <region>-<env>-<key>-pip. Azure limit: Microsoft.Network/publicIPAddresses names are 1-80 characters."
+  description = "Public IP name per public_ip_keys entry."
   value       = local.keyed.public_ip
 
   precondition {
@@ -103,7 +103,7 @@ output "public_ip_names" {
 }
 
 output "load_balancer_names" {
-  description = "Load balancer name per load_balancer_keys entry. Pattern: <stem>-<key>-ilb. Azure limit: Microsoft.Network/loadBalancers names are 1-80 characters."
+  description = "Load balancer name per load_balancer_keys entry."
   value       = local.keyed.load_balancer
 
   precondition {
@@ -113,7 +113,7 @@ output "load_balancer_names" {
 }
 
 output "virtual_machine_names" {
-  description = "VM name per key. Pattern: <environment>-<type>-<appcode-or-purpose>-<number>; the key supplies the tokens after environment, for example srv-dhcp-02. prod renders as AZR."
+  description = "VM name per virtual_machine_keys entry. See README."
   value       = local.keyed.virtual_machine
 
   precondition {
@@ -123,107 +123,107 @@ output "virtual_machine_names" {
 }
 
 output "disk_names" {
-  description = "Managed disk name per disk_keys entry. Pattern: <region>-<env>-<key>-disk."
+  description = "Managed disk name per disk_keys entry."
   value       = local.keyed.disk
 }
 
 output "recovery_services_vault_names" {
-  description = "Recovery Services vault name per recovery_services_vault_keys entry. Pattern: <stem>-<key>-rsv."
+  description = "Recovery Services vault name per recovery_services_vault_keys entry."
   value       = local.keyed.recovery_services_vault
 }
 
 output "subnet_names" {
-  description = "Subnet name per subnet_keys entry (non-reserved subnets only). Pattern: <env>-<key>-subnet."
+  description = "Subnet name per subnet_keys entry (non-reserved subnets only)."
   value       = local.keyed.subnet
 }
 
 # ---- Management groups ----
 output "mg_enterprise" {
-  description = "Landing-zone root management group. Pattern: compeer-enterprise-mg."
+  description = "Landing-zone root management group."
   value       = local.names.mg_enterprise
 }
 output "mg_platform" {
-  description = "Platform management group. Pattern: platform-mg."
+  description = "Platform management group."
   value       = local.names.mg_platform
 }
 output "mg_workloads" {
-  description = "Workloads management group. Pattern: workloads-mg."
+  description = "Workloads management group."
   value       = local.names.mg_workloads
 }
 output "mg_sandbox" {
-  description = "Sandbox management group. Pattern: sandbox-mg."
+  description = "Sandbox management group."
   value       = local.names.mg_sandbox
 }
 output "mg_decommissioned" {
-  description = "Decommissioned management group. Pattern: decommissioned-mg."
+  description = "Decommissioned management group."
   value       = local.names.mg_decommissioned
 }
 output "mg" {
-  description = "Any <name>-mg management group (needs `domain` as the node token: security, identity, internal-apps, ...). Pattern: <domain>-mg."
+  description = "Any <domain>-mg management group. Needs `domain`."
   value       = local.names.mg
 }
 output "mg_environment" {
-  description = "Any <name>-<env>-mg management group (needs `domain`). Pattern: <domain>-<env>-mg."
+  description = "Any <domain>-<env>-mg management group. Needs `domain`."
   value       = local.names.mg_environment
 }
 output "mg_workload_domain" {
-  description = "Alias of `mg` kept for older callers. Pattern: <domain>-mg."
+  description = "Compatibility alias of `mg`. See README."
   value       = local.names.mg_workload_domain
 }
 output "mg_workload_domain_environment" {
-  description = "Alias of `mg_environment` kept for older callers. Pattern: <domain>-<env>-mg."
+  description = "Compatibility alias of `mg_environment`. See README."
   value       = local.names.mg_workload_domain_environment
 }
 
 # ---- Subscriptions ----
 output "subscription_platform" {
-  description = "Platform subscription. Pattern: sub-platform-<env>-<region>."
+  description = "Platform subscription."
   value       = local.names.subscription_platform
 }
 output "subscription_identity" {
-  description = "Identity subscription. Pattern: sub-identity-<env>-<region>."
+  description = "Identity subscription."
   value       = local.names.subscription_identity
 }
 output "subscription_connectivity" {
-  description = "Connectivity subscription. Pattern: sub-connectivity-<env>-<region>."
+  description = "Connectivity subscription."
   value       = local.names.subscription_connectivity
 }
 output "subscription_management" {
-  description = "Management subscription. Pattern: sub-management-<env>-<region>."
+  description = "Management subscription."
   value       = local.names.subscription_management
 }
 output "subscription_workload" {
-  description = "Workload subscription (needs `name`). Pattern: sub-workload-<name>-<env>-<region>."
+  description = "Workload subscription. Needs `name`."
   value       = local.names.subscription_workload
 }
 output "subscription_scoped" {
-  description = "ADAPTED (closest: the platform subscription rows). Generic scoped subscription (needs `purpose`: security, sandbox-ops, decommissioned, ...). Pattern: sub-<purpose>-<env>-<region>."
+  description = "Generic scoped subscription. Needs `purpose`."
   value       = local.names.subscription_scoped
 }
 
 # ---- Networking ----
 output "hub_vnet" {
-  description = "Hub virtual network. Pattern: platform-<region>-<env>-hub-vnet."
+  description = "Hub virtual network."
   value       = local.names.hub_vnet
 }
 output "shared_vnet" {
-  description = "Shared-services virtual network. Pattern: platform-<region>-<env>-shared-vnet."
+  description = "Shared-services virtual network."
   value       = local.names.shared_vnet
 }
 output "subnet" {
-  description = "Subnet (needs `purpose`). Pattern: <env>-<purpose>-subnet."
+  description = "Compatibility single subnet. Needs `purpose`. Prefer subnet_keys."
   value       = local.names.subnet
 }
 output "nsg" {
-  description = "Network security group (needs `purpose`). Pattern: <region>-<env>-<purpose>-nsg."
+  description = "Compatibility single NSG. Needs `purpose`. Prefer nsg_keys."
   value       = local.names.nsg
 }
 output "route_table" {
-  description = "Route table (needs `destination`). Pattern: <region>-<env>-<destination>-rt."
+  description = "Compatibility single route table. Needs `destination`. Prefer route_table_keys."
   value       = local.names.route_table
 }
 output "public_ip" {
-  description = "Public IP (needs `resource`). Pattern: <region>-<env>-<resource>-pip. Azure limit: 1-80 characters."
+  description = "Compatibility single public IP. Needs `resource`. Prefer public_ip_keys."
   value       = local.names.public_ip
 
   precondition {
@@ -232,11 +232,11 @@ output "public_ip" {
   }
 }
 output "workload_vnet" {
-  description = "ADAPTED (closest: shared_vnet / hub_vnet). Workload spoke VNet (needs `domain`). Pattern: <domain>-<region>-<env>-vnet."
+  description = "Workload spoke VNet. Needs `domain`."
   value       = local.names.workload_vnet
 }
 output "network_interface" {
-  description = "ADAPTED (closest: public_ip). NIC (needs `resource`). Pattern: <region>-<env>-<resource>-nic. Azure limit: 1-80 characters."
+  description = "Compatibility single NIC. Needs `resource`. Prefer network_interface_keys."
   value       = local.names.network_interface
 
   precondition {
@@ -245,7 +245,7 @@ output "network_interface" {
   }
 }
 output "private_endpoint" {
-  description = "ADAPTED (closest: public_ip). Private endpoint (needs `resource`). Pattern: <region>-<env>-<resource>-pe. Azure limit: 1-80 characters."
+  description = "Compatibility single private endpoint. Needs `resource`. Prefer private_endpoint_keys."
   value       = local.names.private_endpoint
 
   precondition {
@@ -254,69 +254,69 @@ output "private_endpoint" {
   }
 }
 output "nat_gateway" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-natgw."
+  description = "Platform NAT gateway."
   value       = local.names.nat_gateway
 }
 output "route_server" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-rtsrv."
+  description = "Platform route server."
   value       = local.names.route_server
 }
 output "ddos_protection_plan" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-ddos."
+  description = "Platform DDoS protection plan."
   value       = local.names.ddos_protection_plan
 }
 output "private_dns_resolver" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-dnspr."
+  description = "Platform private DNS resolver."
   value       = local.names.private_dns_resolver
 }
 output "bastion" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-bas."
+  description = "Platform Bastion host."
   value       = local.names.bastion
 }
 
 # ---- Firewall / edge ----
 output "firewall_vm" {
-  description = "Palo Alto firewall VM. Pattern: platform-<region>-<env>-fw-0<n> (from `instance`). No length precondition: this pattern is always well under Azure's 64-char VM resource-name limit given the fixed token set, and this module never sets the separate, tighter 15-char Windows computer_name (NetBIOS) limit - keep that override in tfvars for a Windows VM."
+  description = "Palo Alto firewall VM. Uses `instance`."
   value       = local.names.firewall_vm
 }
 output "firewall_ilb" {
-  description = "Firewall internal load balancer. Pattern: platform-<region>-<env>-fw-ilb."
+  description = "Firewall internal load balancer."
   value       = local.names.firewall_ilb
 }
 output "expressroute_gateway" {
-  description = "ExpressRoute gateway. Pattern: platform-<region>-<env>-ergw."
+  description = "ExpressRoute gateway."
   value       = local.names.expressroute_gateway
 }
 output "vpn_gateway" {
-  description = "VPN gateway. Pattern: platform-<region>-<env>-vpngw."
+  description = "VPN gateway."
   value       = local.names.vpn_gateway
 }
 output "cloudflare_connector" {
-  description = "Cloudflare Tunnel connector. Pattern: platform-<region>-<env>-cf-connector-0<n> (from `instance`)."
+  description = "Cloudflare Tunnel connector. Uses `instance`."
   value       = local.names.cloudflare_connector
 }
 output "expressroute_circuit" {
-  description = "ADAPTED (closest: expressroute_gateway). Pattern: platform-<region>-<env>-erc."
+  description = "ExpressRoute circuit."
   value       = local.names.expressroute_circuit
 }
 output "expressroute_connection" {
-  description = "ADAPTED (closest: expressroute_gateway). Pattern: platform-<region>-<env>-erconn."
+  description = "ExpressRoute connection."
   value       = local.names.expressroute_connection
 }
 output "vpn_local_network_gateway" {
-  description = "ADAPTED (closest: vpn_gateway). Pattern: platform-<region>-<env>-lng."
+  description = "VPN local network gateway."
   value       = local.names.vpn_local_network_gateway
 }
 output "vpn_connection" {
-  description = "ADAPTED (closest: vpn_gateway). Pattern: platform-<region>-<env>-vpnconn."
+  description = "VPN connection."
   value       = local.names.vpn_connection
 }
 output "domain_controller_vm" {
-  description = "ADAPTED (closest: firewall_vm). Domain controller VM. Pattern: platform-<region>-<env>-dc-0<n> (from `instance`). No length precondition: always well under Azure's 64-char VM resource-name limit given the fixed token set. Domain controllers are Windows - this module does NOT set the separate 15-char Windows computer_name (NetBIOS) limit; that override stays in tfvars (see directory-services/naming.tf)."
+  description = "Domain controller VM. Uses `instance`. See README."
   value       = local.names.domain_controller_vm
 }
 output "load_balancer" {
-  description = "ADAPTED (closest: firewall_ilb). Internal load balancer (needs `purpose`). Pattern: platform-<region>-<env>-<purpose>-ilb. Azure limit: 1-80 characters."
+  description = "Compatibility single internal load balancer. Needs `purpose`. Prefer load_balancer_keys."
   value       = local.names.load_balancer
 
   precondition {
@@ -327,7 +327,7 @@ output "load_balancer" {
 
 # ---- Observability / recovery ----
 output "log_analytics_workspace" {
-  description = "Log Analytics workspace. Pattern: <region>-<env>-loganalytics-workspace."
+  description = "Log Analytics workspace."
   value       = local.names.log_analytics_workspace
 
   precondition {
@@ -336,11 +336,11 @@ output "log_analytics_workspace" {
   }
 }
 output "monitor_workspace" {
-  description = "Azure Monitor workspace. Pattern: platform-<region>-<env>-monitor."
+  description = "Azure Monitor workspace."
   value       = local.names.monitor_workspace
 }
 output "automation_account" {
-  description = "ADAPTED (closest: monitor_workspace / recovery_services_vault). Pattern: platform-<region>-<env>-aa. Azure limit: Microsoft.Automation/automationAccounts names are 6-50 characters, must start with a letter."
+  description = "Automation account."
   value       = local.names.automation_account
 
   precondition {
@@ -349,11 +349,11 @@ output "automation_account" {
   }
 }
 output "action_group" {
-  description = "ADAPTED (closest: monitor_workspace). Pattern: platform-<region>-<env>-ag."
+  description = "Monitor action group."
   value       = local.names.action_group
 }
 output "recovery_services_vault" {
-  description = "Recovery Services vault. Pattern: platform-<region>-<env>-rsv."
+  description = "Compatibility single Recovery Services vault. Prefer recovery_services_vault_keys."
   value       = local.names.recovery_services_vault
 
   precondition {
@@ -364,7 +364,7 @@ output "recovery_services_vault" {
 
 # ---- Key Vault / Resource Group ----
 output "key_vault" {
-  description = "Singular Key Vault. Pattern: <appcode-or-component>-<region>-<env>-<key_vault_name_token>. The final token defaults to vault and is caller-controlled."
+  description = "Singular Key Vault name. See README for the pattern and `key_vault_name_token`."
   value       = local.names.key_vault
 
   precondition {
@@ -378,7 +378,7 @@ output "key_vault" {
   }
 }
 output "platform_resource_group" {
-  description = "Platform resource group (no capability). Pattern: platform-<region>-<env>-rg. Azure limit: Microsoft.Resources/resourceGroups names are 1-90 characters."
+  description = "Plain platform resource group (no component/purpose)."
   value       = local.names.platform_resource_group
 
   precondition {
@@ -387,7 +387,7 @@ output "platform_resource_group" {
   }
 }
 output "resource_group" {
-  description = "ADAPTED (F has one platform RG row). Per-capability platform RG when `purpose` is set, else the plain platform RG. Pattern: platform-<region>-<env>[-<purpose>]-rg. Azure limit: 1-90 characters."
+  description = "Resource group for the current scope/component/purpose. See README."
   value       = local.names.resource_group
 
   precondition {
@@ -396,7 +396,7 @@ output "resource_group" {
   }
 }
 output "workload_resource_group" {
-  description = "ADAPTED (closest: mg_environment). Workload spoke RG (needs `domain`). Pattern: <domain>-<env>-rg. Azure limit: 1-90 characters."
+  description = "Workload spoke resource group. Needs `domain`."
   value       = local.names.workload_resource_group
 
   precondition {
@@ -405,11 +405,11 @@ output "workload_resource_group" {
   }
 }
 output "storage_account" {
-  description = "Storage account using purpose. Pattern: cf<purpose><region><env>sa, lowercase alphanumeric, truncated to 24. prod renders as prd."
+  description = "Compatibility single storage account. Needs `purpose`. Prefer storage_account_keys."
   value       = local.names.storage_account
 }
 output "user_assigned_identity" {
-  description = "ADAPTED (closest: key_vault). Needs `purpose`. Pattern: <purpose>-<region>-<env>-id. Azure limit: 3-128 characters."
+  description = "Compatibility single user-assigned identity. Needs `purpose`. Prefer user_assigned_identity_keys."
   value       = local.names.user_assigned_identity
 
   precondition {
@@ -419,7 +419,7 @@ output "user_assigned_identity" {
 }
 
 output "function_app" {
-  description = "Function App using instance. Pattern: <appcode>-<region>-<env>-azfn-<number>. Azure limit: 2-60 characters and globally unique."
+  description = "Compatibility single Function App. Needs `appcode`. Prefer function_app_keys."
   value       = local.names.function_app
 
   precondition {
@@ -434,22 +434,22 @@ output "function_app" {
 
 # ---- Policy ----
 output "policy_initiative" {
-  description = "Policy initiative (needs `domain` + `purpose`). Pattern: initiative-<domain>-<purpose>."
+  description = "Policy initiative name. Needs `domain` + `purpose`."
   value       = local.names.policy_initiative
 }
 output "policy_assignment" {
-  description = "Policy assignment (needs `policy` + `policy_scope`). Pattern: assign-<policy>-<policy_scope>. CAUTION (confirmed empirically, not documented by Azure as a universal limit): azurerm_management_group_policy_assignment enforces a hard 24-character name limit - this pattern has no length guard of its own since it doesn't know which scope (management group / subscription / resource group) will consume it, and only the management-group-scoped resource actually enforces 24 chars. Keep `policy` and `policy_scope` short for anything that might be management-group-scoped."
+  description = "Policy assignment name. Needs `policy` + `policy_scope`. See README for the 24-char management-group caveat."
   value       = local.names.policy_assignment
 }
 
 # ---- Entra ID ----
 output "entra_security_group" {
-  description = "Entra ID security group (needs `entra_domain` + `entra_role`). Pattern: AZ-<DOMAIN>-<Role> (domain upper, role case preserved)."
+  description = "Entra ID security group name. Needs `entra_domain` + `entra_role`."
   value       = local.names.entra_security_group
 }
 
 # ---- Private DNS ----
 output "private_dns_zone" {
-  description = "Private DNS zone (needs `domain`). Pattern: <domain>-pdns."
+  description = "Private DNS zone name. Needs `domain`."
   value       = local.names.private_dns_zone
 }

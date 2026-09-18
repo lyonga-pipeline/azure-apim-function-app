@@ -192,6 +192,26 @@ suffix plus the required region/environment ending when truncating to Azure's
 Function App names are also globally unique, but the module does not append a
 hash. Use a distinctive stable resource key or an explicit approved name.
 
+## Known Azure Caveats
+
+**`policy_assignment` and the management-group 24-character limit.**
+`azurerm_management_group_policy_assignment` enforces a hard 24-character
+name limit - confirmed empirically against the real provider schema, not
+documented by Azure as a universal Azure Policy assignment limit, and it
+does NOT apply to subscription- or resource-group-scoped assignments. The
+`policy_assignment` output has no length precondition of its own because it
+doesn't know which scope will consume it - keep `policy` and `policy_scope`
+short for anything that might be management-group-scoped.
+
+**VM names and the Windows NetBIOS 15-character limit.** `firewall_vm`,
+`domain_controller_vm`, and `virtual_machine_names` are always well under
+Azure's 64-character VM resource-name limit given their fixed token sets, so
+none of them carry a length precondition. None of them set the separate,
+much tighter 15-character Windows `computer_name` (NetBIOS) limit either -
+that's a Windows-only concern orthogonal to the Azure resource name, so a
+Windows VM needs its own `computer_name` override in the consuming root's
+tfvars (see `directory-services`' own naming wiring for an example).
+
 ## Singular Outputs
 
 The module also exposes context-generated singleton names, including resource
