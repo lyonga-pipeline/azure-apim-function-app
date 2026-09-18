@@ -1,3 +1,17 @@
+# Every non-fixed management group name is <domain>-mg - one instance per
+# key rather than the single front-door module, because each management
+# group needs its OWN `domain` (there's no single "this root's identity"
+# the way a resource-group-scoped pattern has). trimsuffix is a no-op for a
+# key that's already the bare domain; it only matters for keys already
+# written with the "-mg" suffix baked in.
+module "naming_mg" {
+  source      = "../../modules/terraform-azurerm-compeer-naming"
+  for_each    = var.management_groups
+  region      = coalesce(try(var.naming.region, null), "centralus")
+  environment = try(var.naming.environment, "shared")
+  domain      = trimsuffix(each.key, "-mg")
+}
+
 locals {
   root_parent_management_group_value = trimspace(var.root_management_group_id == null ? "" : var.root_management_group_id)
   root_parent_management_group_id = (
@@ -23,7 +37,7 @@ module "management_groups" {
 
   management_groups = {
     for key, value in var.management_groups : key => {
-      display_name     = coalesce(try(value.display_name, null), key)
+      display_name     = coalesce(try(value.display_name, null), module.naming_mg[key].mg, key)
       parent_key       = try(value.parent_key, "root") == "root" ? null : value.parent_key
       subscription_ids = local.subscription_ids_by_management_group[key]
     }

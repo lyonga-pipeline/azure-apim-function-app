@@ -13,23 +13,27 @@ authorization = {
   # Entra security groups — the ONLY principals granted Azure RBAC.
   # User -> Group -> Role -> Scope. Membership is governed by identity lifecycle
   # (see operational_contracts.access_lifecycle), not asserted here.
+  # display_name is computed by the naming module from entra_domain/entra_role
+  # (AZ-<DOMAIN>-<Role>) rather than hand-typed - set an explicit display_name
+  # per entry only if a group genuinely needs to deviate from that pattern.
   rbac_groups = {
-    plt_readers      = { display_name = "AZ-PLT-Readers", description = "Read-only across platform-mg." }
-    plt_contributors = { display_name = "AZ-PLT-Contributors", description = "Contributor on platform-mg." }
-    plt_admins       = { display_name = "AZ-PLT-Admins", description = "Owner on platform-mg (PIM-eligible only).", assignable_to_role = true }
+    plt_readers      = { entra_domain = "plt", entra_role = "Readers", description = "Read-only across platform-mg." }
+    plt_contributors = { entra_domain = "plt", entra_role = "Contributors", description = "Contributor on platform-mg." }
+    plt_admins       = { entra_domain = "plt", entra_role = "Admins", description = "Owner on platform-mg (PIM-eligible only).", assignable_to_role = true }
 
-    sec_readers   = { display_name = "AZ-SEC-Readers", description = "Security reader, enterprise scope." }
-    sec_operators = { display_name = "AZ-SEC-Operators", description = "Security operations on Defender / Sentinel." }
-    sec_admins    = { display_name = "AZ-SEC-Admins", description = "Security admin (PIM-eligible only).", assignable_to_role = true }
+    sec_readers   = { entra_domain = "sec", entra_role = "Readers", description = "Security reader, enterprise scope." }
+    sec_operators = { entra_domain = "sec", entra_role = "Operators", description = "Security operations on Defender / Sentinel." }
+    sec_admins    = { entra_domain = "sec", entra_role = "Admins", description = "Security admin (PIM-eligible only).", assignable_to_role = true }
 
-    net_readers   = { display_name = "AZ-NET-Readers", description = "Read-only on connectivity-mg." }
-    net_operators = { display_name = "AZ-NET-Operators", description = "Network Contributor on connectivity-mg." }
-    net_admins    = { display_name = "AZ-NET-Admins", description = "Network admin (PIM-eligible only).", assignable_to_role = true }
+    net_readers   = { entra_domain = "net", entra_role = "Readers", description = "Read-only on connectivity-mg." }
+    net_operators = { entra_domain = "net", entra_role = "Operators", description = "Network Contributor on connectivity-mg." }
+    net_admins    = { entra_domain = "net", entra_role = "Admins", description = "Network admin (PIM-eligible only).", assignable_to_role = true }
 
-    audit_readers = { display_name = "AZ-AUDIT-Readers", description = "Read-only across the enterprise MG for audit evidence." }
+    audit_readers = { entra_domain = "audit", entra_role = "Readers", description = "Read-only across the enterprise MG for audit evidence." }
 
     break_glass_admins = {
-      display_name = "AZ-BREAKGLASS-Admins"
+      entra_domain = "breakglass"
+      entra_role   = "Admins"
       description  = "Emergency Azure access group. Group object is Terraform-managed; membership is controlled by the break-glass manual process."
     }
   }

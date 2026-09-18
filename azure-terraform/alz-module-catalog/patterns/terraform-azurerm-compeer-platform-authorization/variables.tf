@@ -1,16 +1,31 @@
+variable "naming" {
+  description = "Naming-module identity for this pattern. Entra groups aren't region/environment-scoped, so these exist only to satisfy the naming module's required inputs and don't affect entra_security_group's computed value."
+  type = object({
+    region      = optional(string)
+    environment = optional(string, "shared")
+  })
+  default = {}
+}
+
 variable "rbac_groups" {
   description = <<-EOT
     Entra security groups that are the ONLY principals granted Azure RBAC in the
     landing zone (design doc Phase 1 Step 5 / Phase 3 Step 5 — "User -> Group ->
-    Role -> Scope, never User -> Role"). Keyed by a stable short key; display_name
-    is the Entra group name (e.g. "AZ-PLT-Readers").
+    Role -> Scope, never User -> Role"). Keyed by a stable short key.
+
+    display_name defaults to the naming module's entra_security_group pattern
+    (AZ-<entra_domain>-<entra_role>, e.g. entra_domain = "plt", entra_role =
+    "Readers" -> "AZ-PLT-Readers") when entra_domain/entra_role are set - an
+    explicit display_name always overrides.
 
     members / owners are Entra object IDs. Prefer leaving members empty here and
     governing membership through the joiner/mover/leaver process or Entra
     entitlement management; Terraform still owns the group object and its RBAC.
   EOT
   type = map(object({
-    display_name            = string
+    display_name            = optional(string)
+    entra_domain            = optional(string)
+    entra_role              = optional(string)
     description             = optional(string)
     mail_nickname           = optional(string)
     members                 = optional(list(string))
@@ -19,6 +34,13 @@ variable "rbac_groups" {
     prevent_duplicate_names = optional(bool, true)
   }))
   default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.rbac_groups : v.display_name != null || (v.entra_domain != null && v.entra_role != null)
+    ])
+    error_message = "each rbac_groups entry needs either an explicit display_name or both entra_domain and entra_role."
+  }
 }
 
 variable "custom_role_definitions" {

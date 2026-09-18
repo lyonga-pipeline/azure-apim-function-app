@@ -81,6 +81,34 @@ run "rejects_unknown_group_key" {
   expect_failures = [terraform_data.role_assignment_contract]
 }
 
+run "display_name_defaults_to_naming_module_pattern" {
+  command = apply
+  variables {
+    rbac_groups = {
+      plt_readers = { entra_domain = "plt", entra_role = "Readers" }
+    }
+    role_assignments = {}
+  }
+  assert {
+    condition     = module.rbac_groups["plt_readers"].display_name == "AZ-PLT-Readers"
+    error_message = "display_name should default to the naming module's entra_security_group pattern (AZ-<DOMAIN>-<Role>) when entra_domain/entra_role are set"
+  }
+}
+
+run "explicit_display_name_overrides_naming_default" {
+  command = apply
+  variables {
+    rbac_groups = {
+      legacy_group = { display_name = "SG-Legacy-Custom-Name", entra_domain = "plt", entra_role = "Readers" }
+    }
+    role_assignments = {}
+  }
+  assert {
+    condition     = module.rbac_groups["legacy_group"].display_name == "SG-Legacy-Custom-Name"
+    error_message = "an explicit display_name must win over the naming-module default, even when entra_domain/entra_role are also set"
+  }
+}
+
 run "custom_role_definition_wiring" {
   command = plan
   variables {

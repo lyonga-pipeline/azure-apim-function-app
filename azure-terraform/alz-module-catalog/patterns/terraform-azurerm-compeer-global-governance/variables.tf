@@ -18,12 +18,21 @@ variable "root_management_group_id" {
   }
 }
 
+variable "naming" {
+  description = "Naming-module identity for this pattern. Management groups aren't region- or environment-scoped, so these exist only to satisfy the naming module's required inputs - environment defaults to \"shared\" (an approved naming-module value) since a single governance workspace names management groups spanning every real environment at once."
+  type = object({
+    region      = optional(string)
+    environment = optional(string, "shared")
+  })
+  default = {}
+}
+
 variable "management_groups" {
   type = map(object({
     display_name = optional(string)
     parent_key   = optional(string, "root")
   }))
-  description = "Management groups keyed by the Azure management group name (matches design-doc Appendix F, e.g. \"security-mg\", \"internal-apps-uat-mg\"). display_name defaults to the key; parent_key = \"root\" places the group under root_management_group_id / the tenant root."
+  description = "Management groups keyed by the Azure management group name (matches design-doc Appendix F, e.g. \"security-mg\", \"internal-apps-uat-mg\"). display_name defaults to the naming module's `mg` output (domain = the key with its \"-mg\" suffix trimmed, e.g. \"security-mg\" -> domain \"security\" -> \"security-mg\" - same string, now computed instead of hand-typed) - an explicit display_name always overrides. parent_key = \"root\" places the group under root_management_group_id / the tenant root."
 }
 
 variable "subscription_placements" {

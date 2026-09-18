@@ -11,6 +11,7 @@ module "governance" {
   }
 
   subscription_id                     = var.execution_subscription_id
+  naming                              = { region = var.location }
   root_management_group_id            = try(var.governance.root_management_group_id, null)
   management_groups                   = try(var.governance.management_groups, {})
   subscription_placements             = try(var.governance.subscription_placements, {})

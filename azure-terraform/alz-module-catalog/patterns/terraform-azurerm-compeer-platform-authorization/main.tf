@@ -1,8 +1,20 @@
+# One naming instance per group, not the single front-door module: each
+# group needs its OWN entra_domain/entra_role pair, the way each management
+# group in global-governance needs its own domain.
+module "naming_entra" {
+  source       = "../../modules/terraform-azurerm-compeer-naming"
+  for_each     = var.rbac_groups
+  region       = coalesce(try(var.naming.region, null), "centralus")
+  environment  = try(var.naming.environment, "shared")
+  entra_domain = try(each.value.entra_domain, null)
+  entra_role   = try(each.value.entra_role, null)
+}
+
 module "rbac_groups" {
   source   = "../../modules/terraform-azuread-compeer-ad-group"
   for_each = var.rbac_groups
 
-  display_name            = each.value.display_name
+  display_name            = coalesce(try(each.value.display_name, null), module.naming_entra[each.key].entra_security_group)
   description             = try(each.value.description, null)
   security_enabled        = true
   mail_enabled            = false
