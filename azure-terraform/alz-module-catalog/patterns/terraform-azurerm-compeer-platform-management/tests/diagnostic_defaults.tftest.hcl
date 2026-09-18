@@ -16,7 +16,7 @@ variables {
   platform_tags = {
     application         = "platform-management"
     owner               = "platform-team"
-    source_repo         = "example/repo"
+    source_repo         = "ado://Compeer/landing-zone"
     created_on          = "2026-01-01"
     criticality_tier    = "tier-1"
     data_classification = "internal"

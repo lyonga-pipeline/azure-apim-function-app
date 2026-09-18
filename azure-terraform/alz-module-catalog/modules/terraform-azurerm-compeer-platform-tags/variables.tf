@@ -4,32 +4,66 @@
 # set only the tags it has values for. The output map drops any tag left null.
 #
 # `missing_mandatory` reports which of the Required=Yes tags were not supplied,
-# so a caller that wants to enforce them can `precondition` on it.
+# so a caller that wants to enforce them can `precondition` on it. This module
+# validates the SHAPE of any value it's given; it is deliberately not the
+# enforcement layer for whether a mandatory tag was supplied at all - that's
+# OPA / Azure Policy's job (see README).
+#
+# A real calendar-date check (`can(timecmp("${var.x}T00:00:00Z", ...))`) is
+# used throughout instead of the old `^\d{4}-\d{2}-\d{2}$` regex: the regex
+# only checked digit shape, so "2026-99-99" or "2026-02-30" passed it. Feeding
+# the same synthesized RFC3339 string to itself through timecmp() forces
+# Terraform to actually parse it as a calendar date - confirmed empirically
+# against real impossible dates (month 99, Feb 30, Feb 29 on a non-leap year,
+# Apr 31) and malformed widths ("2026-9-2") before relying on it here.
 # =============================================================================
 
 # ---- Mandatory (Required = Yes) --------------------------------------------
 variable "environment" {
   type        = string
-  description = "Mandatory. Deployment environment (e.g. prod, uat, test, dev, sandbox)."
+  description = "Mandatory. Deployment environment: dev, test, uat, prod, sandbox, or poc. Extend this list only via a deliberate module version bump if a new durable or temporary environment is approved - see checks.tf for why the exact boundary of this list also drives the expiration_date requirement."
   default     = null
+
+  validation {
+    condition     = var.environment == null ? true : contains(["dev", "test", "uat", "prod", "sandbox", "poc"], lower(trimspace(var.environment)))
+    error_message = "environment must be one of: dev, test, uat, prod, sandbox, poc."
+  }
 }
 
 variable "application" {
   type        = string
-  description = "Mandatory. Application / service this resource belongs to."
+  description = "Mandatory. Application / service this resource belongs to. Non-empty normalized application or platform identifier."
   default     = null
+
+  validation {
+    condition     = var.application == null ? true : length(trimspace(var.application)) > 0
+    error_message = "application must be non-empty when supplied."
+  }
 }
 
 variable "owner" {
   type        = string
-  description = "Mandatory. Accountable owner (team or distribution list)."
+  description = "Mandatory. Accountable owner: a non-empty team name, or a distribution-list email address."
   default     = null
+
+  validation {
+    condition = var.owner == null ? true : (
+      length(trimspace(var.owner)) > 0 &&
+      (!strcontains(var.owner, "@") || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.owner)))
+    )
+    error_message = "owner must be a non-empty team name, or - if it contains \"@\" - a well-formed distribution-list email address."
+  }
 }
 
 variable "source_repo" {
   type        = string
-  description = "Mandatory. Repository that provisions the resource."
+  description = "Mandatory. Repository or IaC path that provisions the resource, as a URI (e.g. ado://Compeer/landing-zone, https://github.com/org/repo)."
   default     = null
+
+  validation {
+    condition     = var.source_repo == null ? true : can(regex("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$", var.source_repo))
+    error_message = "source_repo must be a non-empty URI with a scheme, e.g. ado://Compeer/landing-zone or https://github.com/org/repo."
+  }
 }
 
 variable "created_on" {
@@ -42,19 +76,30 @@ variable "created_on" {
     timestamp() re-evaluates on every single plan, which would make this
     tag (and therefore every resource's tag map) show a diff on every run
     forever - exactly the "durable, does not require redeployment" tagging
-    principle this schema exists to protect. The design doc's own
-    "Auto-populated by CI/CD pipeline" note means the PIPELINE captures
-    "first deployed" once (e.g. only setting -var created_on=... on a
-    resource's actual first apply, or reading it back from existing state/
-    tags on every subsequent one) and passes a frozen literal value in from
-    there - Terraform itself has no built-in way to know "is this truly the
-    first apply" without state inspection the pipeline has to do anyway.
+    principle this schema exists to protect.
+
+    This module stays a pure string-in-string-out variable: it validates
+    whatever frozen value it's handed, regardless of where that value came
+    from. The recommended source is a `time_static` resource declared in the
+    CONSUMING ROOT (not in this module - the root owns the deployment
+    lifecycle boundary), e.g.:
+
+      resource "time_static" "deployment_created" {}
+      module "tags" {
+        created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
+      }
+
+    `time_static` computes its value once, on the resource's first apply,
+    and stores it in state - every later plan reuses the same value instead
+    of recomputing it, unlike timestamp(). A pipeline-generated, persisted
+    date is an equally valid source; timestamp() directly is the one thing
+    to avoid.
   EOT
   default     = null
 
   validation {
-    condition     = var.created_on == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.created_on))
-    error_message = "created_on must use YYYY-MM-DD format."
+    condition     = var.created_on == null ? true : can(timecmp("${var.created_on}T00:00:00Z", "${var.created_on}T00:00:00Z"))
+    error_message = "created_on must be a real calendar date in YYYY-MM-DD format (e.g. 2026-09-02, not 2026-99-99 or 2026-02-30)."
   }
 }
 
@@ -82,7 +127,31 @@ variable "data_classification" {
 
 variable "lifecycle_state" {
   type        = string
-  description = "Mandatory. Resource lifecycle status: active (approved, in use, expected to continue), temporary (intentionally short-lived, must have an expiration_date), pilot (formal pilot / controlled rollout), decommission-pending (no longer strategically needed, not yet removed), retired (should no longer be running or incurring meaningful cost), or exempt (approved exception from normal lifecycle automation)."
+  description = <<-EOT
+    Mandatory. Resource lifecycle status (FinOps tag standard, exact
+    meanings and usage guidance):
+      active                - Resource is approved, in use, and expected to
+                               continue running under normal operations.
+      temporary             - Resource is intentionally short-lived (e.g.
+                               sandbox, POC, testing) and MUST carry an
+                               expiration_date - enforced by this module's
+                               expiration_date_required check.
+      pilot                 - Resource is part of a formal pilot or
+                               controlled rollout, not yet a permanent
+                               production commitment.
+      decommission-pending  - Resource is no longer strategically needed and
+                               is scheduled for removal, but has not been
+                               deleted yet.
+      retired               - Resource should no longer be running or
+                               incurring meaningful cost; present for
+                               historical/audit visibility only.
+      exempt                - Resource is an approved exception from normal
+                               lifecycle automation. Not automatically
+                               time-bound - set time_bound_exception = true
+                               if THIS specific exception was approved with
+                               an expiration date; a permanent exemption does
+                               not require one.
+  EOT
   default     = null
 
   validation {
@@ -93,14 +162,24 @@ variable "lifecycle_state" {
 
 variable "cost_center" {
   type        = string
-  description = "Mandatory. Cost center / chargeback key."
+  description = "Mandatory. Cost center / chargeback key. Non-empty when supplied - a stricter Finance-approved format is deliberately not enforced yet; confirm the exact format with Finance before adding one."
   default     = null
+
+  validation {
+    condition     = var.cost_center == null ? true : length(trimspace(var.cost_center)) > 0
+    error_message = "cost_center must be non-empty when supplied."
+  }
 }
 
 variable "gl_category" {
   type        = string
-  description = "Mandatory. General-ledger category for financial reporting."
+  description = "Mandatory. General-ledger category for financial reporting. Non-empty when supplied - a stricter Finance-approved format is deliberately not enforced yet; confirm the exact format with Finance before adding one."
   default     = null
+
+  validation {
+    condition     = var.gl_category == null ? true : length(trimspace(var.gl_category)) > 0
+    error_message = "gl_category must be non-empty when supplied."
+  }
 }
 
 variable "appcode" {
@@ -117,26 +196,37 @@ variable "appcode" {
 # ---- Optional -------------------------------------------------------------
 variable "application_component" {
   type        = string
-  description = "Optional. Sub-component of the application."
+  description = "Optional. Sub-component of the application. Non-empty when supplied."
   default     = null
+
+  validation {
+    condition     = var.application_component == null ? true : length(trimspace(var.application_component)) > 0
+    error_message = "application_component must be non-empty when supplied."
+  }
 }
 
 variable "modified_on" {
   type        = string
-  description = "Optional. Last-modified date (ISO-8601)."
+  description = "Optional. Last-modified date (ISO-8601). Must not be before created_on when both are set (see checks.tf)."
   default     = null
 
   validation {
-    condition     = var.modified_on == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.modified_on))
-    error_message = "modified_on must use YYYY-MM-DD format."
+    condition     = var.modified_on == null ? true : can(timecmp("${var.modified_on}T00:00:00Z", "${var.modified_on}T00:00:00Z"))
+    error_message = "modified_on must be a real calendar date in YYYY-MM-DD format."
   }
 }
 
 # ---- Conditional --------------------------------------------------------
 variable "created_by" {
   type        = string
-  description = "Conditional. Identity/principal that created the resource. Defaults to \"Terraform\" - that IS the deployment mechanism for every resource this module tags, so it's a genuinely accurate default rather than a placeholder. Override with a real pipeline/service-principal identity only if a caller has a more specific one and wants it recorded instead."
+  description = "Conditional. Deployment mechanism that created the resource. Fixed to \"Terraform\" - that IS the deployment mechanism for every resource this module tags, so the value is enforced, not just defaulted. `nullable = false` means an explicit null from a consuming pattern (e.g. an unset optional object field flowing through as null) still resolves to the default instead of bypassing it. If a future non-Terraform deployment mechanism must be supported, remove the validation block below but keep `nullable = false`."
   default     = "Terraform"
+  nullable    = false
+
+  validation {
+    condition     = var.created_by == "Terraform"
+    error_message = "created_by must be Terraform - every resource this module tags is deployed by Terraform, so this is fixed rather than caller-supplied. Remove this validation (keeping nullable = false) if a non-Terraform deployment mechanism must be recorded here in the future."
+  }
 }
 
 variable "dr_tier" {
@@ -150,21 +240,28 @@ variable "dr_tier" {
   }
 }
 
-# ---- Required only for sandbox / temporary / POC / exception resources ----
+variable "time_bound_exception" {
+  type        = bool
+  description = "Whether this specific approved lifecycle_state = \"exempt\" resource must carry an expiration_date. Exemptions are not automatically time-bound (a permanent exemption is valid and does not need one) - set this to true only when THIS exception was approved with a planned end date. Ignored for every lifecycle_state other than \"exempt\"; see checks.tf's expiration_date_required check."
+  default     = false
+}
+
+# ---- Required only for sandbox / POC / temporary / time-bound-exception ----
+# resources, or any environment outside the four standard durable ones -----
 variable "expiration_date" {
   type        = string
-  description = "Required for sandbox / temporary / POC / exception resources (ISO-8601). Optional otherwise."
+  description = "Required when environment is sandbox or poc, lifecycle_state is temporary, or time_bound_exception is true (ISO-8601) - see checks.tf's expiration_date_required check. Optional otherwise. Must not be before created_on when both are set."
   default     = null
 
   validation {
-    condition     = var.expiration_date == null ? true : can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.expiration_date))
-    error_message = "expiration_date must use YYYY-MM-DD format."
+    condition     = var.expiration_date == null ? true : can(timecmp("${var.expiration_date}T00:00:00Z", "${var.expiration_date}T00:00:00Z"))
+    error_message = "expiration_date must be a real calendar date in YYYY-MM-DD format."
   }
 }
 
 # ---- Escape hatch --------------------------------------------------------
 variable "additional_tags" {
   type        = map(string)
-  description = "Extra tags for client- or workload-specific metadata. First-class standard tag inputs win on key collision."
+  description = "Extra tags for client- or workload-specific metadata ONLY - organization-specific keys that are not part of the standard schema below. Must not contain any standard tag key (environment, application, appcode, owner, source_repo, created_on, criticality_tier, data_classification, lifecycle_state, cost_center, gl_category, application_component, modified_on, created_by, dr_tier, expiration_date) - checks.tf rejects the plan outright if it does, so a caller cannot bypass a first-class input's own validation by routing the same key through here instead. Use the dedicated variable for every standard tag, even to leave it unset."
   default     = {}
 }

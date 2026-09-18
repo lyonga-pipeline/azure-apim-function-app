@@ -1,6 +1,22 @@
 terraform {
   required_version = ">= 1.5, < 2.0"
+
+  required_providers {
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.13"
+    }
+  }
 }
+
+# created_on must be a real, frozen "first deployed" date, not today's date -
+# see the variable's own description for why this is never computed with
+# timestamp(). time_static computes its value once, on this resource's first
+# apply, and stores it in state; every later plan reuses that same value
+# instead of recomputing it. This resource intentionally lives in the
+# CONSUMING ROOT, not in the tags module itself - the root owns the
+# deployment-lifecycle boundary.
+resource "time_static" "deployment_created" {}
 
 module "tags" {
   source = "../.."
@@ -10,11 +26,8 @@ module "tags" {
   appcode     = "lz"
   owner       = "cloud-platform"
   source_repo = "ado://project/repo"
-  # created_on is a real, frozen "first deployed" date, not today's date -
-  # see the variable's own description for why this is never computed with
-  # timestamp(). Passed in once by the deploying pipeline; hardcoded here
-  # only because this is a static example.
-  created_on          = "2026-09-09"
+  created_on  = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
+
   criticality_tier    = "tier-0"
   data_classification = "confidential"
   lifecycle_state     = "active"

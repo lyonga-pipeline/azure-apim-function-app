@@ -57,58 +57,76 @@ run "conditional_and_sandbox_tags" {
   variables {
     environment     = "sandbox"
     application     = "poc-x"
-    created_by      = "chrls@example"
     dr_tier         = "none"
     expiration_date = "2026-12-31"
   }
 
   assert {
-    condition     = output.tags["created_by"] == "chrls@example" && output.tags["dr_tier"] == "none" && output.tags["expiration_date"] == "2026-12-31"
-    error_message = "an explicit created_by should override the \"Terraform\" default, and conditional + sandbox tags should be emitted when supplied"
+    condition     = output.tags["dr_tier"] == "none" && output.tags["expiration_date"] == "2026-12-31"
+    error_message = "conditional + sandbox tags should be emitted when supplied"
   }
 }
 
-run "additional_tags_fill_standard_keys" {
+# ---- created_by: fixed to "Terraform", not caller-overridable --------------
+
+run "created_by_explicit_null_still_defaults_to_terraform" {
   command = apply
 
   variables {
-    application     = "orders"
-    additional_tags = { environment = "dev", owner = "team-alpha", team = "sre" }
-  }
-
-  assert {
-    condition     = output.tags["environment"] == "dev" && output.tags["owner"] == "team-alpha" && output.tags["team"] == "sre"
-    error_message = "additional_tags should fill standard keys when first-class inputs are not supplied"
-  }
-}
-
-run "standard_tags_win_on_collision" {
-  command = apply
-
-  variables {
-    environment     = "prod"
-    application     = "orders"
-    additional_tags = { environment = "override", team = "sre" }
-  }
-
-  assert {
-    condition     = output.tags["environment"] == "prod" && output.tags["team"] == "sre"
-    error_message = "first-class standard tag inputs should win over additional_tags on collision"
-  }
-}
-
-run "additional_tags_created_by_is_overridden_by_the_default" {
-  command = apply
-
-  variables {
-    environment     = "prod"
-    application     = "orders"
-    additional_tags = { created_by = "terraform" } # lowercase, the old workaround real tfvars used
+    created_by = null
   }
 
   assert {
     condition     = output.tags["created_by"] == "Terraform"
-    error_message = "the module's own created_by default (\"Terraform\") must win over an additional_tags workaround value, the same as any other standard tag collision"
+    error_message = "nullable = false must substitute the \"Terraform\" default even when a caller explicitly passes null (e.g. an unset optional object field flowing through as null from a consuming pattern) - this is exactly the bypass the previous plain-default implementation had"
+  }
+}
+
+run "rejects_non_terraform_created_by" {
+  command = plan
+
+  variables {
+    created_by = "svc-principal-1234"
+  }
+
+  expect_failures = [var.created_by]
+}
+
+# ---- additional_tags must not contain a standard tag key -------------------
+
+run "rejects_additional_tags_containing_standard_key" {
+  command = plan
+
+  variables {
+    application     = "orders"
+    additional_tags = { data_classification = "secret" }
+  }
+
+  expect_failures = [check.additional_tags_no_standard_key_overlap]
+}
+
+run "rejects_additional_tags_overriding_created_by" {
+  command = plan
+
+  variables {
+    application     = "orders"
+    additional_tags = { created_by = "terraform" } # lowercase, the old workaround real tfvars used
+  }
+
+  expect_failures = [check.additional_tags_no_standard_key_overlap]
+}
+
+run "additional_tags_with_only_organization_specific_keys_still_works" {
+  command = apply
+
+  variables {
+    application     = "orders"
+    additional_tags = { business_unit = "technology", team = "sre" }
+  }
+
+  assert {
+    condition     = output.tags["business_unit"] == "technology" && output.tags["team"] == "sre"
+    error_message = "additional_tags should still work for keys outside the standard schema"
   }
 }
 
@@ -127,6 +145,16 @@ run "rejects_bad_date_format" {
 
   variables {
     created_on = "09/02/2026"
+  }
+
+  expect_failures = [var.created_on]
+}
+
+run "rejects_impossible_calendar_date" {
+  command = plan
+
+  variables {
+    created_on = "2026-99-99"
   }
 
   expect_failures = [var.created_on]
@@ -242,7 +270,33 @@ run "accepts_all_dr_tiers" {
   }
 }
 
-# ---- New: expiration_date required for sandbox / non-standard environment -
+# ---- environment vocabulary -------------------------------------------
+
+run "rejects_invalid_environment" {
+  command = plan
+
+  variables {
+    environment = "staging"
+  }
+
+  expect_failures = [var.environment]
+}
+
+run "accepts_poc_environment" {
+  command = apply
+
+  variables {
+    environment     = "poc"
+    expiration_date = "2026-12-31"
+  }
+
+  assert {
+    condition     = output.tags["environment"] == "poc"
+    error_message = "poc must be a valid environment"
+  }
+}
+
+# ---- expiration_date required: sandbox / poc / temporary / time-bound-exception
 
 run "rejects_sandbox_without_expiration_date" {
   command = plan
@@ -251,17 +305,69 @@ run "rejects_sandbox_without_expiration_date" {
     environment = "sandbox"
   }
 
-  expect_failures = [check.expiration_date_required_for_sandbox_or_nonstandard_environment]
+  expect_failures = [check.expiration_date_required]
 }
 
-run "rejects_nonstandard_environment_without_expiration_date" {
+run "rejects_poc_without_expiration_date" {
   command = plan
 
   variables {
     environment = "poc"
   }
 
-  expect_failures = [check.expiration_date_required_for_sandbox_or_nonstandard_environment]
+  expect_failures = [check.expiration_date_required]
+}
+
+run "rejects_temporary_lifecycle_without_expiration_date" {
+  command = plan
+
+  variables {
+    environment     = "prod"
+    lifecycle_state = "temporary"
+  }
+
+  expect_failures = [check.expiration_date_required]
+}
+
+run "temporary_lifecycle_with_expiration_date_passes" {
+  command = apply
+
+  variables {
+    environment     = "prod"
+    lifecycle_state = "temporary"
+    expiration_date = "2026-12-31"
+  }
+
+  assert {
+    condition     = output.tags["lifecycle_state"] == "temporary" && output.tags["expiration_date"] == "2026-12-31"
+    error_message = "temporary lifecycle with an explicit expiration_date should pass the cross-variable check"
+  }
+}
+
+run "rejects_time_bound_exception_without_expiration_date" {
+  command = plan
+
+  variables {
+    environment          = "prod"
+    lifecycle_state      = "exempt"
+    time_bound_exception = true
+  }
+
+  expect_failures = [check.expiration_date_required]
+}
+
+run "exempt_without_time_bound_exception_does_not_require_expiration_date" {
+  command = apply
+
+  variables {
+    environment     = "prod"
+    lifecycle_state = "exempt"
+  }
+
+  assert {
+    condition     = output.tags["lifecycle_state"] == "exempt" && !contains(keys(output.tags), "expiration_date")
+    error_message = "a permanent exemption (time_bound_exception left at its false default) must not require expiration_date"
+  }
 }
 
 run "sandbox_with_expiration_date_passes" {
@@ -289,6 +395,180 @@ run "standard_environments_do_not_require_expiration_date" {
     condition     = !contains(keys(output.tags), "expiration_date")
     error_message = "dev/test/uat/prod should not require expiration_date"
   }
+}
+
+# ---- date ordering: modified_on / expiration_date vs created_on ------------
+
+run "rejects_modified_on_before_created_on" {
+  command = plan
+
+  variables {
+    created_on  = "2026-06-01"
+    modified_on = "2026-01-01"
+  }
+
+  expect_failures = [check.modified_on_not_before_created_on]
+}
+
+run "modified_on_on_or_after_created_on_passes" {
+  command = apply
+
+  variables {
+    created_on  = "2026-06-01"
+    modified_on = "2026-06-01"
+  }
+
+  assert {
+    condition     = output.tags["modified_on"] == "2026-06-01"
+    error_message = "modified_on equal to created_on should pass the ordering check"
+  }
+}
+
+run "rejects_expiration_date_before_created_on" {
+  command = plan
+
+  variables {
+    environment     = "sandbox"
+    created_on      = "2026-06-01"
+    expiration_date = "2026-01-01"
+  }
+
+  expect_failures = [check.expiration_date_not_before_created_on]
+}
+
+run "expiration_date_on_or_after_created_on_passes" {
+  command = apply
+
+  variables {
+    environment     = "sandbox"
+    created_on      = "2026-06-01"
+    expiration_date = "2026-06-01"
+  }
+
+  assert {
+    condition     = output.tags["expiration_date"] == "2026-06-01"
+    error_message = "expiration_date equal to created_on should pass the ordering check"
+  }
+}
+
+# ---- empty supplied mandatory values are rejected, not silently dropped ----
+
+run "rejects_empty_environment" {
+  command = plan
+
+  variables {
+    environment = ""
+  }
+
+  expect_failures = [var.environment]
+}
+
+run "rejects_empty_application" {
+  command = plan
+
+  variables {
+    application = ""
+  }
+
+  expect_failures = [var.application]
+}
+
+run "rejects_empty_owner" {
+  command = plan
+
+  variables {
+    owner = ""
+  }
+
+  expect_failures = [var.owner]
+}
+
+run "rejects_empty_source_repo" {
+  command = plan
+
+  variables {
+    source_repo = ""
+  }
+
+  expect_failures = [var.source_repo]
+}
+
+run "rejects_empty_cost_center" {
+  command = plan
+
+  variables {
+    cost_center = ""
+  }
+
+  expect_failures = [var.cost_center]
+}
+
+run "rejects_empty_gl_category" {
+  command = plan
+
+  variables {
+    gl_category = ""
+  }
+
+  expect_failures = [var.gl_category]
+}
+
+# ---- owner / source_repo structural validation ------------------------
+
+run "rejects_malformed_owner_email" {
+  command = plan
+
+  variables {
+    owner = "team-alpha@" # has "@" but isn't a well-formed address
+  }
+
+  expect_failures = [var.owner]
+}
+
+run "accepts_owner_as_distribution_list_email" {
+  command = apply
+
+  variables {
+    owner = "cloud-platform@compeer.com"
+  }
+
+  assert {
+    condition     = output.tags["owner"] == "cloud-platform@compeer.com"
+    error_message = "a well-formed distribution-list email address must be accepted as owner"
+  }
+}
+
+run "rejects_malformed_source_repo" {
+  command = plan
+
+  variables {
+    source_repo = "just-a-plain-string-with-no-scheme"
+  }
+
+  expect_failures = [var.source_repo]
+}
+
+run "accepts_source_repo_with_scheme" {
+  command = apply
+
+  variables {
+    source_repo = "https://github.com/Compeer/landing-zone"
+  }
+
+  assert {
+    condition     = output.tags["source_repo"] == "https://github.com/Compeer/landing-zone"
+    error_message = "a URI with a scheme must be accepted as source_repo"
+  }
+}
+
+run "rejects_empty_application_component_when_supplied" {
+  command = plan
+
+  variables {
+    application_component = ""
+  }
+
+  expect_failures = [var.application_component]
 }
 
 # ---- mandatory_keys / missing_mandatory never error, even with every -----

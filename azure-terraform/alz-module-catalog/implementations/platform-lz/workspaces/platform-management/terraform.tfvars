@@ -27,7 +27,9 @@ platform_tags = {
   appcode     = "mgmt"
   owner       = "Cloud Enablement"
   source_repo = "ado://Compeer/landing-zone"
-  created_on  = "2026-01-01"
+  # created_on intentionally NOT set here - this workspace's root main.tf
+  # owns it via a time_static resource (computed once on first apply,
+  # stable across every later plan) and supersedes any value set here.
   # Platform tier-0: foundational enterprise/platform service (shared
   # observability, Sentinel/Defender, backup) required for other systems.
   criticality_tier    = "tier-0"

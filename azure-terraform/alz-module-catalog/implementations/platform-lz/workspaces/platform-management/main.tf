@@ -1,6 +1,16 @@
 locals {
   enabled = try(var.management.enabled, false)
+
+  # This workspace owns the deployment-lifecycle boundary for every resource
+  # it creates, so it - not the tags module - owns created_on's stability.
+  # time_static computes its value once, on first apply, and stores it in
+  # state; every later plan reuses the same value instead of recomputing it
+  # (unlike timestamp(), which would re-diff this tag on every single plan).
+  # This intentionally supersedes any created_on set in platform_tags below.
+  deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 }
+
+resource "time_static" "deployment_created" {}
 
 module "management" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-management"
@@ -22,7 +32,7 @@ module "management" {
   subscription_id                       = var.subscription_id
   location                              = var.location
   environment                           = var.environment
-  platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}))
+  platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}), { created_on = local.deployment_created_on })
   resource_group                        = try(var.management.resource_group, {})
   log_analytics                         = try(var.management.log_analytics, null)
   action_group                          = try(var.management.action_group, null)

@@ -36,6 +36,7 @@ module "tags" {
   created_by            = var.platform_tags.created_by
   dr_tier               = var.platform_tags.dr_tier
   expiration_date       = var.platform_tags.expiration_date
+  time_bound_exception  = var.platform_tags.time_bound_exception
   additional_tags       = var.platform_tags.additional_tags
 }
 

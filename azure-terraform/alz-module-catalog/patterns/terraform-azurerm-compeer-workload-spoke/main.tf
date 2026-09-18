@@ -17,6 +17,7 @@ module "tags" {
   created_by            = var.workload_tags.created_by
   dr_tier               = var.workload_tags.dr_tier
   expiration_date       = var.workload_tags.expiration_date
+  time_bound_exception  = var.workload_tags.time_bound_exception
   additional_tags       = var.workload_tags.additional_tags
 }
 

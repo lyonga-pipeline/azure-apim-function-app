@@ -20,7 +20,9 @@ workload_tags = {
   # not this, when this spoke gets scoped to one specific app.
   owner       = "Application Owner"
   source_repo = "ado://Compeer/internal-apps"
-  created_on  = "2026-01-01"
+  # created_on intentionally NOT set here - this workspace's root main.tf
+  # owns it via a time_static resource (computed once on first apply,
+  # stable across every later plan) and supersedes any value set here.
   # NOT changed to tier-0: this is a workload spoke, not a platform
   # resource - tier-0 is reserved for foundational platform/enterprise
   # services (identity, networking, security tooling), not individual apps.

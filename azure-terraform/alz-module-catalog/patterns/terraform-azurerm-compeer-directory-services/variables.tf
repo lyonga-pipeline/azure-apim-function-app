@@ -30,6 +30,7 @@ variable "platform_tags" {
     created_by            = optional(string)
     dr_tier               = optional(string)
     expiration_date       = optional(string)
+    time_bound_exception  = optional(bool, false)
     additional_tags       = optional(map(string), {})
   })
   default = {}

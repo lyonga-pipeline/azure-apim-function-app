@@ -16,8 +16,18 @@ data "tfe_outputs" "governance" {
   workspace    = var.governance_workspace_name
 }
 
+resource "time_static" "deployment_created" {}
+
 locals {
   enabled = try(var.workload_spoke.enabled, false)
+
+  # This workspace owns the deployment-lifecycle boundary for every resource
+  # it creates, so it - not the tags module - owns created_on's stability.
+  # time_static computes its value once, on first apply, and stores it in
+  # state; every later plan reuses the same value instead of recomputing it
+  # (unlike timestamp(), which would re-diff this tag on every single plan).
+  # This intentionally supersedes any created_on set in workload_tags below.
+  deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
   management_outputs = merge(
     try(data.tfe_outputs.management[0].nonsensitive_values, {}),
@@ -101,7 +111,7 @@ module "workload_spoke" {
   # still wins. This keeps the tag and the naming module's own appcode-based
   # names (Key Vault, storage accounts) tracking the same one value instead
   # of two separately hand-maintained copies.
-  workload_tags                   = merge({ appcode = var.workload_appcode }, var.workload_tags, try(var.workload_spoke.workload_tags, try(var.workload_spoke.platform_tags, {})))
+  workload_tags                   = merge({ appcode = var.workload_appcode }, var.workload_tags, try(var.workload_spoke.workload_tags, try(var.workload_spoke.platform_tags, {})), { created_on = local.deployment_created_on })
   resource_group                  = merge({ name = local.std_names.resource_group }, try(var.workload_spoke.resource_group, {}))
   spoke_vnet                      = merge({ name = local.std_names.spoke_vnet }, try(var.workload_spoke.spoke_vnet, {}))
   hub_connection                  = local.hub_connection

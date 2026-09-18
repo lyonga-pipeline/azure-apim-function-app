@@ -10,8 +10,18 @@ data "tfe_outputs" "connectivity" {
   workspace    = var.connectivity_workspace_name
 }
 
+resource "time_static" "deployment_created" {}
+
 locals {
   enabled = try(var.cloudflare_connectors.enabled, false)
+
+  # This workspace owns the deployment-lifecycle boundary for every resource
+  # it creates, so it - not the tags module - owns created_on's stability.
+  # time_static computes its value once, on first apply, and stores it in
+  # state; every later plan reuses the same value instead of recomputing it
+  # (unlike timestamp(), which would re-diff this tag on every single plan).
+  # This intentionally supersedes any created_on set in platform_tags below.
+  deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
   management_outputs = merge(
     try(data.tfe_outputs.management[0].nonsensitive_values, {}),
@@ -54,7 +64,7 @@ module "cloudflare_connectors" {
   subscription_id              = var.subscription_id
   location                     = var.location
   environment                  = var.environment
-  platform_tags                = merge(var.platform_tags, try(var.cloudflare_connectors.platform_tags, {}))
+  platform_tags                = merge(var.platform_tags, try(var.cloudflare_connectors.platform_tags, {}), { created_on = local.deployment_created_on })
   resource_group               = merge({ name = local.std_names.resource_group }, try(var.cloudflare_connectors.resource_group, {}))
   connectors                   = local.connectors
   admin_passwords              = var.admin_passwords

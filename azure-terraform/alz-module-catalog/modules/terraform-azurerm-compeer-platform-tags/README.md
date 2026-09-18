@@ -3,13 +3,15 @@
 Produces the **normalized enterprise tag map** consumed by platform and workload
 patterns as `module.tags.tags`.
 
-This module only sets and normalizes tags. Enforcement is intentionally handled
-by OPA plan guardrails and Azure Policy, because enforcement posture can vary by
+This module validates the *shape* of every tag value it's given, and reports
+which mandatory tags weren't supplied. It is deliberately NOT the enforcement
+layer for whether a mandatory tag was supplied at all - that's handled by OPA
+plan guardrails and Azure Policy, because enforcement posture can vary by
 workspace, environment, exception status, and rollout phase.
 
-The module defines the **whole tag vocabulary** from the design-doc tag tables.
-Every tag is an **optional** input, so a caller sets only the tags it has values
-for and the output map drops the rest.
+The module defines the **whole tag vocabulary** from the FinOps tagging
+standard's tag tables. Every tag is an **optional** input, so a caller sets
+only the tags it has values for and the output map drops the rest.
 
 ## Tag vocabulary (emitted keys are frozen)
 
@@ -19,12 +21,13 @@ for and the output map drops the rest.
 | Governance | `criticality_tier`, `data_classification`, `lifecycle_state` | **Mandatory** |
 | Financial | `cost_center`, `gl_category` | **Mandatory** |
 | Operational | `application_component`, `modified_on` | Optional |
-| Operational / Governance | `created_by`, `dr_tier` | Conditional |
-| Governance | `expiration_date` | Required when `environment` is `sandbox` or anything other than `dev`/`test`/`uat`/`prod` - enforced by a `check` block, see below |
+| Governance | `dr_tier`, `time_bound_exception` | Conditional / Optional |
+| Operational | `created_by` | Fixed to `"Terraform"` |
+| Governance | `expiration_date` | Required when `environment` is `sandbox`/`poc` (or any value outside `dev`/`test`/`uat`/`prod`), `lifecycle_state` is `temporary`, or `time_bound_exception` is `true` - enforced by a `check` block, see below |
 
-Plus `additional_tags` (`map(string)`) for client- or workload-specific tags.
-First-class standard tag inputs win on key collision so a caller cannot
-accidentally override a standard tag value with an escape-hatch value.
+Plus `additional_tags` (`map(string)`) for organization-specific metadata
+**outside** this standard schema. It cannot contain a standard tag key at
+all - see below.
 
 ### Validated value sets
 
@@ -33,19 +36,52 @@ its approved list (source: the FinOps tagging standard's own tag tables):
 
 | Tag | Approved values |
 |---|---|
+| `environment` | `dev`, `test`, `uat`, `prod`, `sandbox`, `poc` - extend only via a deliberate module version bump |
 | `data_classification` | `public`, `internal`, `confidential`, `restricted` |
-| `lifecycle_state` | `active`, `temporary`, `pilot`, `decommission-pending`, `retired`, `exempt` |
+| `lifecycle_state` | `active`, `temporary`, `pilot`, `decommission-pending`, `retired`, `exempt` - exact meanings below |
 | `criticality_tier` | `tier-0` (foundational platform/enterprise service), `tier-1` (mission-critical business workload), `tier-2` (important business/operational workload), `tier-3` (low-criticality/non-production/temporary/disposable), `tier-4` |
 | `dr_tier` | `gold`, `silver`, `bronze`, `none` |
 | `appcode` | 1-9 letters only - the same identifier the naming module's own `appcode` input uses, so a resource's tag matches its actual name prefix |
-| `created_on`, `modified_on`, `expiration_date` | `YYYY-MM-DD` |
+| `created_by` | Fixed to exactly `"Terraform"` |
+| `created_on`, `modified_on`, `expiration_date` | A real calendar date in `YYYY-MM-DD` format - `2026-99-99` or `2026-02-30` are rejected, not just wrong-shaped strings |
+| `owner` | Non-empty team name, or a well-formed `user@domain` distribution-list address if it contains `@` |
+| `source_repo` | Non-empty URI with a scheme, e.g. `ado://Compeer/landing-zone` or `https://github.com/org/repo` |
+| `application`, `cost_center`, `gl_category`, `application_component` | Non-empty when supplied. `cost_center`/`gl_category` deliberately have no stricter format check yet - confirm the exact format with Finance before adding one |
 
-### `created_by` defaults to `"Terraform"`
+### `lifecycle_state` - exact meanings (FinOps tag standard)
 
-Every resource this module tags is deployed by Terraform - that's what actually
-created it, so it's the accurate default rather than a placeholder. Override it
-with a real pipeline/service-principal identity only when a caller has a more
-specific one and wants that recorded instead of the deployment mechanism.
+- **active** - Resource is approved, in use, and expected to continue running
+  under normal operations.
+- **temporary** - Resource is intentionally short-lived (e.g. sandbox, POC,
+  testing) and MUST carry an `expiration_date` - enforced by the
+  `expiration_date_required` check below.
+- **pilot** - Resource is part of a formal pilot or controlled rollout, not
+  yet a permanent production commitment.
+- **decommission-pending** - Resource is no longer strategically needed and
+  is scheduled for removal, but has not been deleted yet.
+- **retired** - Resource should no longer be running or incurring meaningful
+  cost; present for historical/audit visibility only.
+- **exempt** - Resource is an approved exception from normal lifecycle
+  automation. Not automatically time-bound - a permanent exemption does not
+  require an `expiration_date`. Set `time_bound_exception = true` only when
+  THIS specific exception was approved with a planned end date.
+
+### `created_by` is fixed to `"Terraform"`, not just defaulted
+
+Every resource this module tags is deployed by Terraform - that's what
+actually created it. `created_by` has `nullable = false` plus a `validation`
+block that requires the literal value `"Terraform"`, so:
+- An explicit `null` from a consuming pattern (e.g. an unset optional field on
+  a `platform_tags` object flowing straight through as `null`) still resolves
+  to `"Terraform"` - `nullable = false` makes Terraform substitute the default
+  even for an explicit `null` argument, closing a real gap the previous
+  plain-`default` implementation had.
+- Any other value is rejected outright, not silently accepted and overridden -
+  a caller can no longer set a stale identity here and have it silently
+  discarded without a clear signal.
+
+If a future non-Terraform deployment mechanism must be recorded here, remove
+the `validation` block but keep `nullable = false`.
 
 ### `created_on` is never computed with `timestamp()`
 
@@ -54,24 +90,90 @@ today's date. Terraform's `timestamp()` function re-evaluates on every single
 `plan`, which would put a diff on this tag - and therefore on every resource
 carrying it - on every run, forever. That directly violates this tagging
 standard's own core principle: *"Tag values are durable and do not frequently
-change... tag changes must not require redeployment."* The design doc's
-"Auto-populated by CI/CD pipeline" note means the **pipeline** captures "first
-deployed" once (e.g. only passing `-var created_on=...` on a resource's actual
-first apply, or reading an existing value back from state/tags on every
-subsequent one) and hands Terraform a frozen literal - Terraform itself has no
-built-in way to know "is this really the first apply" without the same state
-inspection the pipeline already has to do. This module stays a pure
-string-in-string-out variable for exactly that reason.
+change... tag changes must not require redeployment."*
 
-### `expiration_date` and `environment`
+This module stays a pure string-in-string-out variable: it validates whatever
+frozen value it's handed, regardless of where that value came from. The
+recommended source is a `time_static` resource declared in the **consuming
+root**, not in this module - the root owns the deployment-lifecycle boundary:
 
-A `check` block (`checks.tf`) enforces the design doc's "Required for sandbox,
-POC, temporary, and exception resources" rule directly: if `environment` is
-`"sandbox"` or anything other than `dev`/`test`/`uat`/`prod`, `expiration_date`
-must be set. This is a `check` block rather than a `variable` `validation`
-block because a `validation` block can only see the variable it's declared on
-in Terraform versions before 1.9, and this module supports 1.5+ (the same
-reason the naming module uses `check` blocks for its own cross-input rules).
+```hcl
+resource "time_static" "deployment_created" {}
+
+module "tags" {
+  source     = "../../modules/terraform-azurerm-compeer-platform-tags"
+  created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
+  # ...
+}
+```
+
+`time_static` computes its value once, on first apply, and stores it in
+state - every later plan reads the same value back instead of recomputing it.
+See `examples/basic` for a full working example, and
+`examples/basic/tests/basic.tftest.hcl` for a test that proves the value is
+actually stable across a subsequent no-change plan (not just documented as
+such).
+
+For a root that deploys a **growing map** of similar resources over time (so
+a single shared `time_static` would wrongly give every resource the same
+`created_on`, including ones added months later), key `time_static` by the
+same key as the resource map instead:
+
+```hcl
+resource "time_static" "storage_created" {
+  for_each = var.storage_accounts
+}
+```
+
+Adding a new key later creates only that key's `time_static` (and therefore
+only that key's `created_on`) - every already-existing key keeps reading its
+own value back from state, unchanged. See
+`examples/keyed_deployment_timestamps` for a full working example and a test
+that proves adding a key doesn't touch any existing key's timestamp.
+
+A pipeline-generated, persisted date is an equally valid source for
+`created_on` - `timestamp()` directly is the one thing to avoid.
+
+### `expiration_date` requirement (`expiration_date_required` check)
+
+A `check` block (`checks.tf`) enforces the design doc's "Required for
+sandbox, POC, temporary, and exception resources" rule: `expiration_date`
+must be set when
+
+- `environment` is outside the four standard, durable environments
+  (`dev`/`test`/`uat`/`prod`) - today that means `sandbox` or `poc`, and this
+  automatically covers any future environment value this module's vocabulary
+  is extended to include, with no matching update needed to this check, OR
+- `lifecycle_state` is `"temporary"`, OR
+- `time_bound_exception` is `true` (an approved `lifecycle_state = "exempt"`
+  resource whose exception was specifically approved with a planned end date
+  - a **permanent** exemption does not set this and correctly does not
+  require one).
+
+This is a `check` block rather than a `variable` `validation` block because a
+`validation` block can only see the variable it's declared on in Terraform
+versions before 1.9, and this module supports 1.5+ (the same reason the
+naming module uses `check` blocks for its own cross-input rules).
+
+### Date ordering: `modified_on` / `expiration_date` vs `created_on`
+
+Two more `check` blocks enforce that a resource's timeline is internally
+consistent whenever both values are supplied: `modified_on` must not be
+before `created_on`, and `expiration_date` must not be before `created_on`.
+Malformed dates are left to each date's own `validation` block to report -
+these checks only compare two values that are already individually valid.
+
+### `additional_tags` cannot contain a standard tag key
+
+`additional_tags` exists to extend the schema with organization-specific
+metadata that is NOT part of the standard vocabulary above - it is not a
+second way to set (or override) a standard tag. A `check` block
+(`additional_tags_no_standard_key_overlap`) rejects the plan outright if
+`additional_tags` contains any standard key name, e.g.
+`additional_tags = { data_classification = "secret" }` - that value would
+never go through `data_classification`'s own `contains()` validation, which
+is exactly the bypass this exists to close. Use each standard tag's own
+dedicated variable instead, even to leave it unset.
 
 ## Enforcing the mandatory set
 
@@ -110,10 +212,14 @@ verified safe to leave wired in even when unused.
 | `mandatory_keys` | standard tag keys considered mandatory |
 | `all_standard_keys` | full standard tag vocabulary before `additional_tags` are merged |
 
-## Example
+## Examples
 
-See `examples/basic` for the standard tag composition used by platform and
-workload patterns.
+- `examples/basic` - the standard tag composition used by platform and
+  workload patterns, including the recommended root-owned `time_static`
+  pattern for `created_on`.
+- `examples/keyed_deployment_timestamps` - the per-resource variant of that
+  same pattern, for a root that deploys a growing map of similar resources
+  on different dates over time.
 
 ## Migration
 
@@ -126,15 +232,33 @@ workload patterns.
   `bt_owner` → `owner`, `tf_workspace` gone, `recovery` → `dr_tier`,
   `compliance_boundary` gone). New keys: `created_on`, `criticality_tier`,
   `lifecycle_state`, `gl_category`, `application_component`, `modified_on`,
-  `created_by`, `dr_tier`, `expiration_date`.
+  `created_by`, `dr_tier`, `expiration_date`, `time_bound_exception`.
+- `created_by` is now fixed to `"Terraform"` (previously just defaulted to
+  it) - a caller passing anything else now fails the plan instead of having
+  the value silently accepted.
+- `additional_tags` can no longer contain a standard tag key at all - it
+  previously allowed filling an unset standard key this way, with the
+  first-class input winning only on an actual collision.
+- `environment`, `owner`, `source_repo`, `application`, `cost_center`,
+  `gl_category`, `application_component` now have their own shape
+  validation (previously unvalidated) - see the tables above.
+- `created_on`/`modified_on`/`expiration_date` now validate as real calendar
+  dates, not just `YYYY-MM-DD`-shaped strings.
 
 ## Tests
 
-`terraform test` (offline, 22 runs): only-supplied tags emitted,
-`missing_mandatory` reporting, conditional + sandbox tags, `additional_tags`
-fill behavior (including that the `created_by` default wins over an
-`additional_tags` workaround value), standard-tag precedence,
-`data_classification`/`lifecycle_state`/`criticality_tier`/`dr_tier`/`appcode`
-validation (valid and invalid cases for each), the `expiration_date` +
-`environment` cross-check (both directions), and the "does an all-null
-mandatory-tag call actually error" investigation above.
+`terraform test` (offline, 46 runs across `tests/defaults.tftest.hcl`), plus
+2 example test suites (`examples/basic/tests`, 2 runs;
+`examples/keyed_deployment_timestamps/tests`, 2 runs) exercising the real
+`hashicorp/time` provider rather than mocks. Coverage: only-supplied tags
+emitted, `missing_mandatory` reporting, `created_by` fixed-value enforcement
+(omitted, explicit-null, and non-`"Terraform"` cases), `additional_tags`
+standard-key rejection, every standard value-set validation (valid and
+invalid cases), the `expiration_date_required` cross-check (sandbox, poc,
+temporary lifecycle, time-bound exception, and the standard-environments/
+permanent-exemption non-cases), date-ordering checks (`modified_on`/
+`expiration_date` vs `created_on`), empty-mandatory-value rejection,
+malformed `owner`/`source_repo` rejection, impossible-calendar-date
+rejection, the `time_static` stability guarantee, the keyed-`time_static`
+independence guarantee, and the "does an all-null mandatory-tag call
+actually error" investigation.
