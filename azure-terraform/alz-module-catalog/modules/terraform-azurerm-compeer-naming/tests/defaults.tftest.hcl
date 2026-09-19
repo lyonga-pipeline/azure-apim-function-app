@@ -119,7 +119,7 @@ run "rejects_malformed_resource_key" {
     nsg_keys    = ["bad key"]
   }
 
-  expect_failures = [check.tokens_use_supported_characters]
+  expect_failures = [check.naming_values_use_supported_characters]
 }
 
 run "normalizes_underscore_resource_keys" {

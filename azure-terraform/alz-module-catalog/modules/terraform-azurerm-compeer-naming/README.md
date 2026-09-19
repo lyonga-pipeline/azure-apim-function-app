@@ -78,7 +78,7 @@ Vault, storage accounts, identities, and Function Apps.
 | Input | Purpose |
 |---|---|
 | `region` | Azure region long name; converted to the approved short code |
-| `environment` | Environment token used in generated names |
+| `environment` | Environment identifier used in generated names |
 | `scope` | `platform` or `workload` |
 | `component` | Platform root discriminator, for example `management` |
 | `domain` | Workload or governance domain, for example `internal-apps` |

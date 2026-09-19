@@ -25,12 +25,12 @@ check "keyed_names_have_no_case_collisions" {
   }
 }
 
-check "tokens_use_supported_characters" {
+check "naming_values_use_supported_characters" {
   assert {
     condition = alltrue(concat(
       [
-        for token in [var.component, var.domain, var.purpose, var.destination, var.resource, var.name, var.policy, var.policy_scope] :
-        token == null || can(regex("^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$", trimspace(token)))
+        for naming_value in [var.component, var.domain, var.purpose, var.destination, var.resource, var.name, var.policy, var.policy_scope] :
+        naming_value == null || can(regex("^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$", trimspace(naming_value)))
       ],
       flatten([
         for keys in [
@@ -51,7 +51,7 @@ check "tokens_use_supported_characters" {
         ] : [for key in keys : can(regex("^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$", trimspace(key)))]
       ])
     ))
-    error_message = "Naming tokens must use alphanumeric segments separated by single hyphens. Stable resource keys may use single hyphens or underscores; underscores are rendered as hyphens in Azure names."
+    error_message = "Naming values must use alphanumeric segments separated by single hyphens. Stable resource keys may use single hyphens or underscores; underscores are rendered as hyphens in Azure names."
   }
 }
 

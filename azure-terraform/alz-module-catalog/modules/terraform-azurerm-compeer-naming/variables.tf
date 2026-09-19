@@ -16,7 +16,7 @@ variable "region" {
 }
 
 variable "environment" {
-  description = "Environment token: dev, test, uat, prod, sandbox, np1, np2, np3, or shared. shared is reserved for cross-environment governance objects."
+  description = "Environment identifier: dev, test, uat, prod, sandbox, np1, np2, np3, or shared. shared is reserved for cross-environment governance objects."
   type        = string
 
   validation {
