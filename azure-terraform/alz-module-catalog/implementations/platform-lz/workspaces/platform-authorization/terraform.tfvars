@@ -46,7 +46,7 @@ authorization = {
     net_readers_connectivity   = { scope = "/providers/Microsoft.Management/managementGroups/connectivity-mg", group_key = "net_readers", role_definition_name = "Reader" }
     net_operators_connectivity = { scope = "/providers/Microsoft.Management/managementGroups/connectivity-mg", group_key = "net_operators", role_definition_name = "Network Contributor" }
     sec_readers_enterprise     = { scope = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg", group_key = "sec_readers", role_definition_name = "Security Reader" }
-    sec_operators_enterprise   = { scope = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg", group_key = "sec_operators", role_definition_name = "Security Admin" }
+    sec_operators_enterprise   = { scope = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg", group_key = "sec_operators", role_definition_name = "Security Operator" }
     audit_readers_enterprise   = { scope = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg", group_key = "audit_readers", role_definition_name = "Reader" }
   }
 

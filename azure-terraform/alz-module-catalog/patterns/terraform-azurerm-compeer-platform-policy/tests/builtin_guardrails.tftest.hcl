@@ -10,8 +10,8 @@ variables {
 
 # Exercises the exact shape deployed in
 # implementations/platform-lz/workspaces/platform-policy/terraform.tfvars:
-# allowed-resource-types (Audit, enforce=false, no identity) and the two
-# disk-encryption Guest Configuration audits (identity = SystemAssigned).
+# approved resource types, managed identity, Key Vault recovery/RBAC, TLS,
+# disk encryption, backup, and compliance reporting controls.
 run "builtin_audit_guardrails" {
   command = plan
 
@@ -31,6 +31,41 @@ run "builtin_audit_guardrails" {
         non_compliance_messages = {
           default = { content = "Not on the approved catalog." }
         }
+      }
+      app_service_managed_identity = {
+        name                 = "cmp-mi-web"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/2b9ad585-36bc-4615-b300-fd4435808332"
+      }
+      function_app_managed_identity = {
+        name                 = "cmp-mi-function"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/0da106f2-4ca3-48e8-bc85-c638fe6aea8f"
+      }
+      automation_managed_identity = {
+        name                 = "cmp-mi-automation"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/dea83a72-443c-4292-83d5-54a2f98749c0"
+      }
+      key_vault_rbac = {
+        name                 = "cmp-kv-rbac"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/12d4fa5e-1f9f-4c21-97a9-b99b3c6611b5"
+      }
+      key_vault_deletion_protection = {
+        name                 = "cmp-kv-recovery"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/0b60c0b2-2dc2-4e1c-b5c9-abbed971de53"
+      }
+      app_service_latest_tls = {
+        name                 = "cmp-tls-web"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/f0e6e85b-9b9f-4a4b-b67b-f730d42f1b0b"
+      }
+      function_app_latest_tls = {
+        name                 = "cmp-tls-function"
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/f9d614c5-c173-4d56-95a7-b4437057d193"
       }
       disk_encryption_windows_vm = {
         name                 = "cmp-disk-encrypt-win"
@@ -63,8 +98,8 @@ run "builtin_audit_guardrails" {
   }
 
   assert {
-    condition     = length(local.management_group_policy_assignments_input) == 5
-    error_message = "expected the 5 built-in guardrail assignments to be created"
+    condition     = length(local.management_group_policy_assignments_input) == 12
+    error_message = "expected the 12 built-in guardrail assignments to be created"
   }
   assert {
     condition     = local.management_group_policy_assignments_input["cis_benchmark"].enforce == false
@@ -77,5 +112,19 @@ run "builtin_audit_guardrails" {
   assert {
     condition     = local.management_group_policy_assignments_input["disk_encryption_windows_vm"].identity.type == "SystemAssigned"
     error_message = "disk encryption guest-configuration audits need a system-assigned identity to evaluate"
+  }
+  assert {
+    condition = alltrue([
+      for key in [
+        "app_service_managed_identity",
+        "function_app_managed_identity",
+        "automation_managed_identity",
+        "key_vault_rbac",
+        "key_vault_deletion_protection",
+        "app_service_latest_tls",
+        "function_app_latest_tls",
+      ] : local.management_group_policy_assignments_input[key].management_group_id == "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+    ])
+    error_message = "enterprise baseline identity, Key Vault, and TLS audits must be assigned at compeer-enterprise-mg"
   }
 }

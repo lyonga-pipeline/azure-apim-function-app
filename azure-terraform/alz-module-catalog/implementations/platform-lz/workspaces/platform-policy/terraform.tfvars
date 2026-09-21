@@ -108,6 +108,48 @@ policy = {
         default = { content = "This resource type is not on Compeer's approved workload catalog. Request an addition before deploying it in the landing zone." }
       }
     }
+    app_service_managed_identity = {
+      name                 = "cmp-mi-web"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/2b9ad585-36bc-4615-b300-fd4435808332"
+      display_name         = "Compeer audit managed identity on App Service"
+    }
+    function_app_managed_identity = {
+      name                 = "cmp-mi-function"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/0da106f2-4ca3-48e8-bc85-c638fe6aea8f"
+      display_name         = "Compeer audit managed identity on Function Apps"
+    }
+    automation_managed_identity = {
+      name                 = "cmp-mi-automation"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/dea83a72-443c-4292-83d5-54a2f98749c0"
+      display_name         = "Compeer audit managed identity on Automation Accounts"
+    }
+    key_vault_rbac = {
+      name                 = "cmp-kv-rbac"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/12d4fa5e-1f9f-4c21-97a9-b99b3c6611b5"
+      display_name         = "Compeer audit Key Vault RBAC authorization"
+    }
+    key_vault_deletion_protection = {
+      name                 = "cmp-kv-recovery"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/0b60c0b2-2dc2-4e1c-b5c9-abbed971de53"
+      display_name         = "Compeer audit Key Vault deletion protection"
+    }
+    app_service_latest_tls = {
+      name                 = "cmp-tls-web"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/f0e6e85b-9b9f-4a4b-b67b-f730d42f1b0b"
+      display_name         = "Compeer audit latest TLS on App Service"
+    }
+    function_app_latest_tls = {
+      name                 = "cmp-tls-function"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/f9d614c5-c173-4d56-95a7-b4437057d193"
+      display_name         = "Compeer audit latest TLS on Function Apps"
+    }
     disk_encryption_windows_vm = {
       name                 = "cmp-disk-encrypt-win"
       management_group_key = "workloads-mg"

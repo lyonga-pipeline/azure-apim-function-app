@@ -93,23 +93,27 @@ Two rounds of gap-closure since this doc was first written:
    enabled for Virtual Machines", AuditIfNotExists, `workloads-mg`) and
    `06f19060-9e68-4070-92ca-f15cc126059e` (CIS v2.0.0 initiative, Audit,
    `compeer-enterprise-mg`, `enforce=false` like MCSB). **LIVE.**
+6. **Managed identity, Key Vault, and application TLS audits** (Phase 3 §7,
+   Phase 4/5) — `platform-policy` assigns the current Azure built-ins for App
+   Service, Function App, and Automation Account managed identities; Key Vault
+   RBAC authorization and deletion protection; and latest TLS on App Service
+   and Function Apps. They are assigned at `compeer-enterprise-mg` so platform
+   and workload subscriptions inherit one consistent reporting baseline.
 
-With these, every policy-shaped control named in the ALZ design doc's Phase
-3/5/6/9 and the Identity & RBAC doc's equivalent phases is accounted for: 12
-live, 4 explicitly not enabled below with a concrete reason each — see the
-full table in `PATTERN-REFERENCE.md`.
+With these, the resource-policy controls named in the ALZ design doc are
+accounted for. Authorization controls remain in `platform-authorization` and
+`platform-privileged-access`; operational controls remain in management and
+service patterns rather than being forced into one policy initiative.
 
 **Not enabled — a real reason each time, not just "not gotten to it":**
 
-6. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
+7. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
    exists (commented) in `platform-management`'s `terraform.tfvars.example`;
    not enabled because it needs validation against the tenant's actual
    connected-table schema first.
-7. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
+8. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
    policy GUID could be found for a plain "TDE should be enabled" audit (Azure
    enables TDE by default on new databases now, which likely explains this).
-8. **Managed identity usage audit** (Phase 3 §7 Cat. 1) — no built-in policy
-   matches this control as literally described; would need a custom policy.
 9. **Diagnostic settings required** (Phase 3 §7 Cat. 4) — Microsoft's current
    diagnostic-settings-policy model is per-resource-type (dozens of built-ins,
    one per service), not a single initiative; needs Compeer to pick which
@@ -125,12 +129,9 @@ full table in `PATTERN-REFERENCE.md`.
    *initiative* needs the pattern's main `management_group_policy_assignments`
    (which supports `policy_set_definition_id` + an identity block) instead.
 
-None of the "not enabled" items are architectural gaps — the pattern/module
-surface exists for all of them. What's left is either a tenant-validation step
-(Sentinel), a genuine business decision (Defender pricing tier), or content
-that doesn't have a clean built-in equivalent (SQL TDE, managed-identity audit,
-diagnostic settings) and would need a hand-authored custom policy the same way
-`private_only_connectivity` is.
+The remaining items need tenant validation, a licensing decision, or a
+resource-type-specific diagnostic policy selection. They should not be
+silently enabled with guessed parameters.
 
 ---
 
@@ -174,7 +175,7 @@ diagnostic settings) and would need a hand-authored custom policy the same way
 | 4. Azure RBAC framework / custom roles | **IaC** — `platform-authorization` (`custom_role_definitions`) + `platform-governance` | Prefer built-in roles; minimal custom roles. |
 | 5. Map Entra groups → Azure roles | **IaC** — `platform-authorization` (`role_assignments`) | |
 | 6. Core governance policies (naming, tags, regions, allowed types) | **Codified** — `policy_baseline` ships `cmp-allowed-locations` + `cmp-required-tags`; `platform-policy` ships `cmp-allowed-res-types` (built-in "Allowed resource types", **LIVE**, `enforce=false` until the catalog list is reviewed). Naming is enforced by convention (module/naming outputs), not a policy. | |
-| 7. Security guardrails (identity / network / data / logging) | **Mostly codified** — network: `cmp-deny-public-ip`, `cmp-deny-public-paas`, `cmp-sql-private-network`, plus the private-only-connectivity initiative (**LIVE**); data: `cmp-secure-storage`, `cmp-disk-encrypt-win`/`-linux` (**LIVE**). Identity (audit privileged access — covered by `platform-authorization`'s group model, not a resource policy) and logging (require diagnostic settings) are not assigned as policy — see "Not enabled" items 7-8 in the Known Gaps section. | |
+| 7. Security guardrails (identity / network / data / logging) | **Mostly codified** — network: public-IP/PaaS/SQL/private-connectivity controls; data: secure storage and VM disk encryption; identity: managed-identity and Key Vault RBAC audits. Privileged access is enforced through group-only RBAC and PIM, not Azure Policy. Resource diagnostics remain service-specific; see the Known Gaps section. | |
 | 8. Compliance & monitoring policies | **Hybrid** — Defender/Policy compliance data is real (`platform-management`, Azure Policy compliance state); a purpose-built compliance *dashboard* is not built (Azure Policy's own compliance view / Workbook is the assumed consumer) | |
 | 9. Subscription governance framework | **IaC** — `platform-subscription-onboarding` (+ `platform-subscriptions`) | |
 | 10. Validation & governance testing | Manual | |

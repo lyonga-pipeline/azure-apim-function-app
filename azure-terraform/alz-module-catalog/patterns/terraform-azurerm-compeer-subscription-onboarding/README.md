@@ -40,7 +40,7 @@ already created — MG placement + subscription-scope RBAC, nothing else.
 | `management_group_ids` | `map(string)` — resolved MG IDs keyed by catalog key (feed the governance workspace's `management_group_ids` output straight in). |
 | `group_object_ids` | `map(string)` — Entra security group object IDs keyed by `platform-authorization.rbac_groups` key. Used to resolve `principal_group_key` in RBAC entries. |
 | `subscriptions` | `map(object)` keyed by a stable logical name. Each: `subscription_id` (GUID), exactly one of `target_management_group_key` / `target_management_group_id`, optional `display_name`, `workload` (Production/DevTest), `apply_baseline_rbac` (default true), `app_role_assignments` (keyed `map(object)`). |
-| `baseline_role_assignments` | `map(object)` — RBAC applied at subscription scope to **every** subscription with `apply_baseline_rbac = true`. This is the "consistent way": platform ops, security readers, break-glass. |
+| `baseline_role_assignments` | `map(object)` - exceptional RBAC applied at subscription scope to every opted-in subscription. Prefer one assignment at the target management group when all child subscriptions need the same access. Do not duplicate inherited assignments or use this for standing privileged/break-glass access. |
 | `legacy_policy_removals` | `map(object)` — legacy subscription/resource-group-scope policy **assignments** to remove during onboarding. See "Legacy policy removal" below. |
 | `default_tags` | Informational only (recorded on the contract marker). |
 
@@ -71,6 +71,13 @@ Group and may carry Azure Policy assignments — inherited from the root/old
 parent MG, or assigned directly at the subscription or a resource group inside
 it. Moving the subscription to its new landing-zone MG (above) is native Azure
 behaviour and handles the **inherited** kind automatically and immediately:
+
+`legacy_policy_removals` never removes management-group assignments. Terraform
+cannot and should not delete a parent assignment while onboarding one child
+subscription. Moving the subscription changes which management-group policies
+it inherits; this feature is only for assignments created directly on the
+subscription or one of its resource groups.
+
 Azure enforces single-MG membership, so the moment the subscription leaves the
 old MG, its policies stop applying, and the new landing-zone MG's policies
 start applying instead. Nothing in Terraform needs to do anything extra for

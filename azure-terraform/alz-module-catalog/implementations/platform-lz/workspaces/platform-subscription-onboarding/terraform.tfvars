@@ -18,25 +18,12 @@ onboarding = {
     managed_by = "terraform"
   }
 
-  # Applied at subscription scope to EVERY onboarded subscription
-  # (unless a subscription sets apply_baseline_rbac = false).
-  # principal_group_key resolves from platform-authorization.group_object_ids.
-  baseline_role_assignments = {
-    platform_operations = {
-      role_definition_name = "Contributor"
-      principal_group_key  = "plt_contributors"
-      description          = "Platform operations standing access"
-    }
-    security_readers = {
-      role_definition_name = "Reader"
-      principal_group_key  = "sec_readers"
-    }
-    break_glass = {
-      role_definition_name = "Owner"
-      principal_group_key  = "break_glass_admins"
-      description          = "Emergency access - monitored"
-    }
-  }
+  # Platform operations and security roles are assigned at enterprise/platform
+  # MG scope by platform-authorization and inherited by these subscriptions.
+  # Keep this empty unless a role is intentionally required on every onboarded
+  # subscription and cannot be assigned once at the target MG. Privileged and
+  # emergency access is managed through PIM/manual break-glass controls.
+  baseline_role_assignments = {}
 
   # Populate after CSP creates real subscription GUIDs. App/workload team access
   # should use principal_group_key when the group is created by
