@@ -28,7 +28,7 @@ locals {
   pb_required_tags = try(local.pb.required_tag_names, [
     "environment", "application", "appcode", "owner", "source_repo", "created_on",
     "criticality_tier", "data_classification", "lifecycle_state",
-    "cost_center", "gl_category",
+    "cost_center", "gl_category", "created_by",
   ])
   pb_assign_mcsb = try(local.pb.assign_security_benchmark, true)
   # Resource groups carved out of deny-public-PaaS / secure-storage - the

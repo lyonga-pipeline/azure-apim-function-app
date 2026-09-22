@@ -69,7 +69,7 @@ run "policy_baseline_on" {
     condition = sort(local.pb_required_tags) == sort([
       "environment", "application", "appcode", "owner", "source_repo", "created_on",
       "criticality_tier", "data_classification", "lifecycle_state",
-      "cost_center", "gl_category",
+      "cost_center", "gl_category", "created_by",
     ])
     error_message = "cmp-required-tags default list has drifted from platform-tags' mandatory_keys"
   }

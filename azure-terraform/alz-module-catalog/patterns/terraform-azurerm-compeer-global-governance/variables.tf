@@ -202,7 +202,7 @@ variable "policy_baseline" {
     required_tag_names = optional(list(string), [
       "environment", "application", "appcode", "owner", "source_repo", "created_on",
       "criticality_tier", "data_classification", "lifecycle_state",
-      "cost_center", "gl_category",
+      "cost_center", "gl_category", "created_by",
     ])
     assign_security_benchmark = optional(bool, true)
     not_scopes                = optional(list(string), [])

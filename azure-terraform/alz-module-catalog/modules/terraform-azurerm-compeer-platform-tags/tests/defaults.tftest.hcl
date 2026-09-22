@@ -606,8 +606,12 @@ run "all_mandatory_tags_unset_does_not_error" {
   command = apply
 
   assert {
-    condition     = length(output.missing_mandatory) == length(output.mandatory_keys)
-    error_message = "missing_mandatory should report every mandatory key when nothing is supplied (created_by is Conditional, not in mandatory_keys, so it doesn't affect this count) - and, critically, this must not error just because every mandatory variable defaults to null"
+    condition     = contains(output.mandatory_keys, "created_by") && !contains(output.missing_mandatory, "created_by")
+    error_message = "created_by must be part of the mandatory schema and automatically satisfied by its Terraform default"
+  }
+  assert {
+    condition     = length(output.missing_mandatory) == length(output.mandatory_keys) - 1
+    error_message = "every unset mandatory business tag should be reported while the mandatory created_by tag remains automatically satisfied"
   }
   assert {
     condition     = length(output.tags) == 1 && output.tags["created_by"] == "Terraform"

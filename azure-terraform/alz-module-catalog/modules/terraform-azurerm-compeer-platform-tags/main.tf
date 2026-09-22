@@ -21,7 +21,7 @@ locals {
   mandatory_keys = [
     "environment", "application", "appcode", "owner", "source_repo", "created_on",
     "criticality_tier", "data_classification", "lifecycle_state",
-    "cost_center", "gl_category",
+    "cost_center", "gl_category", "created_by",
   ]
 
   supplied_standard_tags = {

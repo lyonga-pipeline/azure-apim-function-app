@@ -46,7 +46,7 @@ resource "azurerm_resource_group" "this" {
 | Mandatory | `environment`, `application`, `appcode`, `owner`, `source_repo`, `created_on` |
 | Mandatory | `criticality_tier`, `data_classification`, `lifecycle_state`, `cost_center`, `gl_category` |
 | Optional | `application_component`, `modified_on`, `dr_tier` |
-| Fixed | `created_by = "Terraform"` |
+| Mandatory, fixed | `created_by = "Terraform"` |
 | Sandbox only | `expiration_date`, `time_bound_exception` |
 | Extension | `additional_tags` |
 
@@ -125,6 +125,10 @@ Mandatory inputs default to `null` intentionally. The module must not invent
 business values such as an owner or cost center. `mandatory_keys` defines the
 required schema, and `missing_mandatory` reports which values were not supplied.
 Null values are filtered out before the final tag map is emitted.
+
+`created_by` is also mandatory, but it is automatically satisfied because the
+module fixes it to `Terraform`, rejects any other value, and emits it even when
+the caller omits it or explicitly passes `null`.
 
 This does not produce an error by itself. OPA and Azure Policy enforce the
 required tags. A root that needs Terraform-side enforcement can use:
