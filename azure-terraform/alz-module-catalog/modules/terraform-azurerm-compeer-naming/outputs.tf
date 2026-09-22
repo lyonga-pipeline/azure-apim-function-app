@@ -65,11 +65,21 @@ output "function_app_names" {
 output "nsg_names" {
   description = "NSG name per nsg_keys entry."
   value       = local.keyed.nsg
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.nsg) : length(n) >= 1 && length(n) <= 80])
+    error_message = "an NSG name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.keyed.nsg : k => length(n) if length(n) > 80 })}."
+  }
 }
 
 output "route_table_names" {
   description = "Route table name per route_table_keys entry."
   value       = local.keyed.route_table
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.route_table) : length(n) >= 1 && length(n) <= 80])
+    error_message = "a route table name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.keyed.route_table : k => length(n) if length(n) > 80 })}."
+  }
 }
 
 output "network_interface_names" {
@@ -125,16 +135,31 @@ output "virtual_machine_names" {
 output "disk_names" {
   description = "Managed disk name per disk_keys entry."
   value       = local.keyed.disk
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.disk) : length(n) >= 1 && length(n) <= 80])
+    error_message = "a managed disk name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.keyed.disk : k => length(n) if length(n) > 80 })}."
+  }
 }
 
 output "recovery_services_vault_names" {
   description = "Recovery Services vault name per recovery_services_vault_keys entry."
   value       = local.keyed.recovery_services_vault
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.recovery_services_vault) : length(n) >= 2 && length(n) <= 50 && can(regex("^[a-zA-Z][a-zA-Z0-9-]*$", n))])
+    error_message = "a Recovery Services vault name must be 2-50 characters, start with a letter, and contain only alphanumerics and hyphens: ${jsonencode(local.keyed.recovery_services_vault)}."
+  }
 }
 
 output "subnet_names" {
   description = "Subnet name per subnet_keys entry (non-reserved subnets only)."
   value       = local.keyed.subnet
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.subnet) : length(n) >= 1 && length(n) <= 80])
+    error_message = "a subnet name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.keyed.subnet : k => length(n) if length(n) > 80 })}."
+  }
 }
 
 # ---- Management groups ----

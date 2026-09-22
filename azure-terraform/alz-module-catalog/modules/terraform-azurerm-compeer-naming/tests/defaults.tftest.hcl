@@ -92,7 +92,7 @@ run "rejects_ambiguous_np_environment" {
   expect_failures = [var.environment]
 }
 
-run "approved_abbreviation_overrides_fallback" {
+run "approved_abbreviation_supports_new_component" {
   command = apply
 
   variables {
@@ -106,6 +106,22 @@ run "approved_abbreviation_overrides_fallback" {
   assert {
     condition     = output.key_vault_names["primary"] == "cpc-cus-prod-primary"
     error_message = "an approved abbreviation must control constrained resource prefixes"
+  }
+}
+
+run "unknown_component_without_constrained_resources_is_allowed" {
+  command = apply
+
+  variables {
+    region         = "centralus"
+    environment    = "prod"
+    component      = "edge-appliance"
+    public_ip_keys = ["management"]
+  }
+
+  assert {
+    condition     = output.public_ip_names["management"] == "cus-prod-management-pip" && output.key_vault == null
+    error_message = "components that do not request abbreviation-based resources must remain valid"
   }
 }
 
@@ -515,6 +531,31 @@ run "rejects_unknown_environment" {
   expect_failures = [var.environment]
 }
 
+run "rejects_unknown_scope" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    scope       = "application"
+  }
+
+  expect_failures = [var.scope]
+}
+
+run "rejects_unknown_component_without_approved_abbreviation" {
+  command = plan
+
+  variables {
+    region         = "centralus"
+    environment    = "prod"
+    component      = "new-platform-service"
+    key_vault_keys = ["primary"]
+  }
+
+  expect_failures = [check.approved_abbreviation_exists]
+}
+
 run "rejects_key_vault_over_24_chars" {
   command = plan
 
@@ -771,9 +812,21 @@ run "rejects_invalid_function_app_instance" {
   variables {
     region            = "centralus"
     environment       = "prod"
-    appcode           = "warehouse"
+    component         = "management"
     function_app_keys = ["api"]
   }
 
-  expect_failures = [check.function_app_keys_are_instance_numbers]
+  expect_failures = [var.function_app_keys]
+}
+
+run "rejects_keyed_nsg_over_80_chars" {
+  command = plan
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    nsg_keys    = ["this-is-an-intentionally-long-network-security-group-key-that-exceeds-the-azure-limit"]
+  }
+
+  expect_failures = [output.nsg_names]
 }

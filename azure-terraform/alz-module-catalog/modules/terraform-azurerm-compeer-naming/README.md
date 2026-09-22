@@ -171,12 +171,15 @@ Key Vault and storage-account names have tight length limits. For their
 application/component prefix, the module uses:
 
 1. An explicit `abbreviation`, when supplied.
-2. The built-in approved abbreviation map.
-3. A deterministic fallback derived from the discriminator.
+2. The workload `appcode`, when supplied and already validated to nine letters.
+3. The built-in approved abbreviation map.
 
-Add an approved abbreviation when a new component or domain owns constrained
-resources. Changing an abbreviation after deployment changes generated names
-and can force resource replacement.
+There is no truncation fallback. When a new component or domain owns a Key
+Vault, user-assigned identity, or Function App and has no approved abbreviation,
+the module fails with a clear message. Add the abbreviation through a versioned
+module change or pass an explicitly approved `abbreviation`. Changing an
+abbreviation after deployment changes generated names and can force resource
+replacement.
 
 Storage-account names are globally unique. Supply a stable seed such as the
 subscription ID:
@@ -272,6 +275,7 @@ When adding a resource type:
 terraform test
 ```
 
-Tests cover platform and workload context, region mapping, approved
-environments, keyed resources, abbreviation overrides, collisions, invalid
-tokens, storage uniqueness, and Azure length limits.
+Tests cover platform and workload context, region/environment/scope validation,
+approved and missing abbreviations, keyed resources, numeric Function App
+instances, collisions, invalid tokens, deterministic storage uniqueness, and
+Azure length and character limits.

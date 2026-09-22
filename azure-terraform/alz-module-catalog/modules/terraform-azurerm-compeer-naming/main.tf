@@ -57,7 +57,11 @@ locals {
 
   disc = local.scope == "workload" ? coalesce(local.appcode, local.domain, "workload") : coalesce(local.component, "platform")
 
-  disc_abbr = var.abbreviation == null ? lookup(local.abbr, local.disc, substr(replace(local.disc, "-", ""), 0, 10)) : lower(trimspace(var.abbreviation))
+  disc_abbr = var.abbreviation != null ? lower(trimspace(var.abbreviation)) : (
+    local.scope == "workload" && local.appcode != null ? local.appcode : lookup(local.abbr, local.disc, null)
+  )
+  # Keeps collection expressions evaluable while the dedicated check emits the actionable error.
+  disc_abbr_rendered = coalesce(local.disc_abbr, "missing")
 
   # The sentinel allows checks.tf to report a clear missing-domain error.
   stem = local.scope == "workload" ? (
@@ -70,7 +74,7 @@ locals {
 
   # ---- Keyed collections: <resource> => { key => name } --------------------
   keyed = {
-    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}" }
+    key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}" }
     # Reserve the required tail before truncating the caller-controlled token.
     storage_account = {
       for k in var.storage_account_keys : k => "cf${substr(
@@ -79,8 +83,8 @@ locals {
         24 - length("cf${local.st_suffix}${local.region}${local.storage_env}sa")
       )}${local.st_suffix}${local.region}${local.storage_env}sa"
     }
-    user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-id" }
-    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr}-${local.region}-${local.env}-azfn-${try(format("%02d", tonumber(k)), "00")}" }
+    user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-id" }
+    function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-azfn-${format("%02d", tonumber(k))}" }
     nsg                     = { for k in var.nsg_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nsg" }
     route_table             = { for k in var.route_table_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-rt" }
     public_ip               = { for k in var.public_ip_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pip" }
@@ -152,7 +156,7 @@ locals {
     # ---- Key Vault / resource group ----
     key_vault = (
       local.scope == "workload" ? (local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-${local.kv_token}") :
-      local.component != null ? "${local.disc_abbr}-${local.region}-${local.env}-${local.kv_token}" :
+      local.component != null && local.disc_abbr != null ? "${local.disc_abbr}-${local.region}-${local.env}-${local.kv_token}" :
       null
     )
     platform_resource_group = "platform-${local.region}-${local.env}-rg"

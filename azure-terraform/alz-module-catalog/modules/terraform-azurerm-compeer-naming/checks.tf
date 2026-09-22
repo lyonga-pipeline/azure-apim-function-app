@@ -16,6 +16,17 @@ check "workload_scope_needs_domain" {
   }
 }
 
+check "approved_abbreviation_exists" {
+  assert {
+    condition = local.disc_abbr != null || !(
+      length(var.key_vault_keys) > 0 ||
+      length(var.user_assigned_identity_keys) > 0 ||
+      length(var.function_app_keys) > 0
+    )
+    error_message = "No approved abbreviation exists for '${local.disc}'. Add it to the module abbreviation map through a versioned change or provide the approved `abbreviation` input."
+  }
+}
+
 check "keyed_names_have_no_case_collisions" {
   assert {
     condition = alltrue([
@@ -52,12 +63,5 @@ check "naming_values_use_supported_characters" {
       ])
     ))
     error_message = "Naming values must use alphanumeric segments separated by single hyphens. Stable resource keys may use single hyphens or underscores; underscores are rendered as hyphens in Azure names."
-  }
-}
-
-check "function_app_keys_are_instance_numbers" {
-  assert {
-    condition     = alltrue([for key in var.function_app_keys : try(tonumber(key) >= 1 && tonumber(key) <= 99, false)])
-    error_message = "function_app_keys must be instance numbers from 1 to 99; names render them as two digits."
   }
 }

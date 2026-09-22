@@ -159,6 +159,11 @@ variable "function_app_keys" {
   description = "Function App instance numbers (1-99). Output: function_app_names using the approved azfn pattern."
   type        = list(string)
   default     = []
+
+  validation {
+    condition     = alltrue([for key in var.function_app_keys : can(tonumber(key)) && try(tonumber(key) >= 1 && tonumber(key) <= 99, false)])
+    error_message = "function_app_keys must contain only instance numbers from 1 to 99; names render them as two digits."
+  }
 }
 
 variable "subnet_keys" {
