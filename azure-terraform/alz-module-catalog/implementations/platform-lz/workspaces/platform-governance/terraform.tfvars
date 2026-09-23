@@ -17,8 +17,9 @@ governance = {
   # and that is what the Figure 2 boxes show) — display_name defaults to the key,
   # so it is left unset here.
   # The legacy LZ (compeer-mg) is a separate tenant-root child, NOT recreated here.
-  # regulated-apps-* and shared-services-* are stood up but dormant (no
-  # subscriptions / policy) until a distinct governance need arises.
+  # shared-services-* is stood up but dormant (no subscriptions / policy)
+  # until a distinct governance need arises. The regulated-apps branch is not
+  # deployed until its governance model is approved.
   management_groups = {
     "compeer-enterprise-mg" = { parent_key = "root" }
 
@@ -28,10 +29,11 @@ governance = {
     "management-mg"   = { parent_key = "platform-mg" }
     "connectivity-mg" = { parent_key = "platform-mg" }
 
-    "workloads-mg"       = { parent_key = "compeer-enterprise-mg" }
-    "internal-apps-mg"   = { parent_key = "workloads-mg" }
-    "external-apps-mg"   = { parent_key = "workloads-mg" }
-    "regulated-apps-mg"  = { parent_key = "workloads-mg" } # dormant
+    "workloads-mg"     = { parent_key = "compeer-enterprise-mg" }
+    "internal-apps-mg" = { parent_key = "workloads-mg" }
+    "external-apps-mg" = { parent_key = "workloads-mg" }
+    "data-mg"          = { parent_key = "workloads-mg" }
+    # "regulated-apps-mg" = { parent_key = "workloads-mg" }
     "shared-services-mg" = { parent_key = "workloads-mg" } # dormant
 
     "sandbox-mg"        = { parent_key = "compeer-enterprise-mg" }
@@ -47,10 +49,15 @@ governance = {
     "external-apps-uat-mg"  = { parent_key = "external-apps-mg" }
     "external-apps-prod-mg" = { parent_key = "external-apps-mg" }
 
-    "regulated-apps-dev-mg"  = { parent_key = "regulated-apps-mg" }
-    "regulated-apps-test-mg" = { parent_key = "regulated-apps-mg" }
-    "regulated-apps-uat-mg"  = { parent_key = "regulated-apps-mg" }
-    "regulated-apps-prod-mg" = { parent_key = "regulated-apps-mg" }
+    "data-dev-mg"  = { parent_key = "data-mg" }
+    "data-test-mg" = { parent_key = "data-mg" }
+    "data-uat-mg"  = { parent_key = "data-mg" }
+    "data-prod-mg" = { parent_key = "data-mg" }
+
+    # "regulated-apps-dev-mg"  = { parent_key = "regulated-apps-mg" }
+    # "regulated-apps-test-mg" = { parent_key = "regulated-apps-mg" }
+    # "regulated-apps-uat-mg"  = { parent_key = "regulated-apps-mg" }
+    # "regulated-apps-prod-mg" = { parent_key = "regulated-apps-mg" }
 
     "shared-services-dev-mg"  = { parent_key = "shared-services-mg" }
     "shared-services-test-mg" = { parent_key = "shared-services-mg" }

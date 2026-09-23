@@ -7,7 +7,7 @@ on top of — it runs first in the deployment order.
 
 | Area | Resource / module | Purpose |
 |---|---|---|
-| Management groups | `module.management_groups` | The 25-entry go-live management-group tree under `compeer-enterprise-mg` (platform, workloads, internal/external/regulated apps, shared services, sandbox, decommissioned) |
+| Management groups | `module.management_groups` | The 25-entry go-live management-group tree under `compeer-enterprise-mg` (platform, workloads, internal/external apps, data, shared services, sandbox, decommissioned) |
 | Policy definitions, initiatives, assignments | [`module.policy`](../../modules/terraform-azurerm-compeer-policy) | Custom policy rules — both hand-authored (`var.custom_policy_definitions` / `var.custom_policy_set_definitions` / `var.management_group_policy_assignments` / `var.subscription_policy_assignments`) and the built-in landing-zone baseline (`policy_baseline.tf`, merged in) — see "The policy baseline" below |
 | Custom roles + RBAC | `module.custom_role_definitions`, `module.role_assignments` | Custom Azure roles (kept minimal by design) and any standing role assignments declared here (rare — see `platform-authorization`) |
 | Budgets | `azurerm_consumption_budget_management_group.management_group_budget` | MG-scope cost budgets |
@@ -73,7 +73,7 @@ The error `Parent management group 'compeer-root' not found` means the configure
 
 The root supports both individual Azure Policy definitions and policy set definitions/initiatives. Use policy set definitions for the baseline landing-zone initiative so approved regions, required tags, public access, encryption, diagnostics, identity, and connectivity guardrails can be assigned as one scoped package at the net-new landing-zone management group.
 
-The checked-in management-group scaffold matches the current go-live diagram for the new enterprise tree: 25 management group entries under `compeer-enterprise-mg`. That includes platform, workloads, internal apps, external apps, regulated apps, shared services, sandbox, and decommissioned branches. The existing `compeer-mg` branch shown outside this tree is treated as an existing landing-zone path and is not created by this root.
+The checked-in management-group scaffold contains 25 management group entries under `compeer-enterprise-mg`. That includes platform, workloads, internal apps, external apps, data, shared services, sandbox, and decommissioned branches. `data-mg` is an L2 child of `workloads-mg` with dev, test, uat, and prod children. The regulated-apps branch remains commented until its governance model is approved. The existing `compeer-mg` branch shown outside this tree is treated as an existing landing-zone path and is not created by this root.
 
 ### Policy baseline (`var.policy_baseline`)
 

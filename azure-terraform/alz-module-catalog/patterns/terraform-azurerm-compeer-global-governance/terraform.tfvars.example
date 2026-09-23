@@ -8,9 +8,9 @@
 # so display_name is left unset — the pattern defaults it to the key. Set it
 # explicitly only if you want a portal label that differs from the name.
 #
-# Each workload domain carries the full dev / test / uat / prod environment tier.
-# regulated-apps-* and shared-services-* are stood up but dormant at launch (no
-# subscriptions / policy) until a distinct governance need arises.
+# Each deployed workload domain carries the full dev / test / uat / prod tier.
+# shared-services-* is dormant at launch. The regulated-apps branch remains
+# commented until its governance model is approved.
 management_groups = {
   "compeer-enterprise-mg" = { parent_key = "root" }
 
@@ -23,7 +23,8 @@ management_groups = {
   "workloads-mg"       = { parent_key = "compeer-enterprise-mg" }
   "internal-apps-mg"   = { parent_key = "workloads-mg" }
   "external-apps-mg"   = { parent_key = "workloads-mg" }
-  "regulated-apps-mg"  = { parent_key = "workloads-mg" } # dormant
+  "data-mg"            = { parent_key = "workloads-mg" }
+  # "regulated-apps-mg" = { parent_key = "workloads-mg" }
   "shared-services-mg" = { parent_key = "workloads-mg" } # dormant
 
   "sandbox-mg"        = { parent_key = "compeer-enterprise-mg" }
@@ -39,10 +40,15 @@ management_groups = {
   "external-apps-uat-mg"  = { parent_key = "external-apps-mg" }
   "external-apps-prod-mg" = { parent_key = "external-apps-mg" }
 
-  "regulated-apps-dev-mg"  = { parent_key = "regulated-apps-mg" }
-  "regulated-apps-test-mg" = { parent_key = "regulated-apps-mg" }
-  "regulated-apps-uat-mg"  = { parent_key = "regulated-apps-mg" }
-  "regulated-apps-prod-mg" = { parent_key = "regulated-apps-mg" }
+  "data-dev-mg"  = { parent_key = "data-mg" }
+  "data-test-mg" = { parent_key = "data-mg" }
+  "data-uat-mg"  = { parent_key = "data-mg" }
+  "data-prod-mg" = { parent_key = "data-mg" }
+
+  # "regulated-apps-dev-mg"  = { parent_key = "regulated-apps-mg" }
+  # "regulated-apps-test-mg" = { parent_key = "regulated-apps-mg" }
+  # "regulated-apps-uat-mg"  = { parent_key = "regulated-apps-mg" }
+  # "regulated-apps-prod-mg" = { parent_key = "regulated-apps-mg" }
 
   "shared-services-dev-mg"  = { parent_key = "shared-services-mg" }
   "shared-services-test-mg" = { parent_key = "shared-services-mg" }
