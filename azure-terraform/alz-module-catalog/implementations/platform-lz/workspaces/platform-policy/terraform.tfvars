@@ -1,23 +1,8 @@
-# Deployable tfvars for this workspace.
-#
-# Auth is NOT set here:
-#   tenant_id       -> shared HCP variable set (Terraform category, key: tenant_id)
-#   subscription_id -> this workspace's Terraform-category variable in HCP
-# The azurerm provider reads both from those Terraform variables.
-#
-
 location                  = "centralus"
 tfe_organization          = "Compeer-Financial-Services"
 governance_workspace_name = "platform-governance"
 management_workspace_name = "platform-management"
 
-# The deny/audit BASELINE (allowed-regions, required-tags, deny-public-PaaS,
-# secure-storage, restrict-public-IP, private-SQL, MCSB) is shipped by the
-# governance workspace's policy_baseline. This workspace owns:
-#   - promotion of those baseline policies to Deny (via governance, per policy)
-#   - DeployIfNotExists remediation (needs a managed identity + Log Analytics)
-#   - policy exemptions (all three scopes)
-#   - the private-only-connectivity guardrail
 policy = {
   enabled = true
 
@@ -25,24 +10,16 @@ policy = {
   custom_policy_definitions     = {}
   custom_policy_set_definitions = {}
 
-  # Built-in guardrails not covered by the governance policy_baseline (design
-  # doc Phase 3 Step 7 identity/logging guardrails, Phase 5 Step 6-7 disk/DB
-  # encryption). All effects below are Audit-equivalent (no Deny, no resource
-  # changes, no cost) - report-only first per this repo's convention. GUIDs
-  # verified against the current Azure built-in policy catalog on 2026-09-11
-  # (see IDENTITY-RBAC-IAC-BOUNDARY.md for the ones NOT enabled and why).
+  # Enterprise controls not owned by the initial governance baseline.
   management_group_policy_assignments = {
     allowed_resource_types = {
       name                 = "cmp-allowed-res-types"
       management_group_key = "compeer-enterprise-mg"
       policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/a08ec900-254a-4555-9bf5-e42af04b5c5c" # built-in "Allowed resource types"
       display_name         = "Compeer allowed resource types"
-      enforce              = false # Audit only until the approved workload catalog below is confirmed complete
+      enforce              = false
       parameters = {
         listOfResourceTypesAllowed = {
-          # Approved workload catalog, per the ALZ design doc's workload
-          # hosting patterns + platform services actually built in this repo.
-          # Widen this list before switching enforce = true.
           value = [
             "Microsoft.Compute/virtualMachines",
             "Microsoft.Compute/disks",
@@ -153,38 +130,29 @@ policy = {
     disk_encryption_windows_vm = {
       name                 = "cmp-disk-encrypt-win"
       management_group_key = "workloads-mg"
-      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/3dc5edcd-002d-444c-b216-e123bbfa37c0" # built-in "Windows virtual machines should enable Azure Disk Encryption or EncryptionAtHost"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/3dc5edcd-002d-444c-b216-e123bbfa37c0"
       display_name         = "Compeer require disk encryption - Windows VMs"
-      identity             = { type = "SystemAssigned" } # Guest Configuration audit needs an identity to evaluate
+      identity             = { type = "SystemAssigned" }
     }
     disk_encryption_linux_vm = {
       name                 = "cmp-disk-encrypt-linux"
       management_group_key = "workloads-mg"
-      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/ca88aadc-6e2b-416c-9de2-5a0f01d1693f" # built-in "Linux virtual machines should enable Azure Disk Encryption or EncryptionAtHost"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/ca88aadc-6e2b-416c-9de2-5a0f01d1693f"
       display_name         = "Compeer require disk encryption - Linux VMs"
       identity             = { type = "SystemAssigned" }
     }
-    # Design doc Phase 9 / §14: backup-and-restore is the default DR posture for
-    # every workload. Scoped to workloads-mg (not compeer-enterprise-mg) because
-    # platform-mg runs VMs that are deliberately NOT backed up this way: Palo
-    # Alto firewalls (stateless, licensed, protected by HA + Panorama config,
-    # not snapshot backup) and Cloudflare connector VMs (stateless, trivially
-    # rebuilt). Domain controllers already get explicit, targeted enrollment via
-    # directory-services' azurerm_backup_protected_vm, independent of this audit.
+    # Workload VMs inherit this audit; platform VM backup is configured explicitly.
     vm_backup_required = {
       name                 = "cmp-vm-backup"
       management_group_key = "workloads-mg"
-      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d" # built-in "Azure Backup should be enabled for Virtual Machines"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/013e242c-8828-4970-87b3-ab247555486d"
       display_name         = "Compeer require VM backup"
     }
-    # Phase 6 §6: CIS is the "Recommended" regulatory-compliance framework
-    # alongside MCSB's "Required baseline" (governance policy_baseline). Audit
-    # only - a benchmark dashboard, not a guardrail; never enforced (enforce
-    # is fixed false the same way the MCSB assignment is).
+    # Reporting-only benchmark; the MCSB baseline remains in platform-governance.
     cis_benchmark = {
       name                     = "cmp-cis-benchmark"
       management_group_key     = "compeer-enterprise-mg"
-      policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e" # built-in initiative "CIS Microsoft Azure Foundations Benchmark v2.0.0"
+      policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e"
       display_name             = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
       enforce                  = false
     }
@@ -192,55 +160,20 @@ policy = {
   subscription_policy_assignments   = {}
   resource_group_policy_assignments = {}
 
-  # -- Exemptions (mandatory before promoting any baseline policy to Deny) -----
-  policy_exemptions = {
-    # legacy-sandbox-waiver = {
-    #   scope_type            = "subscription"
-    #   subscription_id       = "/subscriptions/<guid>"
-    #   policy_assignment_id  = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg/providers/Microsoft.Authorization/policyAssignments/cmp-deny-pip"
-    #   exemption_category    = "Waiver"
-    #   expires_on            = "2026-12-31T00:00:00Z"
-    #   description           = "Sandbox lab needs public IPs until migration; tracked in RISK-1234."
-    # }
-  }
+  # Add approved, time-bound exemptions before promoting a control to Deny.
+  policy_exemptions = {}
 
-  # -- DeployIfNotExists remediation -----------------------------------------
-  # log_analytics_workspace_id is auto-read from the platform-management output.
-  # Verify each built-in policy ID against the tenant:
-  #   az policy definition list --query "[?policyRule.then.effect=='DeployIfNotExists'].{name:displayName,id:id}" -o table
+  # The root obtains the Log Analytics workspace ID from platform-management.
   remediation = {
     enabled              = false
     management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
     dine_assignments = {
-      # activity_log_to_law = {
-      #   policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/2465583e-4e78-4c15-b6be-a36cbc7c8b0f"
-      #   inject_law          = true   # adds { logAnalytics = { value = <workspace id> } }
-      # }
-      # Defender MG-scope auto-enablement (design doc Phase 6 Step 3-4).
-      # NOT enabled here deliberately - see IDENTITY-RBAC-IAC-BOUNDARY.md.
-      # The confirmed, non-deprecated built-in initiative is:
-      #   "Configure Microsoft Defender for Cloud plans"
-      #   /providers/Microsoft.Authorization/policySetDefinitions/f08c57cd-dbd6-49a4-a85e-9ae77ac959b0
-      # It bundles 12 per-service DeployIfNotExists policies (Servers, Storage,
-      # SQL, Key Vault, Containers, App Service, Cosmos DB, CSPM, ...) into one
-      # assignment. What's blocking "live": (1) this resource's dine_assignments
-      # only takes policy_definition_id, not policy_set_definition_id - assign
-      # an initiative through the pattern's main management_group_policy_assignments
-      # instead (it supports both + an identity block); (2) each per-service
-      # policy needs a pricing tier / subplan (e.g. Servers P1 vs P2) - that is
-      # a licensing/cost decision for Compeer, not a technical unknown, so it is
-      # not defaulted here.
-      # deploy_pdns_zonegroup_keyvault = {
-      #   policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/<verify>"
-      #   parameters = { privateDnsZoneId = { value = "/subscriptions/.../privateDnsZones/privatelink.vaultcore.azure.net" } }
-      # }
+      # Add tenant-verified per-resource DINE definitions after the diagnostic catalog is approved.
     }
   }
 
-  # -- Private-only connectivity guardrail (see pattern README) ---------------
-  # Fully custom (no external policy ID dependency) - live in Audit mode,
-  # report-only first per this repo's convention before ever considering Deny.
+  # Audit public IP usage before considering Deny.
   private_only_connectivity = {
     enabled              = true
     management_group_key = "compeer-enterprise-mg"

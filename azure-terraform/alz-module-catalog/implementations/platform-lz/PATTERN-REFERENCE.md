@@ -421,7 +421,7 @@ Phase 3 §7-8, Phase 5 §6-9, Phase 6 §3.
 | Block | Resource(s) | Why |
 |---|---|---|
 | `module.policy` (main.tf resolved-input locals) | [`terraform-azurerm-compeer-policy`](../../modules/terraform-azurerm-compeer-policy) | Same generic definition/initiative/assignment/exemption module `global-governance` calls (§1 above) — this pattern only resolves `management_group_key` and decides which entries exist |
-| `policy_extensions.tf` | (feeds `module.policy`'s `resource_group_assignments` / `exemptions` inputs) | RG-scope assignments; the exemption mechanism for all 3 scopes — mandatory before promoting any baseline policy to Deny |
+| `locals.tf` | Feeds `module.policy` resolved assignment and exemption inputs | Resolves management-group catalog keys, composes RG-scope assignments, and prepares the exemption mechanism for all three scopes. |
 | `remediation.tf` | (feeds `module.policy`'s `management_group_assignments` input, keyed `rem-<key>`, + a `terraform_data.remediation_contract` precondition check) | Generic DeployIfNotExists bundle — Defender-plan auto-enablement, diagnostic-settings auto-deployment, etc. — SystemAssigned identity + LAW-parameter-injection is this file's own business logic |
 | `private_only_baseline.tf` | (feeds `module.policy`'s definition/initiative/assignment inputs) | `deny-public-ip-address` + `deny-nic-public-ip` — Compeer forces all inbound through Cloudflare Tunnels; there's no single Azure "setting" for that, so it's a policy initiative |
 

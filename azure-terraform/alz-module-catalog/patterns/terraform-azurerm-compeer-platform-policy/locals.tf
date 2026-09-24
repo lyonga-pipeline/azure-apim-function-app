@@ -5,28 +5,7 @@ locals {
     )
   }
 
-  # -----------------------------------------------------------------------
-  # Resolve management_group_key -> a concrete management_group_id and drop
-  # the key before handing entries to module.policy - that module has no
-  # concept of this pattern's MG catalog (see
-  # modules/terraform-azurerm-compeer-policy's README "Boundary" section).
-  # policy_definition_key / policy_set_definition_key / policy_assignment_key
-  # are left untouched: those resolve against sibling definitions/initiatives
-  # /assignments the module itself creates in the same call, so the module
-  # keeps doing that resolution internally. module.policy's variables are
-  # typed `any` (not a strict object schema) specifically so this
-  # filter-then-merge works: real policy parameters/policy_rule/metadata have
-  # a genuinely different attribute key set per policy, and only `any` avoids
-  # a "cannot find a common base type" module-boundary error across such a
-  # map.
-  #
-  # remediation.tf's DINE assignments (local.rem_assignments) fold into the
-  # same management_group_assignments map here, keyed "rem-<key>" - they're
-  # just management-group policy assignments with a SystemAssigned identity
-  # and LAW-parameter-injection business logic that remediation.tf still
-  # owns; the resource mechanics live in module.policy like everything else.
-  # -----------------------------------------------------------------------
-
+  # Resolve management-group catalog keys before calling the generic policy module.
   policy_definitions_input = {
     for k, v in merge(var.custom_policy_definitions, local.poc_definitions) : k => merge(
       { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" },
@@ -68,16 +47,8 @@ locals {
     )
   }
 
-  # Resource-group assignments pass through unchanged. Exemptions resolve an
-  # optional management-group catalog key before reaching the policy module.
   resource_group_policy_assignments_input = var.resource_group_policy_assignments
 
-  # policy_assignment_key resolves against module.policy's OWN merged
-  # assignment map (all 3 scopes, including remediation's "rem-<key>"
-  # entries) - that resolution stays inside the module, since the referenced
-  # ID is a value the module itself computes. management_group_key here is
-  # the one thing that DOES need resolving here, since the MG catalog is
-  # external to the module.
   policy_exemptions_input = {
     for k, v in var.policy_exemptions : k => merge(
       { for ik, iv in v : ik => iv if ik != "management_group_key" && ik != "management_group_id" },
@@ -85,13 +56,12 @@ locals {
     )
   }
 
-  # Private-only connectivity is an optional initiative composed from custom
-  # Public IP controls and tenant-verified built-in companion policies.
+  # Optional private-connectivity initiative.
   poc                 = var.private_only_connectivity
   poc_enabled         = try(local.poc.enabled, false)
   poc_mg_key          = try(local.poc.management_group_key, null)
   poc_mg_id           = try(local.poc.management_group_id, null)
-  poc_effect          = try(local.poc.effect, "Audit") # Audit first, then flip to Deny
+  poc_effect          = try(local.poc.effect, "Audit")
   poc_allowed_rgs     = try(local.poc.allowed_public_ip_resource_group_names, [])
   poc_not_scopes      = try(local.poc.not_scopes, [])
   poc_builtin_ids     = try(local.poc.builtin_policy_definition_ids, {})
@@ -155,8 +125,6 @@ locals {
     }
   }
 
-  # Custom-only initiative. Built-in companions are referenced by full ID and are
-  # opt-in (see README) because their GUIDs are tenant-verifiable, not ours.
   poc_builtin_refs = {
     for ref_key, builtin_id in local.poc_builtin_ids : ref_key => {
       policy_definition_id = builtin_id
@@ -230,8 +198,7 @@ locals {
     }
   }
 
-  # DINE/Modify assignments use a system-assigned identity and can inject the
-  # platform Log Analytics workspace into policy parameters.
+  # DINE/Modify assignments use a managed identity and may receive the platform LAW ID.
   rem          = var.remediation
   rem_enabled  = try(local.rem.enabled, false)
   rem_mg_key   = try(local.rem.management_group_key, null)
@@ -239,12 +206,8 @@ locals {
   rem_law_id   = try(local.rem.log_analytics_workspace_id, null)
   rem_identity = { type = "SystemAssigned" }
 
-  # Each entry: { policy_definition_id (built-in, full ID), parameters = {},
-  #               inject_law = optional(bool) - adds logAnalytics/workspaceId param }
   rem_assignments = { for k, v in try(local.rem.dine_assignments, {}) : k => v if local.rem_enabled }
 
-  # Keyed "rem-<key>" so it can merge safely with hand-authored /
-  # private-only-connectivity assignments in the same map without colliding.
   remediation_assignments_input = {
     for k, v in local.rem_assignments : "rem-${k}" => {
       name                 = substr("rem-${k}", 0, 24)

@@ -1,11 +1,4 @@
-# Policy definitions have no Appendix F naming-module row at all (only
-# initiatives and assignments do) - real names here are explicit,
-# hand-chosen ("cmp-<topic>") by design, not a naming-module default. Policy
-# initiative names need BOTH a domain and a purpose token
-# (initiative-<domain>-<purpose>), which a single flat map key can't safely
-# supply without guessing a split - so these are opt-in: set `domain` on an
-# entry to compute a name via the naming module, otherwise the explicit
-# `name` (today's convention for all real entries) is required as before.
+# Initiative naming is opt-in through `domain`; explicit names remain supported.
 module "naming_initiative" {
   source      = "../../modules/terraform-azurerm-compeer-naming"
   for_each    = merge(var.custom_policy_set_definitions, local.poc_set_definitions)

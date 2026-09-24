@@ -1,214 +1,124 @@
 # Compeer Platform Policy Pattern
 
-## Overview
+## Purpose
 
-**What this deploys:** the narrower, more frequently-changed half of Azure
-Policy governance — everything that needs to promote from Audit→Deny, carry
-a remediation identity, or grant a scoped exemption, separate from the
-one-time management-group scaffold in `global-governance`.
+This pattern manages Azure Policy after the management-group hierarchy exists. It creates custom definitions, initiatives, assignments at management-group, subscription, or resource-group scope, time-bound exemptions, and opt-in DeployIfNotExists or Modify remediation assignments.
 
-| Area | Resource / module | Purpose |
-|---|---|---|
-| Policy definitions, initiatives, assignments (all 3 scopes), exemptions (all 3 scopes) | [`module.policy`](../../modules/terraform-azurerm-compeer-policy) | e.g. `cmp-allowed-res-types`, `cmp-disk-encrypt-win`, `compeer-private-only-connectivity` (see below) |
+It uses the reusable [`terraform-azurerm-compeer-policy`](../../modules/terraform-azurerm-compeer-policy) module for Azure resources. This pattern adds landing-zone composition: management-group key resolution, naming, private-connectivity controls, and remediation identity configuration.
 
-`module.policy` is the same generic Azure-Policy module `global-governance`
-calls — it has no concept of this pattern's MG catalog or its remediation/
-exemption business rules. `main.tf`'s resolved-input locals
-(`policy_definitions_input`, `policy_set_definitions_input`,
-`management_group_policy_assignments_input`,
-`subscription_policy_assignments_input`) and `policy_extensions.tf`'s
-(`resource_group_policy_assignments_input`, `policy_exemptions_input`) do
-the one thing the module can't: resolve `management_group_key` against
-`local.management_group_scope_ids` into a concrete `management_group_id`
-before the module ever sees an entry. `remediation.tf`'s DINE assignments
-(`local.remediation_assignments_input`) fold into the same
-management-group-assignments map under a `rem-<key>` prefix — remediation is
-just an assignment with a SystemAssigned identity and LAW-parameter-injection
-business logic that stays here; the resource mechanics live in the module.
+## Workspace Boundary
 
-**Why 3 assignment types and 3 exemption types instead of one generic
-"assignment" resource:** Azure Policy assignments and exemptions are scoped
-resources — an assignment at a resource group is a *different Terraform
-resource type* (`azurerm_resource_group_policy_assignment`) than one at a
-management group (`azurerm_management_group_policy_assignment`), even though
-they take nearly identical arguments. `module.policy` mirrors that split 1:1
-rather than hiding it behind one abstraction, so `terraform plan` always
-shows exactly which scope a change lands at.
-
-**`var.remediation.dine_assignments` — a real, documented limitation:** this
-mechanism only accepts a single `policy_definition_id` (no
-`policy_set_definition_id`), so a DeployIfNotExists **initiative** (like
-"Configure Microsoft Defender for Cloud plans") cannot be remediated through
-it — it needs a plain `management_group_policy_assignment` with its own
-`identity` block instead. See `implementations/platform-lz/PATTERN-REFERENCE.md`
-§6 for the specific policies this affects.
-
----
-
-This pattern owns Azure Policy definitions, initiatives, and assignments after the management-group hierarchy exists. It is intentionally separate from the governance root so policy promotion, remediation, managed-identity assignment, and deny-mode changes can run through a narrower HCP Terraform workspace.
-
-Use `management_group_ids` from the governance workspace output. Do not configure the same policy definition or assignment in both governance and policy workspaces unless the resource has been deliberately imported and ownership transferred.
-
----
-
-## Guardrail: private-only connectivity
-
-Compeer forces **all inbound traffic through Cloudflare Tunnels** and requires
-**private connectivity to every Azure resource**. There is no single Azure
-setting for this — it is a policy initiative. Set `var.private_only_connectivity`
-(exposed on the `platform-policy` workspace as
-`policy.private_only_connectivity`):
-
-```hcl
-policy = {
-  enabled = true
-  private_only_connectivity = {
-    enabled              = true
-    management_group_key = "compeer"          # or the top LZ MG
-    effect               = "Audit"            # start here, then "Deny"
-    enforce              = true
-    allowed_public_ip_resource_group_names = [
-      "rg-conn-palo-alto",     # firewall untrust NICs + LB frontend
-      "rg-conn-bastion",       # Azure Bastion (Bastion cannot be private)
-      "rg-conn-route-server",  # Route Server (requires a public IP)
-      "rg-hybrid-gateway",     # VPN / ExpressRoute gateway
-      # add an AppGW RG here ONLY if a gateway must stay internet-facing
-    ]
-    not_scopes = [
-      # optionally exclude a whole subscription/MG subtree during migration
-    ]
-  }
-}
-```
-
-### What it deploys
-
-| Object | Purpose |
+| Workspace | Ownership |
 |---|---|
-| `deny-public-ip-address` (custom policy) | Deny `Microsoft.Network/publicIPAddresses` outside `allowed_public_ip_resource_group_names`. |
-| `deny-nic-public-ip` (custom policy) | Deny NICs that attach a Public IP. |
-| `compeer-private-only-connectivity` (initiative) | Bundles the two, plus any opted-in built-ins. |
-| MG assignment | Applies the initiative at `management_group_key`, `enforce = true`. |
+| `platform-governance` | Management-group hierarchy and the initial enterprise baseline: locations, mandatory tags, public exposure, storage security, SQL network posture, and MCSB. |
+| `platform-policy` | Additional built-in/custom controls, policy exemptions, private-connectivity controls, and DINE/Modify assignments. |
+| `platform-authorization` | Entra groups, custom role definitions, PIM integration, and Azure RBAC assignments. |
+| `platform-management` | Log Analytics, Activity Log and Entra diagnostics, Sentinel, Defender plans, and resource diagnostic settings owned by the platform resources. |
 
-### Rollout
+Do not define the same assignment in two workspaces. Move ownership only through a deliberate state migration or import.
 
-1. Deploy with `effect = "Audit"`. Review **Policy → Compliance** for a week.
-2. Work the non-compliant list — the offenders are what the app-migration
-   conversation is really about (see call-out below).
-3. Flip `effect = "Deny"`. New public exposure is now blocked; existing
-   resources are reported until remediated.
+## Inputs
 
-### Built-in companion policies (opt-in)
+| Input | Purpose |
+|---|---|
+| `management_group_ids` | Management-group IDs keyed by the governance catalog key. |
+| `custom_policy_definitions` | Custom definitions created at management-group scope. |
+| `custom_policy_set_definitions` | Custom initiatives and their policy references. |
+| `management_group_policy_assignments` | Enterprise or child management-group assignments. |
+| `subscription_policy_assignments` | Subscription-specific controls that should not be inherited from a management group. |
+| `resource_group_policy_assignments` | Narrow resource-group controls. |
+| `policy_exemptions` | Waiver or mitigated exemptions at management-group, subscription, or resource-group scope. |
+| `private_only_connectivity` | Optional custom public-IP initiative and assignment. |
+| `remediation` | Optional DINE/Modify assignments with a system-assigned identity. |
 
-The custom policies stop *new* Public IPs. To also force **public network access
-off on PaaS** (Storage, Key Vault, App Service, SQL, APIM, Cosmos, ACR, Event
-Grid, AI Search, …), add the built-in "should disable public network access"
-policies. Their definition GUIDs are **not shipped** here because they must be
-verified against the tenant:
+`management_group_key` is resolved to a full Azure ID before the generic policy module is called. Definition, initiative, and assignment keys remain stable composition references inside the base module.
 
-```bash
-az policy definition list --query "[?contains(displayName,'disable public network access')].{name:displayName,id:id}" -o table
-```
+## Required Control Coverage
 
-then:
+The following mapping covers the Identity and RBAC design recommendations and the Phase 1 component list without mixing policy and authorization ownership.
+
+| Requirement | Owner | Current implementation |
+|---|---|---|
+| GOV-05 approved locations, public exposure, secure storage, SQL posture | `platform-governance` | Enterprise baseline initiative at `compeer-enterprise-mg`. |
+| GOV-05 approved resource types | `platform-policy` | Built-in assignment, audit/non-enforcing until the approved catalog is complete. |
+| GOV-06 mandatory tags | `platform-governance` | Enterprise tagging policy inherited by descendants. Tag value validation also exists in OPA and the tagging module. |
+| GOV-07 resource diagnostics DINE | `platform-policy` | Remediation interface is ready. Populate the approved per-resource policy catalog before enabling; Azure diagnostics policies are resource-type specific. |
+| OBS-03 Activity Log collection | `platform-management` | Direct diagnostic setting to the central Log Analytics workspace. An Activity Log DINE assignment can be added as a governance backstop. |
+| Managed identity where supported | `platform-policy` | App Service, Function App, and Automation audit assignments. Add service-specific built-ins as the approved service catalog grows. |
+| Key Vault authorization and recovery | `platform-policy` | RBAC authorization and deletion-protection audit assignments. |
+| SEC-09 encryption at rest | Both policy workspaces | Secure storage is in governance; Windows/Linux VM disk encryption audits are in platform-policy. Service-native encryption remains configured by resource patterns. |
+| SEC-10 encryption in transit | Both policy workspaces | Storage TLS is in governance; App Service and Function TLS audits are in platform-policy. |
+| Private endpoints where applicable | Resource patterns and `platform-policy` | Resources create endpoints explicitly; policy audits public IPs. Platform Key Vault/storage exceptions must follow the approved placement decision and must not be blocked by a blanket PaaS deny. |
+| Privileged access audit and group-only assignments | `platform-authorization` and PIM | Not an Azure Policy responsibility. OPA can reject direct user assignments in Terraform plans. |
+| Custom roles and management-group RBAC | `platform-authorization` | Kept out of policy state. |
+| Defender plans | `platform-management` | Subscription management configuration because plans have cost and tier decisions. |
+| CIS/NIST/FFIEC/PCI initiatives | `platform-policy` | CIS is available as reporting-only. Additional frameworks are deferred until scope, licensing, and applicability are approved. |
+| GOV-14 sandbox guardrail | `platform-policy` | Add the approved sandbox assignment before subscriptions are onboarded. |
+| GOV-16 deny new deployments | `platform-policy` | Add the approved decommissioned-MG assignment and test exemptions before subscriptions are moved. |
+
+Naming is enforced by the reusable naming module and OPA. Azure Policy naming rules should only be added when resource-specific patterns and exceptions are approved; one generic expression cannot correctly validate every Azure resource type.
+
+## Assignment Model
+
+Azure uses different Terraform resource types for management-group, subscription, and resource-group assignments and exemptions. The base module preserves that distinction so plans show the actual deployment scope.
+
+Prefer enterprise assignments at `compeer-enterprise-mg` so descendants inherit them. Use lower scopes only when the control is intentionally narrower or requires different parameters. Start new controls in Audit or non-enforcing mode, review compliance, approve exemptions, and then promote selected controls to Deny.
+
+## Private Connectivity
+
+The optional initiative creates two custom policies:
+
+| Policy | Purpose |
+|---|---|
+| `deny-public-ip-address` | Audits or denies Public IP resources outside approved edge resource groups. |
+| `deny-nic-public-ip` | Audits or denies NICs attached to Public IPs. |
+
+Built-in PaaS public-network policies are opt-in because their IDs and applicability must be tenant verified. Do not enable a blanket PaaS deny when the approved platform design requires public network access for platform Key Vault or storage. Workload Key Vault and storage remain private by default unless an approved exception exists.
 
 ```hcl
 private_only_connectivity = {
-  # ...
-  include_builtin_baseline = true
-  builtin_policy_definition_ids = {
-    storage_pna   = "/providers/Microsoft.Authorization/policyDefinitions/b2982f36-99f2-4db5-8eff-283140c09693"
-    keyvault_pna  = "/providers/Microsoft.Authorization/policyDefinitions/405c5871-3e91-4644-8a63-58e19d68ff5b"
-    appservice_pna = "/providers/Microsoft.Authorization/policyDefinitions/1b5ef780-c53c-4a64-87f3-bb9c8c8094ba"
-    sql_pna       = "/providers/Microsoft.Authorization/policyDefinitions/1b8ca024-1d5c-4dec-8995-b1a932b41780"
-    # ... verify each GUID first
-  }
+  enabled              = true
+  management_group_key = "compeer-enterprise-mg"
+  effect               = "Audit"
+  enforce              = true
+  allowed_public_ip_resource_group_names = [
+    "rg-conn-palo-alto",
+    "rg-conn-bastion",
+    "rg-conn-route-server",
+    "rg-hybrid-gateway",
+  ]
 }
 ```
 
-Alternatively assign Microsoft's built-in initiatives directly through
-`management_group_policy_assignments` (e.g. *"Configure Azure PaaS services to
-use private DNS zones"*, *"Azure Security Benchmark"*).
+## Remediation
 
----
+DINE and Modify assignments require a location and managed identity. The deployable root reads the Log Analytics workspace ID from `platform-management` and can inject it into policies that use a `logAnalytics` parameter.
 
-## ⚠️ Call-out — this guardrail is a program, not a switch
+`remediation.dine_assignments` accepts individual policy definition IDs. Assign a DINE initiative through `management_group_policy_assignments` with an `identity` block because initiatives use `policy_set_definition_id`.
 
-Enabling `effect = "Deny"` **will break deployments** for anything that expects a
-public endpoint. Before flipping to Deny, the following must be true:
+Before enabling a remediation policy:
 
-| Resource type | Required change | Impact |
-|---|---|---|
-| **Application Gateway** | Internal-only frontend (`Private` frontend IP, no public frontend). WAF v2 still supports private-only. If a gateway must serve the internet, it goes in an allow-listed RG **and** sits behind Cloudflare. | Redeploy; DNS cutover. |
-| **API Management** | `virtual_network_type = "Internal"` + private DNS for the gateway/portal/management endpoints. Developer/portal access moves to private network + Cloudflare/Bastion. | **Replace** (VNet mode change is ForceNew). Plan a migration window. |
-| **App Service / Function App** (many) | `public_network_access_enabled = false` + Private Endpoint + VNet integration for outbound. Deployment via private runners or SCM Private Endpoint. | In-place for `public_network_access_enabled`; CI/CD runners must reach the private endpoint. |
-| **Storage / Key Vault / SQL / Cosmos / ACR / Event Grid** | `public_network_access_enabled = false` + Private Endpoint + private DNS zone. | In-place toggle; every consumer needs the private endpoint + DNS. |
-| **VM public IPs** | Remove. Access via Bastion or Cloudflare Tunnel + private connectivity. | Detach PIP; update runbooks. |
-| **Bastion, Route Server, VPN/ExpressRoute GW, Palo untrust** | **Keep public** — Azure requires it. Pin them to allow-listed RGs. | None. |
-
-Module defaults in this catalog were set **private-by-default** to match
-(`public_network_access_enabled = false`), so a fresh deployment is compliant.
-The work is the **existing estate** and the **app-migration playbook** (private
-endpoints, private DNS, CI/CD reachability). Treat this guardrail as Audit-first
-and drive the non-compliance list down before enforcing.
-
-The Cloudflare side (what the tunnels expose, what is deployed, what must change)
-is a separate review — owned outside this repo.
-
----
-
-## Policy split: governance vs. platform-policy
-
-| Concern | Workspace | Mechanism |
-|---|---|---|
-| MG hierarchy | `platform-governance` | `global-governance` pattern |
-| Deny/audit **baseline** definitions + assignments | `platform-governance` | `global-governance` `policy_baseline` (Audit-first) |
-| Microsoft Cloud Security Benchmark | `platform-governance` | `policy_baseline.assign_security_benchmark` |
-| **Promote** a baseline policy to Deny | `platform-governance` | flip `policy_baseline.effect` (per policy once split out) |
-| **Exemptions** (all 3 scopes) | **`platform-policy`** | `var.policy_exemptions` |
-| RG-scoped assignments | **`platform-policy`** | `var.resource_group_policy_assignments` |
-| **DeployIfNotExists remediation** | **`platform-policy`** | `var.remediation` (needs identity + Log Analytics) |
-| Private-only connectivity guardrail | **`platform-policy`** | `var.private_only_connectivity` |
-
-This pattern is the single home for the *decisions* — exemptions, remediation,
-private-only-connectivity, RG-scoped assignments; the actual policy resource
-mechanics live in the shared [`module.policy`](../../modules/terraform-azurerm-compeer-policy),
-alongside `global-governance`.
+1. Verify the built-in definition and parameters in the target tenant.
+2. Confirm the target resource types and regions.
+3. Grant the assignment identity only the roles required by that policy.
+4. Deploy in audit/non-enforcing mode where supported.
+5. Create remediation tasks only after the assignment and permissions are validated.
 
 ## Exemptions
 
-Every `policy_exemptions` entry sets `scope_type`
-(`management_group` / `subscription` / `resource_group`), the matching scope id
-(or `management_group_key`), and either a full `policy_assignment_id` or a
-`policy_assignment_key` (a key into this pattern's own assignment maps).
-`exemption_category` is `Waiver` or `Mitigated`; set `expires_on` for
-time-boxed waivers. An exemption path must exist before any policy is promoted
-to `Deny` (runbook §2.4).
+Each exemption sets `scope_type`, the corresponding scope ID or management-group key, and either `policy_assignment_id` or a key for an assignment created by this pattern. Use `Waiver` for accepted temporary non-compliance and `Mitigated` when another control addresses the risk. Set `expires_on` and a tracked reason for every time-bound exception.
 
-## DeployIfNotExists remediation (`var.remediation`)
+## Naming
 
-DINE / Modify assignments make the landing zone self-healing. They need a
-`SystemAssigned` identity and a `location`, and run **after**
-`platform-management` has created the Log Analytics workspace. Built-in policy /
-initiative IDs are **caller-supplied and tenant-verifiable** — confirm each with:
+Custom policy definition names are explicit because the approved naming standard does not define a universal policy-definition pattern. Initiative naming can use `domain` and `purpose`; assignment naming can use `policy` and `policy_scope`. Explicit names always take precedence.
+
+## Validation
 
 ```bash
-az policy definition list \
-  --query "[?policyRule.then.effect=='DeployIfNotExists'].{name:displayName,id:id}" -o table
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+terraform test
 ```
 
-Recommended starting set (verify IDs first):
-
-| Purpose | Built-in policy (display name) |
-|---|---|
-| Activity logs → Log Analytics | *Configure Azure Activity logs to stream to specified Log Analytics workspace* — set `inject_law = true` |
-| Resource diagnostics → Log Analytics | the per-resource-type *Deploy Diagnostic Settings for … to Log Analytics workspace* set, or the ALZ `Deploy-*-DiagnosticSettings` custom initiative |
-| Defender for Cloud plans | *Configure Microsoft Defender for Cloud plans* (initiative) or the per-plan `Deploy-MDFC-*` policies |
-| AMA + DCR on VMs | *Configure Windows/Linux machines to run Azure Monitor Agent* + *…association to Data Collection Rule* |
-| Private DNS zone group on private endpoints | *Deploy - Configure private DNS zone group for …* (one per service, pass `privateDnsZoneId`) |
-| VM backup | *Configure backup on virtual machines … to an existing recovery services vault* (pass `vaultLocation` + `backupPolicyId`) |
-
-After apply, grant each assignment's `remediation_assignment_principal_ids` the
-role its DINE policy requires (usually Contributor on the target scope, or
-Log Analytics Contributor / Monitoring Contributor), then create a remediation
-task.
+Tests cover naming precedence, scope resolution, exemptions, remediation contracts, built-in guardrails, and private-connectivity behavior.
