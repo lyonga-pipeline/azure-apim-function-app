@@ -48,11 +48,8 @@ variable "onboarding" {
   description = "subscription-onboarding pattern configuration."
   type = object({
     enabled                   = optional(bool, false)
-    root_management_group_id  = optional(string)
-    default_tags              = optional(map(string), {})
     baseline_role_assignments = optional(any, {})
     subscriptions             = optional(any, {})
-    legacy_policy_removals    = optional(any, {})
   })
   default = {}
 }

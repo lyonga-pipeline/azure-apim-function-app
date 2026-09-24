@@ -18,13 +18,18 @@ pattern.
   - applies that subscription's `app_role_assignments` at subscription scope.
 
 It does **not** create subscriptions, resource groups, or workload resources.
+It also does not create or remove policy assignments. Moving a subscription
+changes its inherited management-group policies automatically. Direct
+subscription/resource-group assignments remain and must be reviewed through a
+separate policy migration process.
 
 ## What it does NOT replace
 
 | Concern | Workspace |
 |---|---|
-| MG hierarchy, custom roles, MG policy | `platform-governance` |
-| Entra RBAC groups and MG-scope RBAC | `platform-authorization` |
+| MG hierarchy and initial baseline | `platform-governance` |
+| Additional policy assignments and exemptions | `platform-policy` |
+| Entra groups, custom roles, and MG-scope RBAC | `platform-authorization` |
 | Subscription creation | CSP partner (out of band) |
 | Workload resources inside a subscription | that workload's workspace |
 
@@ -33,6 +38,21 @@ It does **not** create subscriptions, resource groups, or workload resources.
 `platform-governance` → **`platform-subscription-onboarding`** → platform /
 workload workspaces (which now find their subscription in the right MG with
 baseline RBAC already applied).
+
+Subscription-scope RBAC is optional. Prefer assigning common access once at
+management-group scope in `platform-authorization` and inheriting it. Populate
+the onboarding RBAC maps only for approved subscription-specific exceptions.
+The design requires RBAC automation capability during onboarding, but it does
+not require direct RBAC on every subscription. Empty RBAC maps create no role
+assignments.
+
+## Where subscription IDs belong
+
+Subscription IDs are identifiers, not credentials. Keep the subscription map,
+including IDs and target management-group keys, in the reviewed
+`terraform.tfvars` deployment configuration. HCP workspace variables should be
+reserved for authentication, sensitive values, and values that must differ
+without a code change. Replace all example GUIDs before the live apply.
 
 ## Ops break-glass
 

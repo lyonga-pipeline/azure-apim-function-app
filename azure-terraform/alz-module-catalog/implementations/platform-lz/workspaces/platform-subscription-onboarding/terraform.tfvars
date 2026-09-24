@@ -11,12 +11,7 @@ governance_workspace_name    = "platform-governance"
 authorization_workspace_name = "platform-authorization"
 
 onboarding = {
-  enabled                  = true
-  root_management_group_id = "Compeer-Financial-Services" # tenant root group
-
-  default_tags = {
-    managed_by = "terraform"
-  }
+  enabled = true
 
   # Platform operations and security roles are assigned at enterprise/platform
   # MG scope by platform-authorization and inherited by these subscriptions.
@@ -25,26 +20,35 @@ onboarding = {
   # emergency access is managed through PIM/manual break-glass controls.
   baseline_role_assignments = {}
 
-  # Populate after CSP creates real subscription GUIDs. App/workload team access
-  # should use principal_group_key when the group is created by
-  # platform-authorization, or principal_id + principal_type = "Group" for a
-  # pre-existing workload group owned by the client's IGA process.
+  # Subscription IDs are non-secret deployment configuration. Replace these
+  # example GUIDs with the CSP-created IDs before a live apply.
   subscriptions = {}
 
-  # Populate per subscription, found by reviewing it in the Portal before/
-  # during onboarding: legacy policy ASSIGNMENTS made directly at the
-  # subscription or a resource group (not inherited from an MG - those are
-  # handled automatically when the subscription moves MG above). Two-phase:
-  # add an entry + apply (imports it, no-op), then remove the entry + apply
-  # (destroys it). See the pattern README's "Legacy policy removal" section.
-  # Example:
-  # legacy_policy_removals = {
-  #   old_tag_policy = {
-  #     subscription_key     = "<a key in subscriptions above>"
-  #     scope_type            = "subscription"
-  #     assignment_name       = "<assignment name from the Portal>"
-  #     policy_definition_id  = "/providers/Microsoft.Authorization/policyDefinitions/<guid>"
+  # Replace subscriptions = {} with this map after inserting real IDs:
+  # subscriptions = {
+  #   security = {
+  #     subscription_id             = "11111111-1111-1111-1111-111111111111"
+  #     target_management_group_key = "security-mg"
+  #     display_name                = "sub-security-prod-cus"
+  #     apply_baseline_rbac         = false
+  #   }
+  #   identity = {
+  #     subscription_id             = "22222222-2222-2222-2222-222222222222"
+  #     target_management_group_key = "identity-mg"
+  #     display_name                = "sub-identity-prod-cus"
+  #     apply_baseline_rbac         = false
+  #   }
+  #   management = {
+  #     subscription_id             = "33333333-3333-3333-3333-333333333333"
+  #     target_management_group_key = "management-mg"
+  #     display_name                = "sub-management-prod-cus"
+  #     apply_baseline_rbac         = false
+  #   }
+  #   connectivity = {
+  #     subscription_id             = "44444444-4444-4444-4444-444444444444"
+  #     target_management_group_key = "connectivity-mg"
+  #     display_name                = "sub-connectivity-prod-cus"
+  #     apply_baseline_rbac         = false
   #   }
   # }
-  legacy_policy_removals = {}
 }

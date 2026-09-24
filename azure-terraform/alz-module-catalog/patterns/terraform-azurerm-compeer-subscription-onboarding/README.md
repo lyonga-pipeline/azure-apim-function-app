@@ -1,165 +1,142 @@
 # terraform-azurerm-compeer-subscription-onboarding
 
-**Pattern module.** Subscriptions at Compeer are provisioned by the CSP partner,
-not by Terraform. A freshly handed-over subscription lands under the **Tenant
-Root Group**. This pattern takes those existing subscription GUIDs and, per
-subscription:
+This pattern onboards subscriptions already created by the CSP partner. It does
+not create subscriptions. For each configured subscription, it:
 
-1. **moves** it from the root group to its target management group, and
-2. applies a **consistent baseline RBAC** set plus any **app-specific RBAC**, all
-   at subscription scope.
+1. places the subscription under the required management group;
+2. optionally creates approved subscription-scope RBAC assignments.
 
-It never creates subscriptions. Management-group creation and MG-scope RBAC stay
-in [`global-governance`](../terraform-azurerm-compeer-global-governance). The old
-[`subscription-vending`](../terraform-azurerm-compeer-subscription-vending)
-pattern (which *does* create subscriptions) is retained for reference but is
-**not deployed**.
+Management-group hierarchy, policy, Entra groups, custom roles, and
+management-group RBAC are owned by their dedicated platform workspaces.
 
-## Overview
+## Ownership
 
-**What this deploys:** the bridge between a CSP-handed-over subscription (in
-the Tenant Root Group) and the management-group tree `global-governance`
-already created — MG placement + subscription-scope RBAC, nothing else.
+| Concern | Owner |
+|---|---|
+| Subscription creation | CSP partner |
+| Management-group hierarchy and initial baseline | `platform-governance` |
+| Additional policy assignments and exemptions | `platform-policy` |
+| Entra groups, custom roles, and MG RBAC | `platform-authorization` |
+| Subscription placement and exceptional subscription RBAC | This pattern |
+| Resources inside the subscription | Platform or workload workspace |
 
-## Composition
+## Policy behavior
 
-| Concern | Owned here | Owned elsewhere |
-|---|---|---|
-| MG hierarchy | — | `global-governance` |
-| MG-scope RBAC / custom roles / policy | — | `global-governance` |
-| Subscription creation | — | CSP partner (manual) |
-| Root → target MG placement | ✅ `azurerm_management_group_subscription_association` | — |
-| Subscription-scope baseline RBAC | ✅ `role-assignments` module | — |
-| Subscription-scope app RBAC | ✅ `role-assignments` module | — |
-| Resource groups / workloads inside the subscription | — | the workload's own workspace |
+This pattern does not create, delete, or exempt Azure Policy assignments.
+
+When a subscription moves between management groups, Azure automatically stops
+the policies inherited from the old hierarchy and applies policies inherited
+from the new hierarchy. The onboarding code does not need to remove inherited
+assignments.
+
+A policy assigned directly to the subscription or one of its resource groups
+is not inherited and remains after the move. Review those direct assignments
+before onboarding. Any approved cleanup should be handled through a separate,
+reviewed policy migration process, not this state.
+
+## RBAC behavior
+
+The Identity and RBAC design includes automated RBAC assignment in the
+subscription onboarding lifecycle. It does not require every subscription to
+receive a new direct assignment. The landing-zone design says RBAC should be
+assigned at management-group scope wherever possible and inherited.
+
+Prefer group-based RBAC assigned once at management-group scope and inherited by
+subscriptions. Keep `baseline_role_assignments` and `app_role_assignments` empty
+unless access must deliberately differ at subscription scope.
+
+With both maps empty, the pattern creates no role assignments. The capability
+remains available for a future approved exception without changing the module.
+These inputs configure RBAC, not Azure Policy.
+
+Each RBAC entry must set exactly one principal:
+
+- `principal_group_key` for an Entra group published by `platform-authorization`;
+- `principal_id` for an approved existing group, managed identity, or service
+  principal.
+
+Each entry must also set exactly one of `role_definition_name` or
+`role_definition_id`. Direct user assignments are rejected.
 
 ## Inputs
 
 | Name | Description |
 |---|---|
-| `management_group_ids` | `map(string)` — resolved MG IDs keyed by catalog key (feed the governance workspace's `management_group_ids` output straight in). |
-| `group_object_ids` | `map(string)` — Entra security group object IDs keyed by `platform-authorization.rbac_groups` key. Used to resolve `principal_group_key` in RBAC entries. |
-| `subscriptions` | `map(object)` keyed by a stable logical name. Each: `subscription_id` (GUID), exactly one of `target_management_group_key` / `target_management_group_id`, optional `display_name`, `workload` (Production/DevTest), `apply_baseline_rbac` (default true), `app_role_assignments` (keyed `map(object)`). |
-| `baseline_role_assignments` | `map(object)` - exceptional RBAC applied at subscription scope to every opted-in subscription. Prefer one assignment at the target management group when all child subscriptions need the same access. Do not duplicate inherited assignments or use this for standing privileged/break-glass access. |
-| `legacy_policy_removals` | `map(object)` — legacy subscription/resource-group-scope policy **assignments** to remove during onboarding. See "Legacy policy removal" below. |
-| `default_tags` | Informational only (recorded on the contract marker). |
+| `management_group_ids` | Management-group IDs keyed by a stable catalog key. |
+| `group_object_ids` | Entra group object IDs keyed by authorization catalog key. |
+| `subscriptions` | Existing subscriptions keyed by a stable logical name. Each entry supplies its GUID and exactly one target MG key or ID. |
+| `baseline_role_assignments` | Optional RBAC applied to every opted-in subscription. Prefer inherited MG RBAC instead. |
 
-Each RBAC entry sets exactly one of `role_definition_name` / `role_definition_id`
-(validated), and exactly one of `principal_group_key` / `principal_id`.
-`principal_group_key` is preferred for human/team access because the platform
-model is **User -> Entra group -> Azure role -> scope**. `principal_id` remains
-available for approved pre-existing workload groups, managed identities, or
-service principals. Direct `principal_type = "User"` is rejected.
+Each subscription can set `apply_baseline_rbac = false` and can provide keyed
+`app_role_assignments`. Stable map keys prevent unrelated assignments from
+being replaced when another entry is added.
 
-## Lifecycle contract
+## Example
 
-| Change | Effect |
+```hcl
+module "subscription_onboarding" {
+  source = "../../patterns/terraform-azurerm-compeer-subscription-onboarding"
+
+  management_group_ids = {
+    connectivity = "/providers/Microsoft.Management/managementGroups/connectivity-mg"
+  }
+
+  subscriptions = {
+    connectivity = {
+      subscription_id             = "00000000-0000-0000-0000-000000000000"
+      target_management_group_key = "connectivity"
+    }
+  }
+
+  baseline_role_assignments = {}
+  group_object_ids          = {}
+}
+```
+
+## Lifecycle
+
+| Change | Result |
 |---|---|
-| Add a key to `subscriptions` | Places that subscription + applies baseline RBAC. Existing subscriptions untouched (stable `for_each` keys). |
-| Change a subscription's `target_management_group_key` | Re-places that subscription into the new MG (in-place association update). |
-| Remove a key from `subscriptions` | Destroys the association → **the subscription returns to the Tenant Root Group** and its baseline RBAC is removed. Deliberate — treat removals as decommissioning. |
-| Add / change `baseline_role_assignments` | Fans out to every opted-in subscription. Assignment keys are `"<sub>::baseline::<name>"` so adding one baseline entry never disturbs the others. |
-| Change `app_role_assignments` for one subscription | Only that subscription's app assignments change (keys `"<sub>::app::<name>"`). |
+| Add a subscription key | Places that subscription and creates its requested RBAC. |
+| Change its target MG | Moves it to the new management group. |
+| Add an RBAC map key | Adds only that keyed assignment. |
+| Remove a subscription key | Removes the managed association and RBAC. Review this as a decommissioning change. |
 
-`azurerm_management_group_subscription_association` is not `ForceNew` on the MG —
-moving between groups is an in-place update, not a replace.
+## Outputs
 
-## Legacy policy removal
+- `subscription_placement_ids`
+- `onboarded_subscription_ids`
+- `onboarded_subscription_resource_ids`
+- `subscription_target_management_group_ids`
+- `baseline_role_assignment_ids`
+- `app_role_assignment_ids`
 
-**The problem.** A CSP-handed-over subscription sits under the Tenant Root
-Group and may carry Azure Policy assignments — inherited from the root/old
-parent MG, or assigned directly at the subscription or a resource group inside
-it. Moving the subscription to its new landing-zone MG (above) is native Azure
-behaviour and handles the **inherited** kind automatically and immediately:
+## Permissions
 
-`legacy_policy_removals` never removes management-group assignments. Terraform
-cannot and should not delete a parent assignment while onboarding one child
-subscription. Moving the subscription changes which management-group policies
-it inherits; this feature is only for assignments created directly on the
-subscription or one of its resource groups.
+The deployment identity needs permission to manage subscription placement on
+the target management-group hierarchy. If subscription-scope RBAC is configured,
+it also needs `Microsoft.Authorization/roleAssignments/write` at those
+subscriptions.
 
-Azure enforces single-MG membership, so the moment the subscription leaves the
-old MG, its policies stop applying, and the new landing-zone MG's policies
-start applying instead. Nothing in Terraform needs to do anything extra for
-that part.
+## Tests
 
-What Azure does **not** do on its own is remove a policy assignment made
-**directly** at the subscription or a resource group inside it — that kind of
-assignment isn't inherited from any MG, so it isn't affected by which MG the
-subscription belongs to. It stays attached and keeps evaluating alongside the
-new landing-zone baseline unless it's explicitly deleted.
+Run:
 
-**The mechanism — two-phase import then destroy.** `var.legacy_policy_removals`
-lets you bring one of these into Terraform state so its removal is a normal,
-reviewable plan/apply instead of a manual `az policy assignment delete`:
+```bash
+terraform init -backend=false
+terraform test
+```
 
-1. In the Portal, open the legacy subscription (before or during onboarding)
-   and find the assignment: its **name**, its **scope** (the subscription
-   itself, or a specific resource group), and its **Definition** link (a
-   policy or an initiative — `policy_definition_id` takes either, Azure uses
-   the same field for both).
-2. Add an entry to `legacy_policy_removals`, e.g.:
-   ```hcl
-   legacy_policy_removals = {
-     old_tag_policy = {
-       subscription_key     = "hub"                # a key in var.subscriptions
-       scope_type           = "subscription"        # or "resource_group"
-       # resource_group_name = "rg-example"          # required if scope_type = "resource_group"
-       assignment_name      = "legacy-tag-policy"
-       policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/<guid>"
-     }
-   }
-   ```
-3. **Import.** `import` blocks can only live in a root module, so they are
-   declared in the *consuming workspace*, not here — see
-   `implementations/platform-lz/workspaces/platform-subscription-onboarding/main.tf`'s
-   "Legacy policy assignment removal — import blocks" section for the
-   reference implementation. Run `terraform apply`: Terraform imports the
-   assignment into state. Because this pattern also declares the resource
-   with the same real arguments, this first apply is a no-op — no destroy yet.
-4. **Remove.** Delete the entry from `legacy_policy_removals` (or the whole
-   map, once done). The next `terraform plan` shows a clean, reviewable
-   destroy of exactly that assignment. Apply it once you've checked the plan.
+Tests cover placement, ID normalization, baseline and app RBAC, opt-out behavior,
+invalid subscription IDs, unknown management-group/group keys, and rejection of
+direct user principals.
 
-This is deliberately two separate applies — importing and destroying in the
-same run would make a destroy of something this pattern never created look
-like just another part of the diff, instead of a distinct, reviewed step.
+## Break-glass placement
 
-`legacy_policy_removals[*].subscription_key` must match a key in
-`var.subscriptions`; this cross-check runs as a `terraform_data.onboarding_contract`
-precondition rather than a variable `validation` block, because Terraform
-(before 1.9) only allows a variable's own `validation` block to reference
-that same variable — not `var.subscriptions`. See the `contract_valid` local
-for how the existing MG-key and principal-group-key checks already use this
-pattern.
-
-## State exposure
-
-No secrets. Outputs: `subscription_placement_ids`, `onboarded_subscription_ids`,
-`onboarded_subscription_resource_ids`,
-`subscription_target_management_group_ids`, `baseline_role_assignment_ids`,
-`app_role_assignment_ids`, `legacy_policy_removal_ids`.
-
-## Break-glass / ops path
-
-When this workspace cannot run but a subscription must be placed now, use
-[`scripts/move-subscription.sh`](scripts/move-subscription.sh):
+For an urgent manual placement, use the idempotent helper and then reconcile the
+workspace with `terraform plan`:
 
 ```bash
 ./scripts/move-subscription.sh --subscription <SUB_GUID> --management-group <MG_NAME> --dry-run
 ./scripts/move-subscription.sh --subscription <SUB_GUID> --management-group <MG_NAME>
 ```
-
-It is idempotent (no-op if already placed). Run `terraform plan` afterwards; a
-correctly placed subscription shows no diff.
-
-## Tests
-
-`terraform test` (`tests/defaults.tftest.hcl`, `mock_provider`) — placement
-wiring, baseline RBAC fan-out, unknown-MG-key precondition failure, GUID
-validation, and `legacy_policy_removals` validation (invalid `scope_type`,
-missing `resource_group_name`, unknown `subscription_key`). The `import`
-blocks themselves are **not** covered by these tests — import requires a real
-provider read against a real API-shaped resource ID, which `mock_provider` has
-no equivalent for; that mechanism can only be verified against a real
-subscription.
