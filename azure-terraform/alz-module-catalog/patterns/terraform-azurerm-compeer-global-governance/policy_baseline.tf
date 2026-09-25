@@ -50,8 +50,7 @@ locals {
     defaultValue = []
     metadata     = { displayName = "Exempt resource group names" }
   }
-  # `not { resourceGroup in ... }` clause added to the deny-public rules.
-  _pb_rg_not_exempt = { not = { field = "resourceGroup", in = "[parameters('exemptResourceGroups')]" } }
+  _pb_rg_not_exempt = { value = "[resourceGroup().name]", notIn = "[parameters('exemptResourceGroups')]" }
   _pb_meta          = { category = "Compeer Landing Zone", version = "1.1.0" }
 
   pb_definitions = { for k, v in local.pb_definitions_all : k => v if local.pb_enabled }

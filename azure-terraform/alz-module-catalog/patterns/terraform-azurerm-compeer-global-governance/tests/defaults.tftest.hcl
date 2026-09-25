@@ -60,6 +60,16 @@ run "policy_baseline_on" {
     error_message = "baseline definitions not merged into the module's policy_definitions input"
   }
   assert {
+    condition = alltrue([
+      for key in ["cmp-deny-public-paas", "cmp-secure-storage"] :
+      local.pb_definitions[key].policy_rule.if.allOf[0] == {
+        value = "[resourceGroup().name]"
+        notIn = "[parameters('exemptResourceGroups')]"
+      }
+    ])
+    error_message = "resource-group exclusions must use the resourceGroup().name value expression, not an unsupported field alias"
+  }
+  assert {
     # Regression: cmp-required-tags must audit the tags
     # terraform-azurerm-compeer-platform-tags' mandatory_keys actually emits
     # today (environment/owner/created_on/...), not the pre-Phase-7 names
