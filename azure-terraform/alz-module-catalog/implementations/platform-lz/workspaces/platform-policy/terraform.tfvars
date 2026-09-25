@@ -165,11 +165,51 @@ policy = {
 
   # The root obtains the Log Analytics workspace ID from platform-management.
   remediation = {
-    enabled              = false
+    enabled              = true
     management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
     dine_assignments = {
-      # Add tenant-verified per-resource DINE definitions after the diagnostic catalog is approved.
+      diagnostics_to_log_analytics = {
+        policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+        display_name             = "Compeer deploy diagnostics to central Log Analytics"
+        description              = "GOV-07 backstop: deploy allLogs and supported metrics only when no compliant diagnostic setting targets the central workspace."
+        inject_law               = true
+        role_definition_ids = [
+          "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",
+        ]
+        parameters = {
+          effect = { value = "DeployIfNotExists" }
+          diagnosticSettingName = {
+            value = "setByPolicy-LogAnalytics"
+          }
+          resourceLocationList = { value = ["*"] }
+          resourceTypeList = {
+            value = [
+              "microsoft.apimanagement/service",
+              "microsoft.automation/automationaccounts",
+              "microsoft.containerregistry/registries",
+              "microsoft.datafactory/factories",
+              "microsoft.eventgrid/systemtopics",
+              "microsoft.eventgrid/topics",
+              "microsoft.keyvault/vaults",
+              "microsoft.network/applicationgateways",
+              "microsoft.network/azurefirewalls",
+              "microsoft.network/bastionhosts",
+              "microsoft.network/expressroutecircuits",
+              "microsoft.network/loadbalancers",
+              "microsoft.network/networksecuritygroups",
+              "microsoft.network/publicipaddresses",
+              "microsoft.network/virtualnetworkgateways",
+              "microsoft.network/virtualnetworks",
+              "microsoft.recoveryservices/vaults",
+              "microsoft.servicebus/namespaces",
+              "microsoft.sql/managedinstances",
+              "microsoft.sql/servers/databases",
+              "microsoft.synapse/workspaces",
+            ]
+          }
+        }
+      }
     }
   }
 

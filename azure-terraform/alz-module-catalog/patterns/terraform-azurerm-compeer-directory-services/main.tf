@@ -207,7 +207,12 @@ module "vm_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = {
     for key, controller in var.domain_controllers : key => controller.diagnostics
-    if coalesce(try(controller.diagnostics.enabled, null), false)
+    if coalesce(try(controller.diagnostics.enabled, null), false) && anytrue([
+      try(controller.diagnostics.log_analytics_workspace_id, null) != null,
+      try(controller.diagnostics.storage_account_id, null) != null,
+      try(controller.diagnostics.eventhub_authorization_rule_id, null) != null,
+      try(controller.diagnostics.partner_solution_id, null) != null,
+    ])
   }
 
   name                           = coalesce(try(each.value.name, null), "${module.domain_controllers[each.key].name}-diag")

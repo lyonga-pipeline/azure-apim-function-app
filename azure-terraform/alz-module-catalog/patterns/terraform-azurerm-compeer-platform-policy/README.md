@@ -42,7 +42,7 @@ The following mapping covers the Identity and RBAC design recommendations and th
 | GOV-05 approved locations, public exposure, secure storage, SQL posture | `platform-governance` | Enterprise baseline initiative at `compeer-enterprise-mg`. |
 | GOV-05 approved resource types | `platform-policy` | Built-in assignment, audit/non-enforcing until the approved catalog is complete. |
 | GOV-06 mandatory tags | `platform-governance` | Enterprise tagging policy inherited by descendants. Tag value validation also exists in OPA and the tagging module. |
-| GOV-07 resource diagnostics DINE | `platform-policy` | Remediation interface is ready. Populate the approved per-resource policy catalog before enabling; Azure diagnostics policies are resource-type specific. |
+| GOV-07 resource diagnostics DINE | `platform-policy` | Assigns the Microsoft built-in `allLogs` initiative to the enterprise management group with an approved resource-type list and the central workspace ID. |
 | OBS-03 Activity Log collection | `platform-management` | Direct diagnostic setting to the central Log Analytics workspace. An Activity Log DINE assignment can be added as a governance backstop. |
 | Managed identity where supported | `platform-policy` | App Service, Function App, and Automation audit assignments. Add service-specific built-ins as the approved service catalog grows. |
 | Key Vault authorization and recovery | `platform-policy` | RBAC authorization and deletion-protection audit assignments. |
@@ -94,7 +94,11 @@ private_only_connectivity = {
 
 DINE and Modify assignments require a location and managed identity. The deployable root reads the Log Analytics workspace ID from `platform-management` and can inject it into policies that use a `logAnalytics` parameter.
 
-`remediation.dine_assignments` accepts individual policy definition IDs. Assign a DINE initiative through `management_group_policy_assignments` with an `identity` block because initiatives use `policy_set_definition_id`.
+`remediation.dine_assignments` accepts exactly one of `policy_definition_id` or `policy_set_definition_id`. Every assignment receives a system-assigned identity. `role_definition_ids` creates the management-group role assignments that identity needs to remediate resources.
+
+The implementation uses Microsoft's built-in initiative `0884adba-2312-4468-abeb-5422caed1038`. Its child policies are resource-type specific, deploy the `allLogs` category group, enable `AllMetrics` where supported, and recognize an existing setting that already targets the configured Log Analytics workspace. Approved Terraform patterns therefore remain the primary owner of diagnostics; Policy creates `setByPolicy-LogAnalytics` only when the compliant setting is absent.
+
+The initiative's `resourceTypeList` is the Phase 1 catalog, not every type Azure supports. Extend that list when a new service is approved. Services not supported by the built-in initiative, including resource types whose logs live on child resources, remain explicit Terraform diagnostics until a reviewed policy is added.
 
 Before enabling a remediation policy:
 
@@ -103,6 +107,8 @@ Before enabling a remediation policy:
 3. Grant the assignment identity only the roles required by that policy.
 4. Deploy in audit/non-enforcing mode where supported.
 5. Create remediation tasks only after the assignment and permissions are validated.
+
+Policy-created diagnostic settings are expected platform-managed resources. Drift-health checks must not classify `setByPolicy-LogAnalytics` as an unauthorized resource. Terraform diagnostic modules manage only their named setting and must not treat all settings on a target as an authoritative collection.
 
 ## Exemptions
 

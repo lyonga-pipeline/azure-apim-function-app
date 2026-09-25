@@ -22,7 +22,7 @@ locals {
     try(data.tfe_outputs.management[0].values, {})
   )
 
-  log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
+  log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
 
   # Bastion: attach LAW diagnostics automatically when enabled. Name comes from
   # the pattern's naming module.

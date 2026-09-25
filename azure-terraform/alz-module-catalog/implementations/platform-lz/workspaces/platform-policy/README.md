@@ -45,7 +45,9 @@ The governance baseline is not repeated here. See the pattern README for the com
 - Approved resource types is non-enforcing until the resource catalog is finalized.
 - Managed identity, Key Vault, TLS, disk encryption, and VM backup controls are audit/reporting controls.
 - CIS is reporting-only and should remain non-enforcing.
-- Remediation is disabled until the approved per-resource diagnostics catalog and assignment roles are confirmed.
+- GOV-07 diagnostics remediation is enabled after `platform-management` publishes the central Log Analytics workspace ID. It assigns Microsoft's built-in resource-specific `allLogs` initiative at `compeer-enterprise-mg`, limited to the approved Phase 1 resource types.
+- The policy assignment creates `setByPolicy-LogAnalytics` only when no compliant diagnostic setting already targets the central workspace. Terraform remains the primary diagnostics owner for approved patterns; DINE is the backstop.
+- The workspace also grants the policy assignment identity the configured remediation role at the enterprise management-group scope. The run identity therefore needs permission to create both policy and role assignments at that scope.
 - Private connectivity starts in Audit.
 - Sandbox and decommissioned management-group assignments must be configured before subscriptions are onboarded to those groups.
 

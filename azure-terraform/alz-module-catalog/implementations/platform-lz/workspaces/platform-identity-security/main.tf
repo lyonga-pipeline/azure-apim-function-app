@@ -33,7 +33,7 @@ locals {
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
-  log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
+  log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
 
   key_vault_private_endpoint_from_connectivity_enabled = try(var.identity.key_vault_private_endpoint_from_connectivity.enabled, false)
   key_vault_private_endpoint_from_connectivity = local.key_vault_private_endpoint_from_connectivity_enabled ? {

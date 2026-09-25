@@ -161,14 +161,24 @@ variable "remediation" {
     location                   = optional(string)
     log_analytics_workspace_id = optional(string)
     dine_assignments = optional(map(object({
-      policy_definition_id = string
-      display_name         = optional(string)
-      description          = optional(string)
-      enforce              = optional(bool, true)
-      not_scopes           = optional(list(string))
-      inject_law           = optional(bool, false)
-      parameters           = optional(any, {})
+      policy_definition_id     = optional(string)
+      policy_set_definition_id = optional(string)
+      display_name             = optional(string)
+      description              = optional(string)
+      enforce                  = optional(bool, true)
+      not_scopes               = optional(list(string))
+      inject_law               = optional(bool, false)
+      parameters               = optional(any, {})
+      role_definition_ids      = optional(set(string), [])
     })), {})
   })
   default = {}
+
+  validation {
+    condition = alltrue([
+      for assignment in values(try(var.remediation.dine_assignments, {})) :
+      (try(assignment.policy_definition_id, null) != null) != (try(assignment.policy_set_definition_id, null) != null)
+    ])
+    error_message = "Each remediation assignment must set exactly one of policy_definition_id or policy_set_definition_id."
+  }
 }

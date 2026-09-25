@@ -209,7 +209,12 @@ module "vm_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = {
     for key, connector in var.connectors : key => connector.diagnostics
-    if coalesce(try(connector.diagnostics.enabled, null), false)
+    if coalesce(try(connector.diagnostics.enabled, null), false) && anytrue([
+      try(connector.diagnostics.log_analytics_workspace_id, null) != null,
+      try(connector.diagnostics.storage_account_id, null) != null,
+      try(connector.diagnostics.eventhub_authorization_rule_id, null) != null,
+      try(connector.diagnostics.partner_solution_id, null) != null,
+    ])
   }
 
   name                           = coalesce(try(each.value.name, null), "${azurerm_linux_virtual_machine.vm[each.key].name}-diag")

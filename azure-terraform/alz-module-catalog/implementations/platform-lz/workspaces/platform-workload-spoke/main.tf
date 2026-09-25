@@ -39,7 +39,7 @@ locals {
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
-  log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
+  log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
 
   governance_outputs = merge(
     try(data.tfe_outputs.governance[0].nonsensitive_values, {}),

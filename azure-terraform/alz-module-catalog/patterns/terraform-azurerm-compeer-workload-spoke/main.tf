@@ -227,7 +227,12 @@ module "workload_key_vault_diagnostics" {
   count = (
     coalesce(try(var.workload_key_vault.enabled, null), false) &&
     coalesce(try(var.workload_key_vault.diagnostics.enabled, null), true) &&
-    try(var.workload_key_vault.diagnostics.log_analytics_workspace_id, null) != null
+    anytrue([
+      try(var.workload_key_vault.diagnostics.log_analytics_workspace_id, null) != null,
+      try(var.workload_key_vault.diagnostics.storage_account_id, null) != null,
+      try(var.workload_key_vault.diagnostics.eventhub_authorization_rule_id, null) != null,
+      try(var.workload_key_vault.diagnostics.partner_solution_id, null) != null,
+    ])
   ) ? 1 : 0
 
   name                           = coalesce(try(var.workload_key_vault.diagnostics.name, null), "${var.workload_key_vault.name}-diag")
@@ -324,7 +329,12 @@ module "workload_storage_diagnostics" {
   source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = {
     for key, value in var.workload_storage_accounts : key => value
-    if coalesce(try(value.diagnostics.enabled, null), true) && try(value.diagnostics.log_analytics_workspace_id, null) != null
+    if coalesce(try(value.diagnostics.enabled, null), true) && anytrue([
+      try(value.diagnostics.log_analytics_workspace_id, null) != null,
+      try(value.diagnostics.storage_account_id, null) != null,
+      try(value.diagnostics.eventhub_authorization_rule_id, null) != null,
+      try(value.diagnostics.partner_solution_id, null) != null,
+    ])
   }
 
   name                           = coalesce(try(each.value.diagnostics.name, null), "${module.workload_storage_accounts[each.key].name}-diag")
@@ -429,8 +439,16 @@ module "management_locks" {
 }
 
 module "diagnostic_settings" {
-  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each = var.diagnostic_settings
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  for_each = {
+    for key, value in var.diagnostic_settings : key => value
+    if anytrue([
+      try(value.log_analytics_workspace_id, null) != null,
+      try(value.storage_account_id, null) != null,
+      try(value.eventhub_authorization_rule_id, null) != null,
+      try(value.partner_solution_id, null) != null,
+    ])
+  }
 
   name                       = each.value.name
   target_resource_id         = coalesce(try(each.value.target_resource_id, null), try(local.workload_scope_ids[each.value.target_key], null))

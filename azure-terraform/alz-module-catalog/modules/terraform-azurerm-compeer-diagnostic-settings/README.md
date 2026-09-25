@@ -4,6 +4,8 @@ A single `azurerm_monitor_diagnostic_setting` for one target resource. **The
 platform's canonical diagnostics module** — every pattern composes it with a
 per-resource `for_each`. Interface is a frozen contract.
 
+The module owns only the setting identified by `name`; it does not own every diagnostic setting attached to the target. Calling patterns instantiate it only when at least one destination is explicitly configured. If the central Log Analytics workspace is not available yet, the pattern omits the setting and the platform-policy DINE initiative becomes the compliance backstop after monitoring is deployed.
+
 ## Inputs
 
 | Input | Type | Default | Notes |

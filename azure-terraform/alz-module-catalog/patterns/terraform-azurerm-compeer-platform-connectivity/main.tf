@@ -272,8 +272,16 @@ module "bastion" {
 
 # Bastion diagnostics are composed via the dedicated module, one per caller key.
 module "bastion_diagnostics" {
-  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each = local.bastion_enabled ? try(var.bastion.diagnostic_settings, {}) : {}
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  for_each = local.bastion_enabled ? {
+    for key, value in try(var.bastion.diagnostic_settings, {}) : key => value
+    if anytrue([
+      try(value.log_analytics_workspace_id, null) != null,
+      try(value.storage_account_id, null) != null,
+      try(value.eventhub_authorization_rule_id, null) != null,
+      try(value.partner_solution_id, null) != null,
+    ])
+  } : {}
 
   name                           = coalesce(try(each.value.name, null), "${local.bastion_name}-${each.key}-diag")
   target_resource_id             = module.bastion[0].id
@@ -517,8 +525,16 @@ module "management_locks" {
 }
 
 module "diagnostic_settings" {
-  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each = var.diagnostic_settings
+  source = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
+  for_each = {
+    for key, value in var.diagnostic_settings : key => value
+    if anytrue([
+      try(value.log_analytics_workspace_id, null) != null,
+      try(value.storage_account_id, null) != null,
+      try(value.eventhub_authorization_rule_id, null) != null,
+      try(value.partner_solution_id, null) != null,
+    ])
+  }
 
   name                       = each.value.name
   target_resource_id         = coalesce(try(each.value.target_resource_id, null), try(local.connectivity_scope_ids[each.value.target_key], null))

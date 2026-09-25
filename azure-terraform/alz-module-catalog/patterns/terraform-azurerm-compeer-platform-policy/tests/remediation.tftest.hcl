@@ -55,6 +55,36 @@ run "remediation_creates_assignment_with_law_injection" {
   }
 }
 
+run "diagnostic_initiative_gets_identity_and_required_role" {
+  command = plan
+
+  variables {
+    remediation = {
+      enabled                    = true
+      management_group_key       = "compeer-enterprise-mg"
+      log_analytics_workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law"
+      dine_assignments = {
+        diagnostics = {
+          policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+          inject_law               = true
+          role_definition_ids = [
+            "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",
+          ]
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = local.management_group_policy_assignments_input["rem-diagnostics"].policy_set_definition_id == "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+    error_message = "remediation must support a built-in policy initiative as well as an individual definition"
+  }
+  assert {
+    condition     = length(azurerm_role_assignment.remediation) == 1
+    error_message = "the DINE assignment identity must receive its configured remediation role"
+  }
+}
+
 run "rejects_missing_management_group_key" {
   command = plan
 

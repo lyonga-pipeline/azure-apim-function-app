@@ -33,7 +33,7 @@ locals {
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
-  log_analytics_workspace_id = coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null))
+  log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
 
   connectors = {
     for key, connector in try(var.cloudflare_connectors.connectors, {}) : key => merge(connector, {

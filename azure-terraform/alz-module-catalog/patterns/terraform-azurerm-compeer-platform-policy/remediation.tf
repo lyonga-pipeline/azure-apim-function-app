@@ -17,3 +17,15 @@ resource "terraform_data" "remediation_contract" {
     }
   }
 }
+
+resource "azurerm_role_assignment" "remediation" {
+  for_each = local.remediation_role_assignments
+
+  scope                            = local.management_group_scope_ids[local.rem_mg_key]
+  role_definition_id               = each.value.role_definition_id
+  principal_id                     = module.policy.management_group_assignment_principal_ids[each.value.assignment_key]
+  principal_type                   = "ServicePrincipal"
+  skip_service_principal_aad_check = true
+
+  depends_on = [terraform_data.remediation_contract]
+}
