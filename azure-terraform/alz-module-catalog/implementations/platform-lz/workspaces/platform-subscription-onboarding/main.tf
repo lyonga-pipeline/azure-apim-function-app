@@ -9,7 +9,7 @@ data "tfe_outputs" "governance" {
 }
 
 data "tfe_outputs" "authorization" {
-  count        = var.use_tfe_outputs ? 1 : 0
+  count        = var.use_tfe_outputs && local.authorization_outputs_required ? 1 : 0
   organization = var.tfe_organization
   workspace    = var.authorization_workspace_name
 }

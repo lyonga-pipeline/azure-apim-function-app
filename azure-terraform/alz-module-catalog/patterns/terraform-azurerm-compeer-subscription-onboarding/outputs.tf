@@ -5,12 +5,12 @@ output "subscription_placement_ids" {
 
 output "onboarded_subscription_ids" {
   description = "Subscription GUIDs onboarded by this workspace, keyed by logical name."
-  value       = { for key, s in var.subscriptions : key => s.subscription_id }
+  value       = { for key, s in local.input_subscriptions : key => s.subscription_id }
 }
 
 output "onboarded_subscription_resource_ids" {
   description = "Subscription resource IDs (/subscriptions/<guid>) keyed by logical name."
-  value       = { for key, s in var.subscriptions : key => "/subscriptions/${s.subscription_id}" }
+  value       = { for key, s in local.input_subscriptions : key => "/subscriptions/${s.subscription_id}" }
 }
 
 output "subscription_target_management_group_ids" {

@@ -9,7 +9,7 @@ pattern.
 - Reads the management-group ID catalog from the `platform-governance` workspace
   (`use_tfe_outputs = true`), or takes it explicitly via `management_group_ids`.
 - Reads Entra RBAC group object IDs from the `platform-authorization` workspace
-  and resolves `principal_group_key` in baseline/app RBAC entries.
+  only when a baseline/app RBAC entry uses `principal_group_key`.
 - For each subscription in `onboarding.subscriptions` (all **already created by
   the CSP partner**, sitting under the Tenant Root Group):
   - moves it to `target_management_group_key` / `target_management_group_id`;
@@ -38,6 +38,15 @@ separate policy migration process.
 `platform-governance` → **`platform-subscription-onboarding`** → platform /
 workload workspaces (which now find their subscription in the right MG with
 baseline RBAC already applied).
+
+`platform-authorization` is not a prerequisite when both RBAC maps are empty,
+as they are for the initial four platform-subscription placements. Deploy it
+before onboarding configurations that resolve any `principal_group_key`.
+
+Management-group IDs, subscription GUIDs, and Entra object IDs are deliberately
+declassified at the pattern boundary. They are Azure identifiers, not secrets;
+this prevents HCP output sensitivity from making Terraform `for_each` keys
+invalid. Authentication credentials remain sensitive.
 
 Subscription-scope RBAC is optional. Prefer assigning common access once at
 management-group scope in `platform-authorization` and inheriting it. Populate

@@ -79,6 +79,30 @@ run "opt_out_of_baseline" {
   }
 }
 
+run "accepts_sensitive_identifier_inputs" {
+  command = plan
+
+  variables {
+    management_group_ids = sensitive({
+      platform = "/providers/Microsoft.Management/managementGroups/platform"
+    })
+    group_object_ids          = sensitive({})
+    baseline_role_assignments = {}
+    subscriptions = sensitive({
+      management = {
+        subscription_id             = "ffffffff-ffff-ffff-ffff-ffffffffffff"
+        target_management_group_key = "platform"
+        apply_baseline_rbac         = false
+      }
+    })
+  }
+
+  assert {
+    condition     = azurerm_management_group_subscription_association.platform_subscription_placement["management"].subscription_id == "/subscriptions/ffffffff-ffff-ffff-ffff-ffffffffffff"
+    error_message = "Sensitive-wrapped non-secret identifiers must remain valid for for_each."
+  }
+}
+
 run "rejects_unknown_mg_key" {
   command = plan
 

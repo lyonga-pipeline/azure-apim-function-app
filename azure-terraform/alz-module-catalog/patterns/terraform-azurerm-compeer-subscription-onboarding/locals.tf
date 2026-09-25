@@ -1,6 +1,12 @@
 locals {
+  # Azure resource IDs, subscription GUIDs, and Entra object IDs are identifiers,
+  # not credentials. HCP output sensitivity can otherwise taint for_each keys.
+  input_management_group_ids = nonsensitive(var.management_group_ids)
+  input_subscriptions        = nonsensitive(var.subscriptions)
+  input_group_object_ids     = nonsensitive(var.group_object_ids)
+
   management_group_ids = {
-    for key, value in var.management_group_ids : key => (
+    for key, value in local.input_management_group_ids : key => (
       startswith(trimspace(value), "/providers/Microsoft.Management/managementGroups/")
       ? trimspace(value)
       : "/providers/Microsoft.Management/managementGroups/${trimspace(value)}"
@@ -8,7 +14,7 @@ locals {
   }
 
   subscription_target_mg_ids = {
-    for key, subscription in var.subscriptions : key => (
+    for key, subscription in local.input_subscriptions : key => (
       subscription.target_management_group_id != null
       ? (
         startswith(trimspace(subscription.target_management_group_id), "/providers/Microsoft.Management/managementGroups/")
@@ -24,12 +30,12 @@ locals {
   ])
 
   baseline_principal_group_keys = [
-    for assignment in values(var.baseline_role_assignments) : assignment.principal_group_key
+    for assignment in values(nonsensitive(var.baseline_role_assignments)) : assignment.principal_group_key
     if try(assignment.principal_group_key, null) != null
   ]
 
   app_principal_group_keys = flatten([
-    for subscription in values(var.subscriptions) : [
+    for subscription in values(local.input_subscriptions) : [
       for assignment in values(subscription.app_role_assignments) : assignment.principal_group_key
       if try(assignment.principal_group_key, null) != null
     ]
@@ -37,7 +43,7 @@ locals {
 
   unresolved_principal_group_keys = sort(tolist(setsubtract(
     toset(concat(local.baseline_principal_group_keys, local.app_principal_group_keys)),
-    toset(keys(var.group_object_ids))
+    toset(keys(local.input_group_object_ids))
   )))
 
   contract_valid = (
@@ -45,7 +51,7 @@ locals {
     length(local.unresolved_principal_group_keys) == 0
   )
 
-  subscriptions                    = local.contract_valid ? var.subscriptions : {}
+  subscriptions                    = local.contract_valid ? local.input_subscriptions : {}
   unresolved_principal_placeholder = "00000000-0000-0000-0000-000000000000"
 
   baseline_assignment_inputs = {
@@ -56,7 +62,7 @@ locals {
           value = {
             name                             = null
             scope                            = "/subscriptions/${subscription.subscription_id}"
-            principal_id                     = try(assignment.principal_id, null) != null ? assignment.principal_id : lookup(var.group_object_ids, assignment.principal_group_key, local.unresolved_principal_placeholder)
+            principal_id                     = try(assignment.principal_id, null) != null ? assignment.principal_id : lookup(local.input_group_object_ids, assignment.principal_group_key, local.unresolved_principal_placeholder)
             role_definition_name             = assignment.role_definition_name
             role_definition_id               = assignment.role_definition_id
             principal_type                   = try(assignment.principal_group_key, null) != null ? "Group" : assignment.principal_type
@@ -79,7 +85,7 @@ locals {
           value = {
             name                             = assignment.name
             scope                            = "/subscriptions/${subscription.subscription_id}"
-            principal_id                     = try(assignment.principal_id, null) != null ? assignment.principal_id : lookup(var.group_object_ids, assignment.principal_group_key, local.unresolved_principal_placeholder)
+            principal_id                     = try(assignment.principal_id, null) != null ? assignment.principal_id : lookup(local.input_group_object_ids, assignment.principal_group_key, local.unresolved_principal_placeholder)
             role_definition_name             = assignment.role_definition_name
             role_definition_id               = assignment.role_definition_id
             principal_type                   = try(assignment.principal_group_key, null) != null ? "Group" : assignment.principal_type
