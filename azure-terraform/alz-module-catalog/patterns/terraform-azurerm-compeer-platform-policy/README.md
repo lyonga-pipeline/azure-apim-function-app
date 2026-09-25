@@ -98,7 +98,9 @@ DINE and Modify assignments require a location and managed identity. The deploya
 
 The implementation uses Microsoft's built-in initiative `0884adba-2312-4468-abeb-5422caed1038`. Its child policies are resource-type specific, deploy the `allLogs` category group, enable `AllMetrics` where supported, and recognize an existing setting that already targets the configured Log Analytics workspace. Approved Terraform patterns therefore remain the primary owner of diagnostics; Policy creates `setByPolicy-LogAnalytics` only when the compliant setting is absent.
 
-The initiative's `resourceTypeList` is the Phase 1 catalog, not every type Azure supports. Extend that list when a new service is approved. Services not supported by the built-in initiative, including resource types whose logs live on child resources, remain explicit Terraform diagnostics until a reviewed policy is added.
+The initiative's `resourceTypeList` contains the Phase 1 catalog plus a controlled pilot buffer of common workload services. Extend that list only when a new service is approved. App Service and Function Apps use their dedicated Microsoft DINE definitions because `Microsoft.Web/sites` is not accepted by the initiative's `resourceTypeList`. Other unsupported types, including resources whose logs live on child resources, remain explicit Terraform diagnostics until a reviewed policy is added.
+
+Virtual machines are not diagnostic-setting equivalents of PaaS resources. Guest telemetry requires Azure Monitor Agent and an approved Data Collection Rule. Do not add `Microsoft.Compute/virtualMachines` to this initiative: deploy the AMA/DCR policy only after `platform-management` publishes the approved DCR and its data sources.
 
 Before enabling a remediation policy:
 

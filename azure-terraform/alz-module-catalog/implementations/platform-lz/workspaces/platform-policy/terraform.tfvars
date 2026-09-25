@@ -169,6 +169,34 @@ policy = {
     management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
     dine_assignments = {
+      app_service_diagnostics = {
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/c0d8e23a-47be-4032-961f-8b0ff3957061"
+        display_name         = "Compeer deploy App Service diagnostics to central Log Analytics"
+        description          = "GOV-07 backstop for App Service resources not covered by the allLogs initiative resource-type list."
+        inject_law           = true
+        role_definition_ids = [
+          "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",
+        ]
+        parameters = {
+          effect                = { value = "DeployIfNotExists" }
+          diagnosticSettingName = { value = "setByPolicy-LogAnalytics" }
+          resourceLocationList  = { value = ["*"] }
+        }
+      }
+      function_app_diagnostics = {
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/e9c22e0d-1f03-44da-a9d5-a9754ea53dc4"
+        display_name         = "Compeer deploy Function App diagnostics to central Log Analytics"
+        description          = "GOV-07 backstop for Function Apps not covered by the allLogs initiative resource-type list."
+        inject_law           = true
+        role_definition_ids = [
+          "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",
+        ]
+        parameters = {
+          effect                = { value = "DeployIfNotExists" }
+          diagnosticSettingName = { value = "setByPolicy-LogAnalytics" }
+          resourceLocationList  = { value = ["*"] }
+        }
+      }
       diagnostics_to_log_analytics = {
         policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
         display_name             = "Compeer deploy diagnostics to central Log Analytics"
@@ -186,12 +214,28 @@ policy = {
           resourceTypeList = {
             value = [
               "microsoft.apimanagement/service",
+              "microsoft.app/managedenvironments",
+              "microsoft.appconfiguration/configurationstores",
               "microsoft.automation/automationaccounts",
+              "microsoft.batch/batchaccounts",
+              "microsoft.cache/redis",
+              "microsoft.cache/redisenterprise/databases",
+              "microsoft.cognitiveservices/accounts",
+              "microsoft.containerinstance/containergroups",
               "microsoft.containerregistry/registries",
               "microsoft.datafactory/factories",
+              "microsoft.dataprotection/backupvaults",
+              "microsoft.dbformysql/flexibleservers",
+              "microsoft.dbforpostgresql/flexibleservers",
+              "microsoft.documentdb/databaseaccounts",
               "microsoft.eventgrid/systemtopics",
               "microsoft.eventgrid/topics",
+              "microsoft.eventhub/namespaces",
+              "microsoft.insights/components",
+              "microsoft.insights/datacollectionrules",
               "microsoft.keyvault/vaults",
+              "microsoft.logic/integrationaccounts",
+              "microsoft.logic/workflows",
               "microsoft.network/applicationgateways",
               "microsoft.network/azurefirewalls",
               "microsoft.network/bastionhosts",
@@ -201,11 +245,18 @@ policy = {
               "microsoft.network/publicipaddresses",
               "microsoft.network/virtualnetworkgateways",
               "microsoft.network/virtualnetworks",
+              "microsoft.notificationhubs/namespaces",
               "microsoft.recoveryservices/vaults",
+              "microsoft.search/searchservices",
               "microsoft.servicebus/namespaces",
+              "microsoft.signalrservice/signalr",
+              "microsoft.signalrservice/webpubsub",
               "microsoft.sql/managedinstances",
+              "microsoft.sql/managedinstances/databases",
               "microsoft.sql/servers/databases",
               "microsoft.synapse/workspaces",
+              "microsoft.synapse/workspaces/bigdatapools",
+              "microsoft.synapse/workspaces/sqlpools",
             ]
           }
         }
