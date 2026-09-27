@@ -210,7 +210,7 @@ locals {
 
   remediation_role_assignments = merge([
     for assignment_key, assignment in local.rem_assignments : {
-      for role_definition_id in assignment.role_definition_ids :
+      for role_definition_id in try(assignment.role_definition_ids, []) :
       "${assignment_key}:${basename(role_definition_id)}" => {
         assignment_key     = "rem-${assignment_key}"
         role_definition_id = role_definition_id

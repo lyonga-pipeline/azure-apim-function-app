@@ -55,6 +55,40 @@ run "remediation_creates_assignment_with_law_injection" {
   }
 }
 
+run "remediation_accepts_heterogeneous_policy_parameters" {
+  command = plan
+
+  variables {
+    remediation = {
+      enabled                    = true
+      management_group_key       = "compeer-enterprise-mg"
+      log_analytics_workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law"
+      dine_assignments = {
+        app_service = {
+          policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/11111111-1111-1111-1111-111111111111"
+          inject_law           = true
+          parameters = {
+            effect = { value = "DeployIfNotExists" }
+          }
+        }
+        resource_catalog = {
+          policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/22222222-2222-2222-2222-222222222222"
+          inject_law               = true
+          parameters = {
+            effect           = { value = "DeployIfNotExists" }
+            resourceTypeList = { value = ["microsoft.network/virtualnetworks", "microsoft.keyvault/vaults"] }
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(local.remediation_assignments_input) == 2
+    error_message = "DINE assignments with different policy parameter shapes must remain independently typed."
+  }
+}
+
 run "diagnostic_initiative_gets_identity_and_required_role" {
   command = plan
 

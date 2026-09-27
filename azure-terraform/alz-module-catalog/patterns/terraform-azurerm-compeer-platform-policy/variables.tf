@@ -160,17 +160,10 @@ variable "remediation" {
     management_group_key       = optional(string)
     location                   = optional(string)
     log_analytics_workspace_id = optional(string)
-    dine_assignments = optional(map(object({
-      policy_definition_id     = optional(string)
-      policy_set_definition_id = optional(string)
-      display_name             = optional(string)
-      description              = optional(string)
-      enforce                  = optional(bool, true)
-      not_scopes               = optional(list(string))
-      inject_law               = optional(bool, false)
-      parameters               = optional(any, {})
-      role_definition_ids      = optional(set(string), [])
-    })), {})
+    # Policy parameters are JSON-like and legitimately differ by built-in
+    # definition. Keeping this keyed object dynamic avoids Terraform forcing
+    # unrelated assignment parameter values into one common map element type.
+    dine_assignments = optional(any, {})
   })
   default = {}
 
@@ -180,5 +173,15 @@ variable "remediation" {
       (try(assignment.policy_definition_id, null) != null) != (try(assignment.policy_set_definition_id, null) != null)
     ])
     error_message = "Each remediation assignment must set exactly one of policy_definition_id or policy_set_definition_id."
+  }
+
+
+  validation {
+    condition = alltrue([
+      for assignment in values(try(var.remediation.dine_assignments, {})) :
+      can(tobool(try(assignment.inject_law, false))) &&
+      can(toset(try(assignment.role_definition_ids, [])))
+    ])
+    error_message = "Each remediation assignment must use a boolean inject_law value and a collection of role_definition_ids."
   }
 }
