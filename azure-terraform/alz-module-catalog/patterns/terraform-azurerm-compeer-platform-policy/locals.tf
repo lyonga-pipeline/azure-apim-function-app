@@ -92,7 +92,10 @@ locals {
         if = {
           allOf = [
             { field = "type", equals = "Microsoft.Network/publicIPAddresses" },
-            { not = { field = "resourceGroup", in = "[parameters('allowedResourceGroupNames')]" } }
+            {
+              value = "[resourceGroup().name]"
+              notIn = "[parameters('allowedResourceGroupNames')]"
+            }
           ]
         }
         then = { effect = "[parameters('effect')]" }

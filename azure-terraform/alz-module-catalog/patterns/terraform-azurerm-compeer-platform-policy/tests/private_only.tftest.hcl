@@ -49,6 +49,13 @@ run "baseline_on_creates_defs_initiative_assignment" {
     condition     = contains(keys(local.policy_definitions_input), "deny-public-ip-address")
     error_message = "custom definition not merged into the module's policy_definitions input"
   }
+  assert {
+    condition = (
+      local.poc_definitions["deny-public-ip-address"].policy_rule.if.allOf[1].value == "[resourceGroup().name]" &&
+      local.poc_definitions["deny-public-ip-address"].policy_rule.if.allOf[1].notIn == "[parameters('allowedResourceGroupNames')]"
+    )
+    error_message = "public IP allow-list must compare resourceGroup().name instead of using the invalid resourceGroup field alias"
+  }
 }
 
 run "rejects_bad_effect" {
