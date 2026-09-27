@@ -82,10 +82,9 @@ private_only_connectivity = {
   effect               = "Audit"
   enforce              = true
   allowed_public_ip_resource_group_names = [
-    "rg-conn-palo-alto",
-    "rg-conn-bastion",
-    "rg-conn-route-server",
-    "rg-hybrid-gateway",
+    "platform-cus-prod-firewall-rg",
+    "platform-cus-prod-security-rg",
+    "platform-cus-prod-hybrid-rg",
   ]
 }
 ```
