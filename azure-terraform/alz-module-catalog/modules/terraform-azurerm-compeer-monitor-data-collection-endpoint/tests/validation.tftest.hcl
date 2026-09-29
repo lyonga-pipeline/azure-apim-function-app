@@ -24,3 +24,19 @@ run "rejects_bad_kind" {
   }
   expect_failures = [var.kind]
 }
+
+run "outputs_are_wired" {
+  command = apply
+
+  assert {
+    condition = (
+      output.id == azurerm_monitor_data_collection_endpoint.endpoint.id &&
+      output.name == azurerm_monitor_data_collection_endpoint.endpoint.name &&
+      output.immutable_id == azurerm_monitor_data_collection_endpoint.endpoint.immutable_id &&
+      output.configuration_access_endpoint == azurerm_monitor_data_collection_endpoint.endpoint.configuration_access_endpoint &&
+      output.logs_ingestion_endpoint == azurerm_monitor_data_collection_endpoint.endpoint.logs_ingestion_endpoint &&
+      output.metrics_ingestion_endpoint == azurerm_monitor_data_collection_endpoint.endpoint.metrics_ingestion_endpoint
+    )
+    error_message = "every output must echo its corresponding resource attribute"
+  }
+}

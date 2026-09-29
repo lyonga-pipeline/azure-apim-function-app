@@ -119,6 +119,60 @@ run "rejects_unsupported_syslog_log_level" {
   expect_failures = [var.data_sources]
 }
 
+run "windows_event_log_data_source_renders" {
+  # Of 10 data_sources types, only performance_counter and syslog had ever
+  # been exercised - this adds smoke coverage for windows_event_log too.
+  command = apply
+  variables {
+    data_sources = {
+      windows_event_log = {
+        app = {
+          name           = "app-events"
+          streams        = ["Microsoft-WindowsEvent"]
+          x_path_queries = ["Application!*[System[(Level=2)]]"]
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(azurerm_monitor_data_collection_rule.rule.data_sources[0].windows_event_log) == 1
+    error_message = "windows_event_log data source should render"
+  }
+}
+
+run "azure_monitor_metrics_destination_renders" {
+  # Of 8 destinations sub-blocks, only log_analytics had ever been used.
+  command = apply
+  variables {
+    destinations = {
+      log_analytics = {
+        law = {
+          name                  = "law-dest"
+          workspace_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law"
+        }
+      }
+      azure_monitor_metrics = {
+        amw = { name = "metrics-dest" }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(azurerm_monitor_data_collection_rule.rule.destinations[0].azure_monitor_metrics) == 1
+    error_message = "azure_monitor_metrics destination should render"
+  }
+}
+
+run "outputs_are_wired" {
+  command = apply
+
+  assert {
+    condition     = output.id == azurerm_monitor_data_collection_rule.rule.id && output.name == azurerm_monitor_data_collection_rule.rule.name
+    error_message = "id/name outputs must echo the resource"
+  }
+}
+
 run "rejects_unsupported_stream_declaration_column_type" {
   command = plan
   variables {

@@ -20,3 +20,34 @@ run "rejects_trailing_period" {
   }
   expect_failures = [var.name]
 }
+
+run "rejects_name_over_90_chars" {
+  # Only the trailing-period side of the validation was tested; the
+  # length/charset side was not.
+  command = plan
+  variables {
+    name = join("", [for i in range(91) : "a"])
+  }
+  expect_failures = [var.name]
+}
+
+run "rejects_name_with_disallowed_character" {
+  command = plan
+  variables {
+    name = "rg-bad*name"
+  }
+  expect_failures = [var.name]
+}
+
+run "outputs_are_wired" {
+  command = apply
+
+  assert {
+    condition = (
+      output.id == azurerm_resource_group.group.id &&
+      output.name == azurerm_resource_group.group.name &&
+      output.location == azurerm_resource_group.group.location
+    )
+    error_message = "every output must echo its corresponding resource attribute"
+  }
+}
