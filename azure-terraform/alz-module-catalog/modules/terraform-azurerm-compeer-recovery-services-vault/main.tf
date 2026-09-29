@@ -22,7 +22,7 @@ resource "azurerm_recovery_services_vault" "vault" {
     for_each = var.encryption == null ? [] : [var.encryption]
     content {
       key_id                            = encryption.value.key_id
-      infrastructure_encryption_enabled = try(encryption.value.infrastructure_encryption_enabled, null)
+      infrastructure_encryption_enabled = encryption.value.infrastructure_encryption_enabled
       use_system_assigned_identity      = try(encryption.value.use_system_assigned_identity, null)
       user_assigned_identity_id         = try(encryption.value.user_assigned_identity_id, null)
     }

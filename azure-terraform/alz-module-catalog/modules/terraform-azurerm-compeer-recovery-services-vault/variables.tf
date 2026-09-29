@@ -63,8 +63,13 @@ variable "identity" {
 }
 variable "encryption" {
   type = object({
-    key_id                            = string
-    infrastructure_encryption_enabled = optional(bool)
+    key_id = string
+    # azurerm_recovery_services_vault's own encryption block marks this
+    # Required (not Optional) - a caller who omitted it would fail at
+    # apply, so it needs a concrete default here rather than staying
+    # unset. false (single encryption) matches every other secure-default
+    # posture in this module without forcing every caller to type it.
+    infrastructure_encryption_enabled = optional(bool, false)
     use_system_assigned_identity      = optional(bool)
     user_assigned_identity_id         = optional(string)
   })
