@@ -23,6 +23,11 @@ variable "kind" {
   type        = string
   description = "Data Collection Rule kind."
   default     = null
+
+  validation {
+    condition     = var.kind == null ? true : contains(["Linux", "Windows", "AgentDirectToStore", "WorkspaceTransforms"], var.kind)
+    error_message = "kind, when set, must be Linux, Windows, AgentDirectToStore, or WorkspaceTransforms."
+  }
 }
 
 variable "data_collection_endpoint_id" {
@@ -146,6 +151,40 @@ variable "data_sources" {
   })
   description = "Optional DCR data sources keyed by stable names."
   default     = {}
+
+  # Bounds/enums are azurerm_monitor_data_collection_rule's own documented
+  # limits, not invented ones.
+  validation {
+    condition = alltrue([
+      for ds in values(var.data_sources.performance_counter) :
+      ds.sampling_frequency_in_seconds >= 1 && ds.sampling_frequency_in_seconds <= 1800
+    ])
+    error_message = "data_sources.performance_counter[*].sampling_frequency_in_seconds must be between 1 and 1800."
+  }
+  validation {
+    condition = alltrue([
+      for ds in values(var.data_sources.syslog) :
+      alltrue([
+        for f in ds.facility_names :
+        contains([
+          "alert", "*", "audit", "auth", "authpriv", "clock", "cron", "daemon", "ftp", "kern",
+          "local0", "local1", "local2", "local3", "local4", "local5", "local6", "local7",
+          "lpr", "mail", "mark", "news", "nopri", "ntp", "syslog", "user", "uucp",
+        ], f)
+      ])
+    ])
+    error_message = "data_sources.syslog[*].facility_names contains an unsupported facility name."
+  }
+  validation {
+    condition = alltrue([
+      for ds in values(var.data_sources.syslog) :
+      alltrue([
+        for l in ds.log_levels :
+        contains(["Debug", "Info", "Notice", "Warning", "Error", "Critical", "Alert", "Emergency", "*"], l)
+      ])
+    ])
+    error_message = "data_sources.syslog[*].log_levels contains an unsupported log level."
+  }
 }
 
 variable "stream_declarations" {
@@ -156,6 +195,14 @@ variable "stream_declarations" {
   }))
   description = "Custom stream declarations keyed by stream name."
   default     = {}
+
+  validation {
+    condition = alltrue([
+      for sd in values(var.stream_declarations) :
+      alltrue([for col in values(sd.columns) : contains(["string", "int", "long", "real", "boolean", "datetime", "dynamic"], col.type)])
+    ])
+    error_message = "stream_declarations[*].columns[*].type must be one of string, int, long, real, boolean, datetime, dynamic."
+  }
 }
 
 variable "identity" {
@@ -164,6 +211,11 @@ variable "identity" {
     identity_ids = optional(set(string), [])
   })
   default = null
+
+  validation {
+    condition     = var.identity == null ? true : contains(["SystemAssigned", "UserAssigned"], var.identity.type)
+    error_message = "identity.type must be SystemAssigned or UserAssigned."
+  }
 }
 
 variable "timeouts" {

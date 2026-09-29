@@ -17,6 +17,11 @@ variable "kind" {
   type        = string
   description = "Data Collection Endpoint kind."
   default     = null
+
+  validation {
+    condition     = var.kind == null ? true : contains(["Linux", "Windows"], var.kind)
+    error_message = "kind, when set, must be Linux or Windows."
+  }
 }
 
 variable "description" {

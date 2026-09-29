@@ -73,3 +73,40 @@ run "rejects_both_name_and_id" {
 
   expect_failures = [var.assignments]
 }
+
+run "accepts_valid_principal_type" {
+  command = plan
+
+  variables {
+    assignments = {
+      workload-kv-reader = {
+        scope                = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv"
+        principal_id         = "11111111-1111-1111-1111-111111111111"
+        role_definition_name = "Key Vault Secrets User"
+        principal_type       = "ServicePrincipal"
+      }
+    }
+  }
+
+  assert {
+    condition     = azurerm_role_assignment.assignment["workload-kv-reader"].principal_type == "ServicePrincipal"
+    error_message = "valid principal_type should be accepted"
+  }
+}
+
+run "rejects_unsupported_principal_type" {
+  command = plan
+
+  variables {
+    assignments = {
+      bad = {
+        scope                = "/subscriptions/00000000-0000-0000-0000-000000000000"
+        principal_id         = "44444444-4444-4444-4444-444444444444"
+        role_definition_name = "Reader"
+        principal_type       = "Device" # not supported by azurerm_role_assignment
+      }
+    }
+  }
+
+  expect_failures = [var.assignments]
+}
