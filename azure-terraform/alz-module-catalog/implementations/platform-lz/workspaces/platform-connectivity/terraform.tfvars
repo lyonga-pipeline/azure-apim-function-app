@@ -52,7 +52,12 @@ connectivity = {
     # "I will eventually send this to Compeer to get their approval" - NOT yet
     # approved. Still marked REPLACE-if-Compeer-changes-it, same as before.
     address_space = ["10.102.0.0/16"] # REPLACE if Compeer's approval changes this
-    dns_servers   = []                # set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6)
+    # Set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6). DCs
+    # now live in the peered identity VNet, not this VNet - their IPs are
+    # still reachable here once the additional_vnet_peerings.identity entry
+    # (below, auto-populated from platform-directory-services' published
+    # identity_vnet_id) exists.
+    dns_servers = []
     # Every subnet a downstream workspace resolves by subnet_key must exist here
     # (runbook §4.1 - the hub pattern owns all subnets). route_table_key /
     # nsg_key wire the association from one place.
@@ -66,12 +71,14 @@ connectivity = {
       prod-shared-subnet = { address_prefixes = ["10.102.1.0/24"] }
       prod-appgw-subnet0 = { address_prefixes = ["10.102.2.0/24"] }
 
-      # Was one combined "domain_controllers" subnet; Dan's table splits it by
-      # domain. Both share the domain_controllers NSG/route table for now
-      # since no per-domain rules exist yet - split the nsg_key too if that
-      # changes.
-      prod-extdc-subnet    = { address_prefixes = ["10.102.3.0/27"], route_table_key = "to_firewall", nsg_key = "domain_controllers" }  # compeer.ext
-      prod-intdc-subnet    = { address_prefixes = ["10.102.3.32/27"], route_table_key = "to_firewall", nsg_key = "domain_controllers" } # agstar.local
+      # prod-extdc-subnet / prod-intdc-subnet REMOVED (23 Sep 2026 placement
+      # decision): domain controllers no longer sit on the hub - they moved to
+      # a dedicated identity VNet (platform-cus-prod-identity-vnet), peered to
+      # this hub, owned by the platform-directory-services workspace/identity
+      # subscription. See that workspace's terraform.tfvars for the DC subnets
+      # and platform-connectivity's additional_vnet_peerings (below) for the
+      # hub-side half of the peering. This reverses the earlier hub-hosted DC
+      # decision.
       prod-cftagent-subnet = { address_prefixes = ["10.102.3.64/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
 
       # service_endpoints let the bootstrap storage account / Key Vault firewall
@@ -95,6 +102,10 @@ connectivity = {
       # the confirmed approach), and they're absent from Dan's plan too.
     }
   }
+  # additional_vnet_peerings is NOT set here on purpose: this workspace's
+  # main.tf auto-populates an "identity" entry from platform-directory-
+  # services' published identity_vnet_id once that workspace has deployed.
+  # Add entries here only for a hub peering that ISN'T auto-derived this way.
   ddos_protection_plan = {
     enabled             = false
     enable_for_hub_vnet = true
@@ -116,9 +127,10 @@ connectivity = {
   }
   # names come from the naming module: <region>-<env>-<key>-nsg
   network_security_groups = {
-    palo_mgmt          = { rules = {} }
-    connectors         = { rules = {} }
-    domain_controllers = { rules = {} }
+    palo_mgmt  = { rules = {} }
+    connectors = { rules = {} }
+    # domain_controllers NSG removed along with the two hub DC subnets above -
+    # the identity VNet (platform-directory-services) owns its own NSG now.
   }
   subnet_nsg_associations = {} # derived from subnet.nsg_key above
 

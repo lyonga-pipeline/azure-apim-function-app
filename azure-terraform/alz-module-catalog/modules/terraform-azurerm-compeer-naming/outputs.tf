@@ -235,6 +235,10 @@ output "shared_vnet" {
   description = "Shared-services virtual network."
   value       = local.names.shared_vnet
 }
+output "identity_vnet" {
+  description = "Dedicated identity virtual network (domain controllers, DNS), peered to the hub."
+  value       = local.names.identity_vnet
+}
 output "subnet" {
   description = "Compatibility single subnet. Needs `purpose`. Prefer subnet_keys."
   value       = local.names.subnet
@@ -339,6 +343,10 @@ output "vpn_connection" {
 output "domain_controller_vm" {
   description = "Domain controller VM. Uses `instance`. See README."
   value       = local.names.domain_controller_vm
+}
+output "domain_controller_extdc_vm" {
+  description = "External-forest domain controller VM (e.g. compeer.ext). Uses `instance`. See README."
+  value       = local.names.domain_controller_extdc_vm
 }
 output "load_balancer" {
   description = "Compatibility single internal load balancer. Needs `purpose`. Prefer load_balancer_keys."

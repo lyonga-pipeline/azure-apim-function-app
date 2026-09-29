@@ -48,12 +48,152 @@ module "resource_group" {
   tags     = module.tags.tags
 }
 
+# Dedicated identity VNet (23 Sep 2026 placement decision) - domain
+# controllers and DNS live here, peered to the hub, isolating the Tier 0
+# identity plane from the connectivity subscription. count-gated so a caller
+# still on the legacy hub-hosted shape (identity_vnet = null) is unaffected.
+module "identity_vnet" {
+  source = "../../modules/terraform-azurerm-compeer-virtual-network"
+  count  = var.identity_vnet == null ? 0 : 1
+
+  name                = var.identity_vnet.name
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  address_space       = var.identity_vnet.address_space
+  dns_servers         = try(var.identity_vnet.dns_servers, null)
+  subnets             = try(var.identity_vnet.subnets, {})
+}
+
+module "identity_vnet_to_hub_peering" {
+  source = "../../modules/terraform-azurerm-compeer-vnet-peering"
+  count  = var.identity_vnet != null && var.hub_connection != null ? 1 : 0
+
+  peering_name                 = "peer-${var.identity_vnet.name}-to-hub"
+  rg_name                      = module.resource_group.name
+  vnet_name                    = module.identity_vnet[0].name
+  remote_virtual_network_id    = var.hub_connection.hub_virtual_network_id
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = var.hub_connection.allow_forwarded_traffic
+  allow_gateway_transit        = var.hub_connection.allow_gateway_transit
+  use_remote_gateways          = var.hub_connection.use_remote_gateways
+}
+
+module "network_security_groups" {
+  source   = "../../modules/terraform-azurerm-compeer-network-security-group"
+  for_each = var.network_security_groups
+
+  name                = each.value.name
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  security_rules = {
+    for name, rule in try(each.value.rules, {}) : name => {
+      name                                       = name
+      description                                = try(rule.description, null)
+      protocol                                   = rule.protocol
+      source_port_range                          = try(rule.source_port_range, null)
+      source_port_ranges                         = try(rule.source_port_ranges, null)
+      destination_port_range                     = try(rule.destination_port_range, null)
+      destination_port_ranges                    = try(rule.destination_port_ranges, null)
+      source_address_prefix                      = try(rule.source_address_prefix, null)
+      source_address_prefixes                    = try(rule.source_address_prefixes, null)
+      source_application_security_group_ids      = try(rule.source_application_security_group_ids, null)
+      destination_address_prefix                 = try(rule.destination_address_prefix, null)
+      destination_address_prefixes               = try(rule.destination_address_prefixes, null)
+      destination_application_security_group_ids = try(rule.destination_application_security_group_ids, null)
+      access                                     = rule.access
+      priority                                   = rule.priority
+      direction                                  = rule.direction
+    }
+  }
+  tags = module.tags.tags
+}
+
+module "route_tables" {
+  source   = "../../modules/terraform-azurerm-compeer-route-table"
+  for_each = var.route_tables
+
+  name                          = each.value.name
+  resource_group_name           = module.resource_group.name
+  location                      = module.resource_group.location
+  bgp_route_propagation_enabled = try(each.value.bgp_route_propagation_enabled, null)
+  routes                        = try(each.value.routes, {})
+  tags                          = module.tags.tags
+}
+
+locals {
+  # Associations declared inline on identity_vnet.subnets[*].{nsg_key,
+  # route_table_key} plus any explicit entries - same idiom as
+  # terraform-azurerm-compeer-platform-connectivity's hub subnets.
+  derived_nsg_associations = var.identity_vnet == null ? {} : {
+    for k, s in var.identity_vnet.subnets : k => { subnet_key = k, nsg_key = s.nsg_key }
+    if try(s.nsg_key, null) != null
+  }
+  derived_route_table_associations = var.identity_vnet == null ? {} : {
+    for k, s in var.identity_vnet.subnets : k => { subnet_key = k, route_table_key = s.route_table_key }
+    if try(s.route_table_key, null) != null
+  }
+  effective_nsg_associations         = merge(local.derived_nsg_associations, var.subnet_nsg_associations)
+  effective_route_table_associations = merge(local.derived_route_table_associations, var.subnet_route_table_associations)
+}
+
+module "subnet_nsg_associations" {
+  source   = "../../modules/terraform-azurerm-compeer-nsg-subnet-association"
+  for_each = local.effective_nsg_associations
+
+  subnet_id                 = module.identity_vnet[0].subnet_ids[each.value.subnet_key]
+  network_security_group_id = module.network_security_groups[each.value.nsg_key].id
+}
+
+module "subnet_route_table_associations" {
+  source   = "../../modules/terraform-azurerm-compeer-subnet-route-table-association"
+  for_each = local.effective_route_table_associations
+
+  subnet_id      = module.identity_vnet[0].subnet_ids[each.value.subnet_key]
+  route_table_id = module.route_tables[each.value.route_table_key].id
+}
+
+module "recovery_services_vaults" {
+  source   = "../../modules/terraform-azurerm-compeer-recovery-services-vault"
+  for_each = var.recovery_services_vaults
+
+  name                               = each.value.name
+  resource_group_name                = module.resource_group.name
+  location                           = module.resource_group.location
+  sku                                = each.value.sku
+  storage_mode_type                  = each.value.storage_mode_type
+  public_network_access_enabled      = try(each.value.public_network_access_enabled, null)
+  immutability                       = try(each.value.immutability, null)
+  cross_region_restore_enabled       = try(each.value.cross_region_restore_enabled, null)
+  classic_vmware_replication_enabled = try(each.value.classic_vmware_replication_enabled, null)
+  identity                           = try(each.value.identity, null)
+  encryption                         = try(each.value.encryption, null)
+  monitoring                         = try(each.value.monitoring, null)
+  backup_policy_vm                   = try(each.value.backup_policy_vm, {})
+  backup_policy_file_share           = try(each.value.backup_policy_file_share, {})
+  timeouts                           = try(each.value.timeouts, {})
+  tags                               = module.tags.tags
+}
+
 locals {
   default_windows_image = {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2022-datacenter-azure-edition"
     version   = "latest"
+  }
+
+  # subnet_id wins when a caller sets it explicitly (e.g. a not-yet-migrated
+  # hub placement); otherwise resolve subnet_key against this pattern's own
+  # identity_vnet. Only network_interfaces (below) needs the resolved value -
+  # every other var.domain_controllers reference in this file is unaffected
+  # by subnet placement.
+  resolved_domain_controllers = {
+    for key, controller in var.domain_controllers : key => merge(controller, {
+      subnet_id = coalesce(
+        try(controller.subnet_id, null),
+        try(module.identity_vnet[0].subnet_ids[controller.subnet_key], null)
+      )
+    })
   }
 
   data_disks = merge([
@@ -122,7 +262,7 @@ resource "terraform_data" "controller_contract" {
 
 module "network_interfaces" {
   source   = "../../modules/terraform-azurerm-compeer-network-interface"
-  for_each = var.domain_controllers
+  for_each = local.resolved_domain_controllers
 
   name                           = each.value.nic_name
   resource_group_name            = module.resource_group.name
@@ -279,8 +419,11 @@ module "operational_contracts" {
 resource "azurerm_backup_protected_vm" "dc" {
   for_each = var.dc_backup == null ? {} : var.dc_backup.protected_controllers
 
-  resource_group_name = var.dc_backup.vault_resource_group_name
-  recovery_vault_name = var.dc_backup.vault_name
+  # Defaults to this pattern's own recovery_services_vaults["identity"] (the
+  # dedicated identity-subscription vault) when dc_backup doesn't name an
+  # external vault explicitly - see dc_backup's description.
+  resource_group_name = coalesce(try(var.dc_backup.vault_resource_group_name, null), module.resource_group.name)
+  recovery_vault_name = coalesce(try(var.dc_backup.vault_name, null), try(module.recovery_services_vaults["identity"].name, null))
   source_vm_id        = module.domain_controllers[each.key].id
   backup_policy_id    = coalesce(try(each.value.backup_policy_id, null), var.dc_backup.default_backup_policy_id)
 }

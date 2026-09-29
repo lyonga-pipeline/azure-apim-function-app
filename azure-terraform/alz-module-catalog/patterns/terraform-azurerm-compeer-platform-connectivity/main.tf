@@ -91,6 +91,20 @@ module "hub_vnet" {
   tags                           = module.tags.tags
 }
 
+module "additional_vnet_peerings" {
+  source   = "../../modules/terraform-azurerm-compeer-vnet-peering"
+  for_each = var.additional_vnet_peerings
+
+  peering_name                 = "peer-hub-to-${each.key}"
+  rg_name                      = module.resource_group.name
+  vnet_name                    = module.hub_vnet.name
+  remote_virtual_network_id    = each.value.remote_virtual_network_id
+  allow_virtual_network_access = each.value.allow_virtual_network_access
+  allow_forwarded_traffic      = each.value.allow_forwarded_traffic
+  allow_gateway_transit        = each.value.allow_gateway_transit
+  use_remote_gateways          = each.value.use_remote_gateways
+}
+
 module "network_security_groups" {
   source   = "../../modules/terraform-azurerm-compeer-network-security-group"
   for_each = var.network_security_groups

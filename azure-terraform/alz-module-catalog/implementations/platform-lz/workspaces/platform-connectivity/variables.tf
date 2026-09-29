@@ -61,6 +61,12 @@ variable "management_workspace_name" {
   default     = "platform-management"
 }
 
+variable "directory_services_workspace_name" {
+  description = "Workspace that publishes the identity VNet ID (identity_vnet_id) - read to create the hub-side half of the hub<->identity peering. Optional: this workspace's first apply runs fine before directory-services has ever published anything (additional_vnet_peerings.identity simply stays absent until then)."
+  type        = string
+  default     = "platform-directory-services"
+}
+
 variable "log_analytics_workspace_id" {
   description = "Explicit Log Analytics workspace ID. Overrides management workspace output when set."
   type        = string

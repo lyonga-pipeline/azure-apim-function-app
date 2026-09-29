@@ -130,3 +130,19 @@ run "existing_zone_is_linked_not_created" {
     error_message = "a normal (non-existing) catalogue zone should still be created"
   }
 }
+
+run "additional_vnet_peering_creates_hub_side" {
+  command = plan
+  variables {
+    additional_vnet_peerings = {
+      identity = {
+        remote_virtual_network_id = "/subscriptions/x/resourceGroups/rg-identity/providers/Microsoft.Network/virtualNetworks/platform-cus-prod-identity-vnet"
+      }
+    }
+  }
+
+  assert {
+    condition     = length(module.additional_vnet_peerings) == 1
+    error_message = "an additional_vnet_peerings entry should create the hub-side peering"
+  }
+}

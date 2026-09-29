@@ -3,6 +3,16 @@ output "resource_group_name" {
   value       = try(module.directory_services[0].resource_group_name, null)
 }
 
+output "identity_vnet_id" {
+  description = "Resource ID of the dedicated identity VNet - consumed by platform-connectivity to create the hub-side half of the peering (additional_vnet_peerings)."
+  value       = try(module.directory_services[0].identity_vnet_id, null)
+}
+
+output "recovery_services_vault_ids" {
+  description = "IDs of the Recovery Services vault(s) this workspace creates directly (e.g. the identity-subscription DC backup vault)."
+  value       = try(module.directory_services[0].recovery_services_vault_ids, {})
+}
+
 output "network_interface_ids" {
   description = "Resource IDs of the domain controller NICs."
   value       = try(module.directory_services[0].network_interface_ids, {})

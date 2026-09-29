@@ -4,6 +4,18 @@ data "tfe_outputs" "management" {
   workspace    = var.management_workspace_name
 }
 
+# 23 Sep 2026 placement decision: domain controllers moved off the hub into a
+# dedicated identity VNet, peered to the hub - this reads that VNet's ID back
+# to create the hub-side half of the peering. Optional the same way
+# management_outputs is: this workspace's own first apply (and every apply
+# before directory-services has run at least once) simply gets no "identity"
+# entry in additional_vnet_peerings below, not an error.
+data "tfe_outputs" "directory_services" {
+  count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
+  organization = var.tfe_organization
+  workspace    = var.directory_services_workspace_name
+}
+
 resource "time_static" "deployment_created" {}
 
 locals {
@@ -22,7 +34,21 @@ locals {
     try(data.tfe_outputs.management[0].values, {})
   )
 
+  directory_services_outputs = merge(
+    try(data.tfe_outputs.directory_services[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.directory_services[0].values, {})
+  )
+
   log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
+
+  # No "identity" entry at all until directory-services has published a real
+  # VNet ID - merge() with an explicit tfvars override still wins/extends.
+  additional_vnet_peerings = merge(
+    try(local.directory_services_outputs.identity_vnet_id, null) == null ? {} : {
+      identity = { remote_virtual_network_id = local.directory_services_outputs.identity_vnet_id }
+    },
+    try(var.connectivity.additional_vnet_peerings, {})
+  )
 
   # Bastion: attach LAW diagnostics automatically when enabled. Name comes from
   # the pattern's naming module.
@@ -64,6 +90,7 @@ module "connectivity" {
   platform_tags                   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}), { created_on = local.deployment_created_on })
   resource_group                  = try(var.connectivity.resource_group, {})
   hub_vnet                        = try(var.connectivity.hub_vnet, {})
+  additional_vnet_peerings        = local.additional_vnet_peerings
   ddos_protection_plan            = try(var.connectivity.ddos_protection_plan, { enabled = false })
   palo_alto                       = try(var.connectivity.palo_alto, { enabled = false })
   dns_resolution                  = try(var.connectivity.dns_resolution, { enabled = false })

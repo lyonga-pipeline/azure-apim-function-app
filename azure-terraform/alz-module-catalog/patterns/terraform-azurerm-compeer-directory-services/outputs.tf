@@ -3,6 +3,21 @@ output "resource_group_name" {
   value       = module.resource_group.name
 }
 
+output "identity_vnet_id" {
+  description = "Resource ID of the dedicated identity VNet (null when identity_vnet is not set)."
+  value       = try(module.identity_vnet[0].id, null)
+}
+
+output "identity_vnet_subnet_ids" {
+  description = "Subnet IDs of the identity VNet, keyed the same as identity_vnet.subnets."
+  value       = try(module.identity_vnet[0].subnet_ids, {})
+}
+
+output "recovery_services_vault_ids" {
+  description = "IDs of the Recovery Services vault(s) this pattern creates directly, keyed the same as var.recovery_services_vaults."
+  value       = { for key, value in module.recovery_services_vaults : key => value.id }
+}
+
 output "network_interface_ids" {
   description = "Resource IDs of the domain controller NICs, keyed the same as var.domain_controllers."
   value       = { for key, value in module.network_interfaces : key => value.id }

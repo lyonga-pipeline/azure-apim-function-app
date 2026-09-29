@@ -286,6 +286,14 @@ run "adapted_names" {
     error_message = "DC VM adapted pattern (instance 3 -> 03)"
   }
   assert {
+    condition     = output.domain_controller_extdc_vm == "platform-cus-prod-extdc-03"
+    error_message = "external-forest DC VM adapted pattern (instance 3 -> 03)"
+  }
+  assert {
+    condition     = output.identity_vnet == "platform-cus-prod-identity-vnet"
+    error_message = "identity vnet pattern"
+  }
+  assert {
     condition     = output.network_interface == "cus-prod-fw-nic" && output.private_endpoint == "cus-prod-fw-pe"
     error_message = "nic / pe adapted patterns"
   }

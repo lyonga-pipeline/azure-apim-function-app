@@ -42,11 +42,143 @@ variable "resource_group" {
   })
 }
 
+# ADR (23 Sep 2026, deploy-runbook.tf / resource-placement sheet): domain
+# controllers move off the hub VNet into a dedicated identity VNet
+# (platform-<region>-<env>-identity-vnet), peered to the hub, isolating the
+# Tier 0 identity plane from the connectivity subscription. This reverses
+# the earlier hub-hosted DC placement. null keeps the legacy shape (a
+# caller-supplied subnet_id, e.g. still on the hub) for anyone not yet
+# migrated; set this to create and own the identity VNet here instead.
+variable "identity_vnet" {
+  description = "Dedicated identity virtual network for domain controllers and DNS, peered to the hub. null = do not create one (domain_controllers must then supply an external subnet_id directly, e.g. a hub subnet)."
+  type = object({
+    name          = string
+    address_space = list(string)
+    dns_servers   = optional(list(string))
+    subnets = optional(map(object({
+      address_prefixes = list(string)
+      route_table_key  = optional(string)
+      nsg_key          = optional(string)
+    })), {})
+  })
+  default = null
+}
+
+# Mirrors workload-spoke's hub_connection shape exactly - the identity VNet is
+# architecturally a peered spoke of the hub, even though it is platform-tier.
+variable "hub_connection" {
+  description = "Peers identity_vnet to the hub. null = no peering (leaves identity_vnet isolated - only useful for a smoke test)."
+  type = object({
+    hub_virtual_network_id  = string
+    allow_forwarded_traffic = optional(bool, true)
+    allow_gateway_transit   = optional(bool, false)
+    use_remote_gateways     = optional(bool, false)
+  })
+  default = null
+}
+
+variable "network_security_groups" {
+  type = map(object({
+    name = string
+    rules = optional(map(object({
+      protocol                                   = string
+      access                                     = string
+      priority                                   = number
+      direction                                  = string
+      description                                = optional(string)
+      source_port_range                          = optional(string)
+      source_port_ranges                         = optional(list(string))
+      destination_port_range                     = optional(string)
+      destination_port_ranges                    = optional(list(string))
+      source_address_prefix                      = optional(string)
+      source_address_prefixes                    = optional(list(string))
+      source_application_security_group_ids      = optional(list(string))
+      destination_address_prefix                 = optional(string)
+      destination_address_prefixes               = optional(list(string))
+      destination_application_security_group_ids = optional(list(string))
+    })), {})
+  }))
+  default     = {}
+  description = "Network security groups for identity_vnet's subnets, referenced by subnet.nsg_key."
+}
+
+variable "route_tables" {
+  type = map(object({
+    name                          = string
+    bgp_route_propagation_enabled = optional(bool)
+    routes = optional(map(object({
+      address_prefix         = string
+      next_hop_type          = string
+      next_hop_in_ip_address = optional(string)
+    })), {})
+  }))
+  default     = {}
+  description = "Route tables for identity_vnet's subnets, referenced by subnet.route_table_key - typically routing DC traffic through the hub firewall."
+}
+
+variable "subnet_nsg_associations" {
+  type = map(object({
+    subnet_key = string
+    nsg_key    = string
+  }))
+  default     = {}
+  description = "Explicit subnet-to-NSG associations beyond the inline identity_vnet.subnets[*].nsg_key hints."
+}
+
+variable "subnet_route_table_associations" {
+  type = map(object({
+    subnet_key      = string
+    route_table_key = string
+  }))
+  default     = {}
+  description = "Explicit subnet-to-route-table associations beyond the inline identity_vnet.subnets[*].route_table_key hints."
+}
+
+variable "recovery_services_vaults" {
+  type = map(object({
+    name                               = optional(string)
+    sku                                = optional(string, "Standard")
+    storage_mode_type                  = optional(string, "GeoRedundant")
+    public_network_access_enabled      = optional(bool)
+    immutability                       = optional(string)
+    cross_region_restore_enabled       = optional(bool)
+    classic_vmware_replication_enabled = optional(bool)
+    identity = optional(object({
+      type         = string
+      identity_ids = optional(list(string), [])
+    }))
+    encryption = optional(object({
+      key_id                            = string
+      infrastructure_encryption_enabled = optional(bool)
+      use_system_assigned_identity      = optional(bool)
+      user_assigned_identity_id         = optional(string)
+    }))
+    monitoring = optional(object({
+      alerts_for_all_job_failures_enabled            = optional(bool)
+      alerts_for_all_failover_issues_enabled         = optional(bool)
+      alerts_for_all_replication_issues_enabled      = optional(bool)
+      alerts_for_critical_operation_failures_enabled = optional(bool)
+      email_notifications_for_site_recovery_enabled  = optional(bool)
+    }))
+    backup_policy_vm         = optional(any, {})
+    backup_policy_file_share = optional(any, {})
+    timeouts = optional(object({
+      create = optional(string)
+      update = optional(string)
+      read   = optional(string)
+      delete = optional(string)
+    }), {})
+  }))
+  description = "Recovery Services vault(s) this pattern creates and owns directly - e.g. platform-cus-prod-identity-rsv for DC backups, kept in the identity subscription rather than shared with platform-management's vault. Distinct from dc_backup below, which enrols VMs against a vault (this one or an external one)."
+  default     = {}
+}
+
 variable "domain_controllers" {
   type = map(object({
     name                           = string
     nic_name                       = string
-    subnet_id                      = string
+    subnet_id                      = optional(string)
+    subnet_key                     = optional(string)
     private_ip_address             = string
     private_ip_address_allocation  = optional(string, "Static")
     ip_configuration_name          = optional(string, "primary")
@@ -225,15 +357,18 @@ variable "operational_contracts" {
 
 variable "dc_backup" {
   description = <<-EOT
-    Enrol domain-controller VMs into an existing recovery-services vault
-    (backup policies are created by platform-management). `vault_name` +
-    `vault_resource_group_name` identify the vault; `default_backup_policy_id`
-    is used unless a controller overrides it. Keys of `protected_controllers`
+    Enrol domain-controller VMs into a recovery-services vault. `vault_name` /
+    `vault_resource_group_name` default to this pattern's own
+    recovery_services_vaults["identity"] (if set) - the dedicated identity-
+    subscription vault, per the 23 Sep 2026 placement decision. Set them
+    explicitly only to point at a different, externally-managed vault (e.g.
+    the old platform-management-owned vault). `default_backup_policy_id` is
+    used unless a controller overrides it. Keys of `protected_controllers`
     must match `domain_controllers` keys.
   EOT
   type = object({
-    vault_name                = string
-    vault_resource_group_name = string
+    vault_name                = optional(string)
+    vault_resource_group_name = optional(string)
     default_backup_policy_id  = string
     protected_controllers = map(object({
       backup_policy_id = optional(string)

@@ -111,6 +111,26 @@ variable "hub_vnet" {
   })
 }
 
+# Hub-side half of a reciprocal VNet peering - the identity VNet
+# (terraform-azurerm-compeer-directory-services) creates its own spoke->hub
+# side via its own hub_connection variable; this creates the missing
+# hub->spoke side so the peering is actually bidirectional. Keyed so it can
+# also close the same gap for any other platform-tier VNet that peers to the
+# hub (workload spokes currently only get the one-sided spoke->hub peering
+# from terraform-azurerm-compeer-workload-spoke - this variable does not
+# retroactively add their missing hub-side half).
+variable "additional_vnet_peerings" {
+  type = map(object({
+    remote_virtual_network_id    = string
+    allow_virtual_network_access = optional(bool, true)
+    allow_forwarded_traffic      = optional(bool, true)
+    allow_gateway_transit        = optional(bool, true)
+    use_remote_gateways          = optional(bool, false)
+  }))
+  default     = {}
+  description = "Additional hub-side VNet peerings beyond spokes, keyed by a caller-chosen name (e.g. \"identity\"). Each entry creates the hub->remote half of a peering; the remote VNet's own pattern/root is responsible for the reciprocal remote->hub half."
+}
+
 variable "ddos_protection_plan" {
   type = object({
     enabled             = optional(bool, false)

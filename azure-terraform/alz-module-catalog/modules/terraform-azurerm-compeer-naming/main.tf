@@ -120,6 +120,7 @@ locals {
     # ---- Networking ----
     hub_vnet             = "platform-${local.region}-${local.env}-hub-vnet"
     shared_vnet          = "platform-${local.region}-${local.env}-shared-vnet"
+    identity_vnet        = "platform-${local.region}-${local.env}-identity-vnet"
     subnet               = local.purpose == null ? null : "${local.env}-${local.purpose}-subnet"
     nsg                  = local.purpose == null ? null : "${local.region}-${local.env}-${local.purpose}-nsg"
     route_table          = local.destination == null ? null : "${local.region}-${local.env}-${local.destination}-rt"
@@ -134,17 +135,18 @@ locals {
     bastion              = "platform-${local.region}-${local.env}-bas"
 
     # ---- Firewall / edge ----
-    firewall_vm               = "platform-${local.region}-${local.env}-fw-${local.instance}"
-    firewall_ilb              = "platform-${local.region}-${local.env}-fw-ilb"
-    load_balancer             = local.purpose == null ? null : "platform-${local.region}-${local.env}-${local.purpose}-ilb"
-    expressroute_gateway      = "platform-${local.region}-${local.env}-ergw"
-    vpn_gateway               = "platform-${local.region}-${local.env}-vpngw"
-    cloudflare_connector      = "platform-${local.region}-${local.env}-cf-connector-${local.instance}"
-    expressroute_circuit      = "platform-${local.region}-${local.env}-erc"
-    expressroute_connection   = "platform-${local.region}-${local.env}-erconn"
-    vpn_local_network_gateway = "platform-${local.region}-${local.env}-lng"
-    vpn_connection            = "platform-${local.region}-${local.env}-vpnconn"
-    domain_controller_vm      = "platform-${local.region}-${local.env}-dc-${local.instance}"
+    firewall_vm                = "platform-${local.region}-${local.env}-fw-${local.instance}"
+    firewall_ilb               = "platform-${local.region}-${local.env}-fw-ilb"
+    load_balancer              = local.purpose == null ? null : "platform-${local.region}-${local.env}-${local.purpose}-ilb"
+    expressroute_gateway       = "platform-${local.region}-${local.env}-ergw"
+    vpn_gateway                = "platform-${local.region}-${local.env}-vpngw"
+    cloudflare_connector       = "platform-${local.region}-${local.env}-cf-connector-${local.instance}"
+    expressroute_circuit       = "platform-${local.region}-${local.env}-erc"
+    expressroute_connection    = "platform-${local.region}-${local.env}-erconn"
+    vpn_local_network_gateway  = "platform-${local.region}-${local.env}-lng"
+    vpn_connection             = "platform-${local.region}-${local.env}-vpnconn"
+    domain_controller_vm       = "platform-${local.region}-${local.env}-dc-${local.instance}"
+    domain_controller_extdc_vm = "platform-${local.region}-${local.env}-extdc-${local.instance}"
 
     # ---- Observability / recovery ----
     log_analytics_workspace = "${local.region}-${local.env}-loganalytics-workspace"

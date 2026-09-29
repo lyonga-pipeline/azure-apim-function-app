@@ -12,13 +12,24 @@ module "naming" {
   environment = var.environment
   component   = "directory-services"
 
-  network_interface_keys = keys(try(var.directory_services.domain_controllers, {}))
+  network_interface_keys       = keys(try(var.directory_services.domain_controllers, {}))
+  recovery_services_vault_keys = keys(try(var.directory_services.recovery_services_vaults, {}))
+  nsg_keys                     = keys(try(var.directory_services.network_security_groups, {}))
+  route_table_keys             = keys(try(var.directory_services.route_tables, {}))
 }
 
 # DEVIATION (tracks A2): the adapted DC VM pattern platform-<region>-<env>-dc-0<n>
 # differs from the legacy AZR-SRV-ADDS-01 convention. It is wired only as the
 # default - tfvars `name` / `computer_name` still win - pending AD-team sign-off.
 # `computer_name` (NetBIOS, <=15 chars) is NOT defaulted here; keep it in tfvars.
+#
+# Two independent domain families as of the 23 Sep 2026 placement decision:
+# keys starting with "ext" (extdc01, extdc02, ...) are the compeer.ext forest
+# and use domain_controller_extdc_vm (platform-<region>-<env>-extdc-0<n>);
+# everything else (dc01, dc02, ...) is the primary/"compeer forest" domain and
+# uses domain_controller_vm (platform-<region>-<env>-dc-0<n>). Each family
+# numbers its own instances independently (dc01/dc02 and extdc01/extdc02 both
+# start at 01) - `instance` is parsed from the trailing digits of the key.
 module "naming_dc" {
   source      = "../../../../modules/terraform-azurerm-compeer-naming"
   for_each    = try(var.directory_services.domain_controllers, {})
@@ -29,7 +40,17 @@ module "naming_dc" {
 }
 
 locals {
+  domain_controller_names = {
+    for key, module_instance in module.naming_dc : key => (
+      startswith(key, "ext") ? module_instance.domain_controller_extdc_vm : module_instance.domain_controller_vm
+    )
+  }
+
   std_names = {
-    resource_group = module.naming.resource_group
+    resource_group          = module.naming.resource_group
+    identity_vnet           = module.naming.identity_vnet
+    recovery_services_vault = module.naming.recovery_services_vault_names
+    nsg                     = module.naming.nsg_names
+    route_table             = module.naming.route_table_names
   }
 }
