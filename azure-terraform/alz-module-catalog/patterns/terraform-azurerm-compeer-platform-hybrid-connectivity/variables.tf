@@ -243,26 +243,22 @@ variable "vpn_connections" {
   description = "IPsec VPN backup gateway connections. Shared keys should be injected from HCP sensitive variables or an approved secret store."
 }
 
+# Placement decision (resource-placement sheet, security-mg /
+# platform-cus-prod-keyvault-rg): VPN certificates live in the shared
+# platform Key Vault (platform-cus-prod-vault, owned by
+# platform-identity-security / the security subscription), not in a
+# dedicated vault of this pattern's own. This variable used to also create
+# that vault directly (network engineer's original request); it now only
+# grants vpn_certificate_identity access to an externally-owned vault ID -
+# key_vault_id is the workspace-resolved ID of that shared vault (read via
+# tfe_outputs from platform-identity-security).
 variable "vpn_certificate_key_vault" {
   type = object({
-    enabled                    = optional(bool, false)
-    name                       = optional(string)
-    sku_name                   = optional(string, "premium")
-    purge_protection_enabled   = optional(bool, true)
-    soft_delete_retention_days = optional(number, 90)
-    network = optional(object({
-      mode               = optional(string, "private") # private | selected
-      allowed_ip_ranges  = optional(list(string), [])
-      allowed_subnet_ids = optional(list(string), [])
-    }), {})
-    private_endpoint = optional(object({
-      name                 = string
-      subnet_id            = string
-      private_dns_zone_ids = optional(list(string), [])
-    }))
+    enabled      = optional(bool, false)
+    key_vault_id = optional(string)
   })
   default     = {}
-  description = "Optional private Key Vault for VPN gateway certificate management (network engineer request: cert authentication needs somewhere to live). Private by default (network_acls Deny + a private endpoint) - set network.mode = \"selected\" only with an approved exception."
+  description = "Grants vpn_certificate_identity Certificates/Secrets User access to an externally-owned Key Vault (key_vault_id) for VPN gateway certificate management (network engineer request). Does not create a vault - see the shared platform-cus-prod-vault owned by platform-identity-security. key_vault_id is not tfvars-settable in the real workspace - it's auto-resolved from platform-identity-security's published output, so enabled = true with that workspace not yet deployed (key_vault_id still null) is a graceful no-op here, not a validation error - the same pattern as every other optional cross-workspace dependency in this catalog (e.g. hub_connection)."
 }
 
 variable "vpn_certificate_identity" {

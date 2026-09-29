@@ -59,8 +59,8 @@ output "vpn_certificate_key_vault_id" {
 }
 
 output "vpn_certificate_key_vault_uri" {
-  description = "Vault URI of the VPN certificate Key Vault, or null if not deployed. Reference only, never a secret value."
-  value       = try(module.hybrid_connectivity[0].vpn_certificate_key_vault_uri, null)
+  description = "Vault URI of the VPN certificate Key Vault (the shared platform-cus-prod-vault, echoed from platform-identity-security's own key_vault_uri output), or null if not yet available. Reference only, never a secret value."
+  value       = try(local.identity_security_outputs.key_vault_uri, null)
 }
 
 output "vpn_certificate_identity_id" {

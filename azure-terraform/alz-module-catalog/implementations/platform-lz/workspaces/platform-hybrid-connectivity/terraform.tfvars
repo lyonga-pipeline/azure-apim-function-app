@@ -73,18 +73,22 @@ hybrid_connectivity = {
   local_network_gateways = {}
   vpn_connections        = {}
 
-  # Network engineer request: Key Vault + managed identity + RBAC for VPN
-  # gateway certificate management. Standalone scaffolding - not gated behind
-  # vpn_posture.enabled, since it's low-cost prep infrastructure (a small
-  # private Key Vault + identity, not a paid gateway) that can exist ahead of
-  # the VPN posture being fully approved.
+  # Network engineer request: managed identity + RBAC for VPN gateway
+  # certificate management. Standalone scaffolding - not gated behind
+  # vpn_posture.enabled, since it's low-cost prep infrastructure (an identity
+  # + role assignments, not a paid gateway) that can exist ahead of the VPN
+  # posture being fully approved.
+  #
+  # Placement decision (resource-placement sheet, security-mg /
+  # platform-cus-prod-keyvault-rg): certificates live in the shared platform
+  # Key Vault (platform-cus-prod-vault, owned by platform-identity-security),
+  # not a dedicated vault here - this replaces the earlier standalone
+  # "kv-vpn-cert-prod" vault + private endpoint. key_vault_id is NOT set here
+  # - this workspace's root main.tf auto-resolves it from
+  # platform-identity-security's published key_vault_id output; enabled =
+  # true with that workspace not yet deployed is a graceful no-op (the
+  # identity/RBAC simply appear once it exists), not an error.
   vpn_certificate_key_vault = {
     enabled = true
-    name    = "kv-vpn-cert-prod"
-    private_endpoint = {
-      name       = "pep-kv-vpn-cert"
-      subnet_key = "private_endpoints"
-      # private_dns_zone_ids = [<privatelink.vaultcore.azure.net zone id>]
-    }
   }
 }

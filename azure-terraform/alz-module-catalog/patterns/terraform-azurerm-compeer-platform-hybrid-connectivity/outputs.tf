@@ -54,13 +54,8 @@ output "vpn_connection_ids" {
 }
 
 output "vpn_certificate_key_vault_id" {
-  description = "Resource ID of the Key Vault holding VPN root/client certificates, or null if not deployed. Platform_Output_Contracts_IAC-10 security_vpn_certificate_ids (key vault id half)."
-  value       = try(module.vpn_certificate_key_vault[0].id, null)
-}
-
-output "vpn_certificate_key_vault_uri" {
-  description = "Vault URI of the VPN certificate Key Vault, or null if not deployed. Reference only, never a secret value."
-  value       = try(module.vpn_certificate_key_vault[0].vault_uri, null)
+  description = "Resource ID of the Key Vault holding VPN root/client certificates, or null if not deployed. This vault is externally owned (platform-cus-prod-vault, security-mg) - this output echoes back var.vpn_certificate_key_vault.key_vault_id, the same value the caller supplied, for consumers that only look at this workspace's outputs. Platform_Output_Contracts_IAC-10 security_vpn_certificate_ids (key vault id half)."
+  value       = local.vckv_enabled ? local.vckv.key_vault_id : null
 }
 
 output "vpn_certificate_identity_id" {

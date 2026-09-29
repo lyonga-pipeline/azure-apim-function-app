@@ -4,6 +4,16 @@ data "tfe_outputs" "connectivity" {
   workspace    = var.connectivity_workspace_name
 }
 
+# Resource-placement sheet: VPN certificates live in the shared platform Key
+# Vault (security-mg / platform-cus-prod-vault), not a dedicated vault of
+# this pattern's own - read that vault's ID back here to grant
+# vpn_certificate_identity access to it.
+data "tfe_outputs" "identity_security" {
+  count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
+  organization = var.tfe_organization
+  workspace    = var.identity_security_workspace_name
+}
+
 resource "time_static" "deployment_created" {}
 
 locals {
@@ -20,6 +30,11 @@ locals {
   connectivity_outputs = merge(
     try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
     try(data.tfe_outputs.connectivity[0].values, {})
+  )
+
+  identity_security_outputs = merge(
+    try(data.tfe_outputs.identity_security[0].nonsensitive_values, {}),
+    try(data.tfe_outputs.identity_security[0].values, {})
   )
 
   expressroute_gateway = try(var.hybrid_connectivity.expressroute_gateway, null) == null ? null : merge(
@@ -50,25 +65,13 @@ locals {
     }
   )
 
-  # Resolve vpn_certificate_key_vault.private_endpoint.subnet_key -> the real
-  # connectivity workspace's subnet_id, same pattern as the gateway subnets
-  # above (network engineer request: reference the existing hub VNet/subnets
-  # rather than a hand-copied ID). Only name/subnet_id/private_dns_zone_ids
-  # are passed to the pattern - it has no subnet_key field of its own.
-  vckv_pe = try(var.hybrid_connectivity.vpn_certificate_key_vault.private_endpoint, null)
-
-  vpn_certificate_key_vault = try(var.hybrid_connectivity.vpn_certificate_key_vault, null) == null ? {} : merge(
-    var.hybrid_connectivity.vpn_certificate_key_vault,
-    local.vckv_pe == null ? {} : {
-      private_endpoint = {
-        name = local.vckv_pe.name
-        subnet_id = coalesce(
-          try(local.vckv_pe.subnet_id, null),
-          try(local.connectivity_outputs.subnet_ids[local.vckv_pe.subnet_key], null)
-        )
-        private_dns_zone_ids = try(local.vckv_pe.private_dns_zone_ids, [])
-      }
-    }
+  # key_vault_id always resolves to platform-identity-security's published
+  # shared vault - not tfvars-settable, matching how hub_connection is
+  # auto-derived elsewhere in this catalog, so a caller can't accidentally
+  # point VPN certificate access at some other vault.
+  vpn_certificate_key_vault = merge(
+    try(var.hybrid_connectivity.vpn_certificate_key_vault, {}),
+    { key_vault_id = try(local.identity_security_outputs.key_vault_id, null) }
   )
 }
 
