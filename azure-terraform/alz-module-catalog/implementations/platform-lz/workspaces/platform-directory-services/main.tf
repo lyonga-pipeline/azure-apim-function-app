@@ -50,8 +50,9 @@ locals {
   # the same module call these domain_controllers are passed into.
   domain_controllers = {
     for key, controller in try(var.directory_services.domain_controllers, {}) : key => merge({
-      name     = local.domain_controller_names[key]
-      nic_name = module.naming.network_interface_names[key]
+      name          = local.domain_controller_names[key]
+      nic_name      = module.naming.network_interface_names[key]
+      computer_name = local.domain_controller_computer_names[key]
       }, controller, {
       diagnostics = (
         coalesce(try(controller.diagnostics.enabled, null), false) &&

@@ -109,14 +109,15 @@ directory_services = {
     # Naming module default now applies (platform-<region>-<env>-dc-0N /
     # -extdc-0N) - the AD team's earlier AZR-SRV-ADDS-0N convention is no
     # longer used, per the confirmed Appendix F naming standard (tracks A2,
-    # now resolved). computer_name (NetBIOS, <=15 chars) still can't be
-    # defaulted by the naming module and stays explicit here - CONFIRM the
-    # exact NetBIOS names with the AD team; the values below are placeholders
-    # sized to fit the 15-char limit, not an approved convention.
+    # now resolved). computer_name (NetBIOS, <=15 chars) now also defaults
+    # from the naming module (AZR-<region>-ADS/EXD-0N, e.g. AZR-CUS-ADS-01) -
+    # not set explicitly per key below anymore. This is a stopgap pending the
+    # Teams "New Landing Zone - Cloud Enablement" thread's actual final
+    # answer (Dmitry has the authoritative doc); override with an explicit
+    # `computer_name` here once that's confirmed, if it differs.
     dc01 = {
       nic_name                       = "nic-platform-cus-prod-dc-01"
-      computer_name                  = "PLT-CUS-DC01" # TENTATIVE - confirm with AD team
-      subnet_key                     = "dc-subnet"    # compeer forest
+      subnet_key                     = "dc-subnet" # compeer forest
       private_ip_address             = "10.103.0.4"
       vm_size                        = "Standard_D2s_v5"
       zone                           = "1"
@@ -147,8 +148,7 @@ directory_services = {
     }
     dc02 = {
       nic_name                       = "nic-platform-cus-prod-dc-02"
-      computer_name                  = "PLT-CUS-DC02" # TENTATIVE - confirm with AD team
-      subnet_key                     = "dc-subnet"    # compeer forest
+      subnet_key                     = "dc-subnet" # compeer forest
       private_ip_address             = "10.103.0.5"
       dns_servers                    = ["10.103.0.4"] # dc01
       vm_size                        = "Standard_D2s_v5"
@@ -180,8 +180,7 @@ directory_services = {
     }
     extdc01 = {
       nic_name                       = "nic-platform-cus-prod-extdc-01"
-      computer_name                  = "PLT-CUS-EXTDC01" # TENTATIVE - confirm with AD team (15 chars, at the NetBIOS limit)
-      subnet_key                     = "extdc-subnet"    # compeer.ext
+      subnet_key                     = "extdc-subnet" # compeer.ext
       private_ip_address             = "10.103.0.36"
       vm_size                        = "Standard_D2s_v5"
       zone                           = "1"
@@ -212,8 +211,7 @@ directory_services = {
     }
     extdc02 = {
       nic_name                       = "nic-platform-cus-prod-extdc-02"
-      computer_name                  = "PLT-CUS-EXTDC02" # TENTATIVE - confirm with AD team (15 chars, at the NetBIOS limit)
-      subnet_key                     = "extdc-subnet"    # compeer.ext
+      subnet_key                     = "extdc-subnet" # compeer.ext
       private_ip_address             = "10.103.0.37"
       dns_servers                    = ["10.103.0.36"] # extdc01
       vm_size                        = "Standard_D2s_v5"

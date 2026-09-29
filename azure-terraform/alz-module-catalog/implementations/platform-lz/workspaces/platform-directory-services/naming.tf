@@ -46,6 +46,18 @@ locals {
     )
   }
 
+  # Windows computer_name (NetBIOS, <=15 chars) - distinct from the Azure VM
+  # resource name above. AZR-<region>-<role>-0<n>, guaranteed <=15 chars in
+  # every approved region by the naming module's own precondition. tfvars
+  # can still override per-key via `computer_name` if AD/network team
+  # guidance (the Teams "New Landing Zone - Cloud Enablement" thread)
+  # eventually lands on a different convention.
+  domain_controller_computer_names = {
+    for key, module_instance in module.naming_dc : key => (
+      startswith(key, "ext") ? module_instance.domain_controller_extdc_computer_name : module_instance.domain_controller_computer_name
+    )
+  }
+
   std_names = {
     resource_group          = module.naming.resource_group
     identity_vnet           = module.naming.identity_vnet
