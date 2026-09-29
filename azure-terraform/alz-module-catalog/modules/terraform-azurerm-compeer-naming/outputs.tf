@@ -486,3 +486,42 @@ output "private_dns_zone" {
   description = "Private DNS zone name. Needs `domain`."
   value       = local.names.private_dns_zone
 }
+
+# =============================================================================
+# v1.1 additions - additive only, no existing output changed value.
+# =============================================================================
+
+output "subscription_security" {
+  description = "Security subscription. Pattern: sub-security-<env>-<region>. Equivalent to subscription_scoped with purpose = \"security\"; provided as a first-class output for callers that don't otherwise need `purpose`."
+  value       = local.names.subscription_security
+}
+
+output "resource_group_names" {
+  description = "Purpose-keyed resource group name per resource_group_keys entry. Pattern: platform-<region>-<env>-<component>-<key>-rg (platform scope, needs `component`) / <stem>-<key>-rg (workload scope). NAMING FORMULA ONLY - see the resource_group_keys variable description before using this to create more than one resource group in a root."
+  value       = local.keyed.resource_group
+
+  precondition {
+    condition     = alltrue([for n in values(local.keyed.resource_group) : length(n) <= 90])
+    error_message = "a keyed resource group name exceeds Azure's 90-character limit: ${jsonencode({ for k, n in local.keyed.resource_group : k => length(n) if length(n) > 90 })}."
+  }
+}
+
+output "vnet_peering_names" {
+  description = "VNet peering name per vnet_peerings key (one name per side - pass a second entry for the reciprocal direction). Pattern: <local-vnet>-to-<remote-vnet>, max 80 chars (Azure peering name limit)."
+  value       = local.vnet_peerings
+
+  precondition {
+    condition     = alltrue([for n in values(local.vnet_peerings) : length(n) <= 80])
+    error_message = "a VNet peering name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.vnet_peerings : k => "${n} (${length(n)})" if length(n) > 80 })}."
+  }
+}
+
+output "private_dns_link_names" {
+  description = "Private DNS zone VNet link name per private_dns_link_vnets entry. Pattern: <vnet-name>-link, max 80 chars (Azure virtual network link name limit)."
+  value       = local.private_dns_links
+
+  precondition {
+    condition     = alltrue([for n in values(local.private_dns_links) : length(n) <= 80])
+    error_message = "a private DNS link name exceeds Azure's 80-character limit: ${jsonencode({ for k, n in local.private_dns_links : k => length(n) if length(n) > 80 })}."
+  }
+}

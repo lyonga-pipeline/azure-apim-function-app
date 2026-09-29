@@ -59,6 +59,7 @@ check "naming_values_use_supported_characters" {
           var.recovery_services_vault_keys,
           var.function_app_keys,
           var.subnet_keys,
+          var.resource_group_keys,
         ] : [for key in keys : can(regex("^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$", trimspace(key)))]
       ])
     ))

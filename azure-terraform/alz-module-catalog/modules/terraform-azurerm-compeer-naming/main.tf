@@ -72,6 +72,10 @@ locals {
   storage_env = local.env == "prod" ? "prd" : local.env
   vm_env      = local.env == "prod" ? "AZR" : upper(local.env)
 
+  # v1.1: VNet peering (one name per side) and private DNS zone VNet links.
+  vnet_peerings     = { for k, p in var.vnet_peerings : k => "${lower(trimspace(p.local_vnet))}-to-${lower(trimspace(p.remote_vnet))}" }
+  private_dns_links = { for v in var.private_dns_link_vnets : v => "${lower(trimspace(v))}-link" }
+
   # ---- Keyed collections: <resource> => { key => name } --------------------
   keyed = {
     key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}" }
@@ -95,6 +99,17 @@ locals {
     disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-disk" }
     recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-rsv" }
     subnet                  = { for k in var.subnet_keys : k => "${local.env}-${replace(lower(trimspace(k)), "_", "-")}-subnet" }
+    # v1.1: purpose-keyed resource groups. Includes the component/stem token
+    # (unlike the singular resource_group's own component logic, this must
+    # stay collision-safe across DIFFERENT platform roots sharing a key, e.g.
+    # "network" in both platform-management and platform-connectivity).
+    resource_group = {
+      for k in var.resource_group_keys : k => (
+        local.scope == "workload" ? "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-rg" :
+        local.component != null ? "platform-${local.region}-${local.env}-${local.component}-${replace(lower(trimspace(k)), "_", "-")}-rg" :
+        "platform-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-rg"
+      )
+    }
   }
 
   names = {
@@ -116,6 +131,10 @@ locals {
     subscription_management   = "sub-management-${local.env}-${local.region}"
     subscription_workload     = local.wl_name == null ? null : "sub-workload-${local.wl_name}-${local.env}-${local.region}"
     subscription_scoped       = local.purpose == null ? null : "sub-${local.purpose}-${local.env}-${local.region}"
+    # v1.1: first-class security subscription row (equivalent to
+    # subscription_scoped with purpose = "security"; kept as its own output
+    # for callers that don't otherwise need to set `purpose`).
+    subscription_security = "sub-security-${local.env}-${local.region}"
 
     # ---- Networking ----
     hub_vnet             = "platform-${local.region}-${local.env}-hub-vnet"

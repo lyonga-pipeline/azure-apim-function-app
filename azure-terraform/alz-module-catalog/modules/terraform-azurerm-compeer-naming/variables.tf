@@ -240,3 +240,26 @@ variable "entra_role" {
   type        = string
   default     = null
 }
+
+# ---- v1.1 additions (additive, non-breaking) ---------------------------------
+
+variable "resource_group_keys" {
+  description = "Purpose keys of the resource groups this root deploys (network, security, monitoring, backup, ...). Output: resource_group_names. Pattern: platform-<region>-<env>-<component>-<key>-rg (platform scope) / <stem>-<key>-rg (workload scope). This is a NAMING FORMULA only - it does not imply a root should split into multiple resource groups. The catalog's current standard (design doc Section 10.6) is one resource group per capability/workload; pass more than one key here only where a root has an explicit, doc-approved need for it."
+  type        = list(string)
+  default     = []
+}
+
+variable "vnet_peerings" {
+  description = "VNet peerings keyed by caller key. Each side of a peering is named <local-vnet>-to-<remote-vnet> - pass one entry per direction. Use VNet names from this module's own outputs (hub_vnet, identity_vnet, ...) as local_vnet/remote_vnet. Output: vnet_peering_names."
+  type = map(object({
+    local_vnet  = string
+    remote_vnet = string
+  }))
+  default = {}
+}
+
+variable "private_dns_link_vnets" {
+  description = "VNet names to link to private DNS zones (privatelink.* zones keep their Azure-defined names and are not named via this module). Each link is named <vnet-name>-link. Output: private_dns_link_names."
+  type        = list(string)
+  default     = []
+}
