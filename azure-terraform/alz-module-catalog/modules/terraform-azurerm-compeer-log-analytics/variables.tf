@@ -25,8 +25,13 @@ variable "log_analytics_retention_in_days" {
   default     = 180
 
   validation {
-    condition     = var.log_analytics_retention_in_days == null ? true : ((var.log_analytics_retention_in_days >= 30 && var.log_analytics_retention_in_days <= 730) || var.log_analytics_retention_in_days == 7)
-    error_message = "retention_in_days must be 7 (Free) or 30-730."
+    # The "7 (Free tier)" special case was removed: verified against the
+    # current azurerm_log_analytics_workspace docs, which document ONLY the
+    # 30-730 range (the Free SKU itself is deprecated) - the old exception
+    # let this validation accept a value the real resource rejects at
+    # apply.
+    condition     = var.log_analytics_retention_in_days == null ? true : (var.log_analytics_retention_in_days >= 30 && var.log_analytics_retention_in_days <= 730)
+    error_message = "retention_in_days must be between 30 and 730."
   }
 }
 
