@@ -6,8 +6,85 @@ management_workspace_name = "platform-management"
 policy = {
   enabled = true
 
-  policy_assignment_location    = "centralus"
-  custom_policy_definitions     = {}
+  policy_assignment_location = "centralus"
+
+  # No Microsoft built-in policy exists for Service Bus / Event Hub minimum
+  # TLS version (confirmed against Microsoft Learn's own guidance, which
+  # hands you this exact custom policyRule rather than a built-in GUID -
+  # see docs: service-bus-messaging/transport-layer-security-audit-minimum-version
+  # and event-hubs/transport-layer-security-audit-minimum-version). These
+  # mirror that guidance, parameterized the same way as this pattern's own
+  # private_only_connectivity custom definitions (effect + a checked value).
+  custom_policy_definitions = {
+    service_bus_minimum_tls = {
+      display_name         = "Compeer - Service Bus namespaces should have minimum TLS version 1.2"
+      mode                 = "Indexed"
+      management_group_key = "compeer-enterprise-mg"
+      description          = "Audits Service Bus namespaces whose minimumTlsVersion is not set to the required minimum."
+      parameters = {
+        effect = {
+          type          = "String"
+          allowedValues = ["Audit", "Disabled"]
+          defaultValue  = "Audit"
+          metadata      = { displayName = "Effect" }
+        }
+        minimumTlsVersion = {
+          type          = "String"
+          allowedValues = ["1.0", "1.1", "1.2"]
+          defaultValue  = "1.2"
+          metadata      = { displayName = "Minimum required TLS version" }
+        }
+      }
+      policy_rule = {
+        if = {
+          allOf = [
+            { field = "type", equals = "Microsoft.ServiceBus/namespaces" },
+            {
+              not = {
+                field  = "Microsoft.ServiceBus/namespaces/minimumTlsVersion"
+                equals = "[parameters('minimumTlsVersion')]"
+              }
+            }
+          ]
+        }
+        then = { effect = "[parameters('effect')]" }
+      }
+    }
+    event_hub_minimum_tls = {
+      display_name         = "Compeer - Event Hub namespaces should have minimum TLS version 1.2"
+      mode                 = "Indexed"
+      management_group_key = "compeer-enterprise-mg"
+      description          = "Audits Event Hub namespaces whose minimumTlsVersion is not set to the required minimum."
+      parameters = {
+        effect = {
+          type          = "String"
+          allowedValues = ["Audit", "Disabled"]
+          defaultValue  = "Audit"
+          metadata      = { displayName = "Effect" }
+        }
+        minimumTlsVersion = {
+          type          = "String"
+          allowedValues = ["1.0", "1.1", "1.2"]
+          defaultValue  = "1.2"
+          metadata      = { displayName = "Minimum required TLS version" }
+        }
+      }
+      policy_rule = {
+        if = {
+          allOf = [
+            { field = "type", equals = "Microsoft.EventHub/namespaces" },
+            {
+              not = {
+                field  = "Microsoft.EventHub/namespaces/minimumTlsVersion"
+                equals = "[parameters('minimumTlsVersion')]"
+              }
+            }
+          ]
+        }
+        then = { effect = "[parameters('effect')]" }
+      }
+    }
+  }
   custom_policy_set_definitions = {}
 
   # Enterprise controls not owned by the initial governance baseline.
@@ -74,6 +151,11 @@ policy = {
             "Microsoft.EventGrid/systemTopics",
             "Microsoft.EventGrid/namespaces",
             "Microsoft.ServiceBus/namespaces",
+            # Was missing from this catalog's allowed-resource-types list
+            # even though it's already in the diagnostics DINE
+            # resourceTypeList below and is one of the named
+            # service-specific-controls targets - added for consistency.
+            "Microsoft.EventHub/namespaces",
             "Microsoft.Cache/redis",
             "Microsoft.DataFactory/factories",
             "Microsoft.Synapse/workspaces",
@@ -155,6 +237,44 @@ policy = {
       policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e"
       display_name             = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
       enforce                  = false
+    }
+
+    # Service-specific encryption-in-transit controls (SQL, APIM, Service
+    # Bus, Event Hub) extending the same audit-only TLS class already
+    # deployed above for App Service / Function Apps. Built-in GUIDs
+    # verified against Microsoft Learn's own policy-reference pages for
+    # Azure SQL Database and Azure API Management; Service Bus and Event Hub
+    # have no built-in (see custom_policy_definitions above) so these
+    # reference that pattern's own definitions by key instead.
+    sql_database_latest_tls = {
+      name                 = "cmp-tls-sqldb"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/32e6bbec-16b6-44c2-be37-c5b672d103cf"
+      display_name         = "Compeer audit latest TLS on Azure SQL Database"
+    }
+    sql_managed_instance_latest_tls = {
+      name                 = "cmp-tls-sqlmi"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/a8793640-60f7-487c-b5c3-1d37215905c4"
+      display_name         = "Compeer audit latest TLS on SQL Managed Instance"
+    }
+    apim_encrypted_protocols_only = {
+      name                 = "cmp-tls-apim"
+      management_group_key = "compeer-enterprise-mg"
+      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/ee7495e7-3ba7-40b6-bfee-c29e22cc75d4"
+      display_name         = "Compeer audit APIM APIs use only encrypted protocols"
+    }
+    service_bus_minimum_tls = {
+      name                  = "cmp-tls-svcbus"
+      management_group_key  = "compeer-enterprise-mg"
+      policy_definition_key = "service_bus_minimum_tls"
+      display_name          = "Compeer audit minimum TLS version on Service Bus namespaces"
+    }
+    event_hub_minimum_tls = {
+      name                  = "cmp-tls-eventhub"
+      management_group_key  = "compeer-enterprise-mg"
+      policy_definition_key = "event_hub_minimum_tls"
+      display_name          = "Compeer audit minimum TLS version on Event Hub namespaces"
     }
   }
   subscription_policy_assignments   = {}
@@ -275,8 +395,24 @@ policy = {
       "platform-cus-prod-security-rg",
       "platform-cus-prod-hybrid-rg",
     ]
-    not_scopes                    = []
-    include_builtin_baseline      = false
-    builtin_policy_definition_ids = {}
+    not_scopes = []
+    # Opted in for SQL specifically - the RBAC design doc's private-endpoint
+    # framework names SQL explicitly (alongside Key Vault/Storage/Cosmos DB),
+    # and both GUIDs below are verified against Microsoft Learn's own
+    # azure-sql policy-reference page (Audit/Deny/Disabled builtins, so this
+    # stays non-disruptive at the initiative's existing "Audit" effect - see
+    # the effect field above; these two builtin refs use their own default
+    # effect since this initiative's custom effect parameter only threads
+    # through to its own two Public-IP rules). APIM/Service Bus/Event Hub
+    # "disable public network access" builtins were not added here - unlike
+    # SQL's, their public-network-access controls didn't have a builtin GUID
+    # I could verify as directly equivalent (APIM's closest builtin only
+    # covers its internal service-configuration endpoints, not the API
+    # gateway) - flagging for follow-up rather than guessing.
+    include_builtin_baseline = true
+    builtin_policy_definition_ids = {
+      sql_database_disable_public_network_access         = "/providers/Microsoft.Authorization/policyDefinitions/1b8ca024-1d5c-4dec-8995-b1a932b41780"
+      sql_managed_instance_disable_public_network_access = "/providers/Microsoft.Authorization/policyDefinitions/9dfea752-dd46-4766-aed1-c355fa93fb91"
+    }
   }
 }
