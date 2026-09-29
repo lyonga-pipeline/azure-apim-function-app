@@ -94,6 +94,47 @@ run "accepts_valid_principal_type" {
   }
 }
 
+run "rejects_neither_name_nor_id" {
+  command = plan
+
+  variables {
+    assignments = {
+      bad = {
+        scope        = "/subscriptions/00000000-0000-0000-0000-000000000000"
+        principal_id = "55555555-5555-5555-5555-555555555555"
+        # neither role_definition_name nor role_definition_id set - the
+        # OTHER half of the "exactly one" rule; only the both-set half had
+        # a test before this.
+      }
+    }
+  }
+
+  expect_failures = [var.assignments]
+}
+
+run "outputs_are_wired" {
+  command = apply
+
+  variables {
+    assignments = {
+      workload-kv-reader = {
+        scope                = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv"
+        principal_id         = "11111111-1111-1111-1111-111111111111"
+        role_definition_name = "Key Vault Secrets User"
+      }
+    }
+  }
+
+  assert {
+    condition     = output.ids["workload-kv-reader"] == azurerm_role_assignment.assignment["workload-kv-reader"].id
+    error_message = "ids output must map each key to its own assignment's id"
+  }
+  assert {
+    condition     = output.names["workload-kv-reader"] == azurerm_role_assignment.assignment["workload-kv-reader"].name
+    error_message = "names output must map each key to its own assignment's name"
+  }
+}
+
 run "rejects_unsupported_principal_type" {
   command = plan
 
