@@ -115,6 +115,56 @@ run "private_dns_link_names" {
   }
 }
 
+run "domain_controller_computer_name_fits_15_chars_in_short_region" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+    instance    = 1
+  }
+
+  assert {
+    condition     = output.domain_controller_computer_name == "AZR-CUS-ADS-01"
+    error_message = "expected AZR-CUS-ADS-01 for centralus instance 1"
+  }
+  assert {
+    condition     = output.domain_controller_extdc_computer_name == "AZR-CUS-EXD-01"
+    error_message = "expected AZR-CUS-EXD-01 for centralus instance 1"
+  }
+  assert {
+    condition     = length(output.domain_controller_computer_name) <= 15 && length(output.domain_controller_extdc_computer_name) <= 15
+    error_message = "computer names must fit the 15-char NetBIOS limit"
+  }
+}
+
+run "domain_controller_computer_name_fits_15_chars_in_worst_case_four_letter_region" {
+  # eastus2's short code ("eus2") is 4 chars, the longest in the approved
+  # region list - this is the case that would overflow with a 4-char role
+  # token like "ADDS" (16 chars). Prove the 3-char role token stays <=15
+  # here specifically, not just for centralus.
+  command = apply
+
+  variables {
+    region      = "eastus2"
+    environment = "prod"
+    instance    = 99
+  }
+
+  assert {
+    condition     = output.domain_controller_computer_name == "AZR-EUS2-ADS-99"
+    error_message = "expected AZR-EUS2-ADS-99 for eastus2 instance 99"
+  }
+  assert {
+    condition     = length(output.domain_controller_computer_name) == 15
+    error_message = "worst-case region + max instance should land exactly at the 15-char ceiling, not over it"
+  }
+  assert {
+    condition     = length(output.domain_controller_extdc_computer_name) == 15
+    error_message = "worst-case region + max instance should land exactly at the 15-char ceiling for the external-forest variant too"
+  }
+}
+
 run "v10_and_prior_outputs_unchanged" {
   # Regression guard: none of the v1.1 additions may alter an existing
   # output's value for identical inputs.

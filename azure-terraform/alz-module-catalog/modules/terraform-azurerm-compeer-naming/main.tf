@@ -166,6 +166,15 @@ locals {
     vpn_connection             = "platform-${local.region}-${local.env}-vpnconn"
     domain_controller_vm       = "platform-${local.region}-${local.env}-dc-${local.instance}"
     domain_controller_extdc_vm = "platform-${local.region}-${local.env}-extdc-${local.instance}"
+    # v1.1: separate, 15-char-safe Windows computer_name for domain
+    # controllers (NetBIOS limit) - NOT the same string as the Azure VM
+    # resource name above (that has Azure's normal 64-char VM name budget
+    # and no reason to be short). "AZR-<region>-<role>-<nn>" with a 3-char
+    # role token keeps this <=15 chars in every approved region, including
+    # the four-letter ones (eus2, wus2, wus3, scus, ncus, wcus) where a
+    # 4-char role token like "ADDS" would overflow.
+    domain_controller_computer_name       = "AZR-${upper(local.region)}-ADS-${local.instance}"
+    domain_controller_extdc_computer_name = "AZR-${upper(local.region)}-EXD-${local.instance}"
 
     # ---- Observability / recovery ----
     log_analytics_workspace = "${local.region}-${local.env}-loganalytics-workspace"

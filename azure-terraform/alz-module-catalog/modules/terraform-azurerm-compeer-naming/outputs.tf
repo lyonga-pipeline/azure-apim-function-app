@@ -348,6 +348,24 @@ output "domain_controller_extdc_vm" {
   description = "External-forest domain controller VM (e.g. compeer.ext). Uses `instance`. See README."
   value       = local.names.domain_controller_extdc_vm
 }
+output "domain_controller_computer_name" {
+  description = "Windows computer_name for a domain controller (NetBIOS 15-char limit) - distinct from domain_controller_vm, which is the Azure resource name and has no such limit. Pattern: AZR-<region>-ADS-<nn>. Uses `instance`."
+  value       = local.names.domain_controller_computer_name
+
+  precondition {
+    condition     = length(local.names.domain_controller_computer_name) <= 15
+    error_message = "domain_controller_computer_name '${local.names.domain_controller_computer_name}' exceeds the 15-character Windows NetBIOS computer-name limit."
+  }
+}
+output "domain_controller_extdc_computer_name" {
+  description = "Windows computer_name for an external-forest domain controller (NetBIOS 15-char limit) - distinct from domain_controller_extdc_vm, which is the Azure resource name. Pattern: AZR-<region>-EXD-<nn>. Uses `instance`."
+  value       = local.names.domain_controller_extdc_computer_name
+
+  precondition {
+    condition     = length(local.names.domain_controller_extdc_computer_name) <= 15
+    error_message = "domain_controller_extdc_computer_name '${local.names.domain_controller_extdc_computer_name}' exceeds the 15-character Windows NetBIOS computer-name limit."
+  }
+}
 output "load_balancer" {
   description = "Compatibility single internal load balancer. Needs `purpose`. Prefer load_balancer_keys."
   value       = local.names.load_balancer
