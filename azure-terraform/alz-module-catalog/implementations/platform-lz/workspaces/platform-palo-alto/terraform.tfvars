@@ -108,8 +108,8 @@ palo_alto = {
   }
 
   public_ips = {
-    fw_mgmt    = { name = "pip-fw-mgmt", allocation_method = "Static", sku = "Standard" }
-    fw_untrust = { name = "pip-fw-untrust", allocation_method = "Static", sku = "Standard" }
+    fw_mgmt    = { name = "cus-prod-fw-pip-01", allocation_method = "Static", sku = "Standard" }
+    fw_untrust = { name = "cus-prod-fw-pip-02", allocation_method = "Static", sku = "Standard" }
   }
 
   network_interfaces = {
@@ -125,7 +125,7 @@ palo_alto = {
 
   load_balancers = {
     trust = {
-      name = "lb-fw-trust"
+      name = "platform-cus-prod-fw-ilb"
       sku  = "Standard"
       frontend_ip_configurations = {
         trust = { name = "fe-trust", subnet_key = "prod-fw-trust-subnet", private_ip_address_allocation = "Static", private_ip_address = "10.102.4.42" }
@@ -137,7 +137,7 @@ palo_alto = {
       }
     }
     sunstream = {
-      name = "lb-fw-sunstream"
+      name = "platform-cus-prod-fw-partner-ilb"
       sku  = "Standard"
       frontend_ip_configurations = {
         sunstream = { name = "fe-sunstream", subnet_key = "prod-fw-partner-subnet", private_ip_address_allocation = "Static", private_ip_address = "10.102.4.106" }
@@ -157,7 +157,7 @@ palo_alto = {
   # workspace for real.
   virtual_machines = {
     fw1 = {
-      name                   = "vm-fw-hub-01"
+      name                   = "platform-cus-prod-fw-01"
       size                   = "Standard_D3_v2"
       zone                   = "1"
       admin_username         = "panadmin"
@@ -170,7 +170,7 @@ palo_alto = {
       }
     }
     fw2 = {
-      name                   = "vm-fw-hub-02"
+      name                   = "platform-cus-prod-fw-02"
       size                   = "Standard_D3_v2"
       zone                   = "2"
       admin_username         = "panadmin"
@@ -178,7 +178,7 @@ palo_alto = {
       admin_ssh_keys         = [{ username = "panadmin", public_key = "ssh-ed25519 AAAA... replace" }]
       bootstrap = {
         mode             = "custom-data"
-        init_cfg_content = "type=dhcp-client\nhostname=vm-fw-hub-02\npanorama-server=10.10.0.10\ntplname=Compeer-Hub\ndgname=Compeer-Hub-FW\n"
+        init_cfg_content = "type=dhcp-client\nhostname=platform-cus-prod-fw-02\npanorama-server=10.10.0.10\ntplname=Compeer-Hub\ndgname=Compeer-Hub-FW\n"
       }
     }
   }

@@ -11,7 +11,6 @@
 #   resource group                 platform-cus-prod-management-rg
 #   log analytics                  cus-prod-loganalytics-workspace
 #   action group                   platform-cus-prod-ag
-#   key vault (key "main")         mgmt-cus-prod-main-kv       (keep KV keys <= 7 chars)
 #   storage account (key "audit")  stmgmtauditcusprod
 #   recovery services vault (main) platform-cus-prod-main-rsv
 #   diagnostic settings            diag-<observed resource name>-law
@@ -77,29 +76,12 @@ management = {
       }
     }
   }
-  platform_key_vaults = {
-    main = {
-      sku_name                      = "standard"
-      rbac_authorization_enabled    = true
-      purge_protection_enabled      = true
-      public_network_access_enabled = false
-      network_acls = {
-        bypass         = "AzureServices"
-        default_action = "Deny"
-      }
-    }
-  }
-  platform_key_vault_diagnostics = {
-    main = {
-      key_vault_key = "main"
-      logs = {
-        audit = { category = "AuditEvent" }
-      }
-      metrics = {
-        all = { category = "AllMetrics" }
-      }
-    }
-  }
+  # Refined placement moved the shared platform Key Vault to
+  # security-mg/sub-security-prod-cus as platform-cus-prod-vault. Keep the
+  # management subscription focused on monitoring, diagnostics/artifacts, and
+  # backup so we do not create a second platform secrets boundary here.
+  platform_key_vaults                  = {}
+  platform_key_vault_diagnostics       = {}
   platform_key_vault_private_endpoints = {}
   recovery_services_vaults = {
     main = {

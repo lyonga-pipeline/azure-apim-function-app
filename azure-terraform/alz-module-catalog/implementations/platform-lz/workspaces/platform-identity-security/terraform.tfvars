@@ -49,13 +49,21 @@ platform_tags = {
 }
 
 identity = {
-  enabled        = true
-  resource_group = {}
+  enabled = true
+  # Refined resource-placement sheet: shared platform Key Vault and certificate
+  # identities live in security-mg/sub-security-prod-cus, RG
+  # platform-cus-prod-keyvault-rg. This workspace uses the platform-identity
+  # pattern for implementation, so pin the sheet-approved names explicitly
+  # instead of accepting the generic identity defaults.
+  resource_group = {
+    name = "platform-cus-prod-keyvault-rg"
+  }
   # names from the naming module: <key>-<region>-<env>-id
   platform_identities = {
     automation = {}
   }
   key_vault = {
+    name                       = "platform-cus-prod-vault"
     sku_name                   = "standard"
     soft_delete_retention_days = 90
     purge_protection_enabled   = true
