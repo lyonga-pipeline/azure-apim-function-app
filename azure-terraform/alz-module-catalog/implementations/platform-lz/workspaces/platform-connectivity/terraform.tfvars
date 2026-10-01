@@ -47,11 +47,10 @@ connectivity = {
   enabled        = true
   resource_group = {}
   hub_vnet = {
-    # TENTATIVE re-address per Dan's 2026-09-17 Teams post ("New Landing Zone
-    # Discussion" - Regional Allocation / Hub Subnets tables). Dan's own words:
-    # "I will eventually send this to Compeer to get their approval" - NOT yet
-    # approved. Still marked REPLACE-if-Compeer-changes-it, same as before.
-    address_space = ["10.102.0.0/16"] # REPLACE if Compeer's approval changes this
+    # Azure Resource Deployment in New Landing Zone_v2: hub VNet address space.
+    # The broader regional allocation remains 10.102.0.0/16, but the hub VNet
+    # itself is scoped to 10.102.0.0/21.
+    address_space = ["10.102.0.0/21"]
     # Set to DC IPs only AFTER DC promotion + DNS health (runbook §7.6). DCs
     # now live in the peered identity VNet, not this VNet - their IPs are
     # still reachable here once the additional_vnet_peerings.identity entry
@@ -62,14 +61,19 @@ connectivity = {
     # (runbook §4.1 - the hub pattern owns all subnets). route_table_key /
     # nsg_key wire the association from one place.
     subnets = {
-      GatewaySubnet      = { address_prefixes = ["10.102.0.0/26"] }
-      AzureBastionSubnet = { address_prefixes = ["10.102.0.64/26"] }
-      # RouteServerSubnet removed - Route Server was dropped from this pattern
-      # (network engineer confirmed removal earlier; also absent from Dan's
-      # new table).
+      GatewaySubnet     = { address_prefixes = ["10.102.0.0/26"] }
+      RouteServerSubnet = { address_prefixes = ["10.102.0.64/26"] }
 
       prod-shared-subnet = { address_prefixes = ["10.102.1.0/24"] }
-      prod-appgw-subnet0 = { address_prefixes = ["10.102.2.0/24"] }
+      prod-appgw-subnet  = { address_prefixes = ["10.102.2.0/24"] }
+      prod-sdwan-lan-subnet = {
+        address_prefixes = ["10.102.0.128/28"]
+        route_table_key  = "sdwan_lan"
+      }
+      prod-sdwan-wan-subnet = {
+        address_prefixes = ["10.102.0.144/28"]
+        route_table_key  = "sdwan_wan"
+      }
 
       # prod-extdc-subnet / prod-intdc-subnet REMOVED (23 Sep 2026 placement
       # decision): domain controllers no longer sit on the hub - they moved to
@@ -79,7 +83,7 @@ connectivity = {
       # and platform-connectivity's additional_vnet_peerings (below) for the
       # hub-side half of the peering. This reverses the earlier hub-hosted DC
       # decision.
-      prod-cftagent-subnet = { address_prefixes = ["10.102.3.64/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
+      prod-cftagent-subnet = { address_prefixes = ["10.102.3.0/26"], route_table_key = "to_firewall", nsg_key = "connectors" }
 
       # service_endpoints let the bootstrap storage account / Key Vault firewall
       # to this subnet without a public endpoint (see GUARDRAIL-EXCEPTIONS.md).
@@ -120,7 +124,6 @@ connectivity = {
   }
   bastion = {
     enabled            = false
-    subnet_key         = "AzureBastionSubnet"
     sku                = "Standard"
     tunneling_enabled  = true
     ip_connect_enabled = true
@@ -148,6 +151,16 @@ connectivity = {
       routes = {
         default = { name = "to-firewall", address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.4.42" }
       }
+    }
+    sdwan_lan = {
+      name                          = "cus-prod-sdwan-lan-rt"
+      bgp_route_propagation_enabled = false
+      routes                        = {}
+    }
+    sdwan_wan = {
+      name                          = "cus-prod-sdwan-wan-rt"
+      bgp_route_propagation_enabled = false
+      routes                        = {}
     }
   }
   subnet_route_table_associations = {} # derived from subnet.route_table_key above

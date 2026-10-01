@@ -34,7 +34,7 @@ module "naming" {
   key_vault_name_token = try(var.naming.key_vault_name_token, "vault")
 
   storage_uniqueness = try(var.naming.storage_uniqueness, "")
-  public_ip_keys     = concat(keys(var.gateway_public_ips), keys(var.vpn_gateway_public_ips))
+  public_ip_keys     = concat(keys(var.gateway_public_ips), keys(var.vpn_gateway_public_ips), keys(var.route_server_public_ips))
 }
 
 module "resource_group" {
@@ -306,4 +306,40 @@ module "vpn_connections" {
   traffic_selector_policies          = try(each.value.traffic_selector_policies, {})
   timeouts                           = try(each.value.timeouts, {})
   tags                               = module.tags.tags
+}
+
+module "route_server_public_ips" {
+  source   = "../../modules/terraform-azurerm-compeer-public-ip"
+  for_each = var.route_server_public_ips
+
+  name                = coalesce(try(each.value.name, null), module.naming.public_ip_names[each.key])
+  resource_group_name = module.resource_group.name
+  location            = var.location
+  allocation_method   = try(each.value.allocation_method, "Static")
+  sku                 = try(each.value.sku, "Standard")
+  sku_tier            = try(each.value.sku_tier, "Regional")
+  zones               = try(each.value.zones, [])
+  tags                = module.tags.tags
+}
+
+module "route_servers" {
+  source = "../../modules/terraform-azurerm-compeer-route-server"
+
+  route_servers = {
+    for key, value in var.route_servers : key => {
+      name = coalesce(
+        try(value.name, null),
+        key == "primary" ? module.naming.route_server : "${module.naming.route_server}-${key}"
+      )
+      resource_group_name              = module.resource_group.name
+      location                         = var.location
+      sku                              = try(value.sku, "Standard")
+      subnet_id                        = value.subnet_id
+      public_ip_address_id             = coalesce(try(value.public_ip_address_id, null), try(module.route_server_public_ips[value.public_ip_key].id, null))
+      branch_to_branch_traffic_enabled = try(value.branch_to_branch_traffic_enabled, true)
+      tags                             = module.tags.tags
+      timeouts                         = try(value.timeouts, {})
+      bgp_connections                  = try(value.bgp_connections, {})
+    }
+  }
 }

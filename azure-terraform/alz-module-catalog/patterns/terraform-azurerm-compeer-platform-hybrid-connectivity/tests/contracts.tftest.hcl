@@ -133,3 +133,31 @@ run "vpn_fully_approved_passes" {
     error_message = "expected the local network gateway count to be recorded"
   }
 }
+
+run "route_server_creates_public_ip_and_server" {
+  command = plan
+  variables {
+    route_server_public_ips = {
+      primary = {
+        name  = "pip-route-server"
+        zones = ["1", "2", "3"]
+      }
+    }
+    route_servers = {
+      primary = {
+        name                             = "rs-hub"
+        subnet_id                        = "/subscriptions/x/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/RouteServerSubnet"
+        public_ip_key                    = "primary"
+        branch_to_branch_traffic_enabled = true
+      }
+    }
+  }
+  assert {
+    condition     = length(module.route_server_public_ips) == 1
+    error_message = "expected the route-server public IP to be created"
+  }
+  assert {
+    condition     = length(module.route_servers.ids) == 1
+    error_message = "expected the route server to be created"
+  }
+}

@@ -12,22 +12,26 @@ window with a different approval chain than the hub VNet itself.
 | `azurerm_express_route_circuit` (module) | The circuit itself |
 | `azurerm_virtual_network_gateway` (module) | ExpressRoute/VPN gateway in the hub's `GatewaySubnet` |
 | `azurerm_virtual_network_gateway_connection` (module) | Circuit-to-gateway (or VPN) connection |
+| `azurerm_route_server` (module) | Azure Route Server in the hub `RouteServerSubnet` |
 | `terraform_data.expressroute_contract`, `.vpn_contract` | See below |
-| `vpn_certificate_key_vault` (optional) | Private Key Vault + user-assigned identity + RBAC for VPN gateway certificate management — see below |
+| `vpn_certificate_key_vault` (optional) | User-assigned identity + RBAC for VPN gateway certificate management against the shared platform Key Vault — see below |
+
+**Route Server.** This pattern deploys Azure Route Server because its lifecycle
+belongs with hybrid routing, while `platform-connectivity` owns the hub VNet
+and the `RouteServerSubnet`. Pass the hub subnet ID directly, or let the
+workspace wrapper resolve `subnet_key = "RouteServerSubnet"` from the
+`platform-connectivity` outputs.
 
 **`vpn_certificate_key_vault` — network engineer request.** VPN gateway
 certificate management needs somewhere to store certs/secrets and an
 identity to read them with. Set `vpn_certificate_key_vault.enabled = true`
-to get: a private-by-default Key Vault (`network_acls` Deny + a private
-endpoint, same posture as `palo-alto-hub`'s bootstrap Key Vault), a
-user-assigned managed identity (there's no VM in this pattern to own a
-system-assigned one), and 3 role assignments on that identity — **Key Vault
-Administrator**, **Key Vault Certificates User**, **Key Vault Secrets
-User** — exactly the 3 requested. Note: azurerm's VPN gateway/connection
-resources have no native "read this certificate from Key Vault" argument
-for a site-to-site gateway, so this wiring gives whatever automation
-manages the gateway's certificates (rotation tooling, a pipeline step) a
-vault and an identity to work with, rather than claiming a direct provider
+to grant a user-assigned managed identity **Key Vault Certificates User** and
+**Key Vault Secrets User** on the externally-owned shared platform Key Vault.
+This pattern does not create that vault. Note: azurerm's VPN
+gateway/connection resources have no native "read this certificate from Key
+Vault" argument for a site-to-site gateway, so this wiring gives whatever
+automation manages the gateway's certificates (rotation tooling, a pipeline
+step) an identity to work with, rather than claiming a direct provider
 integration that doesn't exist for this resource type.
 
 **The two `terraform_data` contracts — why "enabled" isn't just a boolean:**

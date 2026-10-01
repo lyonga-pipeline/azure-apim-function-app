@@ -160,6 +160,59 @@ variable "vpn_gateway_public_ips" {
   description = "Public IPs used by the VPN virtual network gateway."
 }
 
+variable "route_server_public_ips" {
+  type = map(object({
+    name              = optional(string)
+    allocation_method = optional(string, "Static")
+    sku               = optional(string, "Standard")
+    sku_tier          = optional(string, "Regional")
+    zones             = optional(list(string), [])
+  }))
+  default     = {}
+  description = "Public IPs used by Azure Route Server instances."
+}
+
+variable "route_servers" {
+  type = map(object({
+    name                             = optional(string)
+    sku                              = optional(string, "Standard")
+    subnet_id                        = string
+    public_ip_key                    = optional(string)
+    public_ip_address_id             = optional(string)
+    branch_to_branch_traffic_enabled = optional(bool, true)
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }), {})
+    bgp_connections = optional(map(object({
+      name                 = string
+      peer_asn             = number
+      peer_ip              = string
+      ipv4_route_server_id = optional(string)
+      timeouts = optional(object({
+        create = optional(string)
+        read   = optional(string)
+        delete = optional(string)
+      }), {})
+    })), {})
+  }))
+  default     = {}
+  description = "Azure Route Server instances. Use public_ip_key to consume route_server_public_ips, or public_ip_address_id to bind an externally-owned PIP."
+
+  validation {
+    condition = alltrue([
+      for route_server in values(var.route_servers) :
+      (
+        (try(trimspace(route_server.public_ip_key), "") != "" ? 1 : 0) +
+        (try(trimspace(route_server.public_ip_address_id), "") != "" ? 1 : 0)
+      ) == 1
+    ])
+    error_message = "Each route_servers entry must set exactly one of public_ip_key or public_ip_address_id."
+  }
+}
+
 variable "vpn_gateway" {
   type = object({
     name          = optional(string)

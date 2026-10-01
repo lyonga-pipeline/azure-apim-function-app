@@ -53,6 +53,31 @@ output "vpn_connection_ids" {
   value       = try(module.hybrid_connectivity[0].vpn_connection_ids, {})
 }
 
+output "route_server_public_ip_ids" {
+  description = "Resource IDs of the Route Server public IPs."
+  value       = try(module.hybrid_connectivity[0].route_server_public_ip_ids, {})
+}
+
+output "route_server_ids" {
+  description = "Resource IDs of the Azure Route Servers."
+  value       = try(module.hybrid_connectivity[0].route_server_ids, {})
+}
+
+output "route_servers" {
+  description = "Route Server attributes keyed by input key for downstream composition."
+  value       = try(module.hybrid_connectivity[0].route_servers, {})
+}
+
+output "route_server_bgp_connection_ids" {
+  description = "Route Server BGP connection IDs keyed by generated key."
+  value       = try(module.hybrid_connectivity[0].route_server_bgp_connection_ids, {})
+}
+
+output "route_server_bgp_connections" {
+  description = "Route Server BGP connection attributes keyed by generated key."
+  value       = try(module.hybrid_connectivity[0].route_server_bgp_connections, {})
+}
+
 output "vpn_certificate_key_vault_id" {
   description = "Platform_Output_Contracts_IAC-10 security_vpn_certificate_ids - reference only, consumed by VPN gateway configuration (NET-20, NET-21)."
   value       = try(module.hybrid_connectivity[0].vpn_certificate_key_vault_id, null)

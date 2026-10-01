@@ -65,6 +65,18 @@ locals {
     }
   )
 
+  route_servers = {
+    for key, cfg in try(var.hybrid_connectivity.route_servers, {}) : key => merge(
+      cfg,
+      {
+        subnet_id = try(coalesce(
+          try(cfg.subnet_id, null),
+          try(local.connectivity_outputs.subnet_ids[try(cfg.subnet_key, "RouteServerSubnet")], null)
+        ), null)
+      }
+    )
+  }
+
   # key_vault_id always resolves to platform-identity-security's published
   # shared vault - not tfvars-settable, matching how hub_connection is
   # auto-derived elsewhere in this catalog, so a caller can't accidentally
@@ -104,6 +116,8 @@ module "hybrid_connectivity" {
   vpn_gateway               = local.vpn_gateway
   local_network_gateways    = try(var.hybrid_connectivity.local_network_gateways, {})
   vpn_connections           = try(var.hybrid_connectivity.vpn_connections, {})
+  route_server_public_ips   = try(var.hybrid_connectivity.route_server_public_ips, {})
+  route_servers             = local.route_servers
   vpn_certificate_key_vault = local.vpn_certificate_key_vault
   vpn_certificate_identity  = try(var.hybrid_connectivity.vpn_certificate_identity, {})
 }

@@ -73,6 +73,24 @@ hybrid_connectivity = {
   local_network_gateways = {}
   vpn_connections        = {}
 
+  # Azure Route Server lives in the hybrid-connectivity resource group per the
+  # 2026-10-01 hub update. The subnet is owned by platform-connectivity and is
+  # resolved from that workspace's published subnet_ids output.
+  route_server_public_ips = {
+    primary = {
+      name  = "platform-cus-prod-rs-pip"
+      zones = ["1", "2", "3"]
+    }
+  }
+  route_servers = {
+    primary = {
+      name                             = "platform-cus-prod-rs"
+      subnet_key                       = "RouteServerSubnet"
+      public_ip_key                    = "primary"
+      branch_to_branch_traffic_enabled = true # Confirm with CDW before production traffic cutover.
+    }
+  }
+
   # Network engineer request: managed identity + RBAC for VPN gateway
   # certificate management. Standalone scaffolding - not gated behind
   # vpn_posture.enabled, since it's low-cost prep infrastructure (an identity
