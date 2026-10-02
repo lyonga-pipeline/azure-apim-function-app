@@ -197,7 +197,8 @@ variable "disk_encryption_sets" {
     ("Compute and Disk Encryption Controls"). Required for regulated-apps-mg /
     Restricted-data workloads; optional elsewhere. key_vault_key_id should
     reference a key created in this pattern's key_vault (see
-    terraform-azurerm-compeer-key-vault-key in the composition root).
+    terraform-azurerm-compeer-key-vault-key in the composition root). Use a
+    versionless Key Vault key ID when auto_key_rotation_enabled is true.
     After creation, grant each DES's identity_principal_id "Key Vault Crypto
     Service Encryption User" on the source key via identity_role_assignments
     or external_role_assignments, then pass the output id to a VM pattern's

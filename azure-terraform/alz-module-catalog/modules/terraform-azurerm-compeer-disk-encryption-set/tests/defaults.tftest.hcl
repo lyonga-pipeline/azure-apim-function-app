@@ -45,19 +45,14 @@ run "accepts_versioned_key_when_rotation_disabled" {
 }
 
 run "accepts_managed_hsm_key" {
-  # managed_hsm_key_id is deprecated by the azurerm provider (confirmed
-  # against the provider's own source) and validated as a Key Vault/HSM
-  # "nested item" URL - NOT an ARM resource ID. This example value used the
-  # old ARM-ID shape, which the provider we're pinned to (>= 4.42, < 5.0) no
-  # longer accepts ("expected 2 or 3 path segments").
   command = plan
   variables {
     key_vault_key_id   = null
     managed_hsm_key_id = "https://hsm1.managedhsm.azure.net/keys/key1"
   }
   assert {
-    condition     = azurerm_disk_encryption_set.set.managed_hsm_key_id == "https://hsm1.managedhsm.azure.net/keys/key1"
-    error_message = "managed_hsm_key_id should be wired"
+    condition     = azurerm_disk_encryption_set.set.key_vault_key_id == "https://hsm1.managedhsm.azure.net/keys/key1"
+    error_message = "managed_hsm_key_id should be wired through key_vault_key_id"
   }
 }
 

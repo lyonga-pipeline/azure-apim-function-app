@@ -26,7 +26,7 @@ CMK where required for `regulated-apps-mg` / restricted data).
 | Input | Type | Default | Notes |
 |---|---|---|---|
 | `name` / `resource_group_name` / `location` | string | - | `name` is validated against DES naming rules; RG/location must not be empty |
-| `key_vault_key_id` / `managed_hsm_key_id` | string | `null` | exactly one must be set |
+| `key_vault_key_id` / `managed_hsm_key_id` | string | `null` | exactly one must be set; `managed_hsm_key_id` is a compatibility input and is passed through the provider's forward-compatible `key_vault_key_id` argument |
 | `encryption_type` | string | `EncryptionAtRestWithCustomerKey` | supports current Azure Compute DES enum values |
 | `auto_key_rotation_enabled` | bool | `true` | requires a versionless Key Vault key ID |
 | `identity_type` / `identity_ids` | string / list(string) | `SystemAssigned` / `null` | `identity_ids` required when identity type includes `UserAssigned` |

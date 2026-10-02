@@ -1,13 +1,13 @@
 locals {
   uses_user_assigned_identity = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.identity_type)
+  key_source_id               = var.key_vault_key_id != null ? var.key_vault_key_id : var.managed_hsm_key_id
 }
 
 resource "azurerm_disk_encryption_set" "set" {
   name                      = var.name
   resource_group_name       = var.resource_group_name
   location                  = var.location
-  key_vault_key_id          = var.key_vault_key_id
-  managed_hsm_key_id        = var.managed_hsm_key_id
+  key_vault_key_id          = local.key_source_id
   encryption_type           = var.encryption_type
   auto_key_rotation_enabled = var.auto_key_rotation_enabled
   federated_client_id       = var.federated_client_id
@@ -28,17 +28,14 @@ resource "azurerm_disk_encryption_set" "set" {
       error_message = "identity_ids is required when identity_type includes UserAssigned."
     }
     precondition {
-      # Plain `||` is NOT null-safe here: trimspace(null) errors regardless
-      # of whether an earlier clause is already true, since Terraform does
-      # not reliably short-circuit this expression. The ternary form avoids
-      # ever calling trimspace() on a null key_vault_key_id (e.g. the
-      # managed_hsm_key_id path).
+      # Plain `||` is not null-safe here: trimspace(null) errors regardless
+      # of whether an earlier clause is already true.
       condition = !var.auto_key_rotation_enabled ? true : (
-        var.key_vault_key_id == null ? true : (
-          length(regexall("/keys/[^/]+$", trimspace(var.key_vault_key_id))) > 0
+        local.key_source_id == null ? true : (
+          length(regexall("/keys/[^/]+$", trimspace(local.key_source_id))) > 0
         )
       )
-      error_message = "auto_key_rotation_enabled requires a versionless key_vault_key_id such as https://vault.vault.azure.net/keys/key-name."
+      error_message = "auto_key_rotation_enabled requires a versionless key source ID such as https://vault.vault.azure.net/keys/key-name."
     }
   }
 }

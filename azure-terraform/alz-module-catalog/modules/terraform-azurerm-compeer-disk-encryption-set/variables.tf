@@ -40,7 +40,7 @@ variable "key_vault_key_id" {
 }
 
 variable "managed_hsm_key_id" {
-  description = "Managed HSM key ID (a Key Vault/HSM nested-item URL, e.g. https://<hsm-name>.managedhsm.azure.net/keys/<key-name>[/<version>] - NOT an ARM resource ID). Set exactly one of key_vault_key_id or managed_hsm_key_id. DEPRECATED upstream: azurerm has deprecated this field in favor of key_vault_key_id (which accepts the same URL shape for both Key Vault and Managed HSM keys) and removes it entirely in provider v5 - this module is pinned to < 5.0 (see versions.tf), so revisit this field before any v5 upgrade."
+  description = "Managed HSM key URL, e.g. https://<hsm-name>.managedhsm.azure.net/keys/<key-name>[/<version>] - NOT an ARM resource ID. Set exactly one of key_vault_key_id or managed_hsm_key_id. This compatibility input is passed through the provider's key_vault_key_id argument because the dedicated managed_hsm_key_id argument is deprecated upstream."
   type        = string
   default     = null
 

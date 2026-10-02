@@ -30,7 +30,7 @@ run "platform_identity_and_des_created" {
     disk_encryption_sets = {
       platform = {
         name             = "des-platform-prod"
-        key_vault_key_id = "https://kv-platform-prod.vault.azure.net/keys/des-key/abc123"
+        key_vault_key_id = "https://kv-platform-prod.vault.azure.net/keys/des-key"
       }
     }
   }

@@ -56,7 +56,7 @@ identity_role_assignments = {
 # disk_encryption_sets = {
 #   platform = {
 #     name             = "des-platform-prod"
-#     key_vault_key_id = "https://kv-platform-prod.vault.azure.net/keys/des-key/<version>"
+#     key_vault_key_id = "https://kv-platform-prod.vault.azure.net/keys/des-key"
 #   }
 # }
 disk_encryption_sets = {}
