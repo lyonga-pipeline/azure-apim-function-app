@@ -4,7 +4,8 @@ output "id" {
 }
 
 output "name" {
-  value = azurerm_disk_encryption_set.set.name
+  description = "Name of the disk encryption set."
+  value       = azurerm_disk_encryption_set.set.name
 }
 
 output "identity_principal_id" {
@@ -13,5 +14,6 @@ output "identity_principal_id" {
 }
 
 output "identity_tenant_id" {
-  value = azurerm_disk_encryption_set.set.identity[0].tenant_id
+  description = "Tenant ID of the disk encryption set's identity."
+  value       = azurerm_disk_encryption_set.set.identity[0].tenant_id
 }
