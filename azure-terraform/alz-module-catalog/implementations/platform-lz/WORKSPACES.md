@@ -133,13 +133,6 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `defender_plan_ids`
 - `contract_version`
 - `platform_storage_account_ids`
-- `platform_key_vault_ids`
-- `platform_key_vault_names`
-- `platform_key_vault_uris`
-- `platform_key_vault_private_endpoint_ids`
-- `recovery_services_vault_ids`
-- `backup_policy_vm_ids` (keyed `<vault>.<tier>`)
-- `backup_policy_file_share_ids`
 - `data_collection_endpoint_ids`
 - `data_collection_rule_ids`
 - `data_collection_rule_association_ids`
@@ -162,7 +155,9 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `key_vault_id`
 - `key_vault_name`
 - `key_vault_uri`
-- `key_vault_private_endpoint_id`
+  - The platform Key Vault private endpoint is intentionally not published here:
+    the refined placement keeps platform private endpoints in the connectivity
+    subscription because they attach to the hub VNet private endpoint subnet.
 
 `platform-hybrid-connectivity` publishes:
 

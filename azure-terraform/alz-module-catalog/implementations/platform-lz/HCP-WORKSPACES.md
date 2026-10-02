@@ -53,8 +53,8 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 
 | Workspace | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-management` | management | `platform-management` | Log Analytics, Automation, Recovery Services vault + backup policies, action groups, DCR / DCE, activity-log + Entra diagnostics, **Sentinel onboarding + connectors + analytics rules**, **Defender for Cloud plans + security contacts**, **subscription-scope budgets** |
-| `platform-compeer-identity` | identity | `platform-identity-security` | Platform Key Vault, user-assigned managed identities, identity-scope RBAC, KV private endpoint |
+| `platform-compeer-management` | management | `platform-management` | Log Analytics, platform diagnostics/artifact storage accounts, action groups, DCR / DCE, activity-log + Entra diagnostics, **Sentinel onboarding + connectors + analytics rules**, **Defender for Cloud plans + security contacts**, **subscription-scope budgets** |
+| `platform-compeer-identity` | identity | `platform-identity-security` | Platform Key Vault, user-assigned managed identities, identity-scope RBAC, Key Vault diagnostics. Platform Key Vault private endpoint remains on hold and must be connectivity-owned when approved. |
 | `platform-compeer-directory-services` | directory-services | `platform-directory-services` | Domain-controller VMs + NICs + data disks, AD DS role install, DC promotion hook, DC backup protection |
 
 ### Phase 3 — Connectivity & edge

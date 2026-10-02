@@ -37,12 +37,10 @@ module "naming" {
 
   storage_uniqueness          = try(var.naming.storage_uniqueness, "")
   user_assigned_identity_keys = keys(var.platform_identities)
-  private_endpoint_keys       = ["kv"]
 }
 
 locals {
-  kv_name    = coalesce(try(var.key_vault.name, null), module.naming.key_vault)
-  kv_pe_name = coalesce(try(var.key_vault_private_endpoint.name, null), module.naming.private_endpoint_names["kv"])
+  kv_name = coalesce(try(var.key_vault.name, null), module.naming.key_vault)
 }
 
 module "resource_group" {
@@ -127,31 +125,6 @@ module "role_assignments" {
   source = "../../modules/terraform-azurerm-compeer-role-assignments"
 
   assignments = merge(var.external_role_assignments, local.identity_role_assignments)
-}
-
-module "key_vault_private_endpoint" {
-  source = "../../modules/terraform-azurerm-compeer-private-endpoint"
-  count  = var.key_vault_private_endpoint == null ? 0 : 1
-
-  name                = local.kv_pe_name
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
-  edge_zone           = try(var.key_vault_private_endpoint.edge_zone, null)
-  subnet_id           = var.key_vault_private_endpoint.subnet_id
-  private_service_connections = [
-    {
-      name                           = "${local.kv_pe_name}-psc"
-      is_manual_connection           = false
-      private_connection_resource_id = module.key_vault.id
-      subresource_names              = ["vault"]
-    }
-  ]
-  private_dns_zone_group = [{
-    name                 = "${local.kv_pe_name}-dns"
-    private_dns_zone_ids = var.key_vault_private_endpoint.private_dns_zone_ids
-  }]
-  timeouts = try(var.key_vault_private_endpoint.timeouts, {})
-  tags     = module.tags.tags
 }
 
 module "key_vault_diagnostics" {

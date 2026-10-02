@@ -47,8 +47,6 @@ identity_role_assignments = {
   }
 }
 
-key_vault_private_endpoint = null
-
 # Customer-managed-key disk encryption (design doc Phase 5 Step 6). Left empty
 # for the smoke test - populate once a CMK exists in the platform Key Vault
 # above, then grant the DES identity "Key Vault Crypto Service Encryption

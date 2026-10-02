@@ -2,7 +2,7 @@
 
 ## Overview
 
-**What this deploys:** the platform Key Vault (RBAC-first, private-by-default)
+**What this deploys:** the platform Key Vault (RBAC-first, public access off)
 and, optionally, customer-managed-key disk encryption sets — the shared
 identity/secrets foundation other patterns' `key_vault_secret_id`-style
 inputs point at.
@@ -10,7 +10,6 @@ inputs point at.
 | Resource / module | Purpose |
 |---|---|
 | `module.key_vault` | The vault itself — RBAC authorization, `network_acls` default-deny |
-| `module.key_vault_private_endpoint` | Optional; `null` in smoke tests so this root validates without needing hub private DNS outputs |
 | `module.disk_encryption_set` | Optional customer-managed-key disk encryption sets, empty by default |
 
 **`network_acls` — why it's built field-by-field instead of one `coalesce()`:**
@@ -26,9 +25,15 @@ variable's declared type (which also allows `ip_rules` /
 
 ---
 
-Key Vault is RBAC-first and private-by-default. Access assignments, diagnostics, and private endpoint attachment are composed explicitly so ownership and approval remain visible.
+Key Vault is RBAC-first with public network access disabled. Access assignments
+and diagnostics are composed explicitly so ownership and approval remain visible.
 
-For smoke tests, `key_vault_private_endpoint` is left `null` so this root can validate the identity/vault baseline without requiring hub private DNS outputs. For enterprise testing, attach the private endpoint to the approved private endpoint subnet and pass the Key Vault private DNS zone ID from `platform-connectivity`.
+The Key Vault private endpoint is intentionally not created by this pattern. The
+refined placement sheet keeps platform private endpoints in the connectivity
+subscription because they attach to the hub VNet private endpoint subnet. When
+the on-hold private endpoint item is approved, create it from a connectivity-
+owned composition using this workspace's `key_vault_id` output and the
+`platform-connectivity` private DNS zone/subnet outputs.
 
 `tenant_id` is optional and defaults to the tenant from the active Azure/HCP run credentials. `log_analytics_workspace_id` is also optional; set it to the `platform-management` output with the same name when you want Key Vault diagnostics enabled.
 

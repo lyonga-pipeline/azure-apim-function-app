@@ -108,79 +108,9 @@ output "platform_storage_account_private_endpoint_subresources" {
   value       = try(module.management[0].platform_storage_account_private_endpoint_subresources, {})
 }
 
-output "platform_storage_private_endpoints" {
-  description = "Full detail for each platform storage account private endpoint."
-  value       = try(module.management[0].platform_storage_private_endpoints, {})
-}
-
 output "platform_storage_diagnostic_setting_ids" {
   description = "IDs of the diagnostic settings on the platform storage accounts."
   value       = try(module.management[0].platform_storage_diagnostic_setting_ids, {})
-}
-
-output "platform_storage_private_endpoint_ids" {
-  description = "Resource IDs of the private endpoints created for the platform storage accounts."
-  value       = try(module.management[0].platform_storage_private_endpoint_ids, {})
-}
-
-output "platform_key_vault_ids" {
-  description = "Resource IDs of the platform Key Vaults."
-  value       = try(module.management[0].platform_key_vault_ids, {})
-}
-
-output "platform_key_vault_names" {
-  description = "Names of the platform Key Vaults, keyed the same as platform_key_vault_ids."
-  value       = try(module.management[0].platform_key_vault_names, {})
-}
-
-output "platform_key_vault_uris" {
-  description = "Vault URIs of the platform Key Vaults. Reference only, never a secret value."
-  value       = try(module.management[0].platform_key_vault_uris, {})
-}
-
-output "platform_key_vault_private_endpoint_subresources" {
-  description = "Private-endpoint subresource names per platform Key Vault, keyed the same as platform_key_vault_ids."
-  value       = try(module.management[0].platform_key_vault_private_endpoint_subresources, {})
-}
-
-output "platform_key_vault_private_endpoints" {
-  description = "Full detail for each platform Key Vault private endpoint."
-  value       = try(module.management[0].platform_key_vault_private_endpoints, {})
-}
-
-output "platform_key_vault_private_endpoint_ids" {
-  description = "Resource IDs of the private endpoints created for the platform Key Vaults."
-  value       = try(module.management[0].platform_key_vault_private_endpoint_ids, {})
-}
-
-output "platform_key_vault_diagnostic_setting_ids" {
-  description = "IDs of the diagnostic settings on the platform Key Vaults."
-  value       = try(module.management[0].platform_key_vault_diagnostic_setting_ids, {})
-}
-
-output "recovery_services_vault_ids" {
-  description = "Platform_Output_Contracts_IAC-10 management_recovery_services_vault_ids."
-  value       = try(module.management[0].recovery_services_vault_ids, {})
-}
-
-output "backup_policy_vm_ids" {
-  description = "VM backup policy IDs keyed <vault>.<tier> - feed to workload / directory-services patterns."
-  value       = try(module.management[0].backup_policy_vm_ids, {})
-}
-
-output "backup_policy_file_share_ids" {
-  description = "File share backup policy IDs keyed <vault>.<tier>."
-  value       = try(module.management[0].backup_policy_file_share_ids, {})
-}
-
-output "recovery_services_vault_names" {
-  description = "Names of the Recovery Services Vaults, keyed the same as recovery_services_vault_ids."
-  value       = try(module.management[0].recovery_services_vault_names, {})
-}
-
-output "recovery_services_vault_diagnostic_setting_ids" {
-  description = "IDs of the diagnostic settings on the Recovery Services Vaults."
-  value       = try(module.management[0].recovery_services_vault_diagnostic_setting_ids, {})
 }
 
 output "data_collection_endpoint_ids" {

@@ -12,7 +12,6 @@
 #   log analytics                  cus-prod-loganalytics-workspace
 #   action group                   platform-cus-prod-ag
 #   storage account (key "audit")  stmgmtauditcusprod
-#   recovery services vault (main) platform-cus-prod-main-rsv
 #   diagnostic settings            diag-<observed resource name>-law
 #
 
@@ -30,7 +29,8 @@ platform_tags = {
   # owns it via a time_static resource (computed once on first apply,
   # stable across every later plan) and supersedes any value set here.
   # Platform tier-0: foundational enterprise/platform service (shared
-  # observability, Sentinel/Defender, backup) required for other systems.
+  # observability, Sentinel/Defender, diagnostics/archive storage, budgets)
+  # required for other systems.
   criticality_tier    = "tier-0"
   data_classification = "confidential"
   lifecycle_state     = "active"
@@ -76,34 +76,11 @@ management = {
       }
     }
   }
-  # Refined placement moved the shared platform Key Vault to
-  # security-mg/sub-security-prod-cus as platform-cus-prod-vault. Keep the
-  # management subscription focused on monitoring, diagnostics/artifacts, and
-  # backup so we do not create a second platform secrets boundary here.
-  platform_key_vaults                  = {}
-  platform_key_vault_diagnostics       = {}
-  platform_key_vault_private_endpoints = {}
-  recovery_services_vaults = {
-    main = {
-      # Flipped back to the module's own default (GeoRedundant) from
-      # ZoneRedundant: backups are the one asset a region-level rebuild-from-
-      # IaC DR story can't replace - a zone-redundant-only vault goes down
-      # with a full regional outage, right when backups matter most. Nothing
-      # is deployed yet, so this is a zero-cost, zero-migration correction.
-      storage_mode_type = "GeoRedundant"
-    }
-  }
-  recovery_services_vault_diagnostics = {
-    main = {
-      recovery_services_vault_key = "main"
-      logs = {
-        all = { category_group = "allLogs" }
-      }
-      metrics = {
-        all = { category = "AllMetrics" }
-      }
-    }
-  }
+  # Refined placement keeps shared platform Key Vault in security-mg and
+  # workload-specific backup vaults in the subscriptions that own protected
+  # VMs (identity for DCs, connectivity for firewall VMs if approved). This
+  # management workspace intentionally does not create Key Vaults, private
+  # endpoints, or Recovery Services vaults.
   data_collection_endpoints         = {}
   data_collection_rules             = {}
   data_collection_rule_associations = {}

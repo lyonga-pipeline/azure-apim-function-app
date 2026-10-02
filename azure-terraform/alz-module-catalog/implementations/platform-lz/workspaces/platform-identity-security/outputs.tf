@@ -33,11 +33,6 @@ output "key_vault_uri" {
   value       = try(module.identity[0].key_vault_uri, null)
 }
 
-output "key_vault_private_endpoint_id" {
-  description = "Resource ID of the shared platform Key Vault's private endpoint, or null if not deployed."
-  value       = try(module.identity[0].key_vault_private_endpoint_id, null)
-}
-
 output "key_vault_diagnostic_setting_id" {
   description = "ID of the diagnostic setting on the shared platform Key Vault, or null if not enabled."
   value       = try(module.identity[0].key_vault_diagnostic_setting_id, null)

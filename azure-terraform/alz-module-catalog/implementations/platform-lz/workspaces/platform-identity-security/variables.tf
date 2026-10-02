@@ -62,7 +62,7 @@ variable "management_workspace_name" {
 }
 
 variable "connectivity_workspace_name" {
-  description = "Workspace that publishes private endpoint subnet and private DNS zone outputs."
+  description = "Workspace that publishes the connectivity contract version. Private endpoints are not deployed from this workspace."
   type        = string
   default     = "platform-connectivity"
 }

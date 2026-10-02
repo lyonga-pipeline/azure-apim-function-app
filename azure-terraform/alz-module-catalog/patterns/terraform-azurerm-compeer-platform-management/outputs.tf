@@ -99,107 +99,13 @@ output "platform_storage_account_primary_endpoints" {
 }
 
 output "platform_storage_account_private_endpoint_subresources" {
-  description = "Private-endpoint-ready subresource names (e.g. blob, file) exposed by each platform storage account, keyed the same as var.platform_storage_accounts - feeds the private endpoint modules below."
+  description = "Private-endpoint-ready subresource names (e.g. blob, file) exposed by each platform storage account, keyed the same as var.platform_storage_accounts. Connectivity-owned private endpoint composition can consume these later."
   value       = { for key, value in module.platform_storage_accounts : key => value.private_endpoint_ready_subresource_names }
 }
 
 output "platform_storage_diagnostic_setting_ids" {
   description = "IDs of the diagnostic settings on the platform storage accounts, keyed the same as var.platform_storage_diagnostics."
   value       = { for key, value in module.platform_storage_diagnostics : key => value.id }
-}
-
-output "platform_key_vault_ids" {
-  description = "Resource IDs of the platform Key Vaults, keyed the same as var.platform_key_vaults."
-  value       = { for key, value in module.platform_key_vaults : key => value.id }
-}
-
-output "platform_key_vault_names" {
-  description = "Names of the platform Key Vaults, keyed the same as var.platform_key_vaults."
-  value       = { for key, value in module.platform_key_vaults : key => value.name }
-}
-
-output "platform_key_vault_uris" {
-  description = "Vault URIs of the platform Key Vaults, keyed the same as var.platform_key_vaults. Reference only, never a secret value."
-  value       = { for key, value in module.platform_key_vaults : key => value.vault_uri }
-}
-
-output "platform_key_vault_private_endpoint_subresources" {
-  description = "Private-endpoint subresource names (always [\"vault\"]) per platform Key Vault, keyed the same as var.platform_key_vaults - feeds the private endpoint module below."
-  value       = { for key, value in module.platform_key_vaults : key => [value.private_endpoint_subresource_name] }
-}
-
-output "platform_key_vault_diagnostic_setting_ids" {
-  description = "IDs of the diagnostic settings on the platform Key Vaults, keyed the same as var.platform_key_vault_diagnostics."
-  value       = { for key, value in module.platform_key_vault_diagnostics : key => value.id }
-}
-
-output "platform_storage_private_endpoint_ids" {
-  description = "Resource IDs of the private endpoints created for the platform storage accounts, keyed the same as their private endpoint configuration."
-  value       = { for key, value in module.platform_storage_private_endpoints : key => value.id }
-}
-
-output "platform_storage_private_endpoints" {
-  description = "Full detail (id, name, resource group, subnet, service connection, DNS zone config) for each platform storage account private endpoint, keyed the same as their private endpoint configuration."
-  value = {
-    for key, value in module.platform_storage_private_endpoints : key => {
-      id                         = value.id
-      name                       = value.name
-      resource_group_name        = value.resource_group_name
-      subnet_id                  = value.subnet_id
-      private_service_connection = value.private_service_connection
-      private_dns_zone_configs   = value.private_dns_zone_configs
-    }
-  }
-}
-
-output "platform_key_vault_private_endpoint_ids" {
-  description = "Resource IDs of the private endpoints created for the platform Key Vaults, keyed the same as their private endpoint configuration."
-  value       = { for key, value in module.platform_key_vault_private_endpoints : key => value.id }
-}
-
-output "platform_key_vault_private_endpoints" {
-  description = "Full detail (id, name, resource group, subnet, service connection, DNS zone config) for each platform Key Vault private endpoint, keyed the same as their private endpoint configuration."
-  value = {
-    for key, value in module.platform_key_vault_private_endpoints : key => {
-      id                         = value.id
-      name                       = value.name
-      resource_group_name        = value.resource_group_name
-      subnet_id                  = value.subnet_id
-      private_service_connection = value.private_service_connection
-      private_dns_zone_configs   = value.private_dns_zone_configs
-    }
-  }
-}
-
-output "recovery_services_vault_ids" {
-  description = "Resource IDs of the Recovery Services Vaults, keyed the same as var.recovery_services_vaults (this catalog's vault/purpose keying - see Platform_Output_Contracts_IAC-10 management_recovery_services_vault_ids)."
-  value       = { for key, value in module.recovery_services_vaults : key => value.id }
-}
-
-output "recovery_services_vault_names" {
-  description = "Names of the Recovery Services Vaults, keyed the same as var.recovery_services_vaults."
-  value       = { for key, value in module.recovery_services_vaults : key => value.name }
-}
-
-output "recovery_services_vault_diagnostic_setting_ids" {
-  description = "IDs of the diagnostic settings on the Recovery Services Vaults, keyed the same as var.recovery_services_vault_diagnostics."
-  value       = { for key, value in module.recovery_services_vault_diagnostics : key => value.id }
-}
-
-output "backup_policy_vm_ids" {
-  description = "VM backup policy IDs keyed `<vault_key>.<tier>` (feed to workload / DC patterns for protected-item enrolment)."
-  value = merge([
-    for vkey, v in module.recovery_services_vaults :
-    { for tier, id in v.backup_policy_vm_ids : "${vkey}.${tier}" => id }
-  ]...)
-}
-
-output "backup_policy_file_share_ids" {
-  description = "File share backup policy IDs keyed `<vault_key>.<tier>`."
-  value = merge([
-    for vkey, v in module.recovery_services_vaults :
-    { for tier, id in v.backup_policy_file_share_ids : "${vkey}.${tier}" => id }
-  ]...)
 }
 
 output "data_collection_endpoint_ids" {

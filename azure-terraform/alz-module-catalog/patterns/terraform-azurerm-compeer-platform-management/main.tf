@@ -28,19 +28,16 @@ module "diagnostic_profile" {
 module "naming" {
   source = "../../modules/terraform-azurerm-compeer-naming"
 
-  region               = coalesce(try(var.naming.region, null), var.location)
-  environment          = coalesce(try(var.naming.environment, null), var.environment)
-  scope                = try(var.naming.scope, "platform")
-  component            = coalesce(try(var.naming.component, null), "management")
-  domain               = try(var.naming.domain, null)
-  appcode              = try(var.naming.appcode, null)
-  abbreviation         = try(var.naming.abbreviation, null)
-  key_vault_name_token = try(var.naming.key_vault_name_token, "vault")
+  region       = coalesce(try(var.naming.region, null), var.location)
+  environment  = coalesce(try(var.naming.environment, null), var.environment)
+  scope        = try(var.naming.scope, "platform")
+  component    = coalesce(try(var.naming.component, null), "management")
+  domain       = try(var.naming.domain, null)
+  appcode      = try(var.naming.appcode, null)
+  abbreviation = try(var.naming.abbreviation, null)
 
-  storage_uniqueness           = try(var.naming.storage_uniqueness, "")
-  key_vault_keys               = keys(var.platform_key_vaults)
-  storage_account_keys         = keys(var.platform_storage_accounts)
-  recovery_services_vault_keys = keys(var.recovery_services_vaults)
+  storage_uniqueness   = try(var.naming.storage_uniqueness, "")
+  storage_account_keys = keys(var.platform_storage_accounts)
 }
 
 module "resource_group" {
@@ -131,52 +128,6 @@ module "platform_storage_accounts" {
   tags                              = module.tags.tags
 }
 
-module "platform_key_vaults" {
-  source   = "../../modules/terraform-azurerm-compeer-keyvault"
-  for_each = var.platform_key_vaults
-
-  name                            = coalesce(try(each.value.name, null), module.naming.key_vault_names[each.key])
-  resource_group_name             = module.resource_group.name
-  location                        = module.resource_group.location
-  sku_name                        = try(each.value.sku_name, "standard")
-  tenant_id                       = try(each.value.tenant_id, null)
-  access_policies                 = try(each.value.access_policies, [])
-  access_policies_by_key          = try(each.value.access_policies_by_key, {})
-  rbac_authorization_enabled      = try(each.value.rbac_authorization_enabled, true)
-  enabled_for_deployment          = try(each.value.enabled_for_deployment, false)
-  enabled_for_disk_encryption     = try(each.value.enabled_for_disk_encryption, false)
-  enabled_for_template_deployment = try(each.value.enabled_for_template_deployment, false)
-  network_acls                    = try(each.value.network_acls, null)
-  purge_protection_enabled        = try(each.value.purge_protection_enabled, true)
-  public_network_access_enabled   = try(each.value.public_network_access_enabled, false)
-  soft_delete_retention_days      = try(each.value.soft_delete_retention_days, 90)
-  contacts                        = try(each.value.contacts, [])
-  timeouts                        = try(each.value.timeouts, {})
-  tags                            = module.tags.tags
-}
-
-module "recovery_services_vaults" {
-  source   = "../../modules/terraform-azurerm-compeer-recovery-services-vault"
-  for_each = var.recovery_services_vaults
-
-  name                               = coalesce(try(each.value.name, null), module.naming.recovery_services_vault_names[each.key])
-  resource_group_name                = module.resource_group.name
-  location                           = module.resource_group.location
-  sku                                = each.value.sku
-  storage_mode_type                  = each.value.storage_mode_type
-  public_network_access_enabled      = try(each.value.public_network_access_enabled, null)
-  immutability                       = try(each.value.immutability, null)
-  cross_region_restore_enabled       = try(each.value.cross_region_restore_enabled, null)
-  classic_vmware_replication_enabled = try(each.value.classic_vmware_replication_enabled, null)
-  identity                           = try(each.value.identity, null)
-  encryption                         = try(each.value.encryption, null)
-  monitoring                         = try(each.value.monitoring, null)
-  backup_policy_vm                   = try(each.value.backup_policy_vm, {})
-  backup_policy_file_share           = try(each.value.backup_policy_file_share, {})
-  timeouts                           = try(each.value.timeouts, {})
-  tags                               = module.tags.tags
-}
-
 module "data_collection_endpoints" {
   source   = "../../modules/terraform-azurerm-compeer-monitor-data-collection-endpoint"
   for_each = var.data_collection_endpoints
@@ -239,12 +190,6 @@ locals {
       for key, value in module.platform_storage_accounts : "storage_account:${key}" => value.id
     },
     {
-      for key, value in module.platform_key_vaults : "key_vault:${key}" => value.id
-    },
-    {
-      for key, value in module.recovery_services_vaults : "recovery_vault:${key}" => value.id
-    },
-    {
       for key, value in module.data_collection_endpoints : "data_collection_endpoint:${key}" => value.id
     },
     {
@@ -270,42 +215,6 @@ locals {
     for key, diagnostic in var.platform_storage_diagnostics : key => {
       name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_storage_accounts[diagnostic.storage_account_key].name}-law")
       target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_storage_accounts[diagnostic.storage_account_key].id, null))
-      log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
-      log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
-      storage_account_id             = try(diagnostic.archive_storage_account_id, null)
-      eventhub_authorization_rule_id = try(
-        diagnostic.eventhub_authorization_rule_id,
-        null
-      )
-      eventhub_name       = try(diagnostic.eventhub_name, null)
-      partner_solution_id = try(diagnostic.partner_solution_id, null)
-      logs                = try(diagnostic.logs, {})
-      metrics             = try(diagnostic.metrics, {})
-    }
-  }
-
-  platform_key_vault_diagnostic_inputs = {
-    for key, diagnostic in var.platform_key_vault_diagnostics : key => {
-      name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_key_vaults[diagnostic.key_vault_key].name}-law")
-      target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_key_vaults[diagnostic.key_vault_key].id, null))
-      log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
-      log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
-      storage_account_id             = try(diagnostic.archive_storage_account_id, null)
-      eventhub_authorization_rule_id = try(
-        diagnostic.eventhub_authorization_rule_id,
-        null
-      )
-      eventhub_name       = try(diagnostic.eventhub_name, null)
-      partner_solution_id = try(diagnostic.partner_solution_id, null)
-      logs                = try(diagnostic.logs, {})
-      metrics             = try(diagnostic.metrics, {})
-    }
-  }
-
-  recovery_services_vault_diagnostic_inputs = {
-    for key, diagnostic in var.recovery_services_vault_diagnostics : key => {
-      name                           = coalesce(try(diagnostic.name, null), "diag-${module.recovery_services_vaults[diagnostic.recovery_services_vault_key].name}-law")
-      target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.recovery_services_vaults[diagnostic.recovery_services_vault_key].id, null))
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
       storage_account_id             = try(diagnostic.archive_storage_account_id, null)
@@ -366,104 +275,6 @@ resource "azurerm_security_center_workspace" "log_analytics" {
 module "platform_storage_diagnostics" {
   source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   for_each = local.platform_storage_diagnostic_inputs
-
-  name                           = each.value.name
-  target_resource_id             = each.value.target_resource_id
-  log_analytics_workspace_id     = each.value.log_analytics_workspace_id
-  log_analytics_destination_type = try(each.value.log_analytics_destination_type, null)
-  storage_account_id             = each.value.storage_account_id
-  eventhub_authorization_rule_id = try(
-    each.value.eventhub_authorization_rule_id,
-    null
-  )
-  eventhub_name       = try(each.value.eventhub_name, null)
-  partner_solution_id = try(each.value.partner_solution_id, null)
-  logs                = each.value.logs
-  metrics             = each.value.metrics
-}
-
-module "platform_storage_private_endpoints" {
-  source   = "../../modules/terraform-azurerm-compeer-private-endpoint"
-  for_each = var.platform_storage_private_endpoints
-
-  name                          = each.value.name
-  custom_network_interface_name = try(each.value.custom_network_interface_name, null)
-  resource_group_name           = coalesce(try(each.value.resource_group_name, null), module.resource_group.name)
-  location                      = coalesce(try(each.value.location, null), module.resource_group.location)
-  edge_zone                     = try(each.value.edge_zone, null)
-  subnet_id                     = each.value.subnet_id
-  private_service_connections = [
-    {
-      name                           = coalesce(try(each.value.private_service_connection_name, null), "${each.value.name}-psc")
-      is_manual_connection           = try(each.value.is_manual_connection, false)
-      private_connection_resource_id = coalesce(try(each.value.private_connection_resource_id, null), try(module.platform_storage_accounts[each.value.storage_account_key].id, null))
-      subresource_names              = [each.value.subresource_name]
-      request_message                = try(each.value.request_message, null)
-    }
-  ]
-  private_dns_zone_group = length(try(each.value.private_dns_zone_ids, [])) == 0 ? [] : [
-    {
-      name                 = coalesce(try(each.value.private_dns_zone_group_name, null), "default")
-      private_dns_zone_ids = each.value.private_dns_zone_ids
-    }
-  ]
-  ip_configurations = try(each.value.ip_configurations, [])
-  timeouts          = try(each.value.timeouts, {})
-  tags              = module.tags.tags
-}
-
-module "platform_key_vault_diagnostics" {
-  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each = local.platform_key_vault_diagnostic_inputs
-
-  name                           = each.value.name
-  target_resource_id             = each.value.target_resource_id
-  log_analytics_workspace_id     = each.value.log_analytics_workspace_id
-  log_analytics_destination_type = try(each.value.log_analytics_destination_type, null)
-  storage_account_id             = each.value.storage_account_id
-  eventhub_authorization_rule_id = try(
-    each.value.eventhub_authorization_rule_id,
-    null
-  )
-  eventhub_name       = try(each.value.eventhub_name, null)
-  partner_solution_id = try(each.value.partner_solution_id, null)
-  logs                = each.value.logs
-  metrics             = each.value.metrics
-}
-
-module "platform_key_vault_private_endpoints" {
-  source   = "../../modules/terraform-azurerm-compeer-private-endpoint"
-  for_each = var.platform_key_vault_private_endpoints
-
-  name                          = each.value.name
-  custom_network_interface_name = try(each.value.custom_network_interface_name, null)
-  resource_group_name           = coalesce(try(each.value.resource_group_name, null), module.resource_group.name)
-  location                      = coalesce(try(each.value.location, null), module.resource_group.location)
-  edge_zone                     = try(each.value.edge_zone, null)
-  subnet_id                     = each.value.subnet_id
-  private_service_connections = [
-    {
-      name                           = coalesce(try(each.value.private_service_connection_name, null), "${each.value.name}-psc")
-      is_manual_connection           = try(each.value.is_manual_connection, false)
-      private_connection_resource_id = coalesce(try(each.value.private_connection_resource_id, null), try(module.platform_key_vaults[each.value.key_vault_key].id, null))
-      subresource_names              = [try(each.value.subresource_name, "vault")]
-      request_message                = try(each.value.request_message, null)
-    }
-  ]
-  private_dns_zone_group = length(try(each.value.private_dns_zone_ids, [])) == 0 ? [] : [
-    {
-      name                 = coalesce(try(each.value.private_dns_zone_group_name, null), "default")
-      private_dns_zone_ids = each.value.private_dns_zone_ids
-    }
-  ]
-  ip_configurations = try(each.value.ip_configurations, [])
-  timeouts          = try(each.value.timeouts, {})
-  tags              = module.tags.tags
-}
-
-module "recovery_services_vault_diagnostics" {
-  source   = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each = local.recovery_services_vault_diagnostic_inputs
 
   name                           = each.value.name
   target_resource_id             = each.value.target_resource_id

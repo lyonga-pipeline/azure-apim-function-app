@@ -12,7 +12,7 @@ workspace ID, action group ID).
 | Budgets | `azurerm_consumption_budget_subscription.subscription_budget` | Subscription-scope cost budgets |
 | Defender/SOC posture | `azurerm_security_center_contact.contact`, `.setting`, `.pricing` | Security contact + Defender plan pricing tiers — all left disabled/no-cost by default (see `defender_soc_posture` below) |
 | Observability | `module.log_analytics_workspace`, `module.action_group`, `module.data_collection_*` | The Log Analytics workspace, action group, and optional Data Collection Endpoints/Rules other patterns consume |
-| Platform hooks | `platform_storage_accounts`, `platform_key_vaults`, `recovery_services_vaults` | Deployable but empty-by-default hooks for platform services (see table below) |
+| Platform storage | `platform_storage_accounts` | Diagnostics / artifact storage in the management subscription |
 
 **`defender_soc_posture` — why a `terraform_data` contract instead of a plain
 boolean flag:** the goal is a **no-cost posture marker** that Terraform
@@ -54,15 +54,20 @@ The root now emits `defender_soc_posture` from a no-cost contract resource. Terr
 
 The smoke-test tfvars also leave `security_contact = null` and `security_center_settings = {}`. Defender settings such as `MCAS` and `WDATP` commonly already exist in Azure subscriptions, so Terraform must import them before it can manage them. Leave them unmanaged for quick platform validation; import and enable them when promoting the enterprise security baseline.
 
-Optional `platform_storage_accounts`, `platform_key_vaults`, and `recovery_services_vaults` expose deployable hooks for platform services from the ALZ workbook while staying disabled in the baseline tfvars:
+Optional `platform_storage_accounts` exposes the management-subscription storage
+account placement from the ALZ workbook while staying disabled in the baseline
+example tfvars:
 
 | Component | Root input | Baseline posture |
 | --- | --- | --- |
-| `PLT-01` Recovery Services Vault + policies | `recovery_services_vaults` | Empty map, no resource created |
-| `PLT-02` Platform Key Vault + private endpoint | `platform_key_vaults`, `platform_key_vault_private_endpoints` | Empty maps, no resource created |
 | `PLT-06` Platform storage accounts | `platform_storage_accounts` | Empty map, no resource created |
 
-Populate these maps only after retention, backup policy, private connectivity, encryption, secret ownership, and cost ownership are approved. The Key Vault module owns only the vault resource. Secrets, keys, certificates, private endpoints, diagnostics, RBAC, and locks are composed by the platform pattern so the base module remains reusable.
+Populate this map only after retention and cost ownership are approved. Shared
+platform Key Vaults belong to `platform-identity-security` in the security
+subscription. Private endpoints belong to the connectivity subscription because
+they attach to the hub VNet private endpoint subnet. Recovery Services vaults
+belong with the protected workload subscription/resource group, such as the
+identity-subscription DC backup vault in `platform-directory-services`.
 
 Resource provider registrations are also left unmanaged in the smoke-test tfvars. Common providers are usually already registered in personal or shared subscriptions; import existing registrations before managing them with Terraform in an enterprise subscription.
 

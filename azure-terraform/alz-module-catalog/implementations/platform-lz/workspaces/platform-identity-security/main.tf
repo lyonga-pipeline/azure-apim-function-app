@@ -34,15 +34,6 @@ locals {
   )
 
   log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
-
-  key_vault_private_endpoint_from_connectivity_enabled = try(var.identity.key_vault_private_endpoint_from_connectivity.enabled, false)
-  key_vault_private_endpoint_from_connectivity = local.key_vault_private_endpoint_from_connectivity_enabled ? {
-    name                 = try(var.identity.key_vault_private_endpoint_from_connectivity.name, "${var.environment}-platform-kv-pe")
-    subnet_id            = coalesce(try(var.identity.key_vault_private_endpoint_from_connectivity.subnet_id, null), try(local.connectivity_outputs.subnet_ids["private_endpoints"], null))
-    private_dns_zone_ids = compact(concat(try(var.identity.key_vault_private_endpoint_from_connectivity.private_dns_zone_ids, []), [try(local.connectivity_outputs.private_dns_zone_ids["key_vault"], null)]))
-  } : null
-
-  key_vault_private_endpoint = try(var.identity.key_vault_private_endpoint, null) != null ? var.identity.key_vault_private_endpoint : local.key_vault_private_endpoint_from_connectivity
 }
 
 module "identity" {
@@ -67,7 +58,6 @@ module "identity" {
   platform_identities        = try(var.identity.platform_identities, {})
   disk_encryption_sets       = try(var.identity.disk_encryption_sets, {})
   key_vault                  = try(var.identity.key_vault, {})
-  key_vault_private_endpoint = local.key_vault_private_endpoint
   log_analytics_workspace_id = local.log_analytics_workspace_id
   diagnostics                = try(var.identity.diagnostics, null)
   identity_role_assignments  = try(var.identity.identity_role_assignments, {})

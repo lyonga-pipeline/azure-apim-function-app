@@ -6,11 +6,10 @@
 # The azurerm provider reads both from those Terraform variables.
 #
 
-location                    = "centralus"
-environment                 = "prod"
-tfe_organization            = "Compeer-Financial-Services"
-management_workspace_name   = "platform-management"
-connectivity_workspace_name = "platform-connectivity"
+location                  = "centralus"
+environment               = "prod"
+tfe_organization          = "Compeer-Financial-Services"
+management_workspace_name = "platform-management"
 
 platform_tags = {
   application = "alz-platform-identity"
@@ -69,9 +68,9 @@ identity = {
     purge_protection_enabled   = true
     contacts                   = {}
   }
-  key_vault_private_endpoint_from_connectivity = {
-    enabled = false
-  }
+  # Private endpoint intentionally not configured here. The refined placement
+  # sheet keeps platform private endpoints in the connectivity subscription
+  # because they attach to the hub VNet private endpoint subnet.
   diagnostics = {
     logs = {
       audit = { category = "AuditEvent" }

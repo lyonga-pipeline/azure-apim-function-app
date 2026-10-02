@@ -36,20 +36,15 @@ action_group = {
   }
 }
 
-# Optional platform services. Keep these empty for the cost-safe baseline;
-# populate only after backup/archive retention, networking, secret ownership,
-# and cost ownership are approved.
-platform_storage_accounts            = {}
-platform_key_vaults                  = {}
-platform_key_vault_diagnostics       = {}
-platform_key_vault_private_endpoints = {}
-recovery_services_vaults             = {}
-platform_storage_diagnostics         = {}
-platform_storage_private_endpoints   = {}
-recovery_services_vault_diagnostics  = {}
-data_collection_endpoints            = {}
-data_collection_rules                = {}
-data_collection_rule_associations    = {}
+# Optional platform management services. Keep these empty for the cost-safe
+# baseline; populate storage only after archive retention and cost ownership are
+# approved. Shared Key Vaults, private endpoints, and backup vaults are owned by
+# their placement-specific workspaces, not platform-management.
+platform_storage_accounts         = {}
+platform_storage_diagnostics      = {}
+data_collection_endpoints         = {}
+data_collection_rules             = {}
+data_collection_rule_associations = {}
 
 # Example archive/bootstrap storage account for a promoted baseline:
 #
@@ -70,32 +65,6 @@ data_collection_rule_associations    = {}
 #   }
 # }
 #
-# Example platform Key Vault for a promoted secret baseline:
-#
-# platform_key_vaults = {
-#   platform = {
-#     name                          = "kv-lz-platform-np-001"
-#     sku_name                      = "standard"
-#     rbac_authorization_enabled    = true
-#     purge_protection_enabled      = true
-#     public_network_access_enabled = false
-#     network_acls = {
-#       bypass         = "AzureServices"
-#       default_action = "Deny"
-#     }
-#   }
-# }
-#
-# Example Recovery Services Vault for a promoted backup baseline:
-#
-# recovery_services_vaults = {
-#   platform = {
-#     name              = "rsv-lz-platform-np-001"
-#     sku               = "Standard"
-#     storage_mode_type = "GeoRedundant"
-#   }
-# }
-
 # Keep resource provider registrations unmanaged during short smoke tests.
 # Most test subscriptions already have common providers registered, and
 # pre-existing registrations must be imported before Terraform can manage them.

@@ -89,13 +89,6 @@ surfaced three real, previously-latent bugs:
    enables its own Key Vault. Fixed by building the object attribute-by-
    attribute with `try()` per field, which sidesteps both error paths.
 
-`terraform-azurerm-compeer-platform-management`'s `platform_key_vaults` module
-call shares a related-but-safe pattern (`network_acls = try(each.value.network_acls, null)`
-passed straight through, no coalesce-with-a-default) — the receiving module
-gates its `dynamic` block on `== null`, so no fix was needed there; it's the
-coalesce-with-a-mismatched-default idiom specifically that's dangerous, not
-passing `null` itself.
-
 Separately (not a bug fix — closing the `custom_policy_set_definitions`
 placeholder gap identified while auditing `global-governance`, §1 below):
 the 6 `cmp-*` baseline policies are now packaged into one custom initiative,
@@ -499,7 +492,8 @@ resource (what the policy does).
 
 ## 7. `platform-management` — workspace `platform-management`
 
-**Purpose:** the shared observability + backup + Defender/Sentinel + cost
+**Purpose:** the shared observability + diagnostics/artifact storage +
+Defender/Sentinel + cost
 layer. Doesn't touch RBAC groups, MG hierarchy, or policy definitions — those
 live in `authorization`/`governance`/`policy`.
 
@@ -508,12 +502,10 @@ live in `authorization`/`governance`/`policy`.
 | `log_analytics` | `azurerm_log_analytics_workspace` | **The** platform workspace — sink for every other pattern's diagnostics, Sentinel's home, Defender's data source. Phase 7 §3 |
 | `action_group` | `azurerm_monitor_action_group` | Single alert-routing target reused by metric alerts, Service Health, budgets |
 | `platform_storage_accounts` (`audit`) | Storage account, ZRS, no public access, OAuth-only | Long-term audit-log archive sink |
-| `platform_key_vaults` (`main`) | Key Vault, RBAC, deny-by-default ACLs | Management-plane secrets — distinct lifecycle/owner from `platform-identity`'s Key Vault (Identity team's) |
-| `recovery_services_vaults` (`main`) + backup policies | RSV, zone-redundant | Phase 9/§14 "Backup and Restore… via the centralized Recovery Services Vault" — the default DR posture today |
 | `data_collection_endpoints` / `_rules` / `_associations` | AMA plumbing | Modern telemetry pipeline (VM Insights, custom logs) into the LAW |
 | `role_assignments`, `log_analytics_contributor_role_assignments` | `terraform-azurerm-compeer-role-assignments` | RBAC on these resources — group-based, per `platform-authorization` |
 | `azurerm_security_center_workspace` | — | Points a subscription's Defender findings at this LAW |
-| `*_diagnostics` (storage/KV/RSV) + `*_private_endpoints` | Diagnostic settings + PEs | Storage/KV/RSV logs → LAW; private-only access |
+| `platform_storage_diagnostics` | Diagnostic settings | Storage logs → LAW |
 | `sentinel` | `terraform-azurerm-compeer-sentinel` | Phase 7 — onboarding, data connectors (identity/Defender/threat-intel), scheduled detection rules |
 | `azurerm_monitor_diagnostic_setting.subscription_activity_log` | — | Azure control-plane audit trail (Activity Log) → LAW |
 | `azurerm_monitor_aad_diagnostic_setting.entra` | — | **Phase 1 §9** — Entra sign-in/audit/PIM logs → LAW. The identity-monitoring foundation |
@@ -658,10 +650,10 @@ unprompted.
 | Block | Resource(s) | Why |
 |---|---|---|
 | `platform_identities` | `terraform-azurerm-compeer-user-assigned-identity` | User-assigned managed identities for platform components |
-| `key_vault` | `terraform-azurerm-compeer-keyvault` | RBAC-first, private-by-default platform Key Vault. Phase 4 §2 |
+| `key_vault` | `terraform-azurerm-compeer-keyvault` | RBAC-first platform Key Vault with public access disabled. Phase 4 §2 |
 | `disk_encryption_sets` | `terraform-azurerm-compeer-disk-encryption-set` | CMK disk encryption. Phase 5 §6 — required for `regulated-apps-mg`/Restricted data |
 | `role_assignments` | `terraform-azurerm-compeer-role-assignments` | Group-based RBAC on the Key Vault/identities |
-| `key_vault_private_endpoint` / `key_vault_diagnostics` | — | Private access + logging |
+| `key_vault_diagnostics` | — | Key Vault logging |
 | `management_locks` | — | `CanNotDelete` on the vault/RG |
 
 Certificate contacts are intentionally empty in the smoke-test tfvars (AzureRM
@@ -734,7 +726,7 @@ there's no format `validation` block on it.
 | `vm_diagnostics` | — | Boot/guest diagnostics → LAW |
 | `role_assignments`, `management_locks` | — | Group-based RBAC + lock protection |
 | `operational_contracts` | `terraform-azurerm-compeer-operational-contracts` | Records the AD DS decision below with rationale |
-| `azurerm_backup_protected_vm.dc` | — | Enrols DCs into the Recovery Services Vault from `platform-management` |
+| `recovery_services_vaults` / `azurerm_backup_protected_vm.dc` | — | Creates the identity-subscription DC backup vault and enrols DCs into it |
 | `terraform_data.controller_contract` | — | Precondition on DC configuration completeness |
 
 **Resolved: AD DS role install + promotion are not Terraform-owned.** The

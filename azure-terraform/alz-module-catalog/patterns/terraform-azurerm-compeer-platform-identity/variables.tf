@@ -155,22 +155,6 @@ variable "external_role_assignments" {
   default = {}
 }
 
-variable "key_vault_private_endpoint" {
-  type = object({
-    name                 = optional(string)
-    subnet_id            = string
-    private_dns_zone_ids = list(string)
-    edge_zone            = optional(string)
-    timeouts = optional(object({
-      create = optional(string)
-      update = optional(string)
-      read   = optional(string)
-      delete = optional(string)
-    }), {})
-  })
-  default = null
-}
-
 variable "log_analytics_workspace_id" {
   type        = string
   description = "Shared Log Analytics workspace ID for diagnostics. Leave null to skip Key Vault diagnostics until platform-management is available."

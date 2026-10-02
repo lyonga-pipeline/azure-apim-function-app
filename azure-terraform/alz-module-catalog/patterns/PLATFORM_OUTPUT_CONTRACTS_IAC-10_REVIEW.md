@@ -111,8 +111,8 @@ All 10 fields: **N/A** — no bootstrap-as-code root exists in this catalog
 | `management_log_analytics_workspace_guids` | 🔧 added | Same treatment as above, from `log_analytics_workspace_guid`. |
 | `management_diagnostic_profile` | 🔧 added, and now actually consumed | A pure-constants module, [`terraform-azurerm-compeer-diagnostic-profile`](../modules/terraform-azurerm-compeer-diagnostic-profile), defines the canonical `{log_categories, metric_categories, destination_key}` (Azure's own `allLogs`/`AllMetrics` "send everything" category groups). `platform-management` instantiates it and publishes `diagnostic_profile`. It was first built as a recommendation-only output with nothing else consuming it; since this catalog has no deployed resources yet, that changed to a real fallback default — every `diagnostic_settings`-shaped variable across the catalog now defaults `logs`/`metrics` to this profile when a caller opts a resource into diagnostics but doesn't specify what to log, while an entry with its own explicit `logs`/`metrics` keeps exactly what it asked for. See "Follow-up" below for the full reasoning and a real gap it closed in the process. |
 | `management_action_group_ids` | 🔧 added | Only a singular `action_group_id` existed. The document describes this as *"Published as an empty map until delivered"* (OBS-04 is Phase 2 in the design doc) — but this catalog already has a real action group, so added `action_group_ids = { primary = ... }` rather than an empty placeholder map. True severity/audience keying is still Phase 2 per the document's own framing; not fabricated here. |
-| `management_recovery_services_vault_ids` | ✅ | `recovery_services_vault_ids` (keyed by vault/purpose in this catalog, not literally "region" — same information). |
-| `management_backup_policy_ids` | ✅ | `backup_policy_vm_ids` (keyed `<vault>.<tier>`) + `backup_policy_file_share_ids`. |
+| `management_recovery_services_vault_ids` | ❌ removed from management | Refined placement moved Recovery Services Vault ownership to the protected workload boundary. Identity/DC backup is published by `platform-directory-services`; firewall backup remains pending a connectivity-owned decision. |
+| `management_backup_policy_ids` | ❌ removed from management | Same ownership boundary as the vaults; consumers should not read backup policy IDs from `platform-management`. |
 | `management_platform_storage_account_ids` | ✅ | `platform_storage_account_ids`. |
 
 ### platform-security *(split — see structural note above)*
@@ -263,9 +263,9 @@ which is what confirmed this was already the de facto convention, not a new
 idea) keeps working exactly as before. So the change was: replace the `{}`
 (no logs/metrics at all) default with the canonical profile's `{allLogs =
 {category_group = "allLogs"}}` / `{AllMetrics = {category = "AllMetrics"}}`
-in the 7 places that still had it — `platform-connectivity` (generic
-`diagnostic_settings`), `platform-management` (storage accounts, Key Vaults,
-Recovery Services Vaults), `directory-services` and `cloudflare-connectors`
+in the places that still had it — `platform-connectivity` (generic
+`diagnostic_settings`), `platform-management` (storage accounts),
+`directory-services` and `cloudflare-connectors`
 (per-VM diagnostics), and `workload-spoke` (generic `diagnostic_settings` -
 not its Key Vault one, which already had its own correct default). Each
 site carries a comment pointing back to the shared module as the source of

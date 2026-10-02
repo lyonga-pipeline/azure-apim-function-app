@@ -14,7 +14,7 @@ The most important gaps are:
 
 1. Domain controllers are still modelled in hub subnets and the directory-services workspace reads those hub subnet IDs. The new placement requires a dedicated identity VNet peered to the hub.
 2. Only two domain controller VMs are configured. The placement list requires four: two for the internal forest and two for `compeer.ext`.
-3. Platform Key Vault and storage network settings conflict with the latest decision to avoid platform private endpoints and permit required public access.
+3. Platform Key Vault/storage private endpoints remain on hold; management and identity-security no longer deploy them, but final network access posture still needs approval before those services are used.
 4. Palo Alto Key Vault is still explicitly private and uses a hub private endpoint.
 5. Several patterns use one resource group for an entire stack, while the placement list requires separate network, firewall, hybrid, security, monitoring, storage, identity, and backup resource groups.
 6. Bastion, Sentinel, ExpressRoute, VPN, local network gateway, directory services, and workload spokes exist as capabilities but are disabled or incomplete in the implementation values.
@@ -58,7 +58,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | VPN certificate Key Vault and managed identity | Key Vault scaffolding is enabled but private and created by hybrid pattern in its own RG | Deviates | Place the vault/identity in the approved security Key Vault RG/subscription boundary, or document the exception. Remove its private endpoint if the no-platform-PE decision applies. |
 | Existing private DNS zones and hub links | Connectivity reuses existing zones and creates links | Aligned conceptually | Replace the placeholder `net-ncus-plfc-rg` with the confirmed existing subscription/RG and confirm cross-subscription permissions. Link both hub and identity VNet as required. |
 | Azure Bastion and public IP | Capability exists but is disabled | Capability only | Enable it and place it in `platform-cus-prod-security-rg`. Current connectivity pattern's single RG model must be extended or Bastion moved to a dedicated security pattern/root. |
-| Firewall Recovery Services vault | No connectivity-owned firewall vault is configured; management owns a generic vault | Deviates | Add a connectivity backup RG/vault only if firewall VM backup is approved. Reconcile this with comments that Palo VMs are stateless and intentionally excluded from VM-backup policy. |
+| Firewall Recovery Services vault | No connectivity-owned firewall vault is configured; the old generic management vault has been removed | Still pending | Add a connectivity backup RG/vault only if firewall VM backup is approved. Reconcile this with comments that Palo VMs are stateless and intentionally excluded from VM-backup policy. |
 
 ### Management And Security
 
@@ -67,10 +67,10 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | Log Analytics in management subscription monitoring RG | Implemented in `platform-management` | Aligned conceptually | Set explicit name/RG and validate diagnostics destinations. |
 | Microsoft Sentinel, connectors and break-glass alert | Sentinel and connectors exist but are disabled; action-group receivers are empty | Capability only | Enable after SOC approval, configure approved connectors and alert recipients, and add/test the break-glass analytics/alert rule. |
 | Platform diagnostics/artifact storage in management storage RG | Storage exists but currently shares the management pattern RG | Deviates | Support a dedicated storage RG or split storage ownership into a small platform-storage pattern/root. Set the approved public endpoint/network ACL posture. |
-| Platform storage has no private endpoint | PE map is empty, which aligns with the latest decision | Partially aligned | `public_network_access_enabled = false` leaves the account unreachable without a PE. Set it to the approved public endpoint posture and retain OAuth, key restrictions, TLS and network ACL controls. |
-| Platform Key Vault in security subscription/Key Vault RG | A Key Vault exists in both management and identity-security configurations | Duplicated/ambiguous | Select `platform-identity-security` as the owner if it runs in the security subscription, remove the duplicate management vault, and set an explicit approved name/RG. |
-| Platform Key Vault has no private endpoint | Identity-security PE is disabled, but management KV also has no PE and public access disabled | Partially aligned | Configure one authoritative vault with approved public endpoint/network ACLs. Remove unused duplicate outputs/configuration after state ownership is settled. |
-| Identity/management/firewall backup vault placement | One generic management vault exists | Deviates | Create vaults in the subscriptions/RGs that own protected resources where required by Azure Backup design. Do not use one management-subscription vault as a cross-subscription substitute. |
+| Platform storage has no private endpoint | Management no longer has a PE deployment surface, which aligns with the on-hold placement decision | On hold | `public_network_access_enabled = false` leaves the account unreachable without a PE. Set the approved public endpoint posture or create a connectivity-owned PE after approval. Retain OAuth, key restrictions, TLS and network ACL controls. |
+| Platform Key Vault in security subscription/Key Vault RG | `platform-identity-security` is now the sole platform Key Vault owner; the duplicate management vault surface was removed | Aligned for ownership | Confirm the workspace runs against `sub-security-prod-cus` and keep the explicit approved name/RG. |
+| Platform Key Vault has no private endpoint | Identity-security no longer deploys the PE; private endpoint creation is reserved for a future connectivity-owned composition | On hold | Because the vault has public access disabled, data-plane use requires either an approved connectivity-owned PE or an approved public endpoint/network ACL posture. |
+| Identity/management/firewall backup vault placement | The generic management vault has been removed; directory-services owns the identity/DC vault, while firewall backup remains undecided | Partially aligned | Keep backup vaults in the subscriptions/RGs that own protected resources. Add a connectivity backup RG/vault only if firewall VM backup is approved. |
 
 ### Identity And Directory Services
 
@@ -82,7 +82,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | DC IP addresses match identity VNet CIDRs | Configured DC IPs are `10.0.10.10/11`; current hub subnets are `10.102.3.0/27` and `10.102.3.32/27` | Invalid | Obtain identity VNet CIDRs from IPAM and allocate all four addresses from those subnets. Terraform/provider validation will otherwise fail. |
 | Directory-services consumes identity network | It consumes `platform-connectivity` outputs | Deviates | Replace the connectivity workspace dependency with an identity-network workspace dependency or explicit identity subnet IDs. Keep VM lifecycle separate from VNet lifecycle. |
 | DNS service and forwarding | Current model expects DNS/AD team operational work and has hub `dns_servers = []` | Incomplete | Confirm AD-owned promotion and DNS configuration. After healthy promotion, point the identity VNet and required spokes/hub to approved DNS IPs. Document forwarding/conditional-forwarding and failure behavior. |
-| Identity Recovery Services vault | Directory pattern supports backup enrollment but no identity-owned vault is implemented | Partial | Create identity RSV/policies in the identity subscription backup RG and feed its outputs to directory services. Enrol all four DCs and test restore. |
+| Identity Recovery Services vault | Directory-services supports and configures an identity-owned RSV for DC backup; policy IDs still need final real values | Partial | Replace backup policy placeholders with real policy IDs, enrol all four DCs, and test restore. |
 
 ### Workloads And Sandbox
 
