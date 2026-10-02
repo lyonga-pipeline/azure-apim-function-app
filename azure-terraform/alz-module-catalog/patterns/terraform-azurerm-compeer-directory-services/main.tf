@@ -414,8 +414,8 @@ module "operational_contracts" {
 }
 
 # Tier-0 backup enrolment (deploy-runbook.tf §12: DCs "must be covered by an
-# AD-aware recovery procedure"). Backup POLICIES live in the platform-management
-# recovery-services vault; this pattern enrols the DC VMs against one.
+# AD-aware recovery procedure"). By default this uses the identity-subscription
+# Recovery Services vault created by this pattern.
 resource "azurerm_backup_protected_vm" "dc" {
   for_each = var.dc_backup == null ? {} : var.dc_backup.protected_controllers
 

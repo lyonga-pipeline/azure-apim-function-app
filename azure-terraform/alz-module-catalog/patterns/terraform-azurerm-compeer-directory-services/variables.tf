@@ -361,8 +361,8 @@ variable "dc_backup" {
     `vault_resource_group_name` default to this pattern's own
     recovery_services_vaults["identity"] (if set) - the dedicated identity-
     subscription vault, per the 23 Sep 2026 placement decision. Set them
-    explicitly only to point at a different, externally-managed vault (e.g.
-    the old platform-management-owned vault). `default_backup_policy_id` is
+    explicitly only to point at a different, externally-managed vault during
+    migration/import. `default_backup_policy_id` is
     used unless a controller overrides it. Keys of `protected_controllers`
     must match `domain_controllers` keys.
   EOT
