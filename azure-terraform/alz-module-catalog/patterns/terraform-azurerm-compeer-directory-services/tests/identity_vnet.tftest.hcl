@@ -38,16 +38,16 @@ variables {
 
   domain_controllers = {
     dc01 = {
-      name                = "platform-cus-prod-dc-01"
-      nic_name            = "nic-dc01"
-      subnet_key          = "dc-subnet"
-      private_ip_address  = "10.103.0.4"
+      name               = "platform-cus-prod-dc-01"
+      nic_name           = "nic-dc01"
+      subnet_key         = "dc-subnet"
+      private_ip_address = "10.103.0.4"
     }
     extdc01 = {
-      name                = "platform-cus-prod-extdc-01"
-      nic_name            = "nic-extdc01"
-      subnet_key          = "extdc-subnet"
-      private_ip_address  = "10.103.0.68"
+      name               = "platform-cus-prod-extdc-01"
+      nic_name           = "nic-extdc01"
+      subnet_key         = "extdc-subnet"
+      private_ip_address = "10.103.0.68"
     }
   }
 

@@ -23,6 +23,23 @@ variables {
       }
     }
   }
+  recovery_services_vaults = {
+    firewall = {
+      name                = "platform-cus-prod-rsv"
+      resource_group_name = "platform-cus-prod-backup-rg"
+      backup_policy_vm = {
+        firewall = {
+          name     = "bp-vm-palo-firewall-daily"
+          timezone = "Central Standard Time"
+          backup = {
+            frequency = "Daily"
+            time      = "23:00"
+          }
+          retention_daily = { count = 30 }
+        }
+      }
+    }
+  }
 
   network_interfaces = {
     fw1_mgmt    = { name = "nic-fw1-mgmt", ip_configurations = { primary = { name = "ipc", subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/fw-mgmt", primary = true, private_ip_address_allocation = "Dynamic" } } }
@@ -73,6 +90,14 @@ variables {
       }
     }
   }
+
+  firewall_backup = {
+    backup_policy_key = "firewall"
+    protected_firewalls = {
+      fw1 = {}
+      fw2 = {}
+    }
+  }
 }
 
 run "two_firewalls_two_lbs_bootstrap" {
@@ -102,12 +127,21 @@ run "two_firewalls_two_lbs_bootstrap" {
     condition     = length(local.bootstrap_share_directories) == 4
     error_message = "expected the four PAN-OS bootstrap directories"
   }
+  assert {
+    condition     = length(module.recovery_services_vaults) == 1 && module.recovery_services_vaults["firewall"].name == "platform-cus-prod-rsv"
+    error_message = "expected the firewall Recovery Services vault"
+  }
+  assert {
+    condition     = length(azurerm_backup_protected_vm.firewall) == 2
+    error_message = "expected both firewall VMs to be enrolled for backup"
+  }
 }
 
 run "rejects_file_share_partial_external_storage" {
   command = plan
 
   variables {
+    firewall_backup = null
     virtual_machines = {
       fw1 = {
         name                   = "vm-fw-hub-01"
@@ -126,6 +160,7 @@ run "file_share_self_service_key_from_own_storage" {
   command = plan
 
   variables {
+    firewall_backup = null
     virtual_machines = {
       fw1 = {
         name                   = "vm-fw-hub-01"
@@ -151,6 +186,7 @@ run "rejects_file_share_self_service_without_bootstrap_storage" {
   variables {
     bootstrap_storage_account = null
     bootstrap_share_layout    = {}
+    firewall_backup           = null
     virtual_machines = {
       fw1 = {
         name                   = "vm-fw-hub-01"

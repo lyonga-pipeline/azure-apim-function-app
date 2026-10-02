@@ -71,6 +71,13 @@ locals {
       ]
     ]) : item.key => item
   } : {}
+
+  firewall_backup_enabled           = var.enabled && var.firewall_backup != null
+  firewall_backup_vault_key         = try(var.firewall_backup.recovery_services_vault_key, "firewall")
+  firewall_backup_policy_key        = try(var.firewall_backup.backup_policy_key, null)
+  firewall_backup_vault_name        = try(coalesce(try(var.firewall_backup.vault_name, null), try(module.recovery_services_vaults[local.firewall_backup_vault_key].name, null)), null)
+  firewall_backup_vault_rg_name     = try(coalesce(try(var.firewall_backup.vault_resource_group_name, null), try(module.recovery_services_vaults[local.firewall_backup_vault_key].resource_group_name, null)), null)
+  firewall_backup_default_policy_id = try(coalesce(try(var.firewall_backup.default_backup_policy_id, null), try(module.recovery_services_vaults[local.firewall_backup_vault_key].backup_policy_vm_ids[local.firewall_backup_policy_key], null)), null)
 }
 
 resource "terraform_data" "bootstrap_contract" {
@@ -91,6 +98,33 @@ resource "terraform_data" "bootstrap_contract" {
   }
 }
 
+resource "terraform_data" "firewall_backup_contract" {
+  count = local.firewall_backup_enabled ? 1 : 0
+
+  input = {
+    vault_name           = local.firewall_backup_vault_name
+    vault_resource_group = local.firewall_backup_vault_rg_name
+    protected_firewalls  = sort(keys(var.firewall_backup.protected_firewalls))
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.firewall_backup_vault_name != null && local.firewall_backup_vault_rg_name != null
+      error_message = "firewall_backup must either set vault_name/vault_resource_group_name or reference a recovery_services_vaults entry with recovery_services_vault_key."
+    }
+    precondition {
+      condition     = alltrue([for key in keys(var.firewall_backup.protected_firewalls) : contains(keys(var.virtual_machines), key)])
+      error_message = "firewall_backup.protected_firewalls keys must match virtual_machines keys."
+    }
+    precondition {
+      condition = local.firewall_backup_default_policy_id != null || alltrue([
+        for item in values(var.firewall_backup.protected_firewalls) : try(item.backup_policy_id, null) != null
+      ])
+      error_message = "firewall_backup must set backup_policy_key/default_backup_policy_id, or every protected_firewalls entry must set backup_policy_id."
+    }
+  }
+}
+
 data "azurerm_storage_account" "bootstrap" {
   count = local.need_managed_bootstrap_key ? 1 : 0
 
@@ -98,6 +132,28 @@ data "azurerm_storage_account" "bootstrap" {
   resource_group_name = var.resource_group_name
 
   depends_on = [module.bootstrap_storage]
+}
+
+module "recovery_services_vaults" {
+  source   = "../../modules/terraform-azurerm-compeer-recovery-services-vault"
+  for_each = var.enabled ? var.recovery_services_vaults : {}
+
+  name                               = each.value.name
+  resource_group_name                = coalesce(try(each.value.resource_group_name, null), var.resource_group_name)
+  location                           = coalesce(try(each.value.location, null), var.location)
+  sku                                = try(each.value.sku, "Standard")
+  storage_mode_type                  = try(each.value.storage_mode_type, "GeoRedundant")
+  public_network_access_enabled      = try(each.value.public_network_access_enabled, null)
+  immutability                       = try(each.value.immutability, null)
+  cross_region_restore_enabled       = try(each.value.cross_region_restore_enabled, null)
+  classic_vmware_replication_enabled = try(each.value.classic_vmware_replication_enabled, null)
+  identity                           = try(each.value.identity, null)
+  encryption                         = try(each.value.encryption, null)
+  monitoring                         = try(each.value.monitoring, null)
+  backup_policy_vm                   = try(each.value.backup_policy_vm, {})
+  backup_policy_file_share           = try(each.value.backup_policy_file_share, {})
+  timeouts                           = try(each.value.timeouts, {})
+  tags                               = var.tags
 }
 
 resource "azurerm_marketplace_agreement" "palo_alto" {
@@ -279,4 +335,15 @@ resource "azurerm_linux_virtual_machine" "vm" {
     azurerm_marketplace_agreement.palo_alto,
     azurerm_storage_share_file.bootstrap,
   ]
+}
+
+resource "azurerm_backup_protected_vm" "firewall" {
+  for_each = local.firewall_backup_enabled ? var.firewall_backup.protected_firewalls : {}
+
+  resource_group_name = local.firewall_backup_vault_rg_name
+  recovery_vault_name = local.firewall_backup_vault_name
+  source_vm_id        = azurerm_linux_virtual_machine.vm[each.key].id
+  backup_policy_id    = coalesce(try(each.value.backup_policy_id, null), local.firewall_backup_default_policy_id)
+
+  depends_on = [terraform_data.firewall_backup_contract]
 }

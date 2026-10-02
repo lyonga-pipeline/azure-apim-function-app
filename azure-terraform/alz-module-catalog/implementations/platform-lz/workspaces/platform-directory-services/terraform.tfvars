@@ -97,6 +97,17 @@ directory_services = {
     identity = {
       sku               = "Standard"
       storage_mode_type = "GeoRedundant"
+      backup_policy_vm = {
+        domain_controllers = {
+          name     = "bp-vm-domain-controllers-daily"
+          timezone = "Central Standard Time"
+          backup = {
+            frequency = "Daily"
+            time      = "23:00"
+          }
+          retention_daily = { count = 30 }
+        }
+      }
     }
   }
 
@@ -247,10 +258,7 @@ directory_services = {
   # default - vault_name/vault_resource_group_name are left unset so the
   # pattern defaults them to that locally-created vault.
   dc_backup = {
-    # PLACEHOLDER - replace with a real backup policy ID once
-    # recovery_services_vaults.identity.backup_policy_vm defines one (or an
-    # approved existing policy). Not a valid Azure resource ID.
-    default_backup_policy_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-identity/providers/Microsoft.RecoveryServices/vaults/platform-cus-prod-identity-rsv/backupPolicies/REPLACE-ME"
+    backup_policy_key = "domain_controllers"
     protected_controllers = {
       dc01    = {}
       dc02    = {}

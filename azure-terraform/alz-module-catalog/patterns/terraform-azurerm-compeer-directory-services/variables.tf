@@ -362,14 +362,17 @@ variable "dc_backup" {
     recovery_services_vaults["identity"] (if set) - the dedicated identity-
     subscription vault, per the 23 Sep 2026 placement decision. Set them
     explicitly only to point at a different, externally-managed vault during
-    migration/import. `default_backup_policy_id` is
-    used unless a controller overrides it. Keys of `protected_controllers`
-    must match `domain_controllers` keys.
+    migration/import. `backup_policy_key` resolves a VM backup policy created
+    in recovery_services_vaults["identity"]; `default_backup_policy_id` is for
+    external policies. Per-controller `backup_policy_id` wins over either
+    default. Keys of `protected_controllers` must match `domain_controllers`
+    keys.
   EOT
   type = object({
     vault_name                = optional(string)
     vault_resource_group_name = optional(string)
-    default_backup_policy_id  = string
+    backup_policy_key         = optional(string)
+    default_backup_policy_id  = optional(string)
     protected_controllers = map(object({
       backup_policy_id = optional(string)
     }))

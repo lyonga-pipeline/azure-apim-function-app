@@ -647,6 +647,11 @@ unprompted.
 4 §2-3/§7-8 (the managed-identity half; federated/CI-CD identity is
 `workload-identity`).
 
+The pattern module name is historical and a little misleading: this is the
+security-subscription Key Vault / platform managed-identity boundary. Domain
+controllers, DNS, identity VNet resources, and the DC backup vault live under
+`directory-services`.
+
 | Block | Resource(s) | Why |
 |---|---|---|
 | `platform_identities` | `terraform-azurerm-compeer-user-assigned-identity` | User-assigned managed identities for platform components |
@@ -699,6 +704,7 @@ ALZ Doc §8.5 (hub firewall, default-deny, Panorama-managed).
 | `terraform_data.bootstrap_contract` | — | Precondition guarding bootstrap completeness before VM creation |
 | `public_ips` / `network_interfaces` / `load_balancers` | — | Untrust/trust/management NICs, HA internal LBs |
 | `azurerm_linux_virtual_machine.vm` | — | The firewall VMs themselves |
+| `recovery_services_vaults` / `azurerm_backup_protected_vm.firewall` | — | Creates the connectivity-subscription firewall backup vault and enrols the Palo VMs when backup is approved/configured |
 
 Firewall policy, routing, and NAT are managed through Panorama post-boot — not
 Terraform — consistent with Compeer's existing operating model (design doc
@@ -726,7 +732,7 @@ there's no format `validation` block on it.
 | `vm_diagnostics` | — | Boot/guest diagnostics → LAW |
 | `role_assignments`, `management_locks` | — | Group-based RBAC + lock protection |
 | `operational_contracts` | `terraform-azurerm-compeer-operational-contracts` | Records the AD DS decision below with rationale |
-| `recovery_services_vaults` / `azurerm_backup_protected_vm.dc` | — | Creates the identity-subscription DC backup vault and enrols DCs into it |
+| `recovery_services_vaults` / `azurerm_backup_protected_vm.dc` | — | Creates the identity-subscription DC backup vault, creates the DC VM backup policy, and enrols DCs into it |
 | `terraform_data.controller_contract` | — | Precondition on DC configuration completeness |
 
 **Resolved: AD DS role install + promotion are not Terraform-owned.** The

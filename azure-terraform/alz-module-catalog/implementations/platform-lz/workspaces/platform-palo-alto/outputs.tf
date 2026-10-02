@@ -38,6 +38,26 @@ output "marketplace_agreement_id" {
   value       = module.palo_alto.marketplace_agreement_id
 }
 
+output "recovery_services_vault_ids" {
+  description = "Recovery Services vault IDs keyed by input key."
+  value       = module.palo_alto.recovery_services_vault_ids
+}
+
+output "recovery_services_vault_names" {
+  description = "Recovery Services vault names keyed by input key."
+  value       = module.palo_alto.recovery_services_vault_names
+}
+
+output "backup_policy_vm_ids" {
+  description = "VM backup policy IDs keyed <vault>.<policy>."
+  value       = module.palo_alto.backup_policy_vm_ids
+}
+
+output "firewall_backup_protected_vm_ids" {
+  description = "Backup protected-item IDs for enrolled Palo Alto firewall VMs."
+  value       = module.palo_alto.firewall_backup_protected_vm_ids
+}
+
 output "bootstrap_key_vault_id" {
   description = "Bootstrap Key Vault ID when configured."
   value       = module.palo_alto.bootstrap_key_vault_id

@@ -5,12 +5,18 @@ data "tfe_outputs" "connectivity" {
 }
 
 locals {
+  palo_alto_enabled = try(var.palo_alto.enabled, false)
+
   connectivity_outputs = merge(
     try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
-  resource_group_name = coalesce(try(var.palo_alto.resource_group_name, null), try(local.connectivity_outputs.hub_resource_group_name, null), try(local.connectivity_outputs.resource_group_name, null), "unused-disabled-rg")
+  firewall_resource_group_name     = coalesce(try(var.palo_alto.resource_group.name, null), try(var.palo_alto.resource_group_name, null), "platform-cus-prod-firewall-rg")
+  backup_resource_group_name_input = coalesce(try(var.palo_alto.backup_resource_group.name, null), "platform-cus-prod-backup-rg")
+
+  resource_group_name        = local.palo_alto_enabled ? module.firewall_resource_group[0].name : local.firewall_resource_group_name
+  backup_resource_group_name = local.palo_alto_enabled ? module.backup_resource_group[0].name : local.backup_resource_group_name_input
 
   network_interfaces = {
     for nic_key, nic in try(var.palo_alto.network_interfaces, {}) : nic_key => merge({ name = module.naming.network_interface_names[nic_key] }, nic, {
@@ -41,6 +47,17 @@ locals {
       try(var.palo_alto_bootstrap_storage_keys[vm_key], null) == null ? vm : merge(vm, {
         bootstrap = merge(try(vm.bootstrap, {}), { storage_account_key = var.palo_alto_bootstrap_storage_keys[vm_key] })
       })
+    )
+  }
+
+  recovery_services_vaults = {
+    for vault_key, vault in try(var.palo_alto.recovery_services_vaults, {}) : vault_key => merge(
+      { name = module.naming.recovery_services_vault_names[vault_key] },
+      vault,
+      {
+        resource_group_name = coalesce(try(vault.resource_group_name, null), local.backup_resource_group_name)
+        location            = coalesce(try(vault.location, null), var.location)
+      }
     )
   }
 
@@ -91,6 +108,24 @@ locals {
   }
 }
 
+module "firewall_resource_group" {
+  source = "../../../../modules/terraform-azurerm-compeer-resource-group"
+  count  = local.palo_alto_enabled ? 1 : 0
+
+  name     = local.firewall_resource_group_name
+  location = var.location
+  tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+}
+
+module "backup_resource_group" {
+  source = "../../../../modules/terraform-azurerm-compeer-resource-group"
+  count  = local.palo_alto_enabled ? 1 : 0
+
+  name     = local.backup_resource_group_name_input
+  location = var.location
+  tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+}
+
 module "palo_alto" {
   source = "../../../../patterns/terraform-azurerm-compeer-palo-alto-hub"
 
@@ -105,6 +140,8 @@ module "palo_alto" {
   bootstrap_storage_account = local.bootstrap_storage_account
   bootstrap_key_vault       = local.bootstrap_key_vault
   bootstrap_share_layout    = try(var.palo_alto.bootstrap_share_layout, {})
+  recovery_services_vaults  = local.recovery_services_vaults
+  firewall_backup           = try(var.palo_alto.firewall_backup, null)
   marketplace_agreement     = try(var.palo_alto.marketplace_agreement, { enabled = false })
   public_ips                = local.std_pip
   network_interfaces        = local.network_interfaces

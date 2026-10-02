@@ -47,6 +47,47 @@ variable "bootstrap_storage_account" {
   default = null
 }
 
+variable "recovery_services_vaults" {
+  description = "Recovery Services vault(s) this pattern creates and owns directly, such as the connectivity-subscription firewall VM backup vault."
+  type = map(object({
+    name                               = string
+    resource_group_name                = optional(string)
+    location                           = optional(string)
+    sku                                = optional(string, "Standard")
+    storage_mode_type                  = optional(string, "GeoRedundant")
+    public_network_access_enabled      = optional(bool)
+    immutability                       = optional(string)
+    cross_region_restore_enabled       = optional(bool)
+    classic_vmware_replication_enabled = optional(bool)
+    identity = optional(object({
+      type         = string
+      identity_ids = optional(list(string), [])
+    }))
+    encryption = optional(object({
+      key_id                            = string
+      infrastructure_encryption_enabled = optional(bool)
+      use_system_assigned_identity      = optional(bool)
+      user_assigned_identity_id         = optional(string)
+    }))
+    monitoring = optional(object({
+      alerts_for_all_job_failures_enabled            = optional(bool)
+      alerts_for_all_failover_issues_enabled         = optional(bool)
+      alerts_for_all_replication_issues_enabled      = optional(bool)
+      alerts_for_critical_operation_failures_enabled = optional(bool)
+      email_notifications_for_site_recovery_enabled  = optional(bool)
+    }))
+    backup_policy_vm         = optional(any, {})
+    backup_policy_file_share = optional(any, {})
+    timeouts = optional(object({
+      create = optional(string)
+      update = optional(string)
+      read   = optional(string)
+      delete = optional(string)
+    }), {})
+  }))
+  default = {}
+}
+
 variable "public_ips" {
   description = "Public IPs keyed by logical name for untrust/egress interfaces or public load balancers."
   type = map(object({
@@ -223,6 +264,27 @@ variable "virtual_machines" {
     ])
     error_message = "bootstrap.mode = custom-data requires bootstrap.custom_data or bootstrap.init_cfg_content."
   }
+}
+
+variable "firewall_backup" {
+  description = <<-EOT
+    Enrol firewall VMs into a Recovery Services vault. By default, vault_name /
+    vault_resource_group_name resolve from recovery_services_vaults["firewall"].
+    Set backup_policy_key to use a VM backup policy created inside that vault,
+    or set default_backup_policy_id / per-firewall backup_policy_id for an
+    external policy.
+  EOT
+  type = object({
+    recovery_services_vault_key = optional(string, "firewall")
+    vault_name                  = optional(string)
+    vault_resource_group_name   = optional(string)
+    backup_policy_key           = optional(string)
+    default_backup_policy_id    = optional(string)
+    protected_firewalls = map(object({
+      backup_policy_id = optional(string)
+    }))
+  })
+  default = null
 }
 
 variable "bootstrap_share_layout" {

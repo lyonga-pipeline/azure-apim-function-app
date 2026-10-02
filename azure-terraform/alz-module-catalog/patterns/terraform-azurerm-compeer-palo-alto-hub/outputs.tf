@@ -38,6 +38,29 @@ output "marketplace_agreement_id" {
   value       = try(azurerm_marketplace_agreement.palo_alto[0].id, null)
 }
 
+output "recovery_services_vault_ids" {
+  description = "Recovery Services vault IDs keyed the same as var.recovery_services_vaults."
+  value       = { for key, value in module.recovery_services_vaults : key => value.id }
+}
+
+output "recovery_services_vault_names" {
+  description = "Recovery Services vault names keyed the same as var.recovery_services_vaults."
+  value       = { for key, value in module.recovery_services_vaults : key => value.name }
+}
+
+output "backup_policy_vm_ids" {
+  description = "VM backup policy IDs keyed <vault>.<policy>."
+  value = merge({}, [
+    for vault_key, vault in module.recovery_services_vaults :
+    { for policy_key, id in vault.backup_policy_vm_ids : "${vault_key}.${policy_key}" => id }
+  ]...)
+}
+
+output "firewall_backup_protected_vm_ids" {
+  description = "Backup protected-item IDs for enrolled firewall VMs."
+  value       = { for key, value in azurerm_backup_protected_vm.firewall : key => value.id }
+}
+
 output "bootstrap_key_vault_id" {
   description = "Bootstrap Key Vault ID when configured."
   value       = try(module.bootstrap_key_vault[0].id, null)

@@ -68,6 +68,7 @@ organize files in, or no actual config content for the firewall to read).
 | NICs | `network-interface` module | `ip_forwarding_enabled = true`; 3 per firewall + any Sunstream NICs |
 | Load balancers | `load-balancer` module | `trust` ILB + `sunstream` ILB (just another map key) |
 | Firewall VMs | `azurerm_linux_virtual_machine.vm` (for_each) | Custom, image-based: `source_image_reference` + `plan`; system-assigned identity, `custom_data` bootstrap. **This is the only VM path** — the `PaloAltoNetworks/swfw-modules` AVM module was removed. |
+| Firewall backup | `recovery-services-vault` module + `azurerm_backup_protected_vm.firewall` | Optional connectivity-subscription RSV and VM backup enrolment for firewall VMs |
 
 ## Bootstrap (`virtual_machines[*].bootstrap`)
 
@@ -122,7 +123,8 @@ in Terraform state. Prefer `custom-data` mode + SSH keys. Outputs:
 `virtual_machine_ids`, `virtual_machine_identity_principal_ids`,
 `network_interface_ids`, `load_balancer_ids`, `public_ip_ids`,
 `bootstrap_storage_account_id`, `bootstrap_storage_share_ids`,
-`marketplace_agreement_id`.
+`marketplace_agreement_id`, `recovery_services_vault_ids`,
+`backup_policy_vm_ids`, and `firewall_backup_protected_vm_ids`.
 
 ## Migration
 
@@ -148,7 +150,8 @@ acceptance, the bootstrap process, and routing ownership are approved.
 ## Tests
 
 `terraform test` - 2 firewalls / 2 LBs / 6 NICs, both bootstrap modes rendered,
-the four bootstrap directories, and the file-share-without-key rejection.
+the four bootstrap directories, firewall backup enrolment, and the
+file-share-without-key rejection.
 
 ## Bootstrap storage / Key Vault network posture
 

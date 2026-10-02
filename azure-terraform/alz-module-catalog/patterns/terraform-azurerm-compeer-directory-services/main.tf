@@ -413,6 +413,34 @@ module "operational_contracts" {
   contracts = var.operational_contracts
 }
 
+locals {
+  dc_backup_policy_key        = try(var.dc_backup.backup_policy_key, null)
+  dc_backup_default_policy_id = try(coalesce(try(var.dc_backup.default_backup_policy_id, null), try(module.recovery_services_vaults["identity"].backup_policy_vm_ids[local.dc_backup_policy_key], null)), null)
+}
+
+resource "terraform_data" "dc_backup_contract" {
+  count = var.dc_backup == null ? 0 : 1
+
+  input = {
+    vault_name            = try(coalesce(try(var.dc_backup.vault_name, null), try(module.recovery_services_vaults["identity"].name, null)), null)
+    vault_resource_group  = coalesce(try(var.dc_backup.vault_resource_group_name, null), module.resource_group.name)
+    protected_controllers = sort(keys(var.dc_backup.protected_controllers))
+  }
+
+  lifecycle {
+    precondition {
+      condition     = alltrue([for key in keys(var.dc_backup.protected_controllers) : contains(keys(var.domain_controllers), key)])
+      error_message = "dc_backup.protected_controllers keys must match domain_controllers keys."
+    }
+    precondition {
+      condition = local.dc_backup_default_policy_id != null || alltrue([
+        for item in values(var.dc_backup.protected_controllers) : try(item.backup_policy_id, null) != null
+      ])
+      error_message = "dc_backup must set backup_policy_key/default_backup_policy_id, or every protected_controllers entry must set backup_policy_id."
+    }
+  }
+}
+
 # Tier-0 backup enrolment (deploy-runbook.tf §12: DCs "must be covered by an
 # AD-aware recovery procedure"). By default this uses the identity-subscription
 # Recovery Services vault created by this pattern.
@@ -425,5 +453,7 @@ resource "azurerm_backup_protected_vm" "dc" {
   resource_group_name = coalesce(try(var.dc_backup.vault_resource_group_name, null), module.resource_group.name)
   recovery_vault_name = coalesce(try(var.dc_backup.vault_name, null), try(module.recovery_services_vaults["identity"].name, null))
   source_vm_id        = module.domain_controllers[each.key].id
-  backup_policy_id    = coalesce(try(each.value.backup_policy_id, null), var.dc_backup.default_backup_policy_id)
+  backup_policy_id    = coalesce(try(each.value.backup_policy_id, null), local.dc_backup_default_policy_id)
+
+  depends_on = [terraform_data.dc_backup_contract]
 }

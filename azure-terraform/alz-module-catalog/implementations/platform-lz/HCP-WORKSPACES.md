@@ -55,14 +55,14 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 |---|---|---|---|
 | `platform-compeer-management` | management | `platform-management` | Log Analytics, platform diagnostics/artifact storage accounts, action groups, DCR / DCE, activity-log + Entra diagnostics, **Sentinel onboarding + connectors + analytics rules**, **Defender for Cloud plans + security contacts**, **subscription-scope budgets** |
 | `platform-compeer-identity` | identity | `platform-identity-security` | Platform Key Vault, user-assigned managed identities, identity-scope RBAC, Key Vault diagnostics. Platform Key Vault private endpoint remains on hold and must be connectivity-owned when approved. |
-| `platform-compeer-directory-services` | directory-services | `platform-directory-services` | Domain-controller VMs + NICs + data disks, AD DS role install, DC promotion hook, DC backup protection |
+| `platform-compeer-directory-services` | directory-services | `platform-directory-services` | Domain-controller VMs + NICs + data disks, AD DS role install, DC promotion hook, identity-subscription DC Recovery Services vault + backup protection |
 
 ### Phase 3 — Connectivity & edge
 
 | Workspace | Component | Working dir | Deploys |
 |---|---|---|---|
 | `platform-compeer-connectivity` | connectivity | `platform-connectivity` | Hub VNet + all subnets, NSGs, route tables, DDoS plan, Bastion, private-link DNS zones + VNet links, private DNS resolver, route server |
-| `platform-compeer-palo-alto` | palo-alto | `platform-palo-alto` | Palo Alto VM-Series firewalls (2+), NICs, trust/untrust/Sunstream internal LBs, public IPs, `azurerm_marketplace_agreement`, bootstrap storage + Key Vault (inline) or bootstrap share layout |
+| `platform-compeer-palo-alto` | palo-alto | `platform-palo-alto` | Palo Alto VM-Series firewalls (2+), NICs, trust/untrust/Sunstream internal LBs, public IPs, `azurerm_marketplace_agreement`, bootstrap storage + Key Vault (inline) or bootstrap share layout, connectivity-subscription firewall Recovery Services vault + backup protection |
 | `platform-compeer-cloudflare-connectors` | cloudflare-connectors | `platform-cloudflare-connectors` | Cloudflare Tunnel connector VMs in the hub (Azure side), NICs, `cloudflared` install |
 | `platform-compeer-cloudflare-edge` | cloudflare-edge | `platform-cloudflare-edge` | Cloudflare zones, tunnels, tunnel configs, **public DNS records**, Access applications + policies — `cloudflare` provider, `CLOUDFLARE_API_TOKEN` env var |
 | `platform-compeer-hybrid-connectivity` | hybrid-connectivity | `platform-hybrid-connectivity` | ExpressRoute circuit + gateway + connections, VPN gateway + local network gateways + connections, gateway public IPs |

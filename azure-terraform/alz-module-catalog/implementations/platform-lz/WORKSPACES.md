@@ -158,6 +158,10 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
   - The platform Key Vault private endpoint is intentionally not published here:
     the refined placement keeps platform private endpoints in the connectivity
     subscription because they attach to the hub VNet private endpoint subnet.
+  - The pattern module name is historical: `terraform-azurerm-compeer-platform-identity`
+    is consumed by the `platform-identity-security` workspace and deploys the
+    security-subscription Key Vault/managed-identity boundary, not the domain
+    controller estate.
 
 `platform-hybrid-connectivity` publishes:
 
@@ -180,6 +184,9 @@ all 10 design-doc phases) is documented in `IDENTITY-RBAC-IAC-BOUNDARY.md`.
 - `load_balancer_ids`
 - `virtual_machine_ids`
 - `virtual_machine_identity_principal_ids`
+- `recovery_services_vault_ids`
+- `backup_policy_vm_ids`
+- `firewall_backup_protected_vm_ids`
 
 `platform-directory-services` publishes:
 

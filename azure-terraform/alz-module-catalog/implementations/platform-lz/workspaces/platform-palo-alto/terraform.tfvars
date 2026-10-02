@@ -43,6 +43,14 @@ tags = {
 palo_alto = {
   enabled = true
 
+  # Resource-placement sheet:
+  # - firewall resources: connectivity-mg / sub-connectivity-prod-cus /
+  #   platform-cus-prod-firewall-rg
+  # - firewall backup vault: connectivity-mg / sub-connectivity-prod-cus /
+  #   platform-cus-prod-backup-rg
+  resource_group        = { name = "platform-cus-prod-firewall-rg" }
+  backup_resource_group = { name = "platform-cus-prod-backup-rg" }
+
   # Accept the VM-Series image agreement once per subscription (NOT the template).
   marketplace_agreement = {
     enabled   = true
@@ -147,6 +155,39 @@ palo_alto = {
       rules = {
         all = { frontend_ip_configuration_name = "sunstream", backend_address_pool_names = ["fw"], probe_name = "https", protocol = "All", frontend_port = 0, backend_port = 0, floating_ip_enabled = true }
       }
+    }
+  }
+
+  recovery_services_vaults = {
+    firewall = {
+      # Workbook-approved name, intentionally explicit instead of the generic
+      # keyed naming-module default (which would include the "firewall" key).
+      name              = "platform-cus-prod-rsv"
+      sku               = "Standard"
+      storage_mode_type = "GeoRedundant"
+      backup_policy_vm = {
+        firewall = {
+          name     = "bp-vm-palo-firewall-daily"
+          timezone = "Central Standard Time"
+          backup = {
+            frequency = "Daily"
+            time      = "23:00"
+          }
+          retention_daily = { count = 30 }
+        }
+      }
+    }
+  }
+
+  # Enrolls both Palo Alto VMs into recovery_services_vaults.firewall using
+  # the VM backup policy created in that same vault. If the network team later
+  # confirms the firewalls should remain stateless/no-VM-backup, remove this
+  # block and the vault above together.
+  firewall_backup = {
+    backup_policy_key = "firewall"
+    protected_firewalls = {
+      fw1 = {}
+      fw2 = {}
     }
   }
 

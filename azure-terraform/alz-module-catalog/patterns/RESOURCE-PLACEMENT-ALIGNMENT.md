@@ -58,7 +58,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | VPN certificate Key Vault and managed identity | Key Vault scaffolding is enabled but private and created by hybrid pattern in its own RG | Deviates | Place the vault/identity in the approved security Key Vault RG/subscription boundary, or document the exception. Remove its private endpoint if the no-platform-PE decision applies. |
 | Existing private DNS zones and hub links | Connectivity reuses existing zones and creates links | Aligned conceptually | Replace the placeholder `net-ncus-plfc-rg` with the confirmed existing subscription/RG and confirm cross-subscription permissions. Link both hub and identity VNet as required. |
 | Azure Bastion and public IP | Capability exists but is disabled | Capability only | Enable it and place it in `platform-cus-prod-security-rg`. Current connectivity pattern's single RG model must be extended or Bastion moved to a dedicated security pattern/root. |
-| Firewall Recovery Services vault | No connectivity-owned firewall vault is configured; the old generic management vault has been removed | Still pending | Add a connectivity backup RG/vault only if firewall VM backup is approved. Reconcile this with comments that Palo VMs are stateless and intentionally excluded from VM-backup policy. |
+| Firewall Recovery Services vault | `platform-palo-alto` now owns `platform-cus-prod-backup-rg`, `platform-cus-prod-rsv`, a VM backup policy, and optional Palo VM backup enrollment | Aligned for placement | Confirm retention/immutability with architecture and run a restore test. If the network team decides Palo VMs are stateless/no-backup, remove the vault and enrollment together. |
 
 ### Management And Security
 
@@ -70,7 +70,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | Platform storage has no private endpoint | Management no longer has a PE deployment surface, which aligns with the on-hold placement decision | On hold | `public_network_access_enabled = false` leaves the account unreachable without a PE. Set the approved public endpoint posture or create a connectivity-owned PE after approval. Retain OAuth, key restrictions, TLS and network ACL controls. |
 | Platform Key Vault in security subscription/Key Vault RG | `platform-identity-security` is now the sole platform Key Vault owner; the duplicate management vault surface was removed | Aligned for ownership | Confirm the workspace runs against `sub-security-prod-cus` and keep the explicit approved name/RG. |
 | Platform Key Vault has no private endpoint | Identity-security no longer deploys the PE; private endpoint creation is reserved for a future connectivity-owned composition | On hold | Because the vault has public access disabled, data-plane use requires either an approved connectivity-owned PE or an approved public endpoint/network ACL posture. |
-| Identity/management/firewall backup vault placement | The generic management vault has been removed; directory-services owns the identity/DC vault, while firewall backup remains undecided | Partially aligned | Keep backup vaults in the subscriptions/RGs that own protected resources. Add a connectivity backup RG/vault only if firewall VM backup is approved. |
+| Identity/management/firewall backup vault placement | The generic management vault has been removed; directory-services owns the identity/DC vault and `platform-palo-alto` owns the connectivity/firewall vault | Aligned for placement | Keep backup vaults with the subscriptions/RGs that own protected resources. Confirm policy retention and restore evidence for both vaults. |
 
 ### Identity And Directory Services
 
@@ -82,7 +82,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | DC IP addresses match identity VNet CIDRs | Configured DC IPs are `10.0.10.10/11`; current hub subnets are `10.102.3.0/27` and `10.102.3.32/27` | Invalid | Obtain identity VNet CIDRs from IPAM and allocate all four addresses from those subnets. Terraform/provider validation will otherwise fail. |
 | Directory-services consumes identity network | It consumes `platform-connectivity` outputs | Deviates | Replace the connectivity workspace dependency with an identity-network workspace dependency or explicit identity subnet IDs. Keep VM lifecycle separate from VNet lifecycle. |
 | DNS service and forwarding | Current model expects DNS/AD team operational work and has hub `dns_servers = []` | Incomplete | Confirm AD-owned promotion and DNS configuration. After healthy promotion, point the identity VNet and required spokes/hub to approved DNS IPs. Document forwarding/conditional-forwarding and failure behavior. |
-| Identity Recovery Services vault | Directory-services supports and configures an identity-owned RSV for DC backup; policy IDs still need final real values | Partial | Replace backup policy placeholders with real policy IDs, enrol all four DCs, and test restore. |
+| Identity Recovery Services vault | Directory-services configures `platform-cus-prod-identity-rsv`, creates a DC VM backup policy, and enrols all four DCs by key | Aligned for placement | Confirm retention/immutability and test restore once the four DCs are deployed. |
 
 ### Workloads And Sandbox
 
@@ -114,7 +114,7 @@ Preserve separate states to limit blast radius. The placement changes do not jus
 | `platform-policy` | Additional policy assignments, exemptions and remediation |
 | `platform-authorization` | Entra groups, custom roles and RBAC assignments |
 | `platform-connectivity` | Hub VNet, hub subnets, NSGs, UDRs and existing private DNS links |
-| `platform-palo-alto` | Palo VMs, NICs, load balancers, public IPs and bootstrap resources in firewall RG |
+| `platform-palo-alto` | Palo VMs, NICs, load balancers, public IPs and bootstrap resources in firewall RG; firewall backup RG/RSV/protection when enabled |
 | `platform-hybrid-connectivity` | ER/VPN gateways, circuits and connections in hybrid RG |
 | `platform-identity-network` (new) | Identity VNet, DC subnets, NSGs and UDRs |
 | `platform-network-peering` | Hub-to-identity and hub-to-workload peerings |

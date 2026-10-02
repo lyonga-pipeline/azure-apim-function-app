@@ -12,9 +12,10 @@ module "naming" {
   environment = var.environment
   component   = "palo-alto"
 
-  network_interface_keys = keys(try(var.palo_alto.network_interfaces, {}))
-  load_balancer_keys     = keys(try(var.palo_alto.load_balancers, {}))
-  public_ip_keys         = keys(try(var.palo_alto.public_ips, {}))
+  network_interface_keys       = keys(try(var.palo_alto.network_interfaces, {}))
+  load_balancer_keys           = keys(try(var.palo_alto.load_balancers, {}))
+  public_ip_keys               = keys(try(var.palo_alto.public_ips, {}))
+  recovery_services_vault_keys = keys(try(var.palo_alto.recovery_services_vaults, {}))
 }
 
 module "naming_vm" {
