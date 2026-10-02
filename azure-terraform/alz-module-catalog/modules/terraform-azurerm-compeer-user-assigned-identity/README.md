@@ -20,7 +20,8 @@ module "workload_identity" {
 
 | Input | Type | Default | Notes |
 |---|---|---|---|
-| `name` / `resource_group_name` / `location` | string | - | all ForceNew |
+| `name` | string | - | ForceNew; 3-128 chars, starts with a letter/number, alphanumerics/hyphen/underscore only |
+| `resource_group_name` / `location` | string | - | ForceNew; must not be empty |
 | `tags` | map(string) | `{}` | update in place |
 
 ## Outputs
@@ -35,6 +36,11 @@ identity - safe to reference from role assignments.
 
 State exposure: none.
 
+When this identity is intended for VM/VMSS attachment, keep the generated name
+to 24 characters or fewer at the consuming pattern/naming layer. Azure allows
+longer user-assigned identity names, but VM/VMSS attachment has a shorter
+practical limit.
+
 ## Migration
 
 Interface unchanged (2 consumers). Added input/output descriptions plus `name`
@@ -42,4 +48,5 @@ and `tenant_id` outputs.
 
 ## Tests
 
-`terraform test` (offline): create.
+`terraform test` (offline): creation wiring, outputs, name boundary checks, and
+required string validation.

@@ -69,3 +69,19 @@ run "rejects_name_with_invalid_character" {
   }
   expect_failures = [var.name]
 }
+
+run "rejects_empty_resource_group_name" {
+  command = plan
+  variables {
+    resource_group_name = ""
+  }
+  expect_failures = [var.resource_group_name]
+}
+
+run "rejects_blank_location" {
+  command = plan
+  variables {
+    location = " "
+  }
+  expect_failures = [var.location]
+}

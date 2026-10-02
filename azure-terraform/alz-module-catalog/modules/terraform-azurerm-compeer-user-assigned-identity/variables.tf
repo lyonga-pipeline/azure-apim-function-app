@@ -14,11 +14,21 @@ variable "name" {
 variable "resource_group_name" {
   description = "Resource group. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.resource_group_name) != ""
+    error_message = "resource_group_name must not be empty."
+  }
 }
 
 variable "location" {
   description = "Azure region. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.location) != ""
+    error_message = "location must not be empty."
+  }
 }
 
 variable "tags" {
