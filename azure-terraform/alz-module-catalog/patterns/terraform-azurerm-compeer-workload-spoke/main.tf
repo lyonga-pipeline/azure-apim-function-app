@@ -24,9 +24,13 @@ module "tags" {
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = var.resource_group.name
-  location = var.location
-  tags     = module.tags.tags
+  resource_groups = {
+    main = {
+      name     = var.resource_group.name
+      location = var.location
+      tags     = module.tags.tags
+    }
+  }
 }
 
 module "spoke_vnet" {

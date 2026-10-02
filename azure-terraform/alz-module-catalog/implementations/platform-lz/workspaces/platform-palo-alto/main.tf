@@ -15,8 +15,8 @@ locals {
   firewall_resource_group_name     = coalesce(try(var.palo_alto.resource_group.name, null), try(var.palo_alto.resource_group_name, null), "platform-cus-prod-firewall-rg")
   backup_resource_group_name_input = coalesce(try(var.palo_alto.backup_resource_group.name, null), "platform-cus-prod-backup-rg")
 
-  resource_group_name        = local.palo_alto_enabled ? module.firewall_resource_group[0].name : local.firewall_resource_group_name
-  backup_resource_group_name = local.palo_alto_enabled ? module.backup_resource_group[0].name : local.backup_resource_group_name_input
+  resource_group_name        = local.palo_alto_enabled ? module.resource_groups[0].group_names["firewall"] : local.firewall_resource_group_name
+  backup_resource_group_name = local.palo_alto_enabled ? module.resource_groups[0].group_names["backup"] : local.backup_resource_group_name_input
 
   network_interfaces = {
     for nic_key, nic in try(var.palo_alto.network_interfaces, {}) : nic_key => merge({ name = module.naming.network_interface_names[nic_key] }, nic, {
@@ -108,22 +108,32 @@ locals {
   }
 }
 
-module "firewall_resource_group" {
+module "resource_groups" {
   source = "../../../../modules/terraform-azurerm-compeer-resource-group"
   count  = local.palo_alto_enabled ? 1 : 0
 
-  name     = local.firewall_resource_group_name
-  location = var.location
-  tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+  resource_groups = {
+    firewall = {
+      name     = local.firewall_resource_group_name
+      location = var.location
+      tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+    }
+    backup = {
+      name     = local.backup_resource_group_name_input
+      location = var.location
+      tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+    }
+  }
 }
 
-module "backup_resource_group" {
-  source = "../../../../modules/terraform-azurerm-compeer-resource-group"
-  count  = local.palo_alto_enabled ? 1 : 0
+moved {
+  from = module.firewall_resource_group[0].azurerm_resource_group.group
+  to   = module.resource_groups[0].azurerm_resource_group.groups["firewall"]
+}
 
-  name     = local.backup_resource_group_name_input
-  location = var.location
-  tags     = merge(var.tags, try(var.palo_alto.tags, {}))
+moved {
+  from = module.backup_resource_group[0].azurerm_resource_group.group
+  to   = module.resource_groups[0].azurerm_resource_group.groups["backup"]
 }
 
 module "palo_alto" {

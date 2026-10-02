@@ -43,9 +43,13 @@ module "naming" {
 module "resource_group" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
 
-  name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
-  location = var.location
-  tags     = module.tags.tags
+  resource_groups = {
+    main = {
+      name     = coalesce(try(var.resource_group.name, null), module.naming.resource_group)
+      location = var.location
+      tags     = module.tags.tags
+    }
+  }
 }
 
 module "log_analytics" {
