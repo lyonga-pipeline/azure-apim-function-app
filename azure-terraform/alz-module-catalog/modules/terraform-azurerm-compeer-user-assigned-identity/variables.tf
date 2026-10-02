@@ -1,6 +1,14 @@
 variable "name" {
   description = "Name of the user-assigned managed identity. Changing this forces a new resource."
   type        = string
+
+  validation {
+    # Microsoft.ManagedIdentity/userAssignedIdentities naming rule: 3-128
+    # chars, alphanumerics/hyphens/underscores, must start with a letter or
+    # number (verified against Azure's resource-name-rules reference).
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9_-]{2,127}$", var.name))
+    error_message = "name must be 3-128 characters, alphanumeric/hyphen/underscore only, and start with a letter or number."
+  }
 }
 
 variable "resource_group_name" {
