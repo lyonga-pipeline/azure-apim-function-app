@@ -1,14 +1,32 @@
 variable "name" {
   description = "Resource name. Changing this forces a new resource."
   type        = string
+
+  validation {
+    # Microsoft.Network/virtualNetworkGateways naming rule: 1-80 chars,
+    # alphanumerics/underscores/periods/hyphens, start alphanumeric, end
+    # alphanumeric or underscore (Azure resource-name-rules reference).
+    condition     = can(regex("^[A-Za-z0-9]([A-Za-z0-9_.-]{0,78}[A-Za-z0-9_])?$", var.name))
+    error_message = "name must be 1-80 characters (alphanumerics, underscores, periods, hyphens), start with an alphanumeric, and end with an alphanumeric or underscore."
+  }
 }
 variable "resource_group_name" {
   description = "Resource group. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.resource_group_name) != ""
+    error_message = "resource_group_name must not be empty."
+  }
 }
 variable "location" {
   description = "Azure region. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.location) != ""
+    error_message = "location must not be empty."
+  }
 }
 variable "type" {
   type    = string
@@ -29,8 +47,20 @@ variable "vpn_type" {
   }
 }
 variable "sku" {
-  type    = string
-  default = "ErGw1AZ"
+  description = "Gateway SKU. ExpressRoute gateways use Standard/HighPerformance/UltraPerformance/ErGw*; VPN gateways use Basic/Standard/HighPerformance/VpnGw*. The type/SKU pairing is checked in main.tf."
+  type        = string
+  default     = "ErGw1AZ"
+
+  validation {
+    # azurerm_virtual_network_gateway's documented SKU values.
+    condition = contains([
+      "Basic", "Standard", "HighPerformance", "UltraPerformance",
+      "ErGwScale", "ErGw1AZ", "ErGw2AZ", "ErGw3AZ",
+      "VpnGw1", "VpnGw2", "VpnGw3", "VpnGw4", "VpnGw5",
+      "VpnGw1AZ", "VpnGw2AZ", "VpnGw3AZ", "VpnGw4AZ", "VpnGw5AZ",
+    ], var.sku)
+    error_message = "sku must be one of Basic, Standard, HighPerformance, UltraPerformance, ErGwScale, ErGw1AZ, ErGw2AZ, ErGw3AZ, VpnGw1-5, VpnGw1AZ-5AZ."
+  }
 }
 variable "active_active" {
   type    = bool
@@ -49,6 +79,11 @@ variable "enable_bgp" {
 variable "generation" {
   type    = string
   default = null
+
+  validation {
+    condition     = var.generation == null ? true : contains(["Generation1", "Generation2", "None"], var.generation)
+    error_message = "generation must be Generation1, Generation2, or None when set."
+  }
 }
 variable "ip_configurations" {
   type = map(object({

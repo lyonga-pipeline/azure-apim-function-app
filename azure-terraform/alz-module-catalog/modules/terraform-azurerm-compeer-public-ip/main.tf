@@ -23,6 +23,24 @@ resource "azurerm_public_ip" "ip" {
       condition     = var.sku != "Standard" || var.allocation_method == "Static"
       error_message = "Standard SKU public IPs must use Static allocation."
     }
+
+    # Documented azurerm_public_ip constraints (provider docs): zones need a
+    # Standard SKU, Global tier needs Standard SKU, and a DDoS plan can only
+    # be attached when ddos_protection_mode is Enabled.
+    precondition {
+      condition     = length(var.zones) == 0 ? true : var.sku == "Standard"
+      error_message = "zones can only be set on a Standard SKU public IP."
+    }
+
+    precondition {
+      condition     = var.sku_tier != "Global" ? true : var.sku == "Standard"
+      error_message = "sku_tier = Global requires sku = Standard."
+    }
+
+    precondition {
+      condition     = var.ddos_protection_plan_id == null ? true : var.ddos_protection_mode == "Enabled"
+      error_message = "ddos_protection_plan_id can only be set when ddos_protection_mode is Enabled."
+    }
   }
 
   timeouts {

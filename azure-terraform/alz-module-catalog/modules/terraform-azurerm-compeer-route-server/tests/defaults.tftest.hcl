@@ -1,4 +1,13 @@
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  # azurerm_route_server's id is a VirtualHub resource ID, and
+  # azurerm_route_server_bgp_connection validates that format at plan time -
+  # the default random mock string made every BGP-connection run fail.
+  mock_resource "azurerm_route_server" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-connectivity/providers/Microsoft.Network/virtualHubs/rs-hub"
+    }
+  }
+}
 variables {
   route_servers = {
     hub = {

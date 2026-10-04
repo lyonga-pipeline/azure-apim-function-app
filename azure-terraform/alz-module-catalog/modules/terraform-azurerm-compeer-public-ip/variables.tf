@@ -1,16 +1,34 @@
 variable "name" {
   description = "Public IP name. Changing this forces a new resource."
   type        = string
+
+  validation {
+    # Microsoft.Network/publicIPAddresses naming rule: 1-80 chars,
+    # alphanumerics/underscores/periods/hyphens, start with alphanumeric,
+    # end with alphanumeric or underscore (Azure resource-name-rules reference).
+    condition     = can(regex("^[A-Za-z0-9]([A-Za-z0-9_.-]{0,78}[A-Za-z0-9_])?$", var.name))
+    error_message = "name must be 1-80 characters (alphanumerics, underscores, periods, hyphens), start with an alphanumeric, and end with an alphanumeric or underscore."
+  }
 }
 
 variable "resource_group_name" {
   description = "Resource group. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.resource_group_name) != ""
+    error_message = "resource_group_name must not be empty."
+  }
 }
 
 variable "location" {
   description = "Azure region. Changing this forces a new resource."
   type        = string
+
+  validation {
+    condition     = trimspace(var.location) != ""
+    error_message = "location must not be empty."
+  }
 }
 
 variable "allocation_method" {
@@ -72,10 +90,7 @@ variable "domain_name_label_scope" {
   default = null
 
   validation {
-    condition = (
-      var.domain_name_label_scope == null ||
-      contains(["TenantReuse", "SubscriptionReuse", "ResourceGroupReuse", "NoReuse"], var.domain_name_label_scope)
-    )
+    condition     = var.domain_name_label_scope == null ? true : contains(["TenantReuse", "SubscriptionReuse", "ResourceGroupReuse", "NoReuse"], var.domain_name_label_scope)
     error_message = "domain_name_label_scope must be TenantReuse, SubscriptionReuse, ResourceGroupReuse, or NoReuse."
   }
 }
@@ -107,10 +122,7 @@ variable "ddos_protection_mode" {
   default     = null
 
   validation {
-    condition = (
-      var.ddos_protection_mode == null ||
-      contains(["Disabled", "Enabled", "VirtualNetworkInherited"], var.ddos_protection_mode)
-    )
+    condition     = var.ddos_protection_mode == null ? true : contains(["Disabled", "Enabled", "VirtualNetworkInherited"], var.ddos_protection_mode)
     error_message = "ddos_protection_mode must be Disabled, Enabled, or VirtualNetworkInherited."
   }
 }

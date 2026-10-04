@@ -72,7 +72,12 @@ resource "azurerm_virtual_network_gateway_connection" "connection" {
     }
 
     precondition {
-      condition     = var.type != "IPsec" || (var.shared_key != null && length(trimspace(var.shared_key)) > 0)
+      # Null-safe ternary: the previous `||`/`&&` form still evaluated
+      # trimspace(null) for ExpressRoute connections (shared_key is null by
+      # design there), crashing every ExpressRoute connection plan.
+      condition = var.type != "IPsec" ? true : (
+        var.shared_key == null ? false : length(trimspace(var.shared_key)) > 0
+      )
       error_message = "IPsec connections require a non-empty shared_key supplied through a sensitive variable or approved secret store."
     }
   }
