@@ -9,8 +9,8 @@ are separate modules.
 |---|---|---|
 | `name` / `resource_group_name` / `location` | string | ForceNew |
 | `service_provider_name` / `peering_location` | string | ForceNew |
-| `bandwidth_in_mbps` | number | update in place (upgrade only) |
-| `sku` / `tier` / `family` | string | see vars |
+| `bandwidth_in_mbps` | number | update in place (upgrade only); must be greater than zero |
+| `sku` / `tier` / `family` | string | validated Azure ExpressRoute values |
 
 ## Outputs
 
@@ -27,4 +27,4 @@ billed, provider-provisioned resource — never let an upgrade recreate it.
 
 ## Tests
 
-`terraform test` (offline): create.
+`terraform test` (offline): create/default SKU, invalid bandwidth, invalid SKU.

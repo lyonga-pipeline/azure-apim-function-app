@@ -33,10 +33,11 @@ State exposure: none.
 
 ## Migration
 
-Interface unchanged (5 consumers). Added `allocation_method` / `sku` validation
-and the Standard-requires-Static precondition; input descriptions.
+Interface unchanged. Added validation for SKU, SKU tier, IP version, idle
+timeout, DNS label reuse scope, DDoS mode, and the Standard-requires-Static
+precondition.
 
 ## Tests
 
 `terraform test` (offline): Standard/Static defaults, Standard+Dynamic
-precondition, bad-SKU validation.
+precondition, bad SKU, bad SKU tier, bad IP version, bad idle timeout.

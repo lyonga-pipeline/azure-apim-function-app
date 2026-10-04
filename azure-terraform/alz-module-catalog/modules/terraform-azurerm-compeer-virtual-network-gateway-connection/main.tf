@@ -70,6 +70,11 @@ resource "azurerm_virtual_network_gateway_connection" "connection" {
       )
       error_message = "Set the matching remote endpoint for the connection type: express_route_circuit_id for ExpressRoute, local_network_gateway_id for IPsec, or peer_virtual_network_gateway_id for Vnet2Vnet."
     }
+
+    precondition {
+      condition     = var.type != "IPsec" || (var.shared_key != null && length(trimspace(var.shared_key)) > 0)
+      error_message = "IPsec connections require a non-empty shared_key supplied through a sensitive variable or approved secret store."
+    }
   }
 
   timeouts {

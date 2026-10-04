@@ -6,7 +6,7 @@ resource "azurerm_virtual_network_gateway" "gateway" {
   vpn_type            = var.vpn_type
   sku                 = var.sku
   active_active       = var.active_active
-  enable_bgp          = var.enable_bgp
+  bgp_enabled         = coalesce(var.bgp_enabled, var.enable_bgp, true)
   generation          = var.generation
   tags                = var.tags
 
@@ -17,6 +17,13 @@ resource "azurerm_virtual_network_gateway" "gateway" {
       public_ip_address_id          = ip_configuration.value.public_ip_address_id
       private_ip_address_allocation = try(ip_configuration.value.private_ip_address_allocation, "Dynamic")
       subnet_id                     = ip_configuration.value.subnet_id
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.active_active || length(var.ip_configurations) >= 2
+      error_message = "active_active gateways require at least two ip_configurations."
     }
   }
 }

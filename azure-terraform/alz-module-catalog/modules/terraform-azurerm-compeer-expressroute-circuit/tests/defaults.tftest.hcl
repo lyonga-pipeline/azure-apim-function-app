@@ -13,4 +13,27 @@ run "create" {
     condition     = azurerm_express_route_circuit.circuit.bandwidth_in_mbps == 200
     error_message = "bandwidth not wired"
   }
+  assert {
+    condition     = azurerm_express_route_circuit.circuit.sku[0].tier == "Standard" && azurerm_express_route_circuit.circuit.sku[0].family == "MeteredData"
+    error_message = "default SKU should be Standard/MeteredData"
+  }
+}
+
+run "rejects_non_positive_bandwidth" {
+  command = plan
+  variables {
+    bandwidth_in_mbps = 0
+  }
+  expect_failures = [var.bandwidth_in_mbps]
+}
+
+run "rejects_invalid_sku" {
+  command = plan
+  variables {
+    sku = {
+      tier   = "Developer"
+      family = "MeteredData"
+    }
+  }
+  expect_failures = [var.sku]
 }

@@ -151,3 +151,19 @@ run "rejects_unsupported_principal_type" {
 
   expect_failures = [var.assignments]
 }
+
+run "rejects_placeholder_principal_id" {
+  command = plan
+
+  variables {
+    assignments = {
+      bad = {
+        scope                = "/subscriptions/00000000-0000-0000-0000-000000000000"
+        principal_id         = "00000000-0000-0000-0000-000000000000"
+        role_definition_name = "Reader"
+      }
+    }
+  }
+
+  expect_failures = [var.assignments]
+}

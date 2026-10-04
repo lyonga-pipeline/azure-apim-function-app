@@ -25,4 +25,6 @@ place**. `type`, the target `*_id`, `virtual_network_gateway_id` → **replace**
 
 ## Tests
 
-`terraform test` (offline): ExpressRoute connection, IPsec-without-LNG precondition.
+`terraform test` (offline): ExpressRoute connection, IPsec-without-LNG
+precondition, IPsec-without-shared-key precondition, bad connection type,
+negative routing weight.

@@ -11,6 +11,8 @@ and the PIP(s) are caller-owned. Connections are a separate module.
 | `type` | string | `ExpressRoute` | `Vpn` \| `ExpressRoute`; ForceNew |
 | `sku` | string | `ErGw1AZ` | update in place (resize) where the platform allows |
 | `vpn_type` | string | `RouteBased` | ForceNew |
+| `bgp_enabled` | bool | `true` | preferred AzureRM v4+ input |
+| `enable_bgp` | bool | `null` | deprecated compatibility input |
 | `ip_configurations` | map(object) | — | `{public_ip_address_id, subnet_id, private_ip_address_allocation?}` |
 
 ## Outputs
@@ -19,12 +21,16 @@ and the PIP(s) are caller-owned. Connections are a separate module.
 
 ## Lifecycle contract
 
-`sku` (resize), `bgp_settings`, `tags` → **update in place** (mostly). `type` /
+`sku` (resize), BGP setting, `tags` → **update in place** (mostly). `type` /
 `vpn_type` / `ip_configurations` subnet → **replace**. A gateway takes ~30-45 min
 to create — never recreate one on a routine upgrade.
+
+`ip_configurations[*].subnet_id` must reference `GatewaySubnet`. `active_active`
+requires at least two IP configurations.
 
 State exposure: none.
 
 ## Tests
 
-`terraform test` (offline): create (ExpressRoute default).
+`terraform test` (offline): create (ExpressRoute default), BGP compatibility
+input behavior, GatewaySubnet validation, active-active IP configuration guard.

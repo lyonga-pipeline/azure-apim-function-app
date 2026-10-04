@@ -21,3 +21,18 @@ run "rejects_bad_sku" {
   variables { sku = "Gold" }
   expect_failures = [var.sku]
 }
+run "rejects_bad_sku_tier" {
+  command = plan
+  variables { sku_tier = "Planetary" }
+  expect_failures = [var.sku_tier]
+}
+run "rejects_bad_ip_version" {
+  command = plan
+  variables { ip_version = "IPv5" }
+  expect_failures = [var.ip_version]
+}
+run "rejects_bad_idle_timeout" {
+  command = plan
+  variables { idle_timeout_in_minutes = 31 }
+  expect_failures = [var.idle_timeout_in_minutes]
+}

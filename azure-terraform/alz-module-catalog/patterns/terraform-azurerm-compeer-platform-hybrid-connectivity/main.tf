@@ -148,7 +148,7 @@ module "expressroute_gateway" {
   type                = "ExpressRoute"
   sku                 = try(var.expressroute_gateway.sku, "ErGw1AZ")
   active_active       = try(var.expressroute_gateway.active_active, false)
-  enable_bgp          = try(var.expressroute_gateway.enable_bgp, true)
+  bgp_enabled         = coalesce(try(var.expressroute_gateway.bgp_enabled, null), try(var.expressroute_gateway.enable_bgp, null), true)
   ip_configurations = {
     for key, value in var.expressroute_gateway.ip_configurations : key => {
       public_ip_address_id          = module.gateway_public_ips[value.public_ip_key].id

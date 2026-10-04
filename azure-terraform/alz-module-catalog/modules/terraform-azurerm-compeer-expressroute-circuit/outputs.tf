@@ -11,3 +11,8 @@ output "service_key" {
   value       = azurerm_express_route_circuit.circuit.service_key
   sensitive   = true
 }
+
+output "service_provider_provisioning_state" {
+  description = "Provider-side provisioning state of the ExpressRoute circuit."
+  value       = azurerm_express_route_circuit.circuit.service_provider_provisioning_state
+}

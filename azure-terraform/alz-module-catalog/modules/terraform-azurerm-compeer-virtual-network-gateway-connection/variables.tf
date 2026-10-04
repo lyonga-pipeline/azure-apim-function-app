@@ -13,6 +13,11 @@ variable "location" {
 variable "type" {
   type    = string
   default = "ExpressRoute"
+
+  validation {
+    condition     = contains(["ExpressRoute", "IPsec", "Vnet2Vnet"], var.type)
+    error_message = "type must be ExpressRoute, IPsec, or Vnet2Vnet."
+  }
 }
 variable "virtual_network_gateway_id" {
   description = "ID of the VPN/ExpressRoute gateway."
@@ -31,8 +36,9 @@ variable "peer_virtual_network_gateway_id" {
   default = null
 }
 variable "authorization_key" {
-  type    = string
-  default = null
+  type      = string
+  default   = null
+  sensitive = true
 }
 variable "shared_key" {
   type      = string
@@ -42,6 +48,11 @@ variable "shared_key" {
 variable "routing_weight" {
   type    = number
   default = 0
+
+  validation {
+    condition     = var.routing_weight >= 0
+    error_message = "routing_weight must be zero or greater."
+  }
 }
 variable "connection_mode" {
   type    = string

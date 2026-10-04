@@ -113,7 +113,8 @@ variable "expressroute_gateway" {
     name          = optional(string)
     sku           = optional(string, "ErGw1AZ")
     active_active = optional(bool, false)
-    enable_bgp    = optional(bool, true)
+    bgp_enabled   = optional(bool)
+    enable_bgp    = optional(bool)
     ip_configurations = map(object({
       public_ip_key                 = string
       gateway_subnet_id             = string

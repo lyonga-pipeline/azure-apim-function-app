@@ -10,6 +10,9 @@ the Standard Static PIP are caller-owned.
 subnet_id, public_ip_address_id, branch_to_branch_traffic_enabled?, tags?,
 timeouts?, bgp_connections?=map(object({ name, peer_asn, peer_ip, ... })) }))`.
 
+`subnet_id` must reference a subnet named `RouteServerSubnet`. BGP peer ASNs
+must be between `1` and `4294967295`; peer IPs must be valid IPv4 addresses.
+
 ## Outputs
 
 `ids`, `names`, `resource_group_names`, `route_servers` (composite),
@@ -25,4 +28,5 @@ State exposure: none.
 
 ## Tests
 
-`terraform test` (offline): create.
+`terraform test` (offline): create, BGP connection creation, non-RouteServerSubnet
+rejection, invalid BGP peer rejection.

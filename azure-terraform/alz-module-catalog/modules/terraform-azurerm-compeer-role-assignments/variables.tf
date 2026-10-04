@@ -36,4 +36,12 @@ variable "assignments" {
     ])
     error_message = "Each assignment's principal_type, when set, must be User, Group, or ServicePrincipal."
   }
+
+  validation {
+    condition = alltrue([
+      for item in values(var.assignments) :
+      item.principal_id != "00000000-0000-0000-0000-000000000000"
+    ])
+    error_message = "principal_id must be a real Entra object ID, not the all-zero placeholder GUID."
+  }
 }
