@@ -4,16 +4,6 @@ data "tfe_outputs" "connectivity" {
   workspace    = var.connectivity_workspace_name
 }
 
-# Resource-placement sheet: VPN certificates live in the shared platform Key
-# Vault (security-mg / platform-cus-prod-vault), not a dedicated vault of
-# this pattern's own - read that vault's ID back here to grant
-# vpn_certificate_identity access to it.
-data "tfe_outputs" "identity_security" {
-  count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
-  organization = var.tfe_organization
-  workspace    = var.identity_security_workspace_name
-}
-
 resource "time_static" "deployment_created" {}
 
 locals {
@@ -32,30 +22,11 @@ locals {
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
-  identity_security_outputs = merge(
-    try(data.tfe_outputs.identity_security[0].nonsensitive_values, {}),
-    try(data.tfe_outputs.identity_security[0].values, {})
-  )
-
   expressroute_gateway = try(var.hybrid_connectivity.expressroute_gateway, null) == null ? null : merge(
     var.hybrid_connectivity.expressroute_gateway,
     {
       ip_configurations = {
         for key, cfg in try(var.hybrid_connectivity.expressroute_gateway.ip_configurations, {}) : key => merge(
-          cfg,
-          {
-            gateway_subnet_id = coalesce(try(cfg.gateway_subnet_id, null), try(local.connectivity_outputs.subnet_ids["GatewaySubnet"], null))
-          }
-        )
-      }
-    }
-  )
-
-  vpn_gateway = try(var.hybrid_connectivity.vpn_gateway, null) == null ? null : merge(
-    var.hybrid_connectivity.vpn_gateway,
-    {
-      ip_configurations = {
-        for key, cfg in try(var.hybrid_connectivity.vpn_gateway.ip_configurations, {}) : key => merge(
           cfg,
           {
             gateway_subnet_id = coalesce(try(cfg.gateway_subnet_id, null), try(local.connectivity_outputs.subnet_ids["GatewaySubnet"], null))
@@ -77,14 +48,6 @@ locals {
     )
   }
 
-  # key_vault_id always resolves to platform-identity-security's published
-  # shared vault - not tfvars-settable, matching how hub_connection is
-  # auto-derived elsewhere in this catalog, so a caller can't accidentally
-  # point VPN certificate access at some other vault.
-  vpn_certificate_key_vault = merge(
-    try(var.hybrid_connectivity.vpn_certificate_key_vault, {}),
-    { key_vault_id = try(local.identity_security_outputs.key_vault_id, null) }
-  )
 }
 
 module "hybrid_connectivity" {
@@ -105,19 +68,12 @@ module "hybrid_connectivity" {
     environment        = var.environment
     storage_uniqueness = var.subscription_id
   }
-  resource_group            = try(var.hybrid_connectivity.resource_group, {})
-  expressroute_posture      = try(var.hybrid_connectivity.expressroute_posture, { enabled = false })
-  expressroute_circuits     = try(var.hybrid_connectivity.expressroute_circuits, {})
-  gateway_public_ips        = try(var.hybrid_connectivity.gateway_public_ips, try(var.hybrid_connectivity.expressroute_gateway_public_ips, {}))
-  expressroute_gateway      = local.expressroute_gateway
-  expressroute_connections  = try(var.hybrid_connectivity.expressroute_connections, {})
-  vpn_posture               = try(var.hybrid_connectivity.vpn_posture, { enabled = false })
-  vpn_gateway_public_ips    = try(var.hybrid_connectivity.vpn_gateway_public_ips, {})
-  vpn_gateway               = local.vpn_gateway
-  local_network_gateways    = try(var.hybrid_connectivity.local_network_gateways, {})
-  vpn_connections           = try(var.hybrid_connectivity.vpn_connections, {})
-  route_server_public_ips   = try(var.hybrid_connectivity.route_server_public_ips, {})
-  route_servers             = local.route_servers
-  vpn_certificate_key_vault = local.vpn_certificate_key_vault
-  vpn_certificate_identity  = try(var.hybrid_connectivity.vpn_certificate_identity, {})
+  resource_group           = try(var.hybrid_connectivity.resource_group, {})
+  expressroute_posture     = try(var.hybrid_connectivity.expressroute_posture, { enabled = false })
+  expressroute_circuits    = try(var.hybrid_connectivity.expressroute_circuits, {})
+  gateway_public_ips       = try(var.hybrid_connectivity.gateway_public_ips, try(var.hybrid_connectivity.expressroute_gateway_public_ips, {}))
+  expressroute_gateway     = local.expressroute_gateway
+  expressroute_connections = try(var.hybrid_connectivity.expressroute_connections, {})
+  route_server_public_ips  = try(var.hybrid_connectivity.route_server_public_ips, {})
+  route_servers            = local.route_servers
 }

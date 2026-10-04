@@ -15,7 +15,7 @@ variable "environment" {
 
 variable "tenant_id" {
   type        = string
-  description = "Azure tenant id. Leave null to use the tenant from the active Azure credentials (the keyvault module defaults it internally via data.azurerm_client_config.current)."
+  description = "Azure tenant id. Kept as a compatibility input for existing callers."
   default     = null
 }
 
@@ -134,32 +134,6 @@ variable "expressroute_connections" {
   default = {}
 }
 
-variable "vpn_posture" {
-  type = object({
-    enabled                      = optional(bool, false)
-    backup_required              = optional(bool, true)
-    design_reference             = optional(string)
-    bgp_and_routing_approved     = optional(bool, false)
-    shared_key_handling_approved = optional(bool, false)
-    failover_test_approved       = optional(bool, false)
-    notes                        = optional(string)
-  })
-  description = "No-cost VPN backup posture contract. When enabled, this root requires approved VPN gateway, local network gateway, and IPsec connection inputs."
-  default     = {}
-}
-
-variable "vpn_gateway_public_ips" {
-  type = map(object({
-    name              = optional(string)
-    allocation_method = optional(string, "Static")
-    sku               = optional(string, "Standard")
-    sku_tier          = optional(string, "Regional")
-    zones             = optional(list(string), [])
-  }))
-  default     = {}
-  description = "Public IPs used by the VPN virtual network gateway."
-}
-
 variable "route_server_public_ips" {
   type = map(object({
     name              = optional(string)
@@ -211,113 +185,4 @@ variable "route_servers" {
     ])
     error_message = "Each route_servers entry must set exactly one of public_ip_key or public_ip_address_id."
   }
-}
-
-variable "vpn_gateway" {
-  type = object({
-    name          = optional(string)
-    sku           = optional(string, "VpnGw1AZ")
-    vpn_type      = optional(string, "RouteBased")
-    active_active = optional(bool, false)
-    enable_bgp    = optional(bool, false)
-    generation    = optional(string)
-    ip_configurations = map(object({
-      public_ip_key                 = string
-      gateway_subnet_id             = string
-      private_ip_address_allocation = optional(string, "Dynamic")
-    }))
-  })
-  default     = null
-  description = "VPN virtual network gateway. Requires a GatewaySubnet in the hub VNet."
-}
-
-variable "local_network_gateways" {
-  type = map(object({
-    name            = string
-    gateway_address = string
-    address_space   = list(string)
-    bgp_settings = optional(object({
-      asn                 = number
-      bgp_peering_address = string
-      peer_weight         = optional(number)
-    }))
-    timeouts = optional(object({
-      create = optional(string)
-      read   = optional(string)
-      update = optional(string)
-      delete = optional(string)
-    }), {})
-  }))
-  default     = {}
-  description = "On-premises VPN peer definitions represented as Azure local network gateways."
-}
-
-variable "vpn_connections" {
-  type = map(object({
-    name                               = string
-    local_network_gateway_key          = string
-    shared_key                         = optional(string)
-    routing_weight                     = optional(number, 0)
-    connection_mode                    = optional(string)
-    connection_protocol                = optional(string)
-    dpd_timeout_seconds                = optional(number)
-    enable_bgp                         = optional(bool)
-    use_policy_based_traffic_selectors = optional(bool)
-    local_azure_ip_address_enabled     = optional(bool)
-    private_link_fast_path_enabled     = optional(bool)
-    egress_nat_rule_ids                = optional(list(string))
-    ingress_nat_rule_ids               = optional(list(string))
-    custom_bgp_addresses = optional(object({
-      primary   = string
-      secondary = optional(string)
-    }))
-    ipsec_policy = optional(object({
-      dh_group         = string
-      ike_encryption   = string
-      ike_integrity    = string
-      ipsec_encryption = string
-      ipsec_integrity  = string
-      pfs_group        = string
-      sa_datasize      = optional(number)
-      sa_lifetime      = optional(number)
-    }))
-    traffic_selector_policies = optional(map(object({
-      local_address_cidrs  = list(string)
-      remote_address_cidrs = list(string)
-    })), {})
-    timeouts = optional(object({
-      create = optional(string)
-      update = optional(string)
-      read   = optional(string)
-      delete = optional(string)
-    }), {})
-  }))
-  default     = {}
-  description = "IPsec VPN backup gateway connections. Shared keys should be injected from HCP sensitive variables or an approved secret store."
-}
-
-# Placement decision (resource-placement sheet, security-mg /
-# platform-cus-prod-keyvault-rg): VPN certificates live in the shared
-# platform Key Vault (platform-cus-prod-vault, owned by
-# platform-identity-security / the security subscription), not in a
-# dedicated vault of this pattern's own. This variable used to also create
-# that vault directly (network engineer's original request); it now only
-# grants vpn_certificate_identity access to an externally-owned vault ID -
-# key_vault_id is the workspace-resolved ID of that shared vault (read via
-# tfe_outputs from platform-identity-security).
-variable "vpn_certificate_key_vault" {
-  type = object({
-    enabled      = optional(bool, false)
-    key_vault_id = optional(string)
-  })
-  default     = {}
-  description = "Grants vpn_certificate_identity Certificates/Secrets User access to an externally-owned Key Vault (key_vault_id) for VPN gateway certificate management (network engineer request). Does not create a vault - see the shared platform-cus-prod-vault owned by platform-identity-security. key_vault_id is not tfvars-settable in the real workspace - it's auto-resolved from platform-identity-security's published output, so enabled = true with that workspace not yet deployed (key_vault_id still null) is a graceful no-op here, not a validation error - the same pattern as every other optional cross-workspace dependency in this catalog (e.g. hub_connection)."
-}
-
-variable "vpn_certificate_identity" {
-  type = object({
-    name = optional(string)
-  })
-  default     = {}
-  description = "Name override for the user-assigned managed identity granted access to vpn_certificate_key_vault. Defaults to a generated name."
 }

@@ -61,12 +61,6 @@ variable "connectivity_workspace_name" {
   default     = "platform-connectivity"
 }
 
-variable "identity_security_workspace_name" {
-  description = "Workspace that publishes the shared platform Key Vault ID (key_vault_id) - read to grant vpn_certificate_identity access, per the resource-placement sheet's security-mg placement for VPN certificates. Optional: this workspace's own apply runs fine before platform-identity-security has ever published anything (vpn_certificate_key_vault.enabled entries simply can't resolve a key_vault_id until then)."
-  type        = string
-  default     = "platform-identity-security"
-}
-
 variable "hybrid_connectivity" {
   description = "Hybrid connectivity workspace configuration."
   type        = any
