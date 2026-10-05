@@ -68,7 +68,7 @@ run "design_doc_ipsec_connection_is_accepted" {
     connection_mode                    = "Default"
     dpd_timeout_seconds                = 45
     use_policy_based_traffic_selectors = false
-    enable_bgp                         = true
+    bgp_enabled                        = true
     ipsec_policy = {
       dh_group         = "ECP384"
       ike_encryption   = "GCMAES256"
@@ -82,6 +82,18 @@ run "design_doc_ipsec_connection_is_accepted" {
   assert {
     condition     = azurerm_virtual_network_gateway_connection.connection.type == "IPsec"
     error_message = "the design-doc IPsec/IKE policy must be accepted"
+  }
+}
+
+run "bgp_enabled_preferred_over_deprecated_enable_bgp" {
+  command = plan
+  variables {
+    bgp_enabled = false
+    enable_bgp  = true
+  }
+  assert {
+    condition     = azurerm_virtual_network_gateway_connection.connection.bgp_enabled == false
+    error_message = "bgp_enabled should override deprecated enable_bgp"
   }
 }
 

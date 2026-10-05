@@ -94,9 +94,15 @@ variable "dpd_timeout_seconds" {
   type    = number
   default = null
 }
+variable "bgp_enabled" {
+  description = "Whether BGP is enabled on the connection. Preferred over deprecated enable_bgp."
+  type        = bool
+  default     = null
+}
 variable "enable_bgp" {
-  type    = bool
-  default = null
+  description = "Deprecated compatibility input. Use bgp_enabled for AzureRM v4+."
+  type        = bool
+  default     = null
 }
 variable "express_route_gateway_bypass" {
   type    = bool

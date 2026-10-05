@@ -13,7 +13,7 @@ resource "azurerm_virtual_network_gateway_connection" "connection" {
   connection_mode                    = var.connection_mode
   connection_protocol                = var.connection_protocol
   dpd_timeout_seconds                = var.dpd_timeout_seconds
-  enable_bgp                         = var.enable_bgp
+  bgp_enabled                        = var.bgp_enabled != null ? var.bgp_enabled : var.enable_bgp
   express_route_gateway_bypass       = var.express_route_gateway_bypass
   use_policy_based_traffic_selectors = var.use_policy_based_traffic_selectors
   egress_nat_rule_ids                = var.egress_nat_rule_ids

@@ -39,7 +39,7 @@ module "expressroute_connection" {
 | `connection_mode` | string | `null` | `Default`, `InitiatorOnly` or `ResponderOnly` |
 | `connection_protocol` | string | `null` | `IKEv1` or `IKEv2` |
 | `ipsec_policy` | object | `null` | enum-validated fields below |
-| `custom_bgp_addresses`, `traffic_selector_policies`, NAT-rule IDs, `dpd_timeout_seconds`, `enable_bgp`, `express_route_gateway_bypass`, `use_policy_based_traffic_selectors`, `local_azure_ip_address_enabled`, `private_link_fast_path_enabled` | - | `null` / `{}` | pass-through |
+| `custom_bgp_addresses`, `traffic_selector_policies`, NAT-rule IDs, `dpd_timeout_seconds`, `bgp_enabled`, `enable_bgp`, `express_route_gateway_bypass`, `use_policy_based_traffic_selectors`, `local_azure_ip_address_enabled`, `private_link_fast_path_enabled` | - | `null` / `{}` | pass-through; prefer `bgp_enabled` over deprecated `enable_bgp` |
 | `timeouts` / `tags` | object / map | `{}` | pass-through |
 
 `ipsec_policy` fields are validated against the documented values: `dh_group`
