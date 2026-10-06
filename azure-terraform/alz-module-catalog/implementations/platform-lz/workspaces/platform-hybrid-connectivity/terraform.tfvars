@@ -73,7 +73,7 @@ hybrid_connectivity = {
       name                             = "platform-cus-prod-rs"
       subnet_key                       = "RouteServerSubnet"
       public_ip_key                    = "primary"
-      branch_to_branch_traffic_enabled = true # Confirm with CDW before production traffic cutover.
+      branch_to_branch_traffic_enabled = false # Confirm with the network team before production traffic cutover.
     }
   }
 }

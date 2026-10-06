@@ -17,15 +17,14 @@ locals {
   # This intentionally supersedes any created_on set in platform_tags below.
   deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
-  connectivity_outputs = merge(
-    try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
-    try(data.tfe_outputs.connectivity[0].values, {})
-  )
+  connectivity_outputs      = try(data.tfe_outputs.connectivity[0].nonsensitive_values, {})
+  connectivity_output_names = sort(keys(local.connectivity_outputs))
 
   connectivity_subnet_ids = try(
     local.connectivity_outputs.subnet_ids,
     try(local.connectivity_outputs.connectivity_hub_subnet_ids, {})
   )
+  connectivity_subnet_id_keys = sort(try(keys(local.connectivity_subnet_ids), []))
 
   route_server_subnet_ids = {
     for key, cfg in try(var.hybrid_connectivity.route_servers, {}) : key => try(coalesce(
@@ -38,10 +37,12 @@ locals {
   route_server_resolution_errors = [
     for key, cfg in try(var.hybrid_connectivity.route_servers, {}) :
     format(
-      "hybrid_connectivity.route_servers.%s requested subnet_key %q, but the connectivity workspace did not publish that subnet. Published subnet_ids keys: [%s]. Re-run platform-connectivity with RouteServerSubnet, or set subnet_id explicitly for this route server.",
+      "hybrid_connectivity.route_servers.%s requested subnet_key %q, but the connectivity workspace did not publish that subnet to this run. Connectivity workspace: %q. Published output names: [%s]. Published subnet_ids keys: [%s]. Re-run platform-connectivity with RouteServerSubnet and confirm output sharing to this workspace, or set subnet_id explicitly for this route server.",
       key,
       try(cfg.subnet_key, "RouteServerSubnet"),
-      join(", ", sort(try(keys(local.connectivity_subnet_ids), [])))
+      var.connectivity_workspace_name,
+      join(", ", local.connectivity_output_names),
+      join(", ", local.connectivity_subnet_id_keys)
     )
     if local.route_server_subnet_ids[key] == null
   ]
@@ -67,13 +68,18 @@ locals {
         subnet_id = local.route_server_subnet_ids[key]
       }
     )
-    if local.route_server_subnet_ids[key] != null
   }
 
 }
 
 resource "terraform_data" "route_server_subnet_contract" {
-  input = local.route_server_resolution_errors
+  input = {
+    connectivity_workspace_name = var.connectivity_workspace_name
+    published_output_names      = local.connectivity_output_names
+    published_subnet_id_keys    = local.connectivity_subnet_id_keys
+    resolved_subnet_ids         = local.route_server_subnet_ids
+    errors                      = local.route_server_resolution_errors
+  }
 
   lifecycle {
     precondition {
