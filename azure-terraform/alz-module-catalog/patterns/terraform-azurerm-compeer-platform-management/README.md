@@ -30,29 +30,33 @@ This root creates the shared observability foundation for a landing-zone environ
 
 It produces the Log Analytics workspace ID and action group ID consumed by platform and workload roots.
 
-**Defender for Cloud — approved: Servers Plan 1 (P1) only.** The real
-`terraform.tfvars` sets `defender_plans.virtual_machines = { resource_type =
-"VirtualMachines", tier = "Standard", subplan = "P1" }`. P1 covers
-vulnerability assessment, just-in-time VM access, and adaptive network
-hardening — it does **not** include Microsoft Defender for Endpoint (that's
-P2, a separate, larger cost decision not approved here). Add further
-resource-type plans (SQL, Storage, Key Vault, App Services, Containers, ARM,
-DNS, Cosmos DB, …) only after the same kind of explicit per-plan pricing-tier
-approval — each is its own cost line, not a bundle. For a from-scratch smoke
-test with zero Defender cost, set `defender_plans = {}` and
+**Defender for Cloud / Sentinel enterprise baseline.** The deployable
+`platform-management/terraform.tfvars` enables the platform SOC baseline:
+Defender Standard plan entries for servers (P1), Storage, Key Vault, App
+Services, SQL Servers, Containers, and ARM; Sentinel onboarding with baseline
+analytics rules and supported Terraform-owned connectors; subscription Activity
+Log export; a security contact; Service Health alerting; budget alerts; and
+delete-protection locks. These are intentionally cost-bearing controls. For a
+from-scratch smoke test with zero Defender/Sentinel cost, set
+`defender_plans = {}`, `sentinel.enabled = false`, and
 `defender_soc_posture.defender_standard_enabled = false`.
 
 `defender_soc_posture` records the Defender/SOC target state as a no-cost
 contract-checked posture marker — it doesn't deploy anything itself, but
 Terraform rejects a configuration that *claims* Defender Standard is enabled
 without `defender_plans` actually backing that claim (or a security-contact
-claim without `security_contact` configured). Sentinel, Data Collection
-Rules, and the security contact remain off pending separate SOC onboarding
-and cost approval — this only turns on the Defender Servers plan.
+claim without `security_contact` configured). Data Collection Rules and Entra
+tenant diagnostic export remain gated until target-resource onboarding and
+tenant-level permissions are confirmed.
 
 The root now emits `defender_soc_posture` from a no-cost contract resource. Terraform will reject a configuration that claims Defender Standard or security contact posture is enabled unless the supporting `defender_plans` or `security_contact` inputs are also configured.
 
-The smoke-test tfvars also leave `security_contact = null` and `security_center_settings = {}`. Defender settings such as `MCAS` and `WDATP` commonly already exist in Azure subscriptions, so Terraform must import them before it can manage them. Leave them unmanaged for quick platform validation; import and enable them when promoting the enterprise security baseline.
+The smoke-test/example tfvars leave `security_contact = null` and
+`security_center_settings = {}`. Defender settings such as `MCAS` and `WDATP`
+commonly already exist in Azure subscriptions, so Terraform may need imports
+before it can manage them. The enterprise tfvars manages `MCAS`; if the apply
+reports that the setting already exists, import it into this workspace rather
+than deleting it outside Terraform.
 
 Optional `platform_storage_accounts` exposes the management-subscription storage
 account placement from the ALZ workbook while staying disabled in the baseline

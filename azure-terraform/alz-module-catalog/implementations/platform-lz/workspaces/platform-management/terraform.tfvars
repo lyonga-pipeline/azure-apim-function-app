@@ -52,12 +52,27 @@ management = {
   enabled        = true
   resource_group = {}
   log_analytics = {
-    retention_in_days = 365
-    daily_quota_gb    = 5
+    # Enterprise baseline: keep at least one year of platform/security logs.
+    # No hard daily cap here; use the subscription budget below for cost
+    # guardrails so security telemetry does not silently stop ingesting.
+    retention_in_days                       = 365
+    daily_quota_gb                          = -1
+    local_authentication_disabled           = true
+    internet_ingestion_enabled              = true
+    internet_query_enabled                  = true
+    allow_resource_only_permissions         = true
+    immediate_data_purge_on_30_days_enabled = false
   }
   action_group = {
     short_name = "platops"
-    receivers  = {}
+    receivers = {
+      email = {
+        cloud_enablement = {
+          email_address           = "Compeer-DTICloudEnablementTeam@compeer.com"
+          use_common_alert_schema = true
+        }
+      }
+    }
   }
   platform_storage_accounts = {
     audit = {
@@ -66,6 +81,45 @@ management = {
       shared_access_key_enabled         = false
       infrastructure_encryption_enabled = true
       default_to_oauth_authentication   = true
+      allow_nested_items_to_be_public   = false
+      min_tls_version                   = "TLS1_2"
+      https_traffic_only_enabled        = true
+      cross_tenant_replication_enabled  = false
+      network_rules = {
+        default_action = "Deny"
+        bypass         = ["AzureServices"]
+      }
+      blob_properties = {
+        versioning_enabled              = true
+        change_feed_enabled             = true
+        change_feed_retention_in_days   = 90
+        delete_retention_days           = 35
+        container_delete_retention_days = 35
+        restore_policy = {
+          days = 30
+        }
+      }
+      queue_properties = {
+        logging = {
+          delete                = true
+          read                  = true
+          write                 = true
+          version               = "1.0"
+          retention_policy_days = 30
+        }
+        hour_metrics = {
+          enabled               = true
+          version               = "1.0"
+          include_apis          = true
+          retention_policy_days = 30
+        }
+        minute_metrics = {
+          enabled               = true
+          version               = "1.0"
+          include_apis          = true
+          retention_policy_days = 30
+        }
+      }
     }
   }
   platform_storage_diagnostics = {
@@ -84,45 +138,249 @@ management = {
   data_collection_endpoints         = {}
   data_collection_rules             = {}
   data_collection_rule_associations = {}
-  sentinel = {
-    enabled = false
-    approved_data_connectors = {
-      activity_log = {
-        connector_type = "AzureActivity"
-        enabled        = false
+  resource_provider_registrations   = {}
+  role_assignments                  = {}
+  subscription_activity_log_diagnostics = {
+    name = "diag-subscription-activity-to-law"
+    logs = {
+      administrative = {
+        category = "Administrative"
       }
-      defender_for_cloud = {
-        connector_type = "MicrosoftDefenderForCloud"
-        enabled        = false
+      security = {
+        category = "Security"
       }
-      entra_id = {
-        connector_type = "MicrosoftEntraID"
-        enabled        = false
+      service_health = {
+        category = "ServiceHealth"
+      }
+      alert = {
+        category = "Alert"
+      }
+      recommendation = {
+        category = "Recommendation"
+      }
+      policy = {
+        category = "Policy"
+      }
+      autoscale = {
+        category = "Autoscale"
+      }
+      resource_health = {
+        category = "ResourceHealth"
       }
     }
   }
-  # Defender for Cloud - approved pricing decision: Servers Plan 1 (P1) only.
-  # P1 covers vulnerability assessment, just-in-time VM access, and adaptive
-  # network hardening; it does NOT include Microsoft Defender for Endpoint
-  # (that's P2 - a separate, larger cost decision, not approved here). Add
-  # further resource_type entries (SqlServers, StorageAccounts, KeyVaults,
-  # AppServices, Containers, Arm, Dns, CosmosDbs, ...) only after the same
-  # kind of explicit per-plan pricing-tier approval - each is its own cost
-  # line, not a bundle.
+  # Entra diagnostics are tenant-level Microsoft.AADIAM resources. Keep null
+  # until the HCP run identity has tenant-level permission to manage them.
+  entra_diagnostic_settings = null
+  subscription_budgets = {
+    platform_management_monthly = {
+      amount     = 15000
+      time_grain = "Monthly"
+      time_period = {
+        start_date = "2026-10-01T00:00:00Z"
+      }
+      notifications = {
+        actual_80 = {
+          threshold      = 80
+          operator       = "GreaterThan"
+          threshold_type = "Actual"
+          contact_emails = ["Compeer-DTICloudEnablementTeam@compeer.com"]
+        }
+        actual_100 = {
+          threshold      = 100
+          operator       = "GreaterThan"
+          threshold_type = "Actual"
+          contact_emails = ["Compeer-DTICloudEnablementTeam@compeer.com"]
+        }
+        forecast_100 = {
+          threshold      = 100
+          operator       = "GreaterThan"
+          threshold_type = "Forecasted"
+          contact_emails = ["Compeer-DTICloudEnablementTeam@compeer.com"]
+        }
+      }
+    }
+  }
+  management_locks = {
+    resource_group = {
+      name       = "lock-platform-management-rg"
+      scope_key  = "resource_group"
+      lock_level = "CanNotDelete"
+      notes      = "Protects central monitoring, Sentinel, Defender, budgets, and platform archive resources from accidental deletion."
+    }
+    log_analytics = {
+      name       = "lock-platform-log-analytics"
+      scope_key  = "log_analytics"
+      lock_level = "CanNotDelete"
+      notes      = "Protects centralized platform audit and SOC logs."
+    }
+    audit_storage = {
+      name       = "lock-platform-audit-storage"
+      scope_key  = "storage_account:audit"
+      lock_level = "CanNotDelete"
+      notes      = "Protects platform diagnostics and audit storage."
+    }
+  }
+  sentinel = {
+    enabled               = true
+    include_default_rules = true
+    approved_data_connectors = {
+      activity_log = {
+        connector_type = "AzureActivity"
+        enabled        = true
+        notes          = "Activity Log is routed by subscription_activity_log_diagnostics."
+      }
+      defender_for_cloud = {
+        connector_type = "MicrosoftDefenderForCloud"
+        enabled        = true
+      }
+      entra_id = {
+        connector_type = "MicrosoftEntraID"
+        enabled        = true
+        notes          = "Requires tenant-level Entra diagnostic export before rules depending on Entra tables are useful."
+      }
+      threat_intelligence = {
+        connector_type = "ThreatIntelligence"
+        enabled        = true
+      }
+      defender_atp = {
+        connector_type = "MicrosoftDefenderAdvancedThreatProtection"
+        enabled        = false
+        notes          = "Enable only after Defender for Endpoint / Defender for Servers P2 decision is approved."
+      }
+    }
+    data_connectors = {
+      threat_intelligence = true
+      defender_atp        = false
+      entra_id            = true
+      defender_for_cloud  = true
+    }
+    scheduled_alert_rules = {
+      new_global_administrator = {
+        display_name    = "New Global Administrator assigned"
+        severity        = "High"
+        query_frequency = "PT15M"
+        query_period    = "PT15M"
+        tactics         = ["PrivilegeEscalation", "Persistence"]
+        query           = <<-KQL
+          AuditLogs
+          | where OperationName == "Add member to role"
+          | mv-expand TargetResources
+          | where tostring(TargetResources.displayName) == "Global Administrator"
+          | extend InitiatedByUser = tostring(InitiatedBy.user.userPrincipalName)
+        KQL
+      }
+      owner_role_assigned = {
+        display_name    = "Owner role assigned at an Azure scope"
+        severity        = "High"
+        query_frequency = "PT15M"
+        query_period    = "PT15M"
+        tactics         = ["PrivilegeEscalation"]
+        query           = <<-KQL
+          AzureActivity
+          | where OperationNameValue =~ "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
+          | where ActivityStatusValue == "Success"
+          | extend RoleDefinitionId = tostring(parse_json(tostring(Properties)).roleDefinitionId)
+          | where RoleDefinitionId has "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+        KQL
+      }
+      pim_role_activation = {
+        display_name    = "PIM eligible role activated"
+        severity        = "Medium"
+        query_frequency = "PT15M"
+        query_period    = "PT15M"
+        tactics         = ["PrivilegeEscalation"]
+        create_incident = false
+        query           = <<-KQL
+          AuditLogs
+          | where OperationName has "Add member to role completed (PIM activation)"
+        KQL
+      }
+      management_group_or_policy_change = {
+        display_name    = "Management group or policy assignment changed"
+        severity        = "Medium"
+        query_frequency = "PT15M"
+        query_period    = "PT15M"
+        tactics         = ["Impact", "DefenseEvasion"]
+        query           = <<-KQL
+          AzureActivity
+          | where ResourceProviderValue in~ ("MICROSOFT.MANAGEMENT", "MICROSOFT.AUTHORIZATION")
+          | where OperationNameValue has_any ("managementGroups", "policyAssignments", "policyDefinitions")
+          | where ActivityStatusValue == "Success"
+        KQL
+      }
+      password_spray_suspected = {
+        display_name    = "Possible password spray against multiple accounts"
+        severity        = "Medium"
+        query_frequency = "PT10M"
+        query_period    = "PT10M"
+        tactics         = ["CredentialAccess"]
+        query           = <<-KQL
+          SigninLogs
+          | where ResultType !in ("0")
+          | summarize FailedAccounts = dcount(UserPrincipalName), Attempts = count() by IPAddress, bin(TimeGenerated, 10m)
+          | where FailedAccounts >= 5 and Attempts >= 10
+        KQL
+      }
+    }
+  }
   defender_plans = {
     virtual_machines = {
       resource_type = "VirtualMachines"
       tier          = "Standard"
       subplan       = "P1"
     }
+    storage_accounts = {
+      resource_type = "StorageAccounts"
+      tier          = "Standard"
+    }
+    key_vaults = {
+      resource_type = "KeyVaults"
+      tier          = "Standard"
+    }
+    app_services = {
+      resource_type = "AppServices"
+      tier          = "Standard"
+    }
+    sql_servers = {
+      resource_type = "SqlServers"
+      tier          = "Standard"
+    }
+    containers = {
+      resource_type = "Containers"
+      tier          = "Standard"
+    }
+    arm = {
+      resource_type = "Arm"
+      tier          = "Standard"
+    }
   }
-  security_contact = null
+  security_contact = {
+    email               = "Compeer-DTICloudEnablementTeam@compeer.com"
+    alert_notifications = true
+    alerts_to_admins    = true
+  }
+  security_center_settings = {
+    MCAS = {
+      enabled = true
+    }
+  }
+  platform_alerts = {
+    enabled                = true
+    service_health_enabled = true
+    service_health_events  = ["Incident", "Maintenance", "Security"]
+    service_health_locations = [
+      "Global",
+      "Central US"
+    ]
+    metric_alerts = {}
+  }
   defender_soc_posture = {
     enabled                       = true
     defender_standard_enabled     = true
-    sentinel_enabled              = false
+    sentinel_enabled              = true
     data_collection_rules_enabled = false
-    security_contact_enabled      = false
-    notes                         = "Defender for Cloud Servers P1 approved and enabled. Security contact, Sentinel, and DCR-based SOC integration remain pending separate SOC onboarding and cost approval."
+    security_contact_enabled      = true
+    notes                         = "Enterprise baseline: Defender Standard plans, Sentinel onboarding, subscription Activity Log export, security contact, Service Health alerting, budget alerts, and protective locks enabled. Entra diagnostic export and DCR associations remain gated by tenant permissions and target-resource onboarding."
   }
 }
