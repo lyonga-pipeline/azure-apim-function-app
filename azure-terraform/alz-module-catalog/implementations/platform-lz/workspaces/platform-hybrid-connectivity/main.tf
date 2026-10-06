@@ -17,10 +17,6 @@ locals {
   # This intentionally supersedes any created_on set in platform_tags below.
   deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
-  required_resource_provider_namespaces = local.enabled ? toset([
-    "Microsoft.Network",
-  ]) : toset([])
-
   connectivity_outputs = merge(
     try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
     try(data.tfe_outputs.connectivity[0].values, {})
@@ -76,16 +72,6 @@ locals {
 
 }
 
-resource "azurerm_resource_provider_registration" "required" {
-  for_each = local.required_resource_provider_namespaces
-
-  name = each.key
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 resource "terraform_data" "route_server_subnet_contract" {
   input = local.route_server_resolution_errors
 
@@ -101,10 +87,7 @@ module "hybrid_connectivity" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-hybrid-connectivity"
   count  = local.enabled ? 1 : 0
 
-  depends_on = [
-    azurerm_resource_provider_registration.required,
-    terraform_data.route_server_subnet_contract,
-  ]
+  depends_on = [terraform_data.route_server_subnet_contract]
 
   providers = {
     azurerm = azurerm
