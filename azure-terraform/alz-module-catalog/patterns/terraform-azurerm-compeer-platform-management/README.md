@@ -33,11 +33,12 @@ It produces the Log Analytics workspace ID and action group ID consumed by platf
 **Defender for Cloud / Sentinel enterprise baseline.** The deployable
 `platform-management/terraform.tfvars` enables the platform SOC baseline:
 Defender Standard plan entries for servers (P1), Storage, Key Vault, App
-Services, SQL Servers, Containers, and ARM; Sentinel onboarding with baseline
-analytics rules and supported Terraform-owned connectors; subscription Activity
-Log export; a security contact; Service Health alerting; budget alerts; and
-delete-protection locks. These are intentionally cost-bearing controls. For a
-from-scratch smoke test with zero Defender/Sentinel cost, set
+Services, SQL Servers, Containers, and ARM; Sentinel onboarding with the
+module's baseline Palo Alto analytics rules and approved connector posture;
+subscription Activity Log export; a security contact; Service Health alerting;
+budget alerts; and delete-protection locks. These are intentionally
+cost-bearing controls. For a from-scratch smoke test with zero
+Defender/Sentinel cost, set
 `defender_plans = {}`, `sentinel.enabled = false`, and
 `defender_soc_posture.defender_standard_enabled = false`.
 
@@ -48,6 +49,13 @@ without `defender_plans` actually backing that claim (or a security-contact
 claim without `security_contact` configured). Data Collection Rules and Entra
 tenant diagnostic export remain gated until target-resource onboarding and
 tenant-level permissions are confirmed.
+
+The identity/governance Sentinel rules in the pattern example
+(`new_global_administrator`, `owner_role_assigned`, `pim_role_activation`,
+`mg_or_policy_change`, and `password_spray_suspected`) are not active in the
+deployable workspace tfvars. They are supported examples to enable after SOC
+validates the connected `AuditLogs`, `AzureActivity`, and `SigninLogs` tables
+plus incident routing.
 
 The root now emits `defender_soc_posture` from a no-cost contract resource. Terraform will reject a configuration that claims Defender Standard or security contact posture is enabled unless the supporting `defender_plans` or `security_contact` inputs are also configured.
 

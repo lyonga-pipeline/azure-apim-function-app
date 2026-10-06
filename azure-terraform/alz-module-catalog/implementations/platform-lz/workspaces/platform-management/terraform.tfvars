@@ -236,12 +236,13 @@ management = {
       }
       entra_id = {
         connector_type = "MicrosoftEntraID"
-        enabled        = true
-        notes          = "Requires tenant-level Entra diagnostic export before rules depending on Entra tables are useful."
+        enabled        = false
+        notes          = "Enable after tenant-level Entra diagnostic export and SOC validation of AuditLogs/SigninLogs tables."
       }
       threat_intelligence = {
         connector_type = "ThreatIntelligence"
-        enabled        = true
+        enabled        = false
+        notes          = "Enable after SOC confirms threat-intelligence feed ownership and connector requirements."
       }
       defender_atp = {
         connector_type = "MicrosoftDefenderAdvancedThreatProtection"
@@ -250,79 +251,18 @@ management = {
       }
     }
     data_connectors = {
-      threat_intelligence = true
+      threat_intelligence = false
       defender_atp        = false
-      entra_id            = true
+      entra_id            = false
       defender_for_cloud  = true
     }
-    scheduled_alert_rules = {
-      new_global_administrator = {
-        display_name    = "New Global Administrator assigned"
-        severity        = "High"
-        query_frequency = "PT15M"
-        query_period    = "PT15M"
-        tactics         = ["PrivilegeEscalation", "Persistence"]
-        query           = <<-KQL
-          AuditLogs
-          | where OperationName == "Add member to role"
-          | mv-expand TargetResources
-          | where tostring(TargetResources.displayName) == "Global Administrator"
-          | extend InitiatedByUser = tostring(InitiatedBy.user.userPrincipalName)
-        KQL
-      }
-      owner_role_assigned = {
-        display_name    = "Owner role assigned at an Azure scope"
-        severity        = "High"
-        query_frequency = "PT15M"
-        query_period    = "PT15M"
-        tactics         = ["PrivilegeEscalation"]
-        query           = <<-KQL
-          AzureActivity
-          | where OperationNameValue =~ "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
-          | where ActivityStatusValue == "Success"
-          | extend RoleDefinitionId = tostring(parse_json(tostring(Properties)).roleDefinitionId)
-          | where RoleDefinitionId has "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
-        KQL
-      }
-      pim_role_activation = {
-        display_name    = "PIM eligible role activated"
-        severity        = "Medium"
-        query_frequency = "PT15M"
-        query_period    = "PT15M"
-        tactics         = ["PrivilegeEscalation"]
-        create_incident = false
-        query           = <<-KQL
-          AuditLogs
-          | where OperationName has "Add member to role completed (PIM activation)"
-        KQL
-      }
-      management_group_or_policy_change = {
-        display_name    = "Management group or policy assignment changed"
-        severity        = "Medium"
-        query_frequency = "PT15M"
-        query_period    = "PT15M"
-        tactics         = ["Impact", "DefenseEvasion"]
-        query           = <<-KQL
-          AzureActivity
-          | where ResourceProviderValue in~ ("MICROSOFT.MANAGEMENT", "MICROSOFT.AUTHORIZATION")
-          | where OperationNameValue has_any ("managementGroups", "policyAssignments", "policyDefinitions")
-          | where ActivityStatusValue == "Success"
-        KQL
-      }
-      password_spray_suspected = {
-        display_name    = "Possible password spray against multiple accounts"
-        severity        = "Medium"
-        query_frequency = "PT10M"
-        query_period    = "PT10M"
-        tactics         = ["CredentialAccess"]
-        query           = <<-KQL
-          SigninLogs
-          | where ResultType !in ("0")
-          | summarize FailedAccounts = dcount(UserPrincipalName), Attempts = count() by IPAddress, bin(TimeGenerated, 10m)
-          | where FailedAccounts >= 5 and Attempts >= 10
-        KQL
-      }
-    }
+    # Extra identity/governance rules (new GA, Owner assignment, PIM activation,
+    # MG/policy change, password spray) are real KQL examples, but the LZ
+    # boundary marks them as Hybrid/future content. Keep them in the pattern
+    # example until SOC validates the connected tenant tables and incident
+    # workflow; the mandatory deployable baseline is the module's default
+    # Palo Alto CEF forwarding-health and critical-threat rules.
+    scheduled_alert_rules = {}
   }
   defender_plans = {
     virtual_machines = {
