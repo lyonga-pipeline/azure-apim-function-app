@@ -22,6 +22,20 @@ and the `RouteServerSubnet`. Pass the hub subnet ID directly, or let the
 workspace wrapper resolve `subnet_key = "RouteServerSubnet"` from the
 `platform-connectivity` outputs.
 
+The workspace wrapper uses the TFE provider's `tfe_outputs` data source for
+that lookup. This is intentionally narrower than full remote-state sharing, but
+the hybrid workspace still needs a `TFE_TOKEN`/run identity that can read
+declared outputs from the connectivity workspace. If output access is not
+available, set the wrapper-level `route_server_subnet_ids` map instead:
+
+```hcl
+route_server_subnet_ids = {
+  primary = "/subscriptions/<subscription-id>/resourceGroups/platform-cus-prod-connectivity-rg/providers/Microsoft.Network/virtualNetworks/platform-cus-prod-hub-vnet/subnets/RouteServerSubnet"
+}
+```
+
+The key (`primary`) must match the key in `hybrid_connectivity.route_servers`.
+
 **The `terraform_data` contract — why "enabled" isn't just a boolean:**
 `expressroute_posture` requires **both** the actual resources (circuit,
 gateway, connection) **and** the sign-offs (provider design reference,

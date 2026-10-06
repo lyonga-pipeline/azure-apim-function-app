@@ -29,6 +29,7 @@ locals {
   route_server_subnet_ids = {
     for key, cfg in try(var.hybrid_connectivity.route_servers, {}) : key => try(coalesce(
       try(cfg.subnet_id, null),
+      try(var.route_server_subnet_ids[key], null),
       try(local.connectivity_subnet_ids[try(cfg.subnet_key, "RouteServerSubnet")], null),
       try(cfg.subnet_key, "RouteServerSubnet") == "RouteServerSubnet" ? try(local.connectivity_outputs.route_server_subnet_id, null) : null
     ), null)
@@ -37,12 +38,14 @@ locals {
   route_server_resolution_errors = [
     for key, cfg in try(var.hybrid_connectivity.route_servers, {}) :
     format(
-      "hybrid_connectivity.route_servers.%s requested subnet_key %q, but the connectivity workspace did not publish that subnet to this run. Connectivity workspace: %q. Published output names: [%s]. Published subnet_ids keys: [%s]. Re-run platform-connectivity with RouteServerSubnet and confirm output sharing to this workspace, or set subnet_id explicitly for this route server.",
+      "hybrid_connectivity.route_servers.%s requested subnet_key %q, but the connectivity workspace did not publish that subnet to this run. Connectivity workspace: %q. Published output names: [%s]. Published subnet_ids keys: [%s]. Re-run platform-connectivity with RouteServerSubnet and confirm TFE output-read access for this workspace, or set route_server_subnet_ids.%s / hybrid_connectivity.route_servers.%s.subnet_id explicitly.",
       key,
       try(cfg.subnet_key, "RouteServerSubnet"),
       var.connectivity_workspace_name,
       join(", ", local.connectivity_output_names),
-      join(", ", local.connectivity_subnet_id_keys)
+      join(", ", local.connectivity_subnet_id_keys),
+      key,
+      key
     )
     if local.route_server_subnet_ids[key] == null
   ]
@@ -77,6 +80,7 @@ resource "terraform_data" "route_server_subnet_contract" {
     connectivity_workspace_name = var.connectivity_workspace_name
     published_output_names      = local.connectivity_output_names
     published_subnet_id_keys    = local.connectivity_subnet_id_keys
+    explicit_subnet_ids         = var.route_server_subnet_ids
     resolved_subnet_ids         = local.route_server_subnet_ids
     errors                      = local.route_server_resolution_errors
   }

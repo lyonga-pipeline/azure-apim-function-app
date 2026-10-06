@@ -11,6 +11,13 @@ environment                 = "prod"
 tfe_organization            = "Compeer-Financial-Services"
 connectivity_workspace_name = "platform-connectivity"
 
+# Optional fallback when this workspace intentionally does not consume
+# platform-connectivity outputs through the TFE provider. Keep commented when
+# tfe_outputs has output-read access.
+# route_server_subnet_ids = {
+#   primary = "/subscriptions/<subscription-id>/resourceGroups/platform-cus-prod-connectivity-rg/providers/Microsoft.Network/virtualNetworks/platform-cus-prod-hub-vnet/subnets/RouteServerSubnet"
+# }
+
 platform_tags = {
   application = "alz-platform-hybrid-connectivity"
   # Same short code the naming module's abbr map uses for this component

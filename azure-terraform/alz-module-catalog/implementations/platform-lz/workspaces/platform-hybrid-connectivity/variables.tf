@@ -61,6 +61,20 @@ variable "connectivity_workspace_name" {
   default     = "platform-connectivity"
 }
 
+variable "route_server_subnet_ids" {
+  description = "Explicit Route Server subnet IDs keyed by hybrid_connectivity.route_servers key. Use when this workspace intentionally does not read connectivity outputs through the TFE provider."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for subnet_id in values(var.route_server_subnet_ids) :
+      can(regex("(?i)/subnets/RouteServerSubnet$", subnet_id))
+    ])
+    error_message = "Each route_server_subnet_ids value must be a subnet resource ID ending in /subnets/RouteServerSubnet."
+  }
+}
+
 variable "hybrid_connectivity" {
   description = "Hybrid connectivity workspace configuration."
   type        = any
