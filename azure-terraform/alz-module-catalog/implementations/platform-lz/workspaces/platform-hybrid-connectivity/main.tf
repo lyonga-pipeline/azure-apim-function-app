@@ -17,10 +17,38 @@ locals {
   # This intentionally supersedes any created_on set in platform_tags below.
   deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
+  required_resource_provider_namespaces = local.enabled ? toset([
+    "Microsoft.Network",
+  ]) : toset([])
+
   connectivity_outputs = merge(
     try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
     try(data.tfe_outputs.connectivity[0].values, {})
   )
+
+  connectivity_subnet_ids = try(
+    local.connectivity_outputs.subnet_ids,
+    try(local.connectivity_outputs.connectivity_hub_subnet_ids, {})
+  )
+
+  route_server_subnet_ids = {
+    for key, cfg in try(var.hybrid_connectivity.route_servers, {}) : key => try(coalesce(
+      try(cfg.subnet_id, null),
+      try(local.connectivity_subnet_ids[try(cfg.subnet_key, "RouteServerSubnet")], null),
+      try(cfg.subnet_key, "RouteServerSubnet") == "RouteServerSubnet" ? try(local.connectivity_outputs.route_server_subnet_id, null) : null
+    ), null)
+  }
+
+  route_server_resolution_errors = [
+    for key, cfg in try(var.hybrid_connectivity.route_servers, {}) :
+    format(
+      "hybrid_connectivity.route_servers.%s requested subnet_key %q, but the connectivity workspace did not publish that subnet. Published subnet_ids keys: [%s]. Re-run platform-connectivity with RouteServerSubnet, or set subnet_id explicitly for this route server.",
+      key,
+      try(cfg.subnet_key, "RouteServerSubnet"),
+      join(", ", sort(try(keys(local.connectivity_subnet_ids), [])))
+    )
+    if local.route_server_subnet_ids[key] == null
+  ]
 
   expressroute_gateway = try(var.hybrid_connectivity.expressroute_gateway, null) == null ? null : merge(
     var.hybrid_connectivity.expressroute_gateway,
@@ -40,19 +68,43 @@ locals {
     for key, cfg in try(var.hybrid_connectivity.route_servers, {}) : key => merge(
       cfg,
       {
-        subnet_id = try(coalesce(
-          try(cfg.subnet_id, null),
-          try(local.connectivity_outputs.subnet_ids[try(cfg.subnet_key, "RouteServerSubnet")], null)
-        ), null)
+        subnet_id = local.route_server_subnet_ids[key]
       }
     )
+    if local.route_server_subnet_ids[key] != null
   }
 
+}
+
+resource "azurerm_resource_provider_registration" "required" {
+  for_each = local.required_resource_provider_namespaces
+
+  name = each.key
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "terraform_data" "route_server_subnet_contract" {
+  input = local.route_server_resolution_errors
+
+  lifecycle {
+    precondition {
+      condition     = length(local.route_server_resolution_errors) == 0
+      error_message = join("\n", local.route_server_resolution_errors)
+    }
+  }
 }
 
 module "hybrid_connectivity" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-hybrid-connectivity"
   count  = local.enabled ? 1 : 0
+
+  depends_on = [
+    azurerm_resource_provider_registration.required,
+    terraform_data.route_server_subnet_contract,
+  ]
 
   providers = {
     azurerm = azurerm

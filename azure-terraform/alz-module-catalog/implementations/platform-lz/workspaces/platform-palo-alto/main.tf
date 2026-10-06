@@ -7,6 +7,16 @@ data "tfe_outputs" "connectivity" {
 locals {
   palo_alto_enabled = try(var.palo_alto.enabled, false)
 
+  required_resource_provider_namespaces = local.palo_alto_enabled ? toset([
+    "Microsoft.Compute",
+    "Microsoft.Insights",
+    "Microsoft.KeyVault",
+    "Microsoft.MarketplaceOrdering",
+    "Microsoft.Network",
+    "Microsoft.RecoveryServices",
+    "Microsoft.Storage",
+  ]) : toset([])
+
   connectivity_outputs = merge(
     try(data.tfe_outputs.connectivity[0].nonsensitive_values, {}),
     try(data.tfe_outputs.connectivity[0].values, {})
@@ -108,6 +118,16 @@ locals {
   }
 }
 
+resource "azurerm_resource_provider_registration" "required" {
+  for_each = local.required_resource_provider_namespaces
+
+  name = each.key
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 module "resource_groups" {
   source = "../../../../modules/terraform-azurerm-compeer-resource-group"
   count  = local.palo_alto_enabled ? 1 : 0
@@ -138,6 +158,8 @@ moved {
 
 module "palo_alto" {
   source = "../../../../patterns/terraform-azurerm-compeer-palo-alto-hub"
+
+  depends_on = [azurerm_resource_provider_registration.required]
 
   providers = {
     azurerm = azurerm

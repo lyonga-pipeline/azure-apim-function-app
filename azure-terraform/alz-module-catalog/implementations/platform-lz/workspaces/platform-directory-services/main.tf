@@ -23,6 +23,13 @@ locals {
   # This intentionally supersedes any created_on set in platform_tags below.
   deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
 
+  required_resource_provider_namespaces = local.enabled ? toset([
+    "Microsoft.Compute",
+    "Microsoft.Insights",
+    "Microsoft.Network",
+    "Microsoft.RecoveryServices",
+  ]) : toset([])
+
   management_outputs = merge(
     try(data.tfe_outputs.management[0].nonsensitive_values, {}),
     try(data.tfe_outputs.management[0].values, {})
@@ -91,9 +98,21 @@ locals {
   }
 }
 
+resource "azurerm_resource_provider_registration" "required" {
+  for_each = local.required_resource_provider_namespaces
+
+  name = each.key
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 module "directory_services" {
   source = "../../../../patterns/terraform-azurerm-compeer-directory-services"
   count  = local.enabled ? 1 : 0
+
+  depends_on = [azurerm_resource_provider_registration.required]
 
   providers = {
     azurerm = azurerm

@@ -33,12 +33,31 @@ locals {
     try(data.tfe_outputs.connectivity[0].values, {})
   )
 
+  required_resource_provider_namespaces = local.enabled ? toset([
+    "Microsoft.Compute",
+    "Microsoft.Insights",
+    "Microsoft.KeyVault",
+    "Microsoft.ManagedIdentity",
+  ]) : toset([])
+
   log_analytics_workspace_id = try(coalesce(var.log_analytics_workspace_id, try(local.management_outputs.log_analytics_workspace_id, null)), null)
+}
+
+resource "azurerm_resource_provider_registration" "required" {
+  for_each = local.required_resource_provider_namespaces
+
+  name = each.key
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 module "identity" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-identity"
   count  = local.enabled ? 1 : 0
+
+  depends_on = [azurerm_resource_provider_registration.required]
 
   providers = {
     azurerm = azurerm

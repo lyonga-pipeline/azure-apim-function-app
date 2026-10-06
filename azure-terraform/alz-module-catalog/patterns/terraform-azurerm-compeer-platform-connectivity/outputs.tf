@@ -38,6 +38,16 @@ output "subnet_ids" {
   value       = module.hub_vnet.subnet_ids
 }
 
+output "connectivity_hub_subnet_ids" {
+  description = "Alias for subnet_ids using the formal Platform_Output_Contracts_IAC-10 field name."
+  value       = module.hub_vnet.subnet_ids
+}
+
+output "route_server_subnet_id" {
+  description = "Convenience accessor for the hub VNet RouteServerSubnet ID."
+  value       = try(module.hub_vnet.subnet_ids["RouteServerSubnet"], null)
+}
+
 output "network_security_group_ids" {
   description = "Resource IDs of the baseline NSGs, keyed the same as var.network_security_groups. Platform_Output_Contracts_IAC-10 connectivity_nsg_baseline_ids."
   value       = { for key, value in module.network_security_groups : key => value.id }

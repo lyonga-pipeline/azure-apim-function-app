@@ -8,13 +8,34 @@ locals {
   # (unlike timestamp(), which would re-diff this tag on every single plan).
   # This intentionally supersedes any created_on set in platform_tags below.
   deployment_created_on = formatdate("YYYY-MM-DD", time_static.deployment_created.rfc3339)
+
+  required_resource_provider_namespaces = local.enabled ? toset([
+    "Microsoft.Consumption",
+    "Microsoft.Insights",
+    "Microsoft.OperationalInsights",
+    "Microsoft.Security",
+    "Microsoft.SecurityInsights",
+    "Microsoft.Storage",
+  ]) : toset([])
 }
 
 resource "time_static" "deployment_created" {}
 
+resource "azurerm_resource_provider_registration" "required" {
+  for_each = local.required_resource_provider_namespaces
+
+  name = each.key
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 module "management" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-management"
   count  = local.enabled ? 1 : 0
+
+  depends_on = [azurerm_resource_provider_registration.required]
 
   providers = {
     azurerm = azurerm

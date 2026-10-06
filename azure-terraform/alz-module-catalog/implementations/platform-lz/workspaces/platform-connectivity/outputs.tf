@@ -28,6 +28,16 @@ output "subnet_ids" {
   value       = try(module.connectivity[0].subnet_ids, {})
 }
 
+output "connectivity_hub_subnet_ids" {
+  description = "Alias for subnet_ids using the formal Platform_Output_Contracts_IAC-10 field name."
+  value       = try(module.connectivity[0].connectivity_hub_subnet_ids, {})
+}
+
+output "route_server_subnet_id" {
+  description = "Convenience accessor for RouteServerSubnet, consumed by platform-hybrid-connectivity."
+  value       = try(module.connectivity[0].route_server_subnet_id, null)
+}
+
 output "dns_server_ips" {
   description = "Platform_Output_Contracts_IAC-10 connectivity_dns_server_ips."
   value       = try(module.connectivity[0].dns_server_ips, [])
