@@ -62,11 +62,20 @@ identity = {
     automation = {}
   }
   key_vault = {
-    name                       = "platform-cus-prod-vault"
-    sku_name                   = "standard"
-    soft_delete_retention_days = 90
-    purge_protection_enabled   = true
-    contacts                   = {}
+    name                            = "platform-cus-prod-vault"
+    sku_name                        = "standard"
+    soft_delete_retention_days      = 90
+    purge_protection_enabled        = true
+    rbac_authorization_enabled      = true
+    public_network_access_enabled   = false
+    enabled_for_deployment          = false
+    enabled_for_disk_encryption     = false
+    enabled_for_template_deployment = false
+    network_acls = {
+      bypass         = "None"
+      default_action = "Deny"
+    }
+    contacts = {}
   }
   # Private endpoint intentionally not configured here. The refined placement
   # sheet keeps platform private endpoints in the connectivity subscription
