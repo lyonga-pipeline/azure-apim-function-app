@@ -24,6 +24,15 @@ log_analytics = {
   retention_in_days = 90
 }
 
+# Optional per-table retention. Use only for Microsoft tables the landing zone
+# is actively populating; add Entra tables after tenant diagnostics are enabled.
+# log_analytics_tables = {
+#   AzureActivity = {
+#     retention_in_days       = 90
+#     total_retention_in_days = 548
+#   }
+# }
+
 action_group = {
   name       = "ag-lz-cloudops-np"
   short_name = "lzopsnp"

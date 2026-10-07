@@ -36,6 +36,7 @@ module "management" {
   platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}), { created_on = local.deployment_created_on })
   resource_group                        = try(var.management.resource_group, {})
   log_analytics                         = try(var.management.log_analytics, null)
+  log_analytics_tables                  = try(var.management.log_analytics_tables, {})
   action_group                          = try(var.management.action_group, null)
   platform_storage_accounts             = try(var.management.platform_storage_accounts, {})
   platform_storage_diagnostics          = try(var.management.platform_storage_diagnostics, {})

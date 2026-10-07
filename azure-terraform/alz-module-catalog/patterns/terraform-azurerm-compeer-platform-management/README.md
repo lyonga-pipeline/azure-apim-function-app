@@ -28,19 +28,27 @@ scenarios this catches.
 
 This root creates the shared observability foundation for a landing-zone environment.
 
-It produces the Log Analytics workspace ID and action group ID consumed by platform and workload roots.
+It produces the Log Analytics workspace ID and action group ID consumed by platform and workload roots. This is a net-new landing-zone monitoring boundary: workload roots send diagnostics to this workspace rather than requiring a separate Sentinel workspace per workload.
 
 **Defender for Cloud / Sentinel enterprise baseline.** The deployable
 `platform-management/terraform.tfvars` enables the platform SOC baseline:
 Defender Standard plan entries for servers (P1), Storage, Key Vault, App
 Services, SQL Servers, Containers, and ARM; Sentinel onboarding with the
 module's baseline Palo Alto analytics rules and approved connector posture;
-subscription Activity Log export; a security contact; Service Health alerting;
+subscription Activity Log export; table-level Log Analytics retention for
+active security tables; a Defender security contact; Service Health alerting;
 budget alerts; and delete-protection locks. These are intentionally
 cost-bearing controls. For a from-scratch smoke test with zero
 Defender/Sentinel cost, set
 `defender_plans = {}`, `sentinel.enabled = false`, and
 `defender_soc_posture.defender_standard_enabled = false`.
+
+`log_analytics_tables` manages Microsoft table retention where the security
+operations design calls for a split between analytics retention and total
+retention. The production tfvars currently models Compeer's stated 90-day
+analytics retention and 1.5-year total retention for the active platform/SOC
+tables. Do not add Entra tables (`AuditLogs`, `SigninLogs`) until tenant-level
+Entra diagnostics are approved and connected.
 
 `defender_soc_posture` records the Defender/SOC target state as a no-cost
 contract-checked posture marker — it doesn't deploy anything itself, but
@@ -85,7 +93,7 @@ Resource provider registrations are also left unmanaged in the smoke-test tfvars
 
 Entra diagnostic settings are left unmanaged in the smoke-test tfvars because they are tenant-level `Microsoft.AADIAM` resources, not subscription resources. Enable them only when the HCP run identity has tenant-level permission to read and write Entra diagnostic settings.
 
-Use this root for central monitoring, activity-log diagnostics, Entra diagnostics, action groups, subscription budgets, security contact configuration, Defender plan enablement, and future SOC integration. Add Sentinel onboarding and data-collection rules here when the SOC/SIEM design is approved.
+Use this root for central monitoring, activity-log diagnostics, Entra diagnostics, action groups, subscription budgets, security contact configuration, Defender plan enablement, and future SOC integration. Security Operations owns data connectors, analytics rules, threat hunting content, ServiceNow/SIR integration, and incident response process choices after the platform baseline is available.
 
 Azure Monitor Data Collection Endpoints, Data Collection Rules, and DCR associations are available through `data_collection_endpoints`, `data_collection_rules`, and `data_collection_rule_associations`. DCRs and associations are separate inputs so telemetry rules can be updated independently from the VMs, connectors, or other resources they target.
 

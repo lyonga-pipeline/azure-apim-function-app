@@ -98,6 +98,46 @@ variable "log_analytics" {
   })
 }
 
+variable "log_analytics_tables" {
+  type = map(object({
+    name                    = optional(string)
+    retention_in_days       = optional(number)
+    total_retention_in_days = optional(number)
+  }))
+  description = "Optional per-table Log Analytics retention settings. Use this for Sentinel/security tables that need shorter analytics retention and longer total retention than the workspace default."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for table in values(var.log_analytics_tables) :
+      try(table.retention_in_days, null) == null ? true : (
+        table.retention_in_days >= 4 && table.retention_in_days <= 730
+      )
+    ])
+    error_message = "log_analytics_tables[*].retention_in_days must be between 4 and 730 when set."
+  }
+
+  validation {
+    condition = alltrue([
+      for table in values(var.log_analytics_tables) :
+      try(table.total_retention_in_days, null) == null ? true : (
+        table.total_retention_in_days >= 4
+      )
+    ])
+    error_message = "log_analytics_tables[*].total_retention_in_days must be 4 or greater when set."
+  }
+
+  validation {
+    condition = alltrue([
+      for table in values(var.log_analytics_tables) :
+      try(table.retention_in_days, null) == null || try(table.total_retention_in_days, null) == null ? true : (
+        table.total_retention_in_days >= table.retention_in_days
+      )
+    ])
+    error_message = "log_analytics_tables[*].total_retention_in_days must be greater than or equal to retention_in_days."
+  }
+}
+
 variable "action_group" {
   type = object({
     name       = optional(string)

@@ -52,16 +52,39 @@ management = {
   enabled        = true
   resource_group = {}
   log_analytics = {
-    # Enterprise baseline: keep at least one year of platform/security logs.
-    # No hard daily cap here; use the subscription budget below for cost
-    # guardrails so security telemetry does not silently stop ingesting.
-    retention_in_days                       = 365
+    # Client security lead direction: 90 days analytics retention with
+    # long-term retention carrying applicable security tables to 1.5 years
+    # total. No hard daily cap here; use the subscription budget below for
+    # cost guardrails so security telemetry does not silently stop ingesting.
+    retention_in_days                       = 90
     daily_quota_gb                          = -1
     local_authentication_disabled           = true
     internet_ingestion_enabled              = true
     internet_query_enabled                  = true
     allow_resource_only_permissions         = true
     immediate_data_purge_on_30_days_enabled = false
+  }
+  # Security lead response: Compeer requires 1.5 years total security-log
+  # retention, with 90 days available for analytics. Manage only the tables
+  # this LZ is currently configured to populate; Entra tables (AuditLogs,
+  # SigninLogs) stay out until tenant-level Entra diagnostics are approved.
+  log_analytics_tables = {
+    AzureActivity = {
+      retention_in_days       = 90
+      total_retention_in_days = 548
+    }
+    CommonSecurityLog = {
+      retention_in_days       = 90
+      total_retention_in_days = 548
+    }
+    SecurityAlert = {
+      retention_in_days       = 90
+      total_retention_in_days = 548
+    }
+    SecurityRecommendation = {
+      retention_in_days       = 90
+      total_retention_in_days = 548
+    }
   }
   action_group = {
     short_name = "platops"
@@ -296,7 +319,7 @@ management = {
     }
   }
   security_contact = {
-    email               = "Compeer-DTICloudEnablementTeam@compeer.com"
+    email               = "Jordan.West@compeer.com"
     alert_notifications = true
     alerts_to_admins    = true
   }
@@ -321,6 +344,6 @@ management = {
     sentinel_enabled              = true
     data_collection_rules_enabled = false
     security_contact_enabled      = true
-    notes                         = "Enterprise baseline: Defender Standard plans, Sentinel onboarding, subscription Activity Log export, security contact, Service Health alerting, budget alerts, and protective locks enabled. Entra diagnostic export and DCR associations remain gated by tenant permissions and target-resource onboarding."
+    notes                         = "Enterprise baseline: new LZ Log Analytics and Sentinel environment, Defender Standard plans, subscription Activity Log export, 90-day analytics plus 1.5-year total retention for active security tables, Defender security contact, Service Health alerting, budget alerts, and protective locks enabled. Entra diagnostic export, ServiceNow/SIR integration, and extra SOC detection content remain owned/approved by Security Operations."
   }
 }

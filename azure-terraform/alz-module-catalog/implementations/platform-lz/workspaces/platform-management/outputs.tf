@@ -58,6 +58,16 @@ output "log_analytics_security_center_workspace_ids" {
   value       = try(module.management[0].log_analytics_security_center_workspace_ids, {})
 }
 
+output "log_analytics_table_retention_ids" {
+  description = "IDs of Log Analytics table retention resources, keyed by table name."
+  value       = try(module.management[0].log_analytics_table_retention_ids, {})
+}
+
+output "log_analytics_table_retention" {
+  description = "Effective Log Analytics table retention settings managed by platform-management."
+  value       = try(module.management[0].log_analytics_table_retention, {})
+}
+
 output "action_group_id" {
   description = "Resource ID of the platform's primary Azure Monitor action group."
   value       = try(module.management[0].action_group_id, null)

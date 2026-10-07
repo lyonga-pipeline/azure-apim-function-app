@@ -74,6 +74,15 @@ module "log_analytics" {
   tags                                    = module.tags.tags
 }
 
+resource "azurerm_log_analytics_workspace_table" "table_retention" {
+  for_each = var.log_analytics_tables
+
+  workspace_id            = module.log_analytics.id
+  name                    = coalesce(try(each.value.name, null), each.key)
+  retention_in_days       = try(each.value.retention_in_days, null)
+  total_retention_in_days = try(each.value.total_retention_in_days, null)
+}
+
 module "action_group" {
   source = "../../modules/terraform-azurerm-compeer-action-group"
 

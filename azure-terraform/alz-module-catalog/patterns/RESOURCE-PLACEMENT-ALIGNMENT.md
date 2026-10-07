@@ -65,7 +65,7 @@ The screenshots and the accompanying direction are not fully consistent. Resolve
 | Placement requirement | Current code | Status | Required change |
 |---|---|---|---|
 | Log Analytics in management subscription monitoring RG | Implemented in `platform-management` | Aligned conceptually | Set explicit name/RG and validate diagnostics destinations. |
-| Microsoft Sentinel, connectors and break-glass alert | Sentinel and connectors exist but are disabled; action-group receivers are empty | Capability only | Enable after SOC approval, configure approved connectors and alert recipients, and add/test the break-glass analytics/alert rule. |
+| Microsoft Sentinel, connectors and break-glass alert | `platform-management` now enables a new Sentinel workspace on the new LZ Log Analytics workspace, enables the Defender for Cloud connector, routes subscription Activity Logs, and sets 90-day analytics / 1.5-year total retention for active security tables. Extra identity/governance rules and ServiceNow/SIR integration remain Security Operations-owned. | Aligned for platform baseline | Confirm the Security Operations distribution list for alert routing, then enable Entra diagnostics/connectors and extra analytics rules after SOC validates the connected tables. |
 | Platform diagnostics/artifact storage in management storage RG | Storage exists but currently shares the management pattern RG | Deviates | Support a dedicated storage RG or split storage ownership into a small platform-storage pattern/root. Set the approved public endpoint/network ACL posture. |
 | Platform storage has no private endpoint | Management no longer has a PE deployment surface, which aligns with the on-hold placement decision | On hold | `public_network_access_enabled = false` leaves the account unreachable without a PE. Set the approved public endpoint posture or create a connectivity-owned PE after approval. Retain OAuth, key restrictions, TLS and network ACL controls. |
 | Platform Key Vault in security subscription/Key Vault RG | `platform-identity-security` is now the sole platform Key Vault owner; the duplicate management vault surface was removed | Aligned for ownership | Confirm the workspace runs against `sub-security-prod-cus` and keep the explicit approved name/RG. |
@@ -149,5 +149,5 @@ Do not apply the affected production workspaces until these blockers are cleared
 - Palo Alto placeholder SSH public keys and Panorama/bootstrap values are replaced.
 - Existing private DNS zone subscription/RG values are confirmed.
 - ExpressRoute/VPN provider, BGP, routing, PSK and failover details are approved.
-- Sentinel connector, retention, alerting and cost decisions are approved.
+- Security Operations distribution list, ServiceNow/SIR integration path, and any extra Sentinel analytics rules are approved.
 - Backup requirements for Palo VMs and domain controllers are reconciled and restore tests are defined.

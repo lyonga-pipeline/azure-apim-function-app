@@ -58,6 +58,22 @@ output "log_analytics_security_center_workspace_ids" {
   value       = { for key, value in azurerm_security_center_workspace.log_analytics : key => value.id }
 }
 
+output "log_analytics_table_retention_ids" {
+  description = "IDs of Log Analytics table retention resources, keyed by var.log_analytics_tables."
+  value       = { for key, value in azurerm_log_analytics_workspace_table.table_retention : key => value.id }
+}
+
+output "log_analytics_table_retention" {
+  description = "Effective Log Analytics table retention settings managed by this pattern."
+  value = {
+    for key, value in azurerm_log_analytics_workspace_table.table_retention : key => {
+      name                    = value.name
+      retention_in_days       = value.retention_in_days
+      total_retention_in_days = value.total_retention_in_days
+    }
+  }
+}
+
 output "action_group_id" {
   description = "Resource ID of the platform's primary Azure Monitor action group."
   value       = module.action_group.id
