@@ -81,6 +81,13 @@ hybrid_connectivity = {
       subnet_key                       = "RouteServerSubnet"
       public_ip_key                    = "primary"
       branch_to_branch_traffic_enabled = false # Confirm with the network team before production traffic cutover.
+      bgp_connections = {
+        sdwan = {
+          name     = "platform-cus-prod-rs-sdwan-peer"
+          peer_asn = 65010
+          peer_ip  = "10.102.0.132"
+        }
+      }
     }
   }
 }
