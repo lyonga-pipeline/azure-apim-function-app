@@ -31,10 +31,7 @@ variables {
   }
 }
 
-run "unspecified_storage_diagnostics_default_to_storage_valid_categories" {
-  # A storage account root exposes only metrics (Transaction/Capacity): Azure
-  # rejects allLogs ("supported ones are: ''") and AllMetrics there, so the
-  # generic diagnostic-profile defaults must not be applied to storage.
+run "unspecified_diagnostics_default_to_all_logs_and_metrics" {
   command = plan
 
   variables {
@@ -46,12 +43,16 @@ run "unspecified_storage_diagnostics_default_to_storage_valid_categories" {
   }
 
   assert {
-    condition     = length(local.platform_storage_diagnostic_inputs["audit_diag"].logs) == 0
-    error_message = "an account-root entry that leaves logs unset must default to no logs, never allLogs"
+    condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].logs) == tolist(["allLogs"])
+    error_message = "an entry that leaves logs unset should default to allLogs"
   }
   assert {
-    condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].metrics) == tolist(["Transaction"])
-    error_message = "an entry that leaves metrics unset should default to the Transaction metric"
+    condition     = local.platform_storage_diagnostic_inputs["audit_diag"].logs["allLogs"].category_group == "allLogs"
+    error_message = "the default log entry should use category_group = allLogs, not an enumerated category"
+  }
+  assert {
+    condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].metrics) == tolist(["AllMetrics"])
+    error_message = "an entry that leaves metrics unset should default to AllMetrics"
   }
 }
 

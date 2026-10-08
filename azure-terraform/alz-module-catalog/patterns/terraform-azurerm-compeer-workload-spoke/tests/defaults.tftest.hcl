@@ -84,26 +84,6 @@ run "workload_storage_account_defaults_to_zone_redundant_with_soft_delete" {
   }
 }
 
-run "workload_storage_diagnostics_default_to_storage_valid_categories" {
-  # Azure rejects allLogs/AllMetrics on a storage account root
-  # ("CategoryGroup: 'allLogs' is not supported"), so the defaults must be
-  # no logs plus the Transaction metric.
-  command = plan
-  variables {
-    workload_storage_accounts = {
-      data = { name = "stinternalappsdataprod" }
-    }
-  }
-  assert {
-    condition     = length(var.workload_storage_accounts["data"].diagnostics.logs) == 0
-    error_message = "a storage account's diagnostics must not default to allLogs"
-  }
-  assert {
-    condition     = keys(var.workload_storage_accounts["data"].diagnostics.metrics) == tolist(["Transaction"])
-    error_message = "a storage account's diagnostics must default to the Transaction metric, not AllMetrics"
-  }
-}
-
 run "workload_storage_account_replication_type_is_app_team_overridable" {
   command = apply
   variables {

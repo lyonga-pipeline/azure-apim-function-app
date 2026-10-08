@@ -136,28 +136,8 @@ management = {
     }
   }
   platform_storage_diagnostics = {
-    # Two settings per storage account, on two different resources:
-    #  - the account root only supports metrics (no log categories at all, so
-    #    allLogs is rejected: "supported ones are: ''");
-    #  - the data-plane audit trail (who read/wrote/deleted which blob) lives
-    #    on the blob service. storage_service = "blob" targets
-    #    <account id>/blobServices/default, which Azure creates with the
-    #    account - no containers need to exist yet.
     audit = {
       storage_account_key = "audit"
-      logs                = {}
-      metrics = {
-        transaction = { category = "Transaction" }
-      }
-    }
-    audit_blob = {
-      storage_account_key = "audit"
-      storage_service     = "blob"
-      logs = {
-        read   = { category = "StorageRead" }
-        write  = { category = "StorageWrite" }
-        delete = { category = "StorageDelete" }
-      }
       metrics = {
         transaction = { category = "Transaction" }
       }
