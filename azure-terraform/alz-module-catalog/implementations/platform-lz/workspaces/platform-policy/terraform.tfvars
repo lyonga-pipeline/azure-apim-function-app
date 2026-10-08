@@ -108,6 +108,8 @@ policy = {
             "Microsoft.Network/publicIPAddresses",
             "Microsoft.Network/loadBalancers",
             "Microsoft.Network/bastionHosts",
+            "Microsoft.Network/networkWatchers",
+            "Microsoft.Network/networkWatchers/flowLogs",
             "Microsoft.Network/privateEndpoints",
             "Microsoft.Network/privateDnsZones",
             "Microsoft.Network/applicationGateways",
@@ -136,6 +138,9 @@ policy = {
             "Microsoft.Insights/metricAlerts",
             "Microsoft.Insights/scheduledQueryRules",
             "Microsoft.SecurityInsights/onboardingStates",
+            "Microsoft.Security/pricings",
+            "Microsoft.Security/securityContacts",
+            "Microsoft.Security/settings",
             "Microsoft.Automation/automationAccounts",
             "Microsoft.RecoveryServices/vaults",
             "Microsoft.Consumption/budgets",
@@ -282,6 +287,68 @@ policy = {
 
   # Add approved, time-bound exemptions before promoting a control to Deny.
   policy_exemptions = {}
+
+  # The root obtains the Log Analytics workspace ID from platform-management.
+  # Enterprise SOC controls that need policy remediation identities are modeled
+  # here and folded into remediation.dine_assignments by locals.tf. This keeps
+  # the platform-management workspace as the subscription-local owner of its own
+  # Sentinel/Defender resources, while platform-policy handles inheritance for
+  # newly onboarded landing-zone subscriptions.
+  defender_for_cloud_policy = {
+    enabled              = true
+    management_group_key = "compeer-enterprise-mg"
+    effect               = "DeployIfNotExists"
+    # Baseline for a mid-size financial organization actively migrating from
+    # on-prem: P1 server coverage for cost-conscious breadth, plus Storage, Key
+    # Vault, App Service, Azure SQL, SQL on machines, Containers, and Resource
+    # Manager. Move Servers to P2 and add Defender CSPM after Security approves
+    # the extra cost and feature ownership.
+    plans = {
+      servers = {
+        enabled = true
+        subplan = "P1"
+      }
+      storage = {
+        enabled                              = true
+        on_upload_malware_scanning_enabled   = true
+        sensitive_data_discovery_enabled     = true
+        cap_gb_per_month_per_storage_account = 1000
+      }
+      key_vault = {
+        enabled = true
+      }
+      app_services = {
+        enabled = true
+      }
+      sql_databases = {
+        enabled = true
+      }
+      sql_servers_on_machines = {
+        enabled = true
+      }
+      containers = {
+        enabled = true
+      }
+      resource_manager = {
+        enabled = true
+      }
+    }
+  }
+
+  network_flow_logging_policy = {
+    enabled              = true
+    management_group_key = "compeer-enterprise-mg"
+    effect               = "DeployIfNotExists"
+    vnet_region          = "centralus"
+    # Must match the actual regional Network Watcher and use a same-region
+    # storage account. Override storage_account_id if Compeer later approves a
+    # dedicated flow-log storage account instead of the management audit account.
+    network_watcher_resource_group_name = "NetworkWatcherRG"
+    network_watcher_name                = "NetworkWatcher_centralus"
+    storage_account_key                 = "audit"
+    retention_days                      = 90
+    traffic_analytics_interval_minutes  = 60
+  }
 
   # The root obtains the Log Analytics workspace ID from platform-management.
   remediation = {

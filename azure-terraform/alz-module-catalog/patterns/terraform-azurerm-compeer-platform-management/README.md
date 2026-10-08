@@ -33,7 +33,7 @@ It produces the Log Analytics workspace ID and action group ID consumed by platf
 **Defender for Cloud / Sentinel enterprise baseline.** The deployable
 `platform-management/terraform.tfvars` enables the platform SOC baseline:
 Defender Standard plan entries for servers (P1), Storage, Key Vault, App
-Services, SQL Servers, Containers, and ARM; Sentinel onboarding with the
+Services, SQL Servers, SQL servers on machines, Containers, and ARM; Sentinel onboarding with the
 module's baseline Palo Alto analytics rules and approved connector posture;
 subscription Activity Log export; table-level Log Analytics retention for
 active security tables; a Defender security contact; Service Health alerting;

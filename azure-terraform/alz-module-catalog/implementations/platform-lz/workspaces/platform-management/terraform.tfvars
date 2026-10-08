@@ -309,6 +309,10 @@ management = {
       resource_type = "SqlServers"
       tier          = "Standard"
     }
+    sql_servers_on_machines = {
+      resource_type = "SqlServerVirtualMachines"
+      tier          = "Standard"
+    }
     containers = {
       resource_type = "Containers"
       tier          = "Standard"

@@ -105,7 +105,7 @@ accounted for. Authorization controls remain in `platform-authorization` and
 `platform-privileged-access`; operational controls remain in management and
 service patterns rather than being forced into one policy initiative.
 
-**Not enabled — a real reason each time, not just "not gotten to it":**
+**Still gated or scope-controlled — a real reason each time, not just "not gotten to it":**
 
 7. **Sentinel detection rules** (Phase 2 §9 / Phase 7 §8) — real KQL content
    exists (commented) in `platform-management`'s `terraform.tfvars.example`;
@@ -114,24 +114,21 @@ service patterns rather than being forced into one policy initiative.
 8. **SQL TDE required** (Phase 5 §7) — no current, non-deprecated built-in
    policy GUID could be found for a plain "TDE should be enabled" audit (Azure
    enables TDE by default on new databases now, which likely explains this).
-9. **Diagnostic settings required** (Phase 3 §7 Cat. 4) — Microsoft's current
-   diagnostic-settings-policy model is per-resource-type (dozens of built-ins,
-   one per service), not a single initiative; needs Compeer to pick which
-   resource types to enforce it on.
-10. **Defender for Cloud plan auto-enablement** (Phase 6 §3-4) — the initiative
-   ID **is** confirmed and current: "Configure Microsoft Defender for Cloud
-   plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` (verified not deprecated, 12
-   bundled DeployIfNotExists policies). Not enabled because each bundled
-   policy needs a pricing tier / subplan (e.g. Servers P1 vs P2) — that's a
-   licensing/cost decision for Compeer, not a technical unknown, so it isn't
-   defaulted here. Also: `platform-policy`'s `remediation.dine_assignments`
-   only accepts `policy_definition_id` (single policy), so assigning this
-   *initiative* needs the pattern's main `management_group_policy_assignments`
-   (which supports `policy_set_definition_id` + an identity block) instead.
+9. **Additional service-specific diagnostic settings** (Phase 3 §7 Cat. 4) —
+   the enterprise diagnostic backstop is now enabled for the approved Phase 1
+   resource catalog via Microsoft's `allLogs` initiative plus dedicated App
+   Service / Function App policies. New resource types still need explicit
+   approval before they are added to the policy list.
+10. **Defender for Cloud premium expansion** (Phase 6 §3-4) — `platform-policy`
+   now enables the approved MG-level Defender baseline with individual
+   DeployIfNotExists policies: Servers P1, Storage, Key Vault, App Service,
+   Azure SQL, SQL servers on machines, Containers, and Resource Manager.
+   Servers P2 and Defender CSPM remain explicit Compeer licensing/SOC
+   decisions, not technical blockers.
 
-The remaining items need tenant validation, a licensing decision, or a
-resource-type-specific diagnostic policy selection. They should not be
-silently enabled with guessed parameters.
+The remaining disabled or expansion items need tenant validation, a licensing
+decision, or a resource-type-specific diagnostic policy selection. They should
+not be silently enabled with guessed parameters.
 
 ---
 
@@ -212,11 +209,11 @@ silently enabled with guessed parameters.
 | Step | Delivery | Where |
 |---|---|---|
 | 1-2. Architecture & governance model | Manual (design) | |
-| 3. Enable Defender at MG scope | **Hybrid** — the assignment mechanism (`azurerm_management_group_policy_assignment` + system-assigned identity, `platform-policy`) is generic and proven (it's the same resource already assigning the live guardrails above) | The confirmed, current initiative — "Configure Microsoft Defender for Cloud plans", `f08c57cd-dbd6-49a4-a85e-9ae77ac959b0` — is documented in `platform-policy` tfvars but not enabled: per-plan pricing tier/subplan is a Compeer licensing decision, not a technical unknown. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
+| 3. Enable Defender at MG scope | **IaC** — `platform-policy` composes individual Defender plan DeployIfNotExists assignments with managed identities and remediation roles at `compeer-enterprise-mg` | The enabled baseline is Servers P1, Storage, Key Vault, App Service, Azure SQL, SQL servers on machines, Containers, and Resource Manager. Servers P2 and Defender CSPM are deferred licensing/SOC decisions. `azurerm_security_center_subscription_pricing` (per-subscription) is separately codified in `platform-management`. |
 | 4. Core Defender plans | **IaC** — `platform-management` (`defender_plan_ids`) + `platform-policy` for inheritance | |
-| 5. CSPM | **IaC** — CSPM is one of the 12 plans in the Defender-for-Cloud-plans initiative above; Secure Score / attack-path review are portal/console | |
+| 5. CSPM | **Hybrid** — Secure Score / attack-path review are portal/console; Defender CSPM plan enablement is not part of the current cost baseline | Enable after Security approves licensing, ownership, and expected alert/attack-path workflow. |
 | 6. Regulatory compliance frameworks | **IaC** — MCSB (`policy_baseline`, "Required baseline") **and** CIS Microsoft Azure Foundations Benchmark v2.0.0 (`cmp-cis-benchmark`, "Recommended") are both **LIVE** at `compeer-enterprise-mg`, Audit/reporting only | |
-| 7. Workload protection plans | **Hybrid** — plan enablement IaC (Defender-for-Cloud-plans initiative, not yet enabled — see Phase 6 §3); per-workload configuration is portal/console | |
+| 7. Workload protection plans | **Hybrid** — approved plan enablement is IaC; per-workload configuration is portal/console | |
 | 8-9. Remediation & operations model | **Manual** (`external-system`) | SOC / platform run process. |
 | 10. Validation | Manual | |
 

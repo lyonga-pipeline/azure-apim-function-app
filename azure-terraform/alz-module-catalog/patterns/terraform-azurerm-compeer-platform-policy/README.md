@@ -42,7 +42,8 @@ The following mapping covers the Identity and RBAC design recommendations and th
 | GOV-05 approved locations, public exposure, secure storage, SQL posture | `platform-governance` | Enterprise baseline initiative at `compeer-enterprise-mg`. |
 | GOV-05 approved resource types | `platform-policy` | Built-in assignment, audit/non-enforcing until the approved catalog is complete. |
 | GOV-06 mandatory tags | `platform-governance` | Enterprise tagging policy inherited by descendants. Tag value validation also exists in OPA and the tagging module. |
-| GOV-07 resource diagnostics DINE | `platform-policy` | Assigns the Microsoft built-in `allLogs` initiative to the enterprise management group with an approved resource-type list and the central workspace ID. |
+| GOV-07 resource diagnostics DINE | `platform-policy` | Assigns the Microsoft built-in `allLogs` initiative to the enterprise management group with an approved resource-type list and the central workspace ID. App Service and Function App use dedicated built-ins. |
+| NET/OBS VNet flow logs | `platform-policy` + `platform-management` | Assigns Network Watcher and VNet flow-log DINE policies at the enterprise management group. The deployable root reads the platform Log Analytics workspace GUID/resource ID and audit storage account ID from `platform-management`. |
 | OBS-03 Activity Log collection | `platform-management` | Direct diagnostic setting to the central Log Analytics workspace. An Activity Log DINE assignment can be added as a governance backstop. |
 | Managed identity where supported | `platform-policy` | App Service, Function App, and Automation audit assignments. Add service-specific built-ins as the approved service catalog grows. |
 | Key Vault authorization and recovery | `platform-policy` | RBAC authorization and deletion-protection audit assignments. |
@@ -51,7 +52,7 @@ The following mapping covers the Identity and RBAC design recommendations and th
 | Private endpoints where applicable | Resource patterns and `platform-policy` | Resources create endpoints explicitly; policy audits public IPs. Platform Key Vault/storage exceptions must follow the approved placement decision and must not be blocked by a blanket PaaS deny. |
 | Privileged access audit and group-only assignments | `platform-authorization` and PIM | Not an Azure Policy responsibility. OPA can reject direct user assignments in Terraform plans. |
 | Custom roles and management-group RBAC | `platform-authorization` | Kept out of policy state. |
-| Defender plans | `platform-management` | Subscription management configuration because plans have cost and tier decisions. |
+| Defender plans | `platform-management` + `platform-policy` | `platform-management` configures the platform-management subscription directly; `platform-policy` assigns the approved MG-level DINE baseline so newly onboarded descendant subscriptions inherit Servers P1, Storage, Key Vault, App Service, Azure SQL, SQL on machines, Containers, and Resource Manager. Servers P2 and Defender CSPM remain explicit licensing/SOC decisions. |
 | CIS/NIST/FFIEC/PCI initiatives | `platform-policy` | CIS is available as reporting-only. Additional frameworks are deferred until scope, licensing, and applicability are approved. |
 | GOV-14 sandbox guardrail | `platform-policy` | Add the approved sandbox assignment before subscriptions are onboarded. |
 | GOV-16 deny new deployments | `platform-policy` | Add the approved decommissioned-MG assignment and test exemptions before subscriptions are moved. |
@@ -100,6 +101,10 @@ The implementation uses Microsoft's built-in initiative `0884adba-2312-4468-abeb
 The initiative's `resourceTypeList` contains the Phase 1 catalog plus a controlled pilot buffer of common workload services. Extend that list only when a new service is approved. App Service and Function Apps use their dedicated Microsoft DINE definitions because `Microsoft.Web/sites` is not accepted by the initiative's `resourceTypeList`. Other unsupported types, including resources whose logs live on child resources, remain explicit Terraform diagnostics until a reviewed policy is added.
 
 Virtual machines are not diagnostic-setting equivalents of PaaS resources. Guest telemetry requires Azure Monitor Agent and an approved Data Collection Rule. Do not add `Microsoft.Compute/virtualMachines` to this initiative: deploy the AMA/DCR policy only after `platform-management` publishes the approved DCR and its data sources.
+
+VNet flow logs are handled separately from diagnostic settings. The deployable root composes Microsoft's Network Watcher DINE policy and the VNet flow logs with Traffic Analytics DINE policy. The policy parameters require the exact Network Watcher resource group/name for the target region, a same-region storage account ID, the central Log Analytics workspace resource ID, and the workspace GUID. The checked-in production values use the management workspace's `audit` storage account until Compeer approves a dedicated flow-log storage account.
+
+Microsoft Defender for Cloud inheritance is also composed as individual DINE assignments rather than one broad "enable everything" initiative. This keeps cost-bearing plan choices reviewable per plan and lets Compeer promote Servers from P1 to P2 or add Defender CSPM as a deliberate security/licensing change.
 
 Before enabling a remediation policy:
 
