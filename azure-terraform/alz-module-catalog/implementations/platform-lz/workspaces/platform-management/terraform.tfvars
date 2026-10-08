@@ -138,6 +138,10 @@ management = {
   platform_storage_diagnostics = {
     audit = {
       storage_account_key = "audit"
+      # Root Microsoft.Storage/storageAccounts supports metrics, but not
+      # allLogs. Service logs belong on child resources such as
+      # blobServices/default if/when storage data-plane logs are approved.
+      logs = {}
       metrics = {
         transaction = { category = "Transaction" }
       }
