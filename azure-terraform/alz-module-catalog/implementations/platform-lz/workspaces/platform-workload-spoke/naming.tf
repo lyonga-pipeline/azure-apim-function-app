@@ -1,6 +1,10 @@
 # =============================================================================
 # Naming standard (design-doc Appendix F). A workload spoke names itself from
-# its domain token: RG = <domain>-<env>-rg, VNet = <domain>-<region>-<env>-vnet.
+# its workload token. Current standard: VNet =
+# <workload>-<region>-<env>-spoke-vnet; workload resource groups should use the
+# keyed <workload>-<region>-<env>-<purpose>-rg output where the root splits
+# purpose-specific groups. The legacy one-RG output is retained below for the
+# current internal-apps decision.
 # tfvars overrides any name via merge() in main.tf.
 # =============================================================================
 
@@ -22,8 +26,8 @@ module "naming" {
 
 locals {
   std_names = {
-    resource_group = module.naming.workload_resource_group # <domain>-<env>-rg
-    spoke_vnet     = module.naming.workload_vnet           # <domain>-<region>-<env>-vnet
+    resource_group = module.naming.workload_resource_group # legacy one-RG shape
+    spoke_vnet     = module.naming.workload_vnet           # <workload>-<region>-<env>-spoke-vnet
     # null unless workload_appcode is set - workload_key_vault.name in
     # tfvars still wins either way via the coalesce() in main.tf.
     workload_key_vault = module.naming.key_vault # <appcode>-<region>-<env>-vault

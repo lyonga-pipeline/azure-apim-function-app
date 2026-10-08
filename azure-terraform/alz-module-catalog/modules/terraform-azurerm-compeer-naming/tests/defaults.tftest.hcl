@@ -179,16 +179,16 @@ run "supplemental_resource_standards" {
     error_message = "keyed Key Vault names must use the caller key as the final differentiator"
   }
   assert {
-    condition     = output.storage_account_names["cropins"] == "cfcropinsncusprdsa"
-    error_message = "storage account names must follow cf<purpose><region><environment>sa with prod rendered prd"
+    condition     = output.storage_account_names["cropins"] == "stcropinscropinsncusprod"
+    error_message = "storage account names must follow st<component-or-appcode><purpose><region><environment>"
   }
   assert {
     condition     = output.function_app_names["1"] == "cropins-ncus-prod-azfn-01" && output.function_app_names["2"] == "cropins-ncus-prod-azfn-02"
     error_message = "Function App names must follow the azfn numeric-instance standard"
   }
   assert {
-    condition     = output.virtual_machine_names["srv-dhcp-02"] == "AZR-SRV-DHCP-02"
-    error_message = "production VM names must use the AZR environment exception"
+    condition     = output.virtual_machine_names["srv-dhcp-02"] == "internal-apps-cropins-ncus-prod-srv-dhcp-02"
+    error_message = "generic workload VM resource names must follow <domain>-<appcode>-<region>-<env>-<purpose>"
   }
 }
 
@@ -266,8 +266,8 @@ run "adapted_names" {
     error_message = "workload RG pattern"
   }
   assert {
-    condition     = output.workload_vnet == "internal-apps-cus-prod-vnet"
-    error_message = "workload vnet pattern"
+    condition     = output.workload_vnet == "internal-apps-cus-prod-spoke-vnet"
+    error_message = "workload spoke vnet pattern"
   }
   assert {
     condition     = output.mg == "internal-apps-mg" && output.mg_environment == "internal-apps-prod-mg"
@@ -302,8 +302,8 @@ run "adapted_names" {
     error_message = "scoped subscription adapted pattern"
   }
   assert {
-    condition     = output.storage_account == "cfconnectivitycusprdsa" && length(output.storage_account) <= 24
-    error_message = "storage account no-dash <=24"
+    condition     = output.storage_account == "stplatconnectivitcusprod" && length(output.storage_account) <= 24
+    error_message = "singular storage account no-dash <=24"
   }
   assert {
     condition     = output.user_assigned_identity == "connectivity-cus-prod-id"
@@ -344,8 +344,8 @@ run "platform_root_identity_and_keyed_names" {
     error_message = "keyed key-vault names (abbreviated component)"
   }
   assert {
-    condition     = output.storage_account_names["audit"] == "cfauditcusprdsa" && length(output.storage_account_names["audit"]) <= 24
-    error_message = "keyed storage-account names (no dash, <=24)"
+    condition     = output.storage_account_names["audit"] == "stmgmtauditcusprod" && length(output.storage_account_names["audit"]) <= 24
+    error_message = "keyed storage-account names follow st<component><purpose><region><env>"
   }
   assert {
     condition     = output.user_assigned_identity_names["automation"] == "mgmt-cus-prod-automation-id"
@@ -456,7 +456,7 @@ run "storage_uniqueness_suffix" {
   }
 
   assert {
-    condition     = length(output.storage_account_names["audit"]) <= 24 && output.storage_account_names["audit"] != "cfauditcusprdsa"
+    condition     = length(output.storage_account_names["audit"]) <= 24 && output.storage_account_names["audit"] != "stmgmtauditcusprod"
     error_message = "storage_uniqueness appends a hash suffix"
   }
 }
@@ -626,7 +626,7 @@ run "storage_suffix_survives_truncation" {
     error_message = "an over-budget storage name should truncate the descriptive base, not overflow past 24"
   }
   assert {
-    condition     = strcontains(output.storage_account_names["averyverylongstoragekeyname"], substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)) && endswith(output.storage_account_names["averyverylongstoragekeyname"], "cusprdsa")
+    condition     = strcontains(output.storage_account_names["averyverylongstoragekeyname"], substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)) && endswith(output.storage_account_names["averyverylongstoragekeyname"], "cusprod${substr(md5("00000000-0000-0000-0000-000000000000"), 0, 4)}")
     error_message = "the uniqueness suffix and required <region><environment>sa ending must both survive truncation"
   }
 }
@@ -746,6 +746,20 @@ run "accepts_automation_account_within_bounds" {
   assert {
     condition     = output.automation_account == "platform-cus-prod-aa"
     error_message = "automation_account should always be well within the 6-50 char / starts-with-letter Azure limit given the fixed token set"
+  }
+}
+
+run "route_server_uses_current_design_token" {
+  command = apply
+
+  variables {
+    region      = "centralus"
+    environment = "prod"
+  }
+
+  assert {
+    condition     = output.route_server == "platform-cus-prod-rs"
+    error_message = "Route Server should use the current design/runbook rs token"
   }
 }
 

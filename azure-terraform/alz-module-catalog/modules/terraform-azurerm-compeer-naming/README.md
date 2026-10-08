@@ -143,9 +143,9 @@ Key Vault and storage-account names follow the approved supplemental standards:
 
 ```text
 Key Vault:       <appcode-or-component>-<region>-<environment>-<key>
-Storage account: cf<purpose>[uniqueness]<region><environment>sa
+Storage account: st<component-or-appcode><purpose><region><environment>[uniqueness]
 Function App:    <appcode-or-component>-<region>-<environment>-azfn-<number>
-Virtual machine: <environment>-<type>-<appcode-or-purpose>-<number>
+Virtual machine: platform-<region>-<environment>-<purpose> or <domain>[-<appcode>]-<region>-<environment>-<purpose>
 ```
 
 For keyed Key Vaults, the stable map key is the final caller-controlled token.
@@ -154,18 +154,20 @@ Using `vault` reproduces the documented default, while `secrets` and
 module. The singular output uses `key_vault_name_token`, which defaults to
 `vault` but can be overridden.
 
-Storage keys represent the approved appcode or purpose token. Storage names
-start with `cf`, end with `sa`, use lowercase alphanumeric characters, and
-render production as `prd`. A stable uniqueness suffix is inserted before the
-region when supplied.
+Storage keys represent the approved purpose token. Storage names start with
+`st`, include the abbreviated component or workload appcode, use lowercase
+alphanumeric characters, and render the environment token exactly as the
+environment value (`prod`, not `prd`). A stable four-character uniqueness
+suffix is appended when supplied.
 
 Function App keys are instance numbers from 1 to 99 and render as two digits.
 For example, keys `1` and `2` produce `azfn-01` and `azfn-02` endings.
 
-Generic VM keys provide the tokens after environment, for example
-`srv-dhcp-02`. The module uppercases the result and renders production as
-`AZR`, matching the documented production exception. Specialized Palo Alto
-and domain-controller VM conventions remain explicit in their consumers.
+Generic VM keys provide the purpose token after the root stem. For example,
+platform scope with key `jump` produces `platform-cus-prod-jump`; workload
+scope with domain `internal-apps`, appcode `orders`, and key `web-01`
+produces `internal-apps-orders-cus-prod-web-01`. Specialized Palo Alto and
+domain-controller VM conventions remain explicit in their consumers.
 
 Key Vault and storage-account names have tight length limits. For their
 application/component prefix, the module uses:
@@ -206,21 +208,21 @@ does NOT apply to subscription- or resource-group-scoped assignments. The
 doesn't know which scope will consume it - keep `policy` and `policy_scope`
 short for anything that might be management-group-scoped.
 
-**VM names and the Windows NetBIOS 15-character limit.** `firewall_vm`,
-`domain_controller_vm`, and `virtual_machine_names` are always well under
-Azure's 64-character VM resource-name limit given their fixed token sets, so
-none of them carry a length precondition. None of them set the separate,
-much tighter 15-character Windows `computer_name` (NetBIOS) limit either -
-that's a Windows-only concern orthogonal to the Azure resource name, so a
-Windows VM needs its own `computer_name` override in the consuming root's
-tfvars (see `directory-services`' own naming wiring for an example).
+**VM names and the Windows NetBIOS 15-character limit.** `firewall_vm` and
+`domain_controller_vm` are fixed platform patterns. `virtual_machine_names`
+uses caller-provided purpose keys and carries an Azure 64-character resource
+name precondition. None of those outputs set the separate, much tighter
+15-character Windows `computer_name` (NetBIOS) limit - that's a Windows-only
+concern orthogonal to the Azure resource name, so a Windows VM needs its own
+`computer_name` override in the consuming root's tfvars (see
+`directory-services`' own naming wiring for an example).
 
 ## Singular Outputs
 
 The module also exposes context-generated singleton names, including resource
-groups, hub/shared/workload VNets, gateways, monitoring resources, management
-groups, subscriptions, policy objects, and Entra groups. Outputs whose required
-tokens were not supplied return `null`.
+groups, hub/workload VNets, gateways, monitoring resources, management groups,
+subscriptions, policy objects, and Entra groups. Outputs whose required tokens
+were not supplied return `null`.
 
 Fixed organizational names, such as `platform-mg`, are intentionally separate
 from keyed repeated-resource names.
@@ -235,6 +237,14 @@ migrated.
 The `mg_workload_domain` outputs are compatibility aliases for `mg`. New
 consumers should use `mg` and `mg_environment`; the aliases can be removed only
 in a future major version.
+
+`subscription_platform`, `shared_vnet`, and `workload_resource_group` are also
+legacy compatibility outputs. The updated LZ design has capability-specific
+platform subscriptions (`subscription_security`, `subscription_identity`,
+`subscription_connectivity`, `subscription_management`), no separate
+shared-services VNet, and purpose-keyed workload RG names. New workload callers
+should prefer `resource_group_keys` / `resource_group_names`, which produce
+`<workload>-<region>-<env>-<purpose>-rg`.
 
 Specialized firewall and domain-controller VM names still use `instance`
 because their approved formats contain a zero-padded numeric instance. Their
@@ -251,8 +261,8 @@ module version with migration guidance.
 The design standard does not define every Azure resource type. Where a formula
 is adapted from the closest approved resource pattern, document that mapping in
 this README and tests. Current adaptations cover scoped subscriptions, workload
-VNets and resource groups, NICs, private endpoints, hub network services,
-hybrid-connectivity resources, internal load balancers, domain controllers,
+resource groups, NICs, private endpoints, hub network services, Route Server
+(`platform-<region>-<env>-rs`), internal load balancers, domain controllers,
 automation accounts, action groups, identities, storage accounts, and Function
 Apps. Treat a later change from an adapted formula to a newly approved formula
 as a breaking naming change.

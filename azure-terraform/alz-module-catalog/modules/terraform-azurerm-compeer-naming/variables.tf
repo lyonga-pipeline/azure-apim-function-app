@@ -138,7 +138,7 @@ variable "load_balancer_keys" {
 }
 
 variable "virtual_machine_keys" {
-  description = "VM naming tokens after the environment, for example srv-dhcp-02. Output: virtual_machine_names."
+  description = "VM purpose tokens appended to the platform/workload stem, for example jump or web-01. Output: virtual_machine_names."
   type        = list(string)
   default     = []
 }

@@ -55,7 +55,8 @@ locals {
   entra_dom    = var.entra_domain == null ? null : upper(trimspace(var.entra_domain))
   entra_role   = var.entra_role == null ? null : trimspace(var.entra_role)
 
-  disc = local.scope == "workload" ? coalesce(local.appcode, local.domain, "workload") : coalesce(local.component, "platform")
+  disc           = local.scope == "workload" ? coalesce(local.appcode, local.domain, "workload") : coalesce(local.component, "platform")
+  workload_token = coalesce(local.wl_name, local.appcode, local.domain, "MISSING-DOMAIN")
 
   disc_abbr = var.abbreviation != null ? lower(trimspace(var.abbreviation)) : (
     local.scope == "workload" && local.appcode != null ? local.appcode : lookup(local.abbr, local.disc, null)
@@ -68,9 +69,7 @@ locals {
     local.appcode == null ? "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.region}-${local.env}" : "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.appcode}-${local.region}-${local.env}"
   ) : "platform-${local.region}-${local.env}"
 
-  st_suffix   = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)
-  storage_env = local.env == "prod" ? "prd" : local.env
-  vm_env      = local.env == "prod" ? "AZR" : upper(local.env)
+  st_suffix = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)
 
   # v1.1: VNet peering (one name per side) and private DNS zone VNet links.
   vnet_peerings     = { for k, p in var.vnet_peerings : k => "${lower(trimspace(p.local_vnet))}-to-${lower(trimspace(p.remote_vnet))}" }
@@ -81,11 +80,11 @@ locals {
     key_vault = { for k in var.key_vault_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}" }
     # Reserve the required tail before truncating the caller-controlled token.
     storage_account = {
-      for k in var.storage_account_keys : k => "cf${substr(
+      for k in var.storage_account_keys : k => "st${local.disc_abbr_rendered}${substr(
         lower(replace(replace(trimspace(k), "-", ""), "_", "")),
         0,
-        24 - length("cf${local.st_suffix}${local.region}${local.storage_env}sa")
-      )}${local.st_suffix}${local.region}${local.storage_env}sa"
+        max(0, 24 - length("st${local.disc_abbr_rendered}${local.region}${local.env}${local.st_suffix}"))
+      )}${local.region}${local.env}${local.st_suffix}"
     }
     user_assigned_identity  = { for k in var.user_assigned_identity_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-id" }
     function_app            = { for k in var.function_app_keys : k => "${local.disc_abbr_rendered}-${local.region}-${local.env}-azfn-${format("%02d", tonumber(k))}" }
@@ -95,7 +94,7 @@ locals {
     private_endpoint        = { for k in var.private_endpoint_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-pe" }
     network_interface       = { for k in var.network_interface_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-nic" }
     load_balancer           = { for k in var.load_balancer_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-ilb" }
-    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.vm_env}-${upper(replace(trimspace(k), "_", "-"))}" }
+    virtual_machine         = { for k in var.virtual_machine_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}" }
     disk                    = { for k in var.disk_keys : k => "${local.region}-${local.env}-${replace(lower(trimspace(k)), "_", "-")}-disk" }
     recovery_services_vault = { for k in var.recovery_services_vault_keys : k => "${local.stem}-${replace(lower(trimspace(k)), "_", "-")}-rsv" }
     subnet                  = { for k in var.subnet_keys : k => "${local.env}-${replace(lower(trimspace(k)), "_", "-")}-subnet" }
@@ -144,11 +143,11 @@ locals {
     nsg                  = local.purpose == null ? null : "${local.region}-${local.env}-${local.purpose}-nsg"
     route_table          = local.destination == null ? null : "${local.region}-${local.env}-${local.destination}-rt"
     public_ip            = local.resource == null ? null : "${local.region}-${local.env}-${local.resource}-pip"
-    workload_vnet        = local.domain == null ? null : "${local.domain}-${local.region}-${local.env}-vnet"
+    workload_vnet        = local.domain == null ? null : "${local.workload_token}-${local.region}-${local.env}-spoke-vnet"
     network_interface    = local.resource == null ? null : "${local.region}-${local.env}-${local.resource}-nic"
     private_endpoint     = local.resource == null ? null : "${local.region}-${local.env}-${local.resource}-pe"
     nat_gateway          = "platform-${local.region}-${local.env}-natgw"
-    route_server         = "platform-${local.region}-${local.env}-rtsrv"
+    route_server         = "platform-${local.region}-${local.env}-rs"
     ddos_protection_plan = "platform-${local.region}-${local.env}-ddos"
     private_dns_resolver = "platform-${local.region}-${local.env}-dnspr"
     bastion              = "platform-${local.region}-${local.env}-bas"
@@ -197,9 +196,13 @@ locals {
       "platform-${local.region}-${local.env}-rg"
     )
     workload_resource_group = local.domain == null ? null : "${local.domain}-${local.env}-rg"
-    storage_account         = local.purpose == null ? null : substr(lower(replace("cf${local.purpose}${local.region}${local.storage_env}sa", "-", "")), 0, 24)
-    user_assigned_identity  = local.purpose == null ? null : "${local.purpose}-${local.region}-${local.env}-id"
-    function_app            = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-azfn-${local.instance}"
+    storage_account = local.purpose == null ? null : "st${local.disc_abbr_rendered}${substr(
+      lower(replace(replace(local.purpose, "-", ""), "_", "")),
+      0,
+      max(0, 24 - length("st${local.disc_abbr_rendered}${local.region}${local.env}${local.st_suffix}"))
+    )}${local.region}${local.env}${local.st_suffix}"
+    user_assigned_identity = local.purpose == null ? null : "${local.purpose}-${local.region}-${local.env}-id"
+    function_app           = local.appcode == null ? null : "${local.appcode}-${local.region}-${local.env}-azfn-${local.instance}"
 
     # ---- Policy ----
     policy_initiative = (local.domain == null || local.purpose == null) ? null : "initiative-${local.domain}-${local.purpose}"

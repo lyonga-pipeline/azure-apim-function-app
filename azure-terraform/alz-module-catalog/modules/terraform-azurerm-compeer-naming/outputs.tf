@@ -14,7 +14,7 @@ output "discriminator" {
 }
 
 output "stem" {
-  description = "The <disc>-<region>-<env> stem used by the keyed rows."
+  description = "The platform/workload stem used by keyed rows."
   value       = local.stem
 }
 
@@ -202,7 +202,7 @@ output "mg_workload_domain_environment" {
 
 # ---- Subscriptions ----
 output "subscription_platform" {
-  description = "Platform subscription."
+  description = "Legacy compatibility platform subscription. Current platform subscriptions are security, identity, connectivity, and management."
   value       = local.names.subscription_platform
 }
 output "subscription_identity" {
@@ -232,7 +232,7 @@ output "hub_vnet" {
   value       = local.names.hub_vnet
 }
 output "shared_vnet" {
-  description = "Shared-services virtual network."
+  description = "Legacy compatibility shared-services virtual network. Current LZ design uses the hub VNet, identity VNet, and workload spokes; there is no separate shared-services VNet."
   value       = local.names.shared_vnet
 }
 output "identity_vnet" {
@@ -447,7 +447,7 @@ output "resource_group" {
   }
 }
 output "workload_resource_group" {
-  description = "Workload spoke resource group. Needs `domain`."
+  description = "Legacy one-RG workload resource group. Needs `domain`. Prefer resource_group_keys for the current <workload>-<region>-<env>-<purpose>-rg standard."
   value       = local.names.workload_resource_group
 
   precondition {
