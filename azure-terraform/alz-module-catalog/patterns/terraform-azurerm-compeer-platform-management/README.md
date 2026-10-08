@@ -47,8 +47,12 @@ Defender/Sentinel cost, set
 operations design calls for a split between analytics retention and total
 retention. The production tfvars currently models Compeer's stated 90-day
 analytics retention and 1.5-year total retention for the active platform/SOC
-tables. Do not add Entra tables (`AuditLogs`, `SigninLogs`) until tenant-level
-Entra diagnostics are approved and connected.
+tables. During the first deployment, manage only base tables such as
+`AzureActivity`. Tables created by Sentinel or Defender solutions
+(`CommonSecurityLog`, `SecurityAlert`, `SecurityRecommendation`) must be added
+after those solutions are active in the workspace; otherwise Azure returns
+`SolutionNotActive`. Do not add Entra tables (`AuditLogs`, `SigninLogs`) until
+tenant-level Entra diagnostics are approved and connected.
 
 `defender_soc_posture` records the Defender/SOC target state as a no-cost
 contract-checked posture marker — it doesn't deploy anything itself, but
@@ -69,10 +73,9 @@ The root now emits `defender_soc_posture` from a no-cost contract resource. Terr
 
 The smoke-test/example tfvars leave `security_contact = null` and
 `security_center_settings = {}`. Defender settings such as `MCAS` and `WDATP`
-commonly already exist in Azure subscriptions, so Terraform may need imports
-before it can manage them. The enterprise tfvars manages `MCAS`; if the apply
-reports that the setting already exists, import it into this workspace rather
-than deleting it outside Terraform.
+commonly already exist in Azure subscriptions, so Terraform needs imports
+before it can manage them. The enterprise tfvars leaves these settings
+unmanaged until Compeer decides to import them into this workspace state.
 
 Optional `platform_storage_accounts` exposes the management-subscription storage
 account placement from the ALZ workbook while staying disabled in the baseline

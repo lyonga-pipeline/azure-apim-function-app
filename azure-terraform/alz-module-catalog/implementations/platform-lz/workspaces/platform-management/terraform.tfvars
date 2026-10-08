@@ -65,23 +65,13 @@ management = {
     immediate_data_purge_on_30_days_enabled = false
   }
   # Security lead response: Compeer requires 1.5 years total security-log
-  # retention, with 90 days available for analytics. Manage only the tables
-  # this LZ is currently configured to populate; Entra tables (AuditLogs,
-  # SigninLogs) stay out until tenant-level Entra diagnostics are approved.
+  # retention, with 90 days available for analytics. Apply retention only to
+  # base tables during first deployment. Solution-owned tables such as
+  # CommonSecurityLog, SecurityAlert, and SecurityRecommendation must be added
+  # after Sentinel/Defender activate their Log Analytics solutions; otherwise
+  # Azure returns SolutionNotActive during the first apply.
   log_analytics_tables = {
     AzureActivity = {
-      retention_in_days       = 90
-      total_retention_in_days = 548
-    }
-    CommonSecurityLog = {
-      retention_in_days       = 90
-      total_retention_in_days = 548
-    }
-    SecurityAlert = {
-      retention_in_days       = 90
-      total_retention_in_days = 548
-    }
-    SecurityRecommendation = {
       retention_in_days       = 90
       total_retention_in_days = 548
     }
@@ -327,11 +317,9 @@ management = {
     alert_notifications = true
     alerts_to_admins    = true
   }
-  security_center_settings = {
-    MCAS = {
-      enabled = true
-    }
-  }
+  # MCAS commonly already exists in enterprise subscriptions. Leave settings
+  # unmanaged unless they are first imported into this workspace state.
+  security_center_settings = {}
   platform_alerts = {
     enabled                = true
     service_health_enabled = true
