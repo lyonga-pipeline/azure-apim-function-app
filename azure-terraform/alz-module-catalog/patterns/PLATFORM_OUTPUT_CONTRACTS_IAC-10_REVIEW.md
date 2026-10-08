@@ -284,6 +284,16 @@ this real tfvars entry via `terraform plan`, not assumed. Since nothing is
 deployed yet, this is a zero-cost, zero-migration correction rather than a
 change to something already running.
 
+**Correction (storage accounts only):** the `allLogs`/`AllMetrics` default
+turned out to be wrong for storage accounts. The account root exposes metrics
+only, and Azure rejects `allLogs` there (`CategoryGroup: 'allLogs' is not
+supported, supported ones are: ''`), which failed the first apply. Storage
+diagnostics now default to no logs plus the `Transaction` metric; data-plane
+logs are enabled by `storage_service = "blob"` (target
+`<account id>/blobServices/default`, defaulting to
+`StorageRead`/`StorageWrite`/`StorageDelete`). Other resource types keep the
+diagnostic-profile defaults described above.
+
 New regression tests added
 (`patterns/terraform-azurerm-compeer-platform-management/tests/diagnostic_defaults.tftest.hcl`)
 prove both directions: an entry with diagnostics enabled but no explicit

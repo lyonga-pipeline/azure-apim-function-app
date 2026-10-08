@@ -474,14 +474,18 @@ variable "workload_storage_accounts" {
       eventhub_name                  = optional(string)
       partner_solution_id            = optional(string)
       log_analytics_destination_type = optional(string)
+      # A storage account root has no log categories (only metrics), and Azure
+      # rejects allLogs/AllMetrics there, so these defaults are deliberately
+      # not the generic diagnostic-profile ones. Data-plane logs
+      # (StorageRead/Write/Delete) belong on <account id>/blobServices/default.
       logs = optional(map(object({
         category       = optional(string)
         category_group = optional(string)
-      })), { allLogs = { category_group = "allLogs" } })
+      })), {})
       metrics = optional(map(object({
         category = string
         enabled  = optional(bool, true)
-      })), { AllMetrics = { category = "AllMetrics" } })
+      })), { Transaction = { category = "Transaction" } })
     }), {})
     private_endpoint = optional(object({
       name                            = string

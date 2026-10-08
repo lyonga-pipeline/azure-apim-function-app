@@ -224,10 +224,36 @@ locals {
     })
   }
 
+  # Built-in default child service of every storage account. It exists as soon
+  # as the account does (no containers/shares/queues/tables required), so a
+  # diagnostic setting on it cannot fail for lack of data.
+  storage_service_suffixes = {
+    blob  = "/blobServices/default"
+    file  = "/fileServices/default"
+    queue = "/queueServices/default"
+    table = "/tableServices/default"
+  }
+
+  # Account kinds that actually have each service (premium and legacy kinds
+  # are single-service).
+  storage_service_supported_kinds = {
+    blob  = ["StorageV2", "Storage", "BlobStorage", "BlockBlobStorage"]
+    file  = ["StorageV2", "Storage", "FileStorage"]
+    queue = ["StorageV2", "Storage"]
+    table = ["StorageV2", "Storage"]
+  }
+
   platform_storage_diagnostic_inputs = {
     for key, diagnostic in var.platform_storage_diagnostics : key => {
-      name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_storage_accounts[diagnostic.storage_account_key].name}-law")
-      target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_storage_accounts[diagnostic.storage_account_key].id, null))
+      name = coalesce(
+        try(diagnostic.name, null),
+        "diag-${try(module.platform_storage_accounts[diagnostic.storage_account_key].name, key)}${try(diagnostic.storage_service, null) == null ? "" : "-${diagnostic.storage_service}"}-law"
+      )
+      target_resource_id = coalesce(
+        try(diagnostic.target_resource_id, null),
+        try("${module.platform_storage_accounts[diagnostic.storage_account_key].id}${local.storage_service_suffixes[diagnostic.storage_service]}", null),
+        try(module.platform_storage_accounts[diagnostic.storage_account_key].id, null)
+      )
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
       storage_account_id             = try(diagnostic.archive_storage_account_id, null)
@@ -237,8 +263,15 @@ locals {
       )
       eventhub_name       = try(diagnostic.eventhub_name, null)
       partner_solution_id = try(diagnostic.partner_solution_id, null)
-      logs                = try(diagnostic.logs, {})
-      metrics             = try(diagnostic.metrics, {})
+      logs = (
+        try(diagnostic.logs, null) != null ? diagnostic.logs :
+        try(diagnostic.storage_service, null) == null ? {} : {
+          read   = { category = "StorageRead" }
+          write  = { category = "StorageWrite" }
+          delete = { category = "StorageDelete" }
+        }
+      )
+      metrics = try(diagnostic.metrics, null) != null ? diagnostic.metrics : { Transaction = { category = "Transaction" } }
     }
   }
 
@@ -464,6 +497,25 @@ resource "azurerm_security_center_setting" "setting" {
 
   setting_name = each.key
   enabled      = each.value.enabled
+}
+
+resource "terraform_data" "platform_storage_diagnostics_contract" {
+  input = {
+    targets = { for key, value in local.platform_storage_diagnostic_inputs : key => value.name }
+  }
+
+  lifecycle {
+    precondition {
+      condition = alltrue([
+        for key, diagnostic in var.platform_storage_diagnostics :
+        try(diagnostic.storage_service, null) == null ? true : contains(
+          local.storage_service_supported_kinds[diagnostic.storage_service],
+          try(var.platform_storage_accounts[diagnostic.storage_account_key].account_kind, "StorageV2")
+        )
+      ])
+      error_message = "A platform_storage_diagnostics storage_service targets a service the storage account kind does not have (for example blob on a FileStorage account). Pick a service the account_kind supports."
+    }
+  }
 }
 
 resource "terraform_data" "defender_soc_posture_contract" {

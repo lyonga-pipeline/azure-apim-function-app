@@ -367,8 +367,13 @@ variable "platform_storage_accounts" {
 
 variable "platform_storage_diagnostics" {
   type = map(object({
-    name                           = optional(string)
-    storage_account_key            = optional(string)
+    name                = optional(string)
+    storage_account_key = optional(string)
+    # blob | file | queue | table. Targets the account's built-in default
+    # service (<account id>/blobServices/default, ...), which Azure creates
+    # with the account itself - no containers, shares, queues or tables need
+    # to exist first. Leave null to target the storage account root.
+    storage_service                = optional(string)
     target_resource_id             = optional(string)
     log_analytics_workspace_id     = optional(string)
     log_analytics_destination_type = optional(string)
@@ -376,20 +381,23 @@ variable "platform_storage_diagnostics" {
     eventhub_authorization_rule_id = optional(string)
     eventhub_name                  = optional(string)
     partner_solution_id            = optional(string)
-    # Platform_Output_Contracts_IAC-10 management_diagnostic_profile - keep
-    # in sync with modules/terraform-azurerm-compeer-diagnostic-profile's
-    # defaults (allLogs / AllMetrics). Only applies to an entry that leaves
-    # logs/metrics unset - an explicit value here always wins.
+    # Left unset (null), the defaults are resolved per target in
+    # local.platform_storage_diagnostic_inputs: the account root has no log
+    # categories (only metrics), so it defaults to no logs; a service target
+    # defaults to StorageRead/StorageWrite/StorageDelete. Metrics default to
+    # Transaction. allLogs/AllMetrics are rejected by Azure on storage
+    # accounts, so the generic diagnostic-profile defaults do not apply here.
+    # An explicit value (including logs = {}) always wins.
     logs = optional(map(object({
       category       = optional(string)
       category_group = optional(string)
-    })), { allLogs = { category_group = "allLogs" } })
+    })))
     metrics = optional(map(object({
       category = string
       enabled  = optional(bool, true)
-    })), { AllMetrics = { category = "AllMetrics" } })
+    })))
   }))
-  description = "Diagnostic settings for platform storage accounts."
+  description = "Diagnostic settings for platform storage accounts. Use storage_service to log the blob/file/queue/table data plane."
   default     = {}
 
   validation {
@@ -401,6 +409,22 @@ variable "platform_storage_diagnostics" {
       )
     ])
     error_message = "Each platform storage diagnostic setting must set exactly one of storage_account_key or target_resource_id."
+  }
+
+  validation {
+    condition = alltrue([
+      for item in values(var.platform_storage_diagnostics) :
+      try(item.storage_service, null) == null ? true : contains(["blob", "file", "queue", "table"], item.storage_service)
+    ])
+    error_message = "storage_service must be one of blob, file, queue, or table when set."
+  }
+
+  validation {
+    condition = alltrue([
+      for item in values(var.platform_storage_diagnostics) :
+      try(item.storage_service, null) == null ? true : try(item.storage_account_key, null) != null
+    ])
+    error_message = "storage_service can only be combined with storage_account_key; with target_resource_id, pass the full service resource ID instead."
   }
 }
 
