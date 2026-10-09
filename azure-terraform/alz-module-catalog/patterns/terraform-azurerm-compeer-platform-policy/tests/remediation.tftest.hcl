@@ -32,6 +32,7 @@ run "remediation_creates_assignment_with_law_injection" {
         diagnostic_settings = {
           policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/00000000-0000-0000-0000-000000000000"
           inject_law           = true
+          not_scopes           = ["/subscriptions/11111111-1111-1111-1111-111111111111"]
         }
       }
     }
@@ -48,6 +49,10 @@ run "remediation_creates_assignment_with_law_injection" {
   assert {
     condition     = local.management_group_policy_assignments_input["rem-diagnostic_settings"].parameters.logAnalytics.value == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/law"
     error_message = "inject_law should add the logAnalytics parameter"
+  }
+  assert {
+    condition     = local.management_group_policy_assignments_input["rem-diagnostic_settings"].not_scopes[0] == "/subscriptions/11111111-1111-1111-1111-111111111111"
+    error_message = "remediation not_scopes should pass through so fleet-wide policy can exclude directly owned scopes"
   }
   assert {
     condition     = length(terraform_data.remediation_contract) == 1

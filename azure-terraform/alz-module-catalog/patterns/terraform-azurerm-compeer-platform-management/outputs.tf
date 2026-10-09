@@ -3,6 +3,11 @@ output "resource_group_name" {
   value       = module.resource_group.name
 }
 
+output "subscription_id" {
+  description = "Subscription ID managed by this platform-management instance. Consumers use this to avoid overlapping MG-level policy remediation with resources this workspace owns directly."
+  value       = var.subscription_id
+}
+
 output "diagnostic_profile" {
   description = "Platform_Output_Contracts_IAC-10 management_diagnostic_profile - the platform's canonical default diagnostic-settings profile (see modules/terraform-azurerm-compeer-diagnostic-profile for what this recommends vs. enforces)."
   value       = module.diagnostic_profile.profile

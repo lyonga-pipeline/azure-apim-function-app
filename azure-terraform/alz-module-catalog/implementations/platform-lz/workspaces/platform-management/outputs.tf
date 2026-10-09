@@ -3,6 +3,11 @@ output "resource_group_name" {
   value       = try(module.management[0].resource_group_name, null)
 }
 
+output "subscription_id" {
+  description = "Subscription ID owned by the platform-management workspace."
+  value       = try(module.management[0].subscription_id, null)
+}
+
 output "diagnostic_profile" {
   description = "Platform_Output_Contracts_IAC-10 management_diagnostic_profile."
   value       = try(module.management[0].diagnostic_profile, null)

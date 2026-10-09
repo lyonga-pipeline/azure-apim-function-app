@@ -298,6 +298,12 @@ policy = {
     enabled              = true
     management_group_key = "compeer-enterprise-mg"
     effect               = "DeployIfNotExists"
+    # Keep ownership clear: platform-management directly manages Defender in
+    # its own subscription; these MG-level DINE assignments govern inherited
+    # landing-zone/workload subscriptions. locals.tf adds the management
+    # subscription to not_scopes from platform-management's published output.
+    exclude_platform_management_subscription = true
+    not_scopes                               = []
     # Baseline for a mid-size financial organization actively migrating from
     # on-prem: P1 server coverage for cost-conscious breadth, plus Storage, Key
     # Vault, App Service, Azure SQL, SQL on machines, Containers, and Resource

@@ -52,7 +52,7 @@ The following mapping covers the Identity and RBAC design recommendations and th
 | Private endpoints where applicable | Resource patterns and `platform-policy` | Resources create endpoints explicitly; policy audits public IPs. Platform Key Vault/storage exceptions must follow the approved placement decision and must not be blocked by a blanket PaaS deny. |
 | Privileged access audit and group-only assignments | `platform-authorization` and PIM | Not an Azure Policy responsibility. OPA can reject direct user assignments in Terraform plans. |
 | Custom roles and management-group RBAC | `platform-authorization` | Kept out of policy state. |
-| Defender plans | `platform-management` + `platform-policy` | `platform-management` configures the platform-management subscription directly; `platform-policy` assigns the approved MG-level DINE baseline so newly onboarded descendant subscriptions inherit Servers P1, Storage, Key Vault, App Service, Azure SQL, SQL on machines, Containers, and Resource Manager. Servers P2 and Defender CSPM remain explicit licensing/SOC decisions. |
+| Defender plans | `platform-management` + `platform-policy` | `platform-management` configures the platform-management subscription directly; `platform-policy` assigns the approved MG-level DINE baseline so newly onboarded descendant subscriptions inherit Servers P1, Storage, Key Vault, App Service, Azure SQL, SQL on machines, Containers, and Resource Manager. The deployable root adds the platform-management subscription to the Defender DINE `not_scopes` list from the management output contract, so Policy does not fight Terraform-owned subscription pricing. Servers P2 and Defender CSPM remain explicit licensing/SOC decisions. |
 | CIS/NIST/FFIEC/PCI initiatives | `platform-policy` | CIS is available as reporting-only. Additional frameworks are deferred until scope, licensing, and applicability are approved. |
 | GOV-14 sandbox guardrail | `platform-policy` | Add the approved sandbox assignment before subscriptions are onboarded. |
 | GOV-16 deny new deployments | `platform-policy` | Add the approved decommissioned-MG assignment and test exemptions before subscriptions are moved. |
@@ -92,7 +92,7 @@ private_only_connectivity = {
 
 ## Remediation
 
-DINE and Modify assignments require a location and managed identity. The deployable root reads the Log Analytics workspace ID from `platform-management` and can inject it into policies that use a `logAnalytics` parameter.
+DINE and Modify assignments require a location and managed identity. The deployable root reads the Log Analytics workspace ID and diagnostic profile from `platform-management` and can inject the workspace ID into policies that use a `logAnalytics` parameter. Contract checks intentionally fail the plan if diagnostic DINE is enabled before the management workspace publishes the central workspace/profile outputs.
 
 `remediation.dine_assignments` accepts exactly one of `policy_definition_id` or `policy_set_definition_id`. Every assignment receives a system-assigned identity. `role_definition_ids` creates the management-group role assignments that identity needs to remediate resources.
 
@@ -105,6 +105,8 @@ Virtual machines are not diagnostic-setting equivalents of PaaS resources. Guest
 VNet flow logs are handled separately from diagnostic settings. The deployable root composes Microsoft's Network Watcher DINE policy and the VNet flow logs with Traffic Analytics DINE policy. The policy parameters require the exact Network Watcher resource group/name for the target region, a same-region storage account ID, the central Log Analytics workspace resource ID, and the workspace GUID. The checked-in production values use the management workspace's `audit` storage account until Compeer approves a dedicated flow-log storage account.
 
 Microsoft Defender for Cloud inheritance is also composed as individual DINE assignments rather than one broad "enable everything" initiative. This keeps cost-bearing plan choices reviewable per plan and lets Compeer promote Servers from P1 to P2 or add Defender CSPM as a deliberate security/licensing change.
+
+The deployable root defaults `defender_for_cloud_policy.exclude_platform_management_subscription = true`. This keeps direct Defender plan ownership in `platform-management` for the platform-management subscription while using `platform-policy` only as the inheritance backstop for downstream landing-zone subscriptions. Add extra `not_scopes` only for approved exceptions; do not remove the platform-management exclusion without importing or migrating ownership of the direct Defender resources.
 
 Before enabling a remediation policy:
 
