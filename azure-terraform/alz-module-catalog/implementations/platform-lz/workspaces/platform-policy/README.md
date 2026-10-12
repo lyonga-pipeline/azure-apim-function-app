@@ -10,7 +10,7 @@ The root deploys through [`terraform-azurerm-compeer-platform-policy`](../../../
 
 1. Apply `platform-governance` to create the management-group hierarchy and initial baseline.
 2. Apply `platform-management` when remediation policies need the Log Analytics workspace.
-3. Apply `platform-policy` in Audit/non-enforcing mode.
+3. Review all enabled DINE effects and paid plans before applying `platform-policy`; use a pilot scope and Audit/Disabled effects where supported during validation.
 4. Review compliance and approve exemptions.
 5. Promote only approved controls to Deny.
 
@@ -48,7 +48,7 @@ The governance baseline is not repeated here. See the pattern README for the com
 - GOV-07 diagnostics remediation is enabled after `platform-management` publishes the central Log Analytics workspace ID. It assigns Microsoft's built-in resource-specific `allLogs` initiative at `compeer-enterprise-mg` for the Phase 1 catalog and common pilot workload services. Dedicated built-ins cover App Service and Function Apps.
 - Diagnostic DINE excludes `platform-mg` and any additional explicitly Terraform-owned scopes. Platform resources receive audit-only assignments instead. DINE owns missing `allLogs` settings on remaining selected resources; it does not configure metrics. Application Insights and storage roots are excluded from the DINE catalog.
 - Central US VNet flow-log child resources are Policy-owned separately from diagnostic settings. A strict custom definition requires the approved storage/workspace, enabled state, retention, interval and format. Exclude any Terraform-owned flow-log scopes separately. No deprecated workspace GUID is required.
-- Microsoft Defender for Cloud plan auto-enablement is enabled at `compeer-enterprise-mg` for the approved baseline: Servers P1, Storage with malware scanning and sensitive-data discovery, Key Vault, App Service, Azure SQL databases, SQL servers on machines, Containers, and Resource Manager. Servers P2 and Defender CSPM remain explicit security/licensing decisions.
+- The checked-in Defender selection enables Servers P1, Storage with malware scanning and sensitive-data discovery, Key Vault, App Service, Azure SQL databases, SQL servers on machines, Containers, and Resource Manager at `compeer-enterprise-mg`. This preserves the prior selection; it is not evidence of client licensing approval or deployment. Servers P2 and Defender CSPM remain separate security/licensing decisions.
 - The workspace grants each assignment identity its configured roles at that assignment's management-group scope. Diagnostic, Defender, and flow-log target scopes are independent. The run identity needs policy and role-assignment permissions at those scopes.
 - Existing-resource remediation tasks remain disabled (`tasks = {}`) until a separately approved, bounded pilot. New-resource DINE evaluation can still deploy missing settings in Policy-owned scopes; disabling tasks is not disabling DINE.
 - VM guest logs are intentionally excluded until an Azure Monitor Agent Data Collection Rule is approved and configured in `platform-management`.
