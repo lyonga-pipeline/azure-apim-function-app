@@ -43,3 +43,8 @@ output "remediation_assignment_principal_ids" {
     if startswith(k, "rem-")
   }
 }
+
+output "remediation_task_ids" {
+  description = "Explicitly approved, bounded remediation tasks; empty by default."
+  value       = { for key, task in azurerm_management_group_policy_remediation.task : key => task.id }
+}

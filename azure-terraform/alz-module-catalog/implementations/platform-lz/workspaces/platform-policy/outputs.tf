@@ -37,3 +37,21 @@ output "remediation_assignment_principal_ids" {
   description = "SystemAssigned principal IDs of the remediation assignments - grant these the roles their DINE policies require."
   value       = try(module.policy[0].remediation_assignment_principal_ids, {})
 }
+
+output "remediation_task_ids" {
+  description = "Explicitly approved remediation task IDs; empty until tasks are opted in."
+  value       = try(module.policy[0].remediation_task_ids, {})
+}
+
+output "configuration_ownership" {
+  description = "Effective ownership boundaries, not evidence of Azure deployment or compliance."
+  value = {
+    diagnostic_terraform_scopes = local.diagnostic_terraform_scopes
+    diagnostic_policy_keys      = local.diagnostic_remediation_keys
+    diagnostic_audit_profiles   = local.diagnostic_audit_profiles
+    defender_policy_not_scopes  = local.defender_policy_not_scopes
+    defender_enabled_plans      = keys(local.defender_for_cloud_dine_assignments)
+    flow_log_policy_not_scopes  = try(local.network_flow_logging_policy.not_scopes, [])
+    remediation_tasks           = keys(try(local.remediation.tasks, {}))
+  }
+}

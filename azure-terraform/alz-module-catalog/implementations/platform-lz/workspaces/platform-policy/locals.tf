@@ -1,15 +1,9 @@
 locals {
   enabled = try(var.policy.enabled, false)
 
-  governance_outputs = merge(
-    try(data.tfe_outputs.governance[0].nonsensitive_values, {}),
-    try(data.tfe_outputs.governance[0].values, {})
-  )
-
-  management_outputs = merge(
-    try(data.tfe_outputs.management[0].nonsensitive_values, {}),
-    try(data.tfe_outputs.management[0].values, {})
-  )
+  # Public resource contracts only; never read credentials or full remote state.
+  governance_outputs = try(data.tfe_outputs.governance[0].nonsensitive_values, {})
+  management_outputs = try(data.tfe_outputs.management[0].nonsensitive_values, {})
 
   management_group_ids = merge(
     try(local.governance_outputs.management_group_ids, {}),
@@ -61,13 +55,13 @@ locals {
       parameters = {
         effect = { value = local.defender_policy_effect }
         isOnUploadMalwareScanningEnabled = {
-          value = tostring(coalesce(try(local.defender_policy.plans.storage.on_upload_malware_scanning_enabled, null), true))
+          value = tostring(coalesce(try(local.defender_policy.plans.storage.on_upload_malware_scanning_enabled, null), false))
         }
         capGBPerMonthPerStorageAccount = {
           value = coalesce(try(local.defender_policy.plans.storage.cap_gb_per_month_per_storage_account, null), 1000)
         }
         isSensitiveDataDiscoveryEnabled = {
-          value = tostring(coalesce(try(local.defender_policy.plans.storage.sensitive_data_discovery_enabled, null), true))
+          value = tostring(coalesce(try(local.defender_policy.plans.storage.sensitive_data_discovery_enabled, null), false))
         }
       }
     }
@@ -132,9 +126,10 @@ locals {
   defender_for_cloud_dine_assignments = !try(local.defender_policy.enabled, false) ? {} : {
     for key, assignment in local.defender_for_cloud_dine_assignment_templates : key => merge(
       assignment,
+      { management_group_key = coalesce(try(local.defender_policy.management_group_key, null), "compeer-enterprise-mg") },
       length(local.defender_policy_not_scopes) > 0 ? { not_scopes = local.defender_policy_not_scopes } : {}
     )
-    if coalesce(try(local.defender_policy.plans[trimprefix(key, "defender_")].enabled, null), true)
+    if coalesce(try(local.defender_policy.plans[trimprefix(key, "defender_")].enabled, null), false)
   }
 
   network_flow_logging_policy = try(var.policy.network_flow_logging_policy, {})
@@ -144,8 +139,10 @@ locals {
   ), null)
   network_flow_logging_effect = coalesce(try(local.network_flow_logging_policy.effect, null), "DeployIfNotExists")
 
-  network_flow_logging_dine_assignments = !try(local.network_flow_logging_policy.enabled, false) ? {} : {
+  network_flow_logging_dine_assignment_templates = {
     deploy_network_watcher = {
+      management_group_key = coalesce(try(local.network_flow_logging_policy.management_group_key, null), "compeer-enterprise-mg")
+      not_scopes           = try(local.network_flow_logging_policy.not_scopes, [])
       policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/a9b99dd8-06c5-4317-8629-9d86a3c6e7d9"
       display_name         = "Compeer deploy Network Watcher for VNet flow logs"
       description          = "Ensures regional Network Watcher exists before VNet flow-log remediation."
@@ -155,9 +152,11 @@ locals {
       parameters = {}
     }
     vnet_flow_logs_traffic_analytics = {
-      policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/3e9965dc-cc13-47ca-8259-a4252fd0cf7b"
-      display_name         = "Compeer deploy VNet flow logs with Traffic Analytics"
-      description          = "Deploys VNet flow logs and Traffic Analytics to the central platform Log Analytics workspace for Central US VNets."
+      policy_definition_key = "compeer_vnet_flow_logging"
+      management_group_key  = coalesce(try(local.network_flow_logging_policy.management_group_key, null), "compeer-enterprise-mg")
+      not_scopes            = try(local.network_flow_logging_policy.not_scopes, [])
+      display_name          = "Compeer deploy VNet flow logs with Traffic Analytics"
+      description           = "Deploys VNet flow logs and Traffic Analytics to the central platform Log Analytics workspace for Central US VNets."
       role_definition_ids = [
         "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
       ]
@@ -169,13 +168,17 @@ locals {
         storageId          = { value = local.flow_log_storage_account_id }
         retentionDays      = { value = tostring(coalesce(try(local.network_flow_logging_policy.retention_days, null), 90)) }
         timeInterval       = { value = tostring(coalesce(try(local.network_flow_logging_policy.traffic_analytics_interval_minutes, null), 60)) }
-        workspaceId        = { value = local.log_analytics_workspace_guid }
         workspaceRegion    = { value = local.log_analytics_workspace_location }
         workspaceResourceId = {
           value = local.log_analytics_workspace_id
         }
       }
     }
+  }
+
+  network_flow_logging_dine_assignments = {
+    for key, assignment in local.network_flow_logging_dine_assignment_templates : key => assignment
+    if try(local.network_flow_logging_policy.enabled, false)
   }
 
   remediation = merge(
@@ -201,7 +204,7 @@ locals {
     },
     {
       dine_assignments = merge(
-        try(var.policy.remediation.dine_assignments, {}),
+        local.owned_dine_assignments,
         local.defender_for_cloud_dine_assignments,
         local.network_flow_logging_dine_assignments,
       )

@@ -21,12 +21,14 @@ module "policy" {
   subscription_id                     = var.execution_subscription_id
   management_group_ids                = local.management_group_ids
   policy_assignment_location          = try(var.policy.policy_assignment_location, var.location)
-  custom_policy_definitions           = try(var.policy.custom_policy_definitions, {})
+  custom_policy_definitions           = merge(try(var.policy.custom_policy_definitions, {}), local.diagnostic_audit_definitions, local.flow_logging_definitions)
   custom_policy_set_definitions       = try(var.policy.custom_policy_set_definitions, {})
-  management_group_policy_assignments = try(var.policy.management_group_policy_assignments, {})
+  management_group_policy_assignments = merge(try(var.policy.management_group_policy_assignments, {}), local.diagnostic_audit_assignments, local.diagnostic_builtin_audit_assignments)
   subscription_policy_assignments     = try(var.policy.subscription_policy_assignments, {})
   resource_group_policy_assignments   = try(var.policy.resource_group_policy_assignments, {})
   policy_exemptions                   = try(var.policy.policy_exemptions, {})
   private_only_connectivity           = try(var.policy.private_only_connectivity, {})
   remediation                         = local.remediation
+
+  depends_on = [terraform_data.enterprise_policy_contract]
 }

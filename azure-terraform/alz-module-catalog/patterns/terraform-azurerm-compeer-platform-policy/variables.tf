@@ -151,9 +151,10 @@ variable "policy_exemptions" {
 variable "remediation" {
   description = <<-EOT
     Opt-in DeployIfNotExists / Modify remediation bundle (see remediation.tf).
-    Assignments get a SystemAssigned identity + location and run at
-    management_group_key. Built-in policy/initiative IDs are caller-supplied
-    (verify with `az policy definition list`) - see the pattern README.
+    Assignments get a SystemAssigned identity + location and run at their own
+    management_group_key (falling back to the bundle's key). Built-in policy/initiative IDs are caller-supplied
+    (verify with `az policy definition list`). Existing-resource remediation
+    tasks are explicitly opted in, not started automatically.
   EOT
   type = object({
     enabled                    = optional(bool, false)
@@ -164,15 +165,28 @@ variable "remediation" {
     # definition. Keeping this keyed object dynamic avoids Terraform forcing
     # unrelated assignment parameter values into one common map element type.
     dine_assignments = optional(any, {})
+    tasks = optional(map(object({
+      assignment_key                 = string
+      policy_definition_reference_id = optional(string)
+      location_filters               = optional(list(string))
+      resource_count                 = optional(number, 100)
+      parallel_deployments           = optional(number, 5)
+      failure_percentage             = optional(number, 0.1)
+    })), {})
   })
   default = {}
 
   validation {
     condition = alltrue([
       for assignment in values(try(var.remediation.dine_assignments, {})) :
-      (try(assignment.policy_definition_id, null) != null) != (try(assignment.policy_set_definition_id, null) != null)
+      length(compact([
+        try(assignment.policy_definition_id, null),
+        try(assignment.policy_definition_key, null),
+        try(assignment.policy_set_definition_id, null),
+        try(assignment.policy_set_definition_key, null)
+      ])) == 1
     ])
-    error_message = "Each remediation assignment must set exactly one of policy_definition_id or policy_set_definition_id."
+    error_message = "Each remediation assignment must set exactly one policy definition/initiative ID or key."
   }
 
 
@@ -183,5 +197,14 @@ variable "remediation" {
       can(toset(try(assignment.role_definition_ids, [])))
     ])
     error_message = "Each remediation assignment must use a boolean inject_law value and a collection of role_definition_ids."
+  }
+
+  validation {
+    condition = alltrue([for task in values(var.remediation.tasks) :
+      task.resource_count >= 1 && task.resource_count <= 50000 && floor(task.resource_count) == task.resource_count &&
+      task.parallel_deployments >= 1 && task.parallel_deployments <= 30 && floor(task.parallel_deployments) == task.parallel_deployments &&
+      task.failure_percentage >= 0 && task.failure_percentage <= 1
+    ])
+    error_message = "Remediation tasks require integer resource_count 1-50000, integer parallel_deployments 1-30, and failure_percentage 0-1."
   }
 }

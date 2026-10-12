@@ -1,10 +1,7 @@
 mock_provider "azurerm" {}
 
-# Platform_Output_Contracts_IAC-10 management_diagnostic_profile: an entry
-# that opts into diagnostics but doesn't specify logs/metrics should default
-# to allLogs/AllMetrics (modules/terraform-azurerm-compeer-diagnostic-profile),
-# not silently end up with an empty, useless diagnostic setting. An entry
-# that DOES specify its own logs/metrics must keep exactly what it asked for.
+# Storage roots support metrics only. Service children inherit allLogs,
+# while explicit categories must retain the approved resource profile.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -31,7 +28,7 @@ variables {
   }
 }
 
-run "unspecified_diagnostics_default_to_all_logs_and_metrics" {
+run "root_defaults_to_metrics_only" {
   command = plan
 
   variables {
@@ -43,12 +40,8 @@ run "unspecified_diagnostics_default_to_all_logs_and_metrics" {
   }
 
   assert {
-    condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].logs) == tolist(["allLogs"])
-    error_message = "an entry that leaves logs unset should default to allLogs"
-  }
-  assert {
-    condition     = local.platform_storage_diagnostic_inputs["audit_diag"].logs["allLogs"].category_group == "allLogs"
-    error_message = "the default log entry should use category_group = allLogs, not an enumerated category"
+    condition     = length(local.platform_storage_diagnostic_inputs["audit_diag"].logs) == 0
+    error_message = "root accounts must not inherit unsupported allLogs"
   }
   assert {
     condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].metrics) == tolist(["AllMetrics"])
@@ -63,6 +56,7 @@ run "explicit_diagnostics_are_not_overridden" {
     platform_storage_diagnostics = {
       audit_diag = {
         storage_account_key = "audit"
+        storage_service     = "blob"
         logs = {
           StorageWrite = { category = "StorageWrite" }
         }
@@ -81,4 +75,27 @@ run "explicit_diagnostics_are_not_overridden" {
     condition     = keys(local.platform_storage_diagnostic_inputs["audit_diag"].metrics) == tolist(["Transaction"])
     error_message = "an entry with explicit metrics should keep exactly what it asked for, not the platform default"
   }
+}
+
+run "service_child_defaults_to_all_logs" {
+  command = plan
+  variables {
+    platform_storage_diagnostics = {
+      audit_blob = { storage_account_key = "audit", storage_service = "blob" }
+    }
+  }
+  assert {
+    condition     = local.platform_storage_diagnostic_inputs.audit_blob.logs.allLogs.category_group == "allLogs" && local.platform_storage_diagnostic_inputs.audit_blob.name == "diag-stauditprodcus001-blob-law"
+    error_message = "service child diagnostics must default to allLogs and have a distinct name"
+  }
+}
+
+run "rejects_logs_on_storage_root" {
+  command = plan
+  variables {
+    platform_storage_diagnostics = {
+      audit = { storage_account_key = "audit", logs = { all = { category_group = "allLogs" } } }
+    }
+  }
+  expect_failures = [var.platform_storage_diagnostics]
 }

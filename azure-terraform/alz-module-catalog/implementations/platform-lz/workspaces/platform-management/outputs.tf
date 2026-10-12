@@ -207,3 +207,12 @@ output "contract_version" {
   description = "Platform_Output_Contracts_IAC-10 management_contract_version."
   value       = "0.1.0"
 }
+output "diagnostic_configuration" {
+  description = "Actual Terraform-owned storage diagnostic targets and categories."
+  value       = try(module.management[0].diagnostic_configuration, {})
+}
+
+output "defender_plan_configuration" {
+  description = "Direct Defender plan configuration in the management subscription; excluded from fleet DINE."
+  value       = try(module.management[0].defender_plan_configuration, {})
+}

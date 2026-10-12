@@ -341,6 +341,29 @@ policy = {
     }
   }
 
+  # Direct diagnostics in every platform subscription remain Terraform-owned.
+  # Policy audits these scopes but never deploys/modifies their settings.
+  diagnostic_ownership = {
+    definition_management_group_key = "compeer-enterprise-mg"
+    terraform_management_group_keys = ["platform-mg"]
+    # Add workload RG/subscription IDs here BEFORE adopting direct diagnostics.
+    additional_terraform_scopes = []
+    audit_profiles = {
+      key_vault = {
+        resource_type  = "Microsoft.KeyVault/vaults"
+        log_categories = ["AuditEvent"]
+      }
+      bastion = {
+        resource_type  = "Microsoft.Network/bastionHosts"
+        log_categories = ["BastionAuditLogs"]
+      }
+      storage_blob = {
+        resource_type  = "Microsoft.Storage/storageAccounts/blobServices"
+        log_categories = ["StorageRead", "StorageWrite", "StorageDelete"]
+      }
+    }
+  }
+
   network_flow_logging_policy = {
     enabled              = true
     management_group_key = "compeer-enterprise-mg"
@@ -354,6 +377,9 @@ policy = {
     storage_account_key                 = "audit"
     retention_days                      = 90
     traffic_analytics_interval_minutes  = 60
+    # Flow-log child resources are Policy-owned, including platform VNets.
+    # Add VNet/resource-group IDs here if a workspace owns their flow logs.
+    not_scopes = []
   }
 
   # The root obtains the Log Analytics workspace ID from platform-management.
@@ -361,6 +387,8 @@ policy = {
     enabled              = true
     management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
+    # Existing-resource remediation is opt-in, bounded, and separately approved.
+    tasks = {}
     dine_assignments = {
       app_service_diagnostics = {
         policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/c0d8e23a-47be-4032-961f-8b0ff3957061"
@@ -393,7 +421,7 @@ policy = {
       diagnostics_to_log_analytics = {
         policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
         display_name             = "Compeer deploy diagnostics to central Log Analytics"
-        description              = "GOV-07 backstop: deploy allLogs and supported metrics only when no compliant diagnostic setting targets the central workspace."
+        description              = "GOV-07: deploy missing allLogs outside Terraform-owned scopes; metrics remain the resource owner's responsibility."
         inject_law               = true
         role_definition_ids = [
           "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",
@@ -424,7 +452,6 @@ policy = {
               "microsoft.eventgrid/systemtopics",
               "microsoft.eventgrid/topics",
               "microsoft.eventhub/namespaces",
-              "microsoft.insights/components",
               "microsoft.insights/datacollectionrules",
               "microsoft.keyvault/vaults",
               "microsoft.logic/integrationaccounts",

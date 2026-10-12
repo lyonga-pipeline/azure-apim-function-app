@@ -108,6 +108,14 @@ jobs:
         run: |
           terraform init -backend=false -input=false -no-color
           terraform validate -no-color
+      - name: workspace mock-provider tests
+        working-directory: azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/${{ matrix.ws }}
+        run: |
+          if [ -d tests ] && ls tests/*.tftest.hcl >/dev/null 2>&1; then
+            terraform test -no-color
+          else
+            echo "no workspace tests/ - skipped"
+          fi
 
   tflint:
     runs-on: ubuntu-latest

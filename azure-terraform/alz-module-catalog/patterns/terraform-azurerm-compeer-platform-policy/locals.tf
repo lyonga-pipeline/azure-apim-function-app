@@ -215,24 +215,27 @@ locals {
     for assignment_key, assignment in local.rem_assignments : {
       for role_definition_id in try(assignment.role_definition_ids, []) :
       "${assignment_key}:${basename(role_definition_id)}" => {
-        assignment_key     = "rem-${assignment_key}"
-        role_definition_id = role_definition_id
+        assignment_key       = "rem-${assignment_key}"
+        role_definition_id   = role_definition_id
+        management_group_key = coalesce(try(assignment.management_group_key, null), local.rem_mg_key, "unset")
       }
     }
   ]...)
 
   remediation_assignments_input = {
     for k, v in local.rem_assignments : "rem-${k}" => {
-      name                     = substr("rem-${k}", 0, 24)
-      management_group_id      = try(local.management_group_scope_ids[local.rem_mg_key], null)
-      policy_definition_id     = try(v.policy_definition_id, null)
-      policy_set_definition_id = try(v.policy_set_definition_id, null)
-      display_name             = try(v.display_name, "Remediation - ${k}")
-      description              = try(v.description, "DeployIfNotExists remediation managed by platform-policy.")
-      enforce                  = try(v.enforce, true)
-      location                 = local.rem_location
-      not_scopes               = try(v.not_scopes, null)
-      identity                 = local.rem_identity
+      name                      = substr("rem-${k}", 0, 24)
+      management_group_id       = try(local.management_group_scope_ids[coalesce(try(v.management_group_key, null), local.rem_mg_key, "unset")], null)
+      policy_definition_id      = try(v.policy_definition_id, null)
+      policy_set_definition_id  = try(v.policy_set_definition_id, null)
+      policy_definition_key     = try(v.policy_definition_key, null)
+      policy_set_definition_key = try(v.policy_set_definition_key, null)
+      display_name              = try(v.display_name, "Remediation - ${k}")
+      description               = try(v.description, "DeployIfNotExists remediation managed by platform-policy.")
+      enforce                   = try(v.enforce, true)
+      location                  = coalesce(try(v.location, null), local.rem_location, var.policy_assignment_location)
+      not_scopes                = try(v.not_scopes, null)
+      identity                  = local.rem_identity
       parameters = merge(
         try(v.parameters, {}),
         try(v.inject_law, false) && local.rem_law_id != null ? {

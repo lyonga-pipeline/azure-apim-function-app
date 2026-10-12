@@ -217,3 +217,17 @@ output "service_health_alert_id" {
   description = "ID of the subscription-level Service Health activity log alert, or null if not enabled."
   value       = try(azurerm_monitor_activity_log_alert.service_health[0].id, null)
 }
+output "diagnostic_configuration" {
+  description = "Actual storage diagnostic targets/categories owned by this workspace, not just profile defaults."
+  value = { for key, diagnostic in local.platform_storage_diagnostic_inputs : key => {
+    target_resource_id         = diagnostic.target_resource_id
+    log_analytics_workspace_id = diagnostic.log_analytics_workspace_id
+    logs                       = diagnostic.logs
+    metrics                    = diagnostic.metrics
+  } }
+}
+
+output "defender_plan_configuration" {
+  description = "Explicit directly managed Defender configuration for security review; DINE excludes this subscription."
+  value       = var.defender_plans
+}

@@ -89,6 +89,8 @@ management = {
   }
   platform_storage_accounts = {
     audit = {
+      # Preserve the deployed account when naming-module conventions evolve.
+      name                              = "cfaudit6e1ecusprdsa"
       account_replication_type          = "ZRS"
       public_network_access_enabled     = false
       shared_access_key_enabled         = false
@@ -139,12 +141,21 @@ management = {
     audit = {
       storage_account_key = "audit"
       # Root Microsoft.Storage/storageAccounts supports metrics, but not
-      # allLogs. Service logs belong on child resources such as
-      # blobServices/default if/when storage data-plane logs are approved.
+      # allLogs. Service logs are configured separately on blobServices/default.
       logs = {}
       metrics = {
         transaction = { category = "Transaction" }
       }
+    }
+    audit_blob = {
+      storage_account_key = "audit"
+      storage_service     = "blob"
+      logs = {
+        read   = { category = "StorageRead" }
+        write  = { category = "StorageWrite" }
+        delete = { category = "StorageDelete" }
+      }
+      metrics = { transaction = { category = "Transaction" } }
     }
   }
   # Refined placement keeps shared platform Key Vault in security-mg and

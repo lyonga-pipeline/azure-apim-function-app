@@ -14,6 +14,8 @@ resource "terraform_data" "enterprise_policy_contract" {
     log_analytics_workspace_guid                       = local.log_analytics_workspace_guid
     log_analytics_workspace_location                   = local.log_analytics_workspace_location
     management_diagnostic_profile                      = local.management_diagnostic_profile
+    diagnostic_terraform_scopes                        = local.diagnostic_terraform_scopes
+    diagnostic_audit_profile_names                     = keys(local.diagnostic_audit_profiles)
     management_subscription_scope                      = local.management_subscription_scope
     network_flow_logging_enabled                       = try(local.network_flow_logging_policy.enabled, false)
   }
@@ -39,33 +41,33 @@ resource "terraform_data" "enterprise_policy_contract" {
     precondition {
       condition = (
         !local.diagnostic_remediation_enabled ||
-        local.management_diagnostic_profile != null
+        length(local.diagnostic_terraform_mg_keys) > 0 && !contains(local.diagnostic_terraform_scopes, "unset") && length(local.diagnostic_audit_profiles) > 0
       )
-      error_message = "Diagnostic DINE is enabled, but platform-management has not published diagnostic_profile."
+      error_message = "Diagnostic DINE requires explicit Terraform-owned management-group keys and category-based audit_profiles; all keys must resolve from the governance contract."
     }
 
     precondition {
       condition = (
         !local.diagnostic_remediation_enabled ||
-        try(local.management_diagnostic_profile.destination_key, null) == "log_analytics_workspace_id"
+        local.log_analytics_workspace_id != "unset"
       )
-      error_message = "Diagnostic DINE expects platform-management's diagnostic_profile.destination_key to be log_analytics_workspace_id."
+      error_message = "Diagnostic audit and DINE must target the same published central workspace."
     }
 
     precondition {
       condition = (
-        !local.diagnostic_remediation_enabled ||
-        try(contains(local.management_diagnostic_profile.log_categories, "allLogs"), false)
+        length(local.diagnostic_audit_assignments) == 0 || local.log_analytics_workspace_id != "unset"
       )
-      error_message = "Diagnostic DINE expects platform-management's diagnostic_profile.log_categories to include allLogs."
+      error_message = "Audit-only diagnostic checks require the central workspace ID."
     }
 
     precondition {
       condition = (
-        !local.diagnostic_remediation_enabled ||
-        try(contains(local.management_diagnostic_profile.metric_categories, "AllMetrics"), false)
+        alltrue([for profile in values(local.diagnostic_audit_profiles) :
+          length(profile.log_categories) > 0 && !contains(["microsoft.storage/storageaccounts", "microsoft.insights/components"], lower(profile.resource_type))
+        ])
       )
-      error_message = "Diagnostic DINE expects platform-management's diagnostic_profile.metric_categories to include AllMetrics."
+      error_message = "Audit profiles must have explicit log categories and target log-capable resources, not storage roots or Application Insights."
     }
 
     precondition {
@@ -93,11 +95,36 @@ resource "terraform_data" "enterprise_policy_contract" {
     }
 
     precondition {
+      condition     = !contains(local.diagnostic_dine_resource_types_lower, "microsoft.insights/components")
+      error_message = "Do not export workspace-based Application Insights diagnostics to its underlying central workspace. Remove Microsoft.Insights/components from the DINE resource list."
+    }
+
+    precondition {
+      condition = alltrue([for key, plan in try(local.defender_policy.plans, {}) :
+        contains([for name in keys(local.defender_for_cloud_dine_assignment_templates) : trimprefix(name, "defender_")], key) &&
+        can(tobool(plan.enabled))
+      ])
+      error_message = "Defender plan keys must be supported and each configured plan must explicitly set enabled. Omitted plans stay disabled."
+    }
+
+    precondition {
+      condition     = contains(["DeployIfNotExists", "Disabled"], local.defender_policy_effect) && contains(["DeployIfNotExists", "Disabled"], local.network_flow_logging_effect)
+      error_message = "Defender and flow-log deployment effects must be DeployIfNotExists or Disabled."
+    }
+
+    precondition {
+      condition     = contains(["P1", "P2"], coalesce(try(local.defender_policy.plans.servers.subplan, null), "P1"))
+      error_message = "Defender for Servers subplan must be P1 or P2."
+    }
+
+    precondition {
       condition = (
         !try(local.network_flow_logging_policy.enabled, false) ||
-        local.log_analytics_workspace_guid != null
+        (contains([10, 60], coalesce(try(local.network_flow_logging_policy.traffic_analytics_interval_minutes, null), 60)) &&
+          coalesce(try(local.network_flow_logging_policy.retention_days, null), 90) >= 1 &&
+        floor(coalesce(try(local.network_flow_logging_policy.retention_days, null), 90)) == coalesce(try(local.network_flow_logging_policy.retention_days, null), 90))
       )
-      error_message = "network_flow_logging_policy.enabled requires platform-management to publish log_analytics_workspace_guid."
+      error_message = "Flow logging requires interval 10 or 60 minutes and positive integer storage retention_days."
     }
 
     precondition {

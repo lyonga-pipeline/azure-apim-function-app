@@ -226,8 +226,8 @@ locals {
 
   platform_storage_diagnostic_inputs = {
     for key, diagnostic in var.platform_storage_diagnostics : key => {
-      name                           = coalesce(try(diagnostic.name, null), "diag-${module.platform_storage_accounts[diagnostic.storage_account_key].name}-law")
-      target_resource_id             = coalesce(try(diagnostic.target_resource_id, null), try(module.platform_storage_accounts[diagnostic.storage_account_key].id, null))
+      name                           = coalesce(diagnostic.name, try("diag-${module.platform_storage_accounts[diagnostic.storage_account_key].name}${diagnostic.storage_service == null ? "" : "-${diagnostic.storage_service}"}-law", "diag-${key}-law"))
+      target_resource_id             = coalesce(diagnostic.target_resource_id, try("${module.platform_storage_accounts[diagnostic.storage_account_key].id}${diagnostic.storage_service == null ? "" : "/${diagnostic.storage_service}Services/default"}", null))
       log_analytics_workspace_id     = coalesce(try(diagnostic.log_analytics_workspace_id, null), module.log_analytics.id)
       log_analytics_destination_type = try(diagnostic.log_analytics_destination_type, null)
       storage_account_id             = try(diagnostic.archive_storage_account_id, null)
@@ -237,8 +237,11 @@ locals {
       )
       eventhub_name       = try(diagnostic.eventhub_name, null)
       partner_solution_id = try(diagnostic.partner_solution_id, null)
-      logs                = try(diagnostic.logs, {})
-      metrics             = try(diagnostic.metrics, {})
+      logs = diagnostic.logs != null ? diagnostic.logs : (
+        diagnostic.storage_service != null || can(regex("(?i)/(blob|file|queue|table)services/default$", coalesce(diagnostic.target_resource_id, "unset"))) ?
+        { allLogs = { category_group = "allLogs" } } : {}
+      )
+      metrics = try(diagnostic.metrics, {})
     }
   }
 

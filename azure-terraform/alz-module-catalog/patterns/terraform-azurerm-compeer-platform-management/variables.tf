@@ -369,6 +369,7 @@ variable "platform_storage_diagnostics" {
   type = map(object({
     name                           = optional(string)
     storage_account_key            = optional(string)
+    storage_service                = optional(string)
     target_resource_id             = optional(string)
     log_analytics_workspace_id     = optional(string)
     log_analytics_destination_type = optional(string)
@@ -376,14 +377,12 @@ variable "platform_storage_diagnostics" {
     eventhub_authorization_rule_id = optional(string)
     eventhub_name                  = optional(string)
     partner_solution_id            = optional(string)
-    # Platform_Output_Contracts_IAC-10 management_diagnostic_profile - keep
-    # in sync with modules/terraform-azurerm-compeer-diagnostic-profile's
-    # defaults (allLogs / AllMetrics). Only applies to an entry that leaves
-    # logs/metrics unset - an explicit value here always wins.
+    # Root accounts expose metrics only; service children default to allLogs.
+    # Explicit service categories are preserved for the approved log profile.
     logs = optional(map(object({
       category       = optional(string)
       category_group = optional(string)
-    })), { allLogs = { category_group = "allLogs" } })
+    })))
     metrics = optional(map(object({
       category = string
       enabled  = optional(bool, true)
@@ -391,6 +390,20 @@ variable "platform_storage_diagnostics" {
   }))
   description = "Diagnostic settings for platform storage accounts."
   default     = {}
+
+  validation {
+    condition = alltrue([for item in values(var.platform_storage_diagnostics) :
+      item.storage_account_key != null && item.storage_service == null ? (item.logs == null ? true : length(item.logs) == 0) : true
+    ])
+    error_message = "Storage account root diagnostics cannot contain logs; set storage_service to a service child for data-plane logs."
+  }
+
+  validation {
+    condition = alltrue([for item in values(var.platform_storage_diagnostics) :
+      item.storage_service == null ? true : contains(["blob", "file", "queue", "table"], item.storage_service) && item.storage_account_key != null
+    ])
+    error_message = "storage_service must be blob, file, queue, or table and requires storage_account_key."
+  }
 
   validation {
     condition = alltrue([
