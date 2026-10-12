@@ -159,3 +159,130 @@ run "rejects_unreadable_public_management_contract" {
   }
   expect_failures = [terraform_data.enterprise_policy_contract]
 }
+
+run "explicit_ids_complete_partial_public_contracts" {
+  command = plan
+  variables {
+    management_subscription_id = "11111111-1111-1111-1111-111111111111"
+    management_group_ids = {
+      platform-mg = "/providers/Microsoft.Management/managementGroups/platform-mg"
+    }
+  }
+  override_data {
+    target = data.tfe_outputs.governance[0]
+    values = {
+      values = {}
+      nonsensitive_values = {
+        contract_version = "0.1.0"
+        management_group_ids = {
+          compeer-enterprise-mg = "compeer-enterprise-mg"
+          workloads-mg          = "workloads-mg"
+        }
+      }
+    }
+  }
+  override_data {
+    target = data.tfe_outputs.management[0]
+    values = {
+      values = {}
+      nonsensitive_values = {
+        contract_version                 = "0.1.0"
+        log_analytics_workspace_id       = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/law"
+        log_analytics_workspace_location = "centralus"
+        platform_storage_account_ids = {
+          audit = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/storage/providers/Microsoft.Storage/storageAccounts/auditcusprod"
+        }
+      }
+    }
+  }
+  assert {
+    condition     = contains(local.defender_policy_not_scopes, "/subscriptions/11111111-1111-1111-1111-111111111111") && local.defender_policy_exclude_platform_management_subscription
+    error_message = "An explicit management subscription UUID must retain the Defender ownership exclusion."
+  }
+  assert {
+    condition = length(local.diagnostic_unresolved_mg_keys) == 0 && alltrue([for key in local.diagnostic_remediation_keys :
+      contains(local.remediation.dine_assignments[key].not_scopes, "/providers/Microsoft.Management/managementGroups/platform-mg")
+    ])
+    error_message = "Explicit management group IDs must complete the public contract without losing diagnostic exclusions."
+  }
+}
+
+run "rejects_conflicting_management_subscription_override" {
+  command = plan
+  variables {
+    management_subscription_id = "22222222-2222-2222-2222-222222222222"
+    policy                     = { enabled = true, defender_for_cloud_policy = { enabled = true, plans = { servers = { enabled = true } } } }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+}
+
+run "rejects_invalid_management_subscription_uuid" {
+  command = plan
+  variables {
+    management_subscription_id = "/subscriptions/11111111-1111-1111-1111-111111111111"
+    policy                     = { enabled = false }
+  }
+  expect_failures = [var.management_subscription_id]
+}
+
+run "rejects_missing_diagnostic_management_group" {
+  command = plan
+  override_data {
+    target = data.tfe_outputs.governance[0]
+    values = {
+      values = {}
+      nonsensitive_values = {
+        management_group_ids = {
+          compeer-enterprise-mg = "compeer-enterprise-mg"
+          workloads-mg          = "workloads-mg"
+        }
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+  assert {
+    condition     = local.diagnostic_unresolved_mg_keys == ["platform-mg"] && local.diagnostic_terraform_scopes == tolist(["unset"])
+    error_message = "The ownership contract must identify the missing management-group key."
+  }
+}
+
+run "rejects_empty_diagnostic_management_group_id" {
+  command = plan
+  variables {
+    management_group_ids = { platform-mg = "" }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+  assert {
+    condition     = local.diagnostic_unresolved_mg_keys == ["platform-mg"]
+    error_message = "An empty management-group ID must not produce an apparently valid exclusion."
+  }
+}
+
+run "rejects_application_insights_in_effective_dine_catalog" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      remediation = {
+        enabled = true
+        dine_assignments = {
+          diagnostics_to_log_analytics = {
+            policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+            inject_law               = true
+            parameters = {
+              diagnosticSettingName = { value = "setByPolicy-LogAnalytics" }
+              resourceTypeList      = { value = ["Microsoft.Insights/components"] }
+            }
+          }
+        }
+      }
+      diagnostic_ownership = {
+        terraform_management_group_keys = ["platform-mg"]
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+}

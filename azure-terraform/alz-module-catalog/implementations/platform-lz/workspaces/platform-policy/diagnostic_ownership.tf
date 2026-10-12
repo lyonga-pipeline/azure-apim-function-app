@@ -1,8 +1,11 @@
 locals {
   diagnostic_ownership         = try(var.policy.diagnostic_ownership, {})
   diagnostic_terraform_mg_keys = try(local.diagnostic_ownership.terraform_management_group_keys, [])
+  diagnostic_unresolved_mg_keys = [for key in local.diagnostic_terraform_mg_keys : key
+    if try(trimspace(local.management_group_ids[key]), "") == ""
+  ]
   diagnostic_terraform_scopes = distinct(concat(
-    [for key in local.diagnostic_terraform_mg_keys : try(
+    [for key in local.diagnostic_terraform_mg_keys : contains(local.diagnostic_unresolved_mg_keys, key) ? "unset" : try(
     startswith(local.management_group_ids[key], "/providers/") ? local.management_group_ids[key] : "/providers/Microsoft.Management/managementGroups/${local.management_group_ids[key]}", "unset")],
     try(local.diagnostic_ownership.additional_terraform_scopes, [])
   ))

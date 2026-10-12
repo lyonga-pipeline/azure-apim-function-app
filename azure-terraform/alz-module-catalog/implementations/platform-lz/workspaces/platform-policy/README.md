@@ -22,6 +22,7 @@ Set these as workspace or variable-set values, not in committed tfvars:
 |---|---|---|
 | `tenant_id` | Terraform | Entra tenant ID. |
 | `execution_subscription_id` | Terraform | Subscription context required by the AzureRM provider; policy resources can still be created at management-group scope. |
+| `management_subscription_id` | Terraform | Optional actual management subscription UUID when the producer's public output is unavailable; preserves the Defender exclusion and must agree with the output when available. |
 | `TFC_AZURE_PROVIDER_AUTH` | Environment | Enables HCP dynamic Azure credentials. |
 | `TFC_AZURE_RUN_CLIENT_ID` | Environment | Client ID used by HCP dynamic credentials. |
 
@@ -68,6 +69,27 @@ By default, HCP outputs are read from:
 Set `use_tfe_outputs = false` and provide `management_group_ids` directly only for isolated testing.
 
 Only non-sensitive outputs are consumed. Use scoped HCP output access, not broad full-state access; an empty output map must be resolved before planning enforcement. Match workspace names to the client workspace names before running.
+
+### Troubleshooting Ownership Preconditions
+
+The contract reports producer workspace names, public output names, available MG keys, and unresolved diagnostic MG keys. These checks intentionally stop plans that would lose ownership exclusions; do not remove them to make a plan pass.
+
+- A missing management subscription scope means the run cannot read `subscription_id` from the configured management producer. Verify the exact organization/workspace name, applied root output, non-sensitive classification, and scoped output access. A workspace visible in the UI is not proof that this run can read its public output. As a controlled alternative, set the root Terraform-category variable `management_subscription_id` to the actual management subscription UUID. Do not substitute `execution_subscription_id` unless the subscriptions are confirmed to be the same.
+- `diagnostic_terraform_scopes = ["unset"]` means a configured Terraform-owned MG key cannot resolve to a non-empty ID. Verify `management_group_ids` from governance. The root `management_group_ids` map can override or supplement those outputs using the exact logical keys in `policy.diagnostic_ownership.terraform_management_group_keys`. Values can be actual MG IDs or full `/providers/Microsoft.Management/managementGroups/<id>` paths. Provide all other required keys when the producer's whole map is unavailable. A management-group display name is not its ID.
+- An Application Insights failure means the effective `policy.remediation.dine_assignments.diagnostics_to_log_analytics.parameters.resourceTypeList.value` still includes `Microsoft.Insights/components` (case insensitive). Remove it there, not from the contract. The checked-in catalog already excludes it. Check workspace/variable-set `policy` values, `*.auto.tfvars`, and CLI variable overrides for an older whole object; changing `terraform.tfvars` alone may not change the effective configuration. Workspace-based Application Insights already sends telemetry to its underlying LAW and cannot use that same LAW as its diagnostic export destination.
+
+Example root inputs in the policy workspace, with verified environment-specific values:
+
+```hcl
+management_workspace_name = "<actual-management-workspace-name>"
+governance_workspace_name = "<actual-governance-workspace-name>"
+management_subscription_id = "<actual-management-subscription-uuid>"
+management_group_ids = {
+  "platform-mg" = "/providers/Microsoft.Management/managementGroups/<actual-platform-mg-id>"
+}
+```
+
+The last two inputs are optional fallbacks, not replacements for the central LAW/storage destination contract. Explicit input IDs do not grant HCP or Azure access, and a mismatch with a published management subscription ID still fails the plan. Keep `defender_for_cloud_policy.exclude_platform_management_subscription` enabled.
 
 ## Ownership And Duties
 

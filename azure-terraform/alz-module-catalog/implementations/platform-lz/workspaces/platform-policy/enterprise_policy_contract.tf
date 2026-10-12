@@ -2,6 +2,12 @@ resource "terraform_data" "enterprise_policy_contract" {
   count = local.enabled ? 1 : 0
 
   input = {
+    governance_workspace_name                          = var.governance_workspace_name
+    governance_public_output_names                     = keys(local.governance_outputs)
+    available_management_group_keys                    = keys(local.management_group_ids)
+    unresolved_diagnostic_management_group_keys        = local.diagnostic_unresolved_mg_keys
+    management_workspace_name                          = var.management_workspace_name
+    management_public_output_names                     = keys(local.management_outputs)
     defender_for_cloud_policy_enabled                  = try(local.defender_policy.enabled, false)
     defender_policy_excludes_management_subscription   = local.defender_policy_exclude_platform_management_subscription
     defender_policy_not_scopes                         = local.defender_policy_not_scopes
@@ -27,7 +33,14 @@ resource "terraform_data" "enterprise_policy_contract" {
         !local.defender_policy_exclude_platform_management_subscription ||
         local.management_subscription_scope != null
       )
-      error_message = "defender_for_cloud_policy.enabled defaults to excluding platform-management's directly managed subscription. Apply platform-management first so it publishes subscription_id, or set defender_for_cloud_policy.exclude_platform_management_subscription = false with explicit ownership approval."
+      error_message = "Defender DINE cannot exclude the directly managed subscription: workspace ${var.management_workspace_name} has no readable public subscription_id. Verify the workspace name and scoped output access, apply its updated outputs, or set the root Terraform variable management_subscription_id to the actual management subscription UUID. Public output names: ${jsonencode(keys(local.management_outputs))}. Keep the ownership exclusion enabled."
+    }
+
+    precondition {
+      condition = var.management_subscription_id == null || local.published_management_subscription_id == null ? true : (
+        lower(var.management_subscription_id) == lower(local.published_management_subscription_id)
+      )
+      error_message = "management_subscription_id disagrees with the subscription_id published by ${var.management_workspace_name}. Correct the explicit ID or producer workspace before configuring Defender exclusions."
     }
 
     precondition {
@@ -43,7 +56,7 @@ resource "terraform_data" "enterprise_policy_contract" {
         !local.diagnostic_remediation_enabled ||
         length(local.diagnostic_terraform_mg_keys) > 0 && !contains(local.diagnostic_terraform_scopes, "unset") && length(local.diagnostic_audit_profiles) > 0
       )
-      error_message = "Diagnostic DINE requires explicit Terraform-owned management-group keys and category-based audit_profiles; all keys must resolve from the governance contract."
+      error_message = "Diagnostic DINE requires Terraform-owned management-group keys resolving to non-empty IDs and category-based audit_profiles. Unresolved keys: ${jsonencode(local.diagnostic_unresolved_mg_keys)}. Available keys: ${jsonencode(keys(local.management_group_ids))}. Governance workspace: ${var.governance_workspace_name}; public output names: ${jsonencode(keys(local.governance_outputs))}. Verify its applied management_group_ids output and scoped access, or provide the root management_group_ids map keyed exactly as diagnostic_ownership.terraform_management_group_keys."
     }
 
     precondition {
@@ -96,7 +109,7 @@ resource "terraform_data" "enterprise_policy_contract" {
 
     precondition {
       condition     = !contains(local.diagnostic_dine_resource_types_lower, "microsoft.insights/components")
-      error_message = "Do not export workspace-based Application Insights diagnostics to its underlying central workspace. Remove Microsoft.Insights/components from the DINE resource list."
+      error_message = "Do not export workspace-based Application Insights diagnostics to its underlying central workspace. Remove Microsoft.Insights/components from policy.remediation.dine_assignments.diagnostics_to_log_analytics.parameters.resourceTypeList.value in the effective configuration. Check HCP policy variables, variable sets, and auto.tfvars overrides as well as terraform.tfvars."
     }
 
     precondition {

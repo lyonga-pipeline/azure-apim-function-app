@@ -33,9 +33,20 @@ variable "governance_workspace_name" {
 }
 
 variable "management_workspace_name" {
-  description = "Workspace that publishes log_analytics_workspace_id (used by DINE remediation)."
+  description = "Workspace that publishes subscription_id for the Defender exclusion and log_analytics_workspace_id for DINE remediation."
   type        = string
   default     = "platform-management"
+}
+
+variable "management_subscription_id" {
+  description = "Optional management subscription UUID when its public workspace output is unavailable. Keeps that subscription excluded from fleet Defender DINE; must match the published subscription_id when both are available. This is not the policy execution subscription ID."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.management_subscription_id == null ? true : can(regex("^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", var.management_subscription_id))
+    error_message = "management_subscription_id must be a subscription UUID, not a subscription resource path, name, or placeholder."
+  }
 }
 
 variable "management_group_ids" {

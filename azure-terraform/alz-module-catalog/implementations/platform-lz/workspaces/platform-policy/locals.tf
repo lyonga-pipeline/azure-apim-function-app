@@ -17,12 +17,13 @@ locals {
     "unset",
   )
 
-  log_analytics_workspace_guid     = try(local.management_outputs.log_analytics_workspace_guid, null)
-  log_analytics_workspace_location = try(local.management_outputs.log_analytics_workspace_location, var.location)
-  management_diagnostic_profile    = try(local.management_outputs.diagnostic_profile, null)
-  management_subscription_id       = try(local.management_outputs.subscription_id, null)
-  management_subscription_scope    = local.management_subscription_id == null ? null : "/subscriptions/${local.management_subscription_id}"
-  platform_storage_account_ids     = try(local.management_outputs.platform_storage_account_ids, {})
+  log_analytics_workspace_guid         = try(local.management_outputs.log_analytics_workspace_guid, null)
+  log_analytics_workspace_location     = try(local.management_outputs.log_analytics_workspace_location, var.location)
+  management_diagnostic_profile        = try(local.management_outputs.diagnostic_profile, null)
+  published_management_subscription_id = try(local.management_outputs.subscription_id, null)
+  management_subscription_id           = var.management_subscription_id != null ? var.management_subscription_id : local.published_management_subscription_id
+  management_subscription_scope        = local.management_subscription_id == null ? null : "/subscriptions/${local.management_subscription_id}"
+  platform_storage_account_ids         = try(local.management_outputs.platform_storage_account_ids, {})
 
   defender_policy                                          = try(var.policy.defender_for_cloud_policy, {})
   defender_policy_effect                                   = coalesce(try(local.defender_policy.effect, null), "DeployIfNotExists")
