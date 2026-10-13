@@ -206,6 +206,7 @@ locals {
     {
       dine_assignments = merge(
         local.owned_dine_assignments,
+        local.diagnostic_profile_dine_assignments,
         local.defender_for_cloud_dine_assignments,
         local.network_flow_logging_dine_assignments,
       )
@@ -220,7 +221,7 @@ locals {
   law_remediation_enabled = try(local.remediation.enabled, false) && length(local.law_remediation_keys) > 0
   diagnostic_remediation_keys = [
     for key in local.law_remediation_keys : key
-    if contains(["app_service_diagnostics", "function_app_diagnostics", "diagnostics_to_log_analytics"], key)
+    if contains(["app_service_diagnostics", "function_app_diagnostics", "diagnostics_to_log_analytics"], key) || startswith(key, "diagnostic_profile_")
   ]
   diagnostic_remediation_enabled        = try(local.remediation.enabled, false) && length(local.diagnostic_remediation_keys) > 0
   diagnostic_dine_resource_types        = try(local.remediation.dine_assignments.diagnostics_to_log_analytics.parameters.resourceTypeList.value, [])

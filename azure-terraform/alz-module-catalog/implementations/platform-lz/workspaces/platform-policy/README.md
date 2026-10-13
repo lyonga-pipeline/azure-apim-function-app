@@ -46,8 +46,8 @@ The governance baseline is not repeated here. See the pattern README for the com
 - Approved resource types is non-enforcing until the resource catalog is finalized.
 - Managed identity, Key Vault, TLS, disk encryption, and VM backup controls are audit/reporting controls.
 - CIS is reporting-only and should remain non-enforcing.
-- GOV-07 diagnostics remediation is enabled after `platform-management` publishes the central Log Analytics workspace ID. It assigns Microsoft's built-in resource-specific `allLogs` initiative at `compeer-enterprise-mg` for the Phase 1 catalog and common pilot workload services. Dedicated built-ins cover App Service and Function Apps.
-- Diagnostic DINE excludes `platform-mg` and any additional explicitly Terraform-owned scopes. Platform resources receive audit-only assignments instead. DINE owns missing `allLogs` settings on remaining selected resources; it does not configure metrics. Application Insights and storage roots are excluded from the DINE catalog.
+- GOV-07 diagnostics remediation is enabled after `platform-management` publishes the central Log Analytics workspace ID. Microsoft's built-in `allLogs` initiative covers the remaining selected catalog, with dedicated built-ins for App Service and Function Apps. Key Vault, Bastion and blob services use the explicit category profiles below for both audit and gap-filling DINE; those types are removed from the initiative's effective resource list to prevent overlapping deployments.
+- The existing `platform-mg` boundary is retained until directly managed targets are inventoried. Exact `terraform_resource_ids` can protect only known diagnostic targets and automatically add read-only category/allLogs audits for supported catalog types. This permits mixed IaC/manual scopes without excluding every Terraform-created resource. Outside explicit boundaries, a compliant setting satisfies the policy regardless of its name or deployment tool. Application Insights and storage roots remain excluded; metrics remain the resource owner's responsibility.
 - Central US VNet flow-log child resources are Policy-owned separately from diagnostic settings. A strict custom definition requires the approved storage/workspace, enabled state, retention, interval and format. Exclude any Terraform-owned flow-log scopes separately. No deprecated workspace GUID is required.
 - The checked-in Defender selection enables Servers P1, Storage with malware scanning and sensitive-data discovery, Key Vault, App Service, Azure SQL databases, SQL servers on machines, Containers, and Resource Manager at `compeer-enterprise-mg`. This preserves the prior selection; it is not evidence of client licensing approval or deployment. Servers P2 and Defender CSPM remain separate security/licensing decisions.
 - The workspace grants each assignment identity its configured roles at that assignment's management-group scope. Diagnostic, Defender, and flow-log target scopes are independent. The run identity needs policy and role-assignment permissions at those scopes.
@@ -97,7 +97,7 @@ The last two inputs are optional fallbacks, not replacements for the central LAW
 |---|---|---|
 | LAW, retention, Sentinel onboarding | platform-management | Security approves destination and retention |
 | Management diagnostics, including audit blob logs | platform-management | Read-only policy audits; Terraform corrects findings |
-| Connectivity, identity/security, workload diagnostics | Resource-owning workspace | Platform scopes excluded; workload owners must register an exclusion before adopting direct settings |
+| Connectivity, identity/security, workload diagnostics | Resource-owning workspace | Register explicitly owned diagnostic targets for guaranteed audit-only protection; compatible unregistered settings can coexist with DINE but noncompliance can trigger deployment |
 | Management-subscription Defender pricing | platform-management | Security approves direct plan configuration; fleet DINE excludes this subscription |
 | Other targeted subscriptions' Defender pricing | platform-policy DINE | Security approves explicitly enabled plans and costs |
 | Policy definitions, assignments, identities, RBAC, exemptions, tasks | platform-policy | Reviewed scope and remediation approval; governance retains its separate initial baseline |
@@ -108,7 +108,50 @@ These are lifecycle boundaries, not automatically enforced human approval/RBAC s
 
 `configuration_ownership` publishes the effective policy exclusions and enabled plans. Management publishes `diagnostic_configuration` (actual storage targets/categories, not assumed defaults) and `defender_plan_configuration`. These outputs describe desired configuration, not live compliance evidence.
 
-The platform audits cover selected catalog types, App Service/Functions, and explicit Key Vault/Bastion/blob profiles. They do not cover VM guest logs, every future storage service, or subscription Activity Log export across the enterprise. Add service-specific profiles and AMA/DCR or Activity Log controls when approved. For `additional_terraform_scopes` outside platform-mg, configure an equivalent audit assignment/CI check explicitly; the exclusion alone does not create one. Metrics and unsupported services remain direct workspace responsibilities.
+The audits cover selected catalog types, App Service/Functions, and explicit Key Vault/Bastion/blob profiles. They do not cover VM guest logs, every future storage service, or subscription Activity Log export across the enterprise. Add service-specific profiles and AMA/DCR or Activity Log controls when approved. For broad `additional_terraform_scopes` outside platform-mg, configure an equivalent audit assignment/CI check explicitly; that legacy exclusion alone does not create one. Exact registered target IDs receive audits for configured category profiles and enabled allLogs catalog types. Metrics and unsupported services remain direct workspace responsibilities.
+
+## Terraform And DINE Coexistence
+
+The lifecycle owner is the diagnostic setting, Defender pricing resource or flow-log child, not necessarily the resource that produces logs. A Terraform-created Key Vault without directly managed diagnostics can still use Policy-owned diagnostics. DINE does not read Terraform state and cannot infer that ownership.
+
+The checked-in diagnostic baseline is:
+
+| Resource | Required enabled categories at the central LAW |
+|---|---|
+| Key Vault | `AuditEvent` |
+| Bastion | `BastionAuditLogs` |
+| Storage blob service | `StorageRead`, `StorageWrite`, `StorageDelete` |
+| Other enabled fleet catalog types and App Service/Functions | Enabled `allLogs` category group, matching the Microsoft built-ins |
+
+Category-profile audit and DINE definitions reuse the same existence condition. Each required category must be enabled in the same setting and target the approved workspace. An enabled `allLogs` group can satisfy these category profiles; another setting name does not cause deployment. DINE creates only those log categories, not metrics. Its 30-minute evaluation delay gives Terraform a deployment window, but is not a guarantee against a slow or concurrent deployment.
+
+Microsoft's built-in allLogs policies recognize the category group, not an arbitrary hand-picked category list. Do not assume an individually configured list satisfies those policies. Change the owning Terraform configuration to the approved group or introduce a reviewed, resource-specific category profile and remove overlapping built-in coverage first. Do not add a `Microsoft.Web/sites` category profile alongside the App Service/Function policies without also defining disjoint kind filters and retiring their overlapping assignments.
+
+| Situation | Expected result |
+|---|---|
+| Any compliant setting in a DINE scope | No policy deployment, irrespective of its creator/name |
+| Missing or noncompliant setting in a DINE scope | Deployment can occur following eligible create/update events; an approved task handles existing noncompliant resources |
+| Explicitly registered Terraform-owned target | DINE excluded; read-only audits flag missing/noncompliant logs for correction in Terraform |
+| Approved intentional difference | Reviewed, time-bound exemption or a separately scoped baseline; not an unrecorded portal change |
+
+To narrow the current platform boundary, inventory **all** directly managed targets first, register their full parent/service IDs, confirm their audit coverage, then remove the MG exclusion. Do not replace the production configuration with an empty registry merely because current settings appear compliant. Merge the following fields into the existing `policy.diagnostic_ownership` object only after approval:
+
+```hcl
+profile_dine_enabled            = true
+profile_dine_effect             = "AuditIfNotExists" # Pilot first, then DeployIfNotExists.
+terraform_management_group_keys = []
+terraform_resource_ids = [
+  "/subscriptions/<actual-subscription-uuid>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault>",
+  "/subscriptions/<actual-subscription-uuid>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account>/blobServices/default",
+]
+shared_scope_enabled = true
+```
+
+Use target IDs, not diagnostic-setting IDs. Register ownership before creating/adopting a direct setting. A strict exclusion deliberately means Policy cannot repair a deleted setting there: the owner must repair it through Terraform. Conversely, unregistered Terraform settings in a shared scope have **no guaranteed audit-only protection** when noncompliant. If Policy fills a gap and the team later wants direct ownership, exclude the target, import the existing setting into one state and verify a no-op plan before deployment; do not create a second setting.
+
+The platform boundary remains conservative in committed tfvars because this repository does not contain a verified inventory of the client's applied targets. Defender and flow-log ownership/exclusions remain independent and unchanged. Human approvals and least-privilege RBAC review remain deployment responsibilities, not something these flags enforce.
+
+This strategy follows [Microsoft's DINE evaluation/existence-condition guidance](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deploy-if-not-exists), [diagnostic policies at scale](https://learn.microsoft.com/en-us/azure/azure-monitor/data-collection/diagnostic-settings-policy), and [ALZ governance recommendations](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/design-area/governance). These sources support policy guardrails and scoped assignments; they do not prescribe one universal Terraform ownership model or prove how every large company operates.
 
 ## Controlled Rollout
 
@@ -140,6 +183,18 @@ tasks = {
 A region filter/resource count limits size, not an exact resource allowlist. Use a pilot MG/scope for precise targeting. Initiative tasks additionally require the actual verified `policy_definition_reference_id`. Start a new task revision only after another approval; do not repeatedly rerun blindly.
 
 For a Policy-to-Terraform handover: exclude the target scope first, freeze concurrent changes, match the intended configuration to the existing setting, import it into exactly one owning state, and confirm a no-op plan. For Terraform-to-SOC handover, use a reviewed `removed` block with `destroy = false` and adopt the resource in the new owner; do not merely remove its resource block. Never mask competing writers with `ignore_changes`.
+
+### Coexistence Pilot Acceptance
+
+Mock tests validate generated policies, baselines, ownership boundaries and rejected inputs. They do not execute Azure's policy engine or prove ingestion. Before broad application, run this matrix in a dedicated pilot scope and retain before/after evidence:
+
+1. Create a compliant Terraform-owned Key Vault setting with a non-policy name. After evaluation/remediation, confirm the setting count/configuration is unchanged and the owning Terraform plan is a no-op.
+2. Register a directly owned target, then remove/disable a required log category in the pilot. Verify audit reports noncompliance, DINE does not write there, and Terraform proposes the correction. Do not use unmanaged production edits for this test.
+3. Create an unregistered resource without diagnostics. Verify gap filling sends enabled categories to the central LAW and creates one Policy-owned setting after evaluation. For an existing resource, use a bounded, approved remediation task after compliance evaluation.
+4. Test a wrong LAW, disabled category and partial categories. These must fail the approved existence condition; remediation is permitted only outside protected targets. Inventory pre-existing noncompliant settings because deploying a new policy-named setting does not remove older settings or guarantee there is only one ingestion path.
+5. Confirm intended exceptions remain excluded and flow-log/Defender boundaries are unchanged. Verify permissions, actual log arrival and licensing/cost approval separately.
+
+Inspect a pilot target with `az monitor diagnostic-settings list --resource <target-resource-id>` and compare the owning workspace's plan before/after. Freeze concurrent deployments during controlled remediation. A passing Terraform mock test is not a substitute for this Azure pilot.
 
 ## Validation
 

@@ -61,6 +61,277 @@ run "production_ownership_boundaries" {
     condition     = !contains(local.diagnostic_dine_resource_types_lower, "microsoft.insights/components") && !contains(local.diagnostic_dine_resource_types_lower, "microsoft.storage/storageaccounts")
     error_message = "Application Insights and storage roots must not inherit allLogs exports."
   }
+  assert {
+    condition = local.diagnostic_profile_dine_enabled && length(local.diagnostic_profile_dine_assignments) == 3 && alltrue([
+      for resource_type in local.diagnostic_profile_resource_types_lower : !contains(local.diagnostic_dine_resource_types_lower, resource_type)
+    ])
+    error_message = "Category-based DINE must replace overlapping allLogs policies, not run alongside them."
+  }
+  assert {
+    condition = alltrue([for key in keys(local.diagnostic_audit_profiles) :
+      jsonencode(local.diagnostic_audit_definitions["diagnostic_audit_${key}"].policy_rule.then.details.existenceCondition) ==
+      jsonencode(local.diagnostic_dine_definitions["diagnostic_dine_${key}"].policy_rule.then.details.existenceCondition)
+    ])
+    error_message = "DINE and audit must evaluate the identical approved category/workspace baseline."
+  }
+  assert {
+    condition = alltrue([for definition in values(local.diagnostic_dine_definitions) :
+      try(definition.policy_rule.then.details.name, null) == null &&
+      definition.policy_rule.then.details.evaluationDelay == "PT30M" &&
+      !can(definition.policy_rule.then.details.deployment.properties.template.resources[0].properties.metrics)
+    ])
+    error_message = "Any compliant setting name must satisfy DINE; gap filling must allow an IaC window and leave metrics to their owner."
+  }
+}
+
+run "registered_resource_ownership_keeps_audits_without_broad_exclusions" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled            = true
+        terraform_management_group_keys = []
+        terraform_resource_ids          = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/app/providers/Microsoft.KeyVault/vaults/owned"]
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+      remediation = { enabled = true, management_group_key = "workloads-mg", tasks = {} }
+    }
+  }
+  assert {
+    condition = (
+      local.diagnostic_terraform_scopes == local.diagnostic_terraform_resource_ids &&
+      local.remediation.dine_assignments.diagnostic_profile_key_vault.not_scopes == local.diagnostic_terraform_resource_ids &&
+      length(local.diagnostic_audit_assignments) == 1 &&
+      local.diagnostic_audit_assignments.diagnostic_audit_registered_key_vault.parameters.ownedResourceIds.value == local.diagnostic_terraform_resource_ids &&
+      local.diagnostic_audit_definitions.diagnostic_audit_key_vault.policy_rule.then.effect == "AuditIfNotExists"
+    )
+    error_message = "Only explicitly owned settings must be protected from deployment and still audited; manual resources in the same RG remain eligible."
+  }
+  assert {
+    condition     = local.remediation.dine_assignments.diagnostic_profile_key_vault.management_group_key == "workloads-mg"
+    error_message = "Category DINE must preserve the caller's approved assignment scope."
+  }
+}
+
+run "shared_scope_requires_explicit_approval_and_preserves_exceptions" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled = true
+        shared_scope_enabled = true
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+      remediation = {
+        enabled = true
+        tasks   = {}
+        dine_assignments = {
+          diagnostics_to_log_analytics = {
+            policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+            management_group_key     = "workloads-mg"
+            not_scopes               = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/exception"]
+            inject_law               = true
+            parameters = {
+              effect                = { value = "DeployIfNotExists" }
+              diagnosticSettingName = { value = "setByPolicy-LogAnalytics" }
+              resourceTypeList      = { value = ["MICROSOFT.KEYVAULT/VAULTS", "microsoft.network/virtualnetworks"] }
+            }
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      length(local.diagnostic_terraform_scopes) == 0 &&
+      local.diagnostic_shared_scope_enabled &&
+      local.remediation.dine_assignments.diagnostic_profile_key_vault.not_scopes == tolist(["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/exception"]) &&
+      local.remediation.dine_assignments.diagnostic_profile_key_vault.management_group_key == "workloads-mg" &&
+      local.diagnostic_dine_resource_types_lower == ["microsoft.network/virtualnetworks"]
+    )
+    error_message = "Reviewed coexistence must not create broad exclusions, discard existing exceptions, or duplicate category policy coverage."
+  }
+}
+
+run "profile_gap_filling_requires_enabled_logs_at_the_approved_destination" {
+  command = plan
+  assert {
+    condition = (
+      local.diagnostic_existence_conditions.key_vault.allOf[0].equals == "[parameters('logAnalytics')]" &&
+      local.diagnostic_existence_conditions.key_vault.allOf[1].count.where.allOf[0].equals == true &&
+      local.diagnostic_existence_conditions.key_vault.allOf[1].count.where.allOf[1].anyOf[0].equals == "AuditEvent" &&
+      local.diagnostic_existence_conditions.key_vault.allOf[1].count.where.allOf[1].anyOf[1].equals == "allLogs" &&
+      local.diagnostic_existence_conditions.key_vault.allOf[1].greater == 0 &&
+      local.diagnostic_dine_definitions.diagnostic_dine_key_vault.policy_rule.then.details.deployment.properties.template.resources[0].properties.logs == [{ category = "AuditEvent", enabled = true }]
+    )
+    error_message = "Missing, disabled or wrong-destination settings cannot satisfy the approved baseline; deployment must use that same baseline."
+  }
+}
+
+run "profile_pilot_can_audit_without_deployment" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled = true
+        profile_dine_effect  = "AuditIfNotExists"
+        shared_scope_enabled = true
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+      remediation = { enabled = true, tasks = {} }
+    }
+  }
+  assert {
+    condition     = local.remediation.dine_assignments.diagnostic_profile_key_vault.parameters.effect.value == "AuditIfNotExists" && length(local.remediation.tasks) == 0
+    error_message = "A shared-scope pilot must support audit-only evaluation without a remediation task."
+  }
+}
+
+run "rejects_setting_id_as_resource_ownership" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        terraform_resource_ids = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/app/providers/Microsoft.KeyVault/vaults/owned/providers/Microsoft.Insights/diagnosticSettings/diag"]
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+}
+
+run "rejects_duplicate_baseline_resource_types" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+          duplicate = { resource_type = "MICROSOFT.KEYVAULT/VAULTS", log_categories = ["AuditEvent"] }
+        }
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+}
+
+run "registered_all_logs_targets_keep_read_only_coverage" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled   = true
+        terraform_resource_ids = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/app/providers/Microsoft.Web/sites/owned"]
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+      remediation = {
+        enabled = true
+        dine_assignments = {
+          app_service_diagnostics = {
+            policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/c0d8e23a-47be-4032-961f-8b0ff3957061"
+            inject_law           = true
+            parameters           = { diagnosticSettingName = { value = "setByPolicy-LogAnalytics" } }
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      local.remediation.dine_assignments.app_service_diagnostics.not_scopes == local.diagnostic_terraform_resource_ids &&
+      local.diagnostic_registered_all_logs_assignments.diagnostic_audit_registered_all_logs.parameters.ownedResourceIds.value == local.diagnostic_terraform_resource_ids &&
+      local.diagnostic_registered_all_logs_definitions.diagnostic_audit_registered_all_logs.policy_rule.if.allOf[0].in == "[parameters('ownedResourceIds')]" &&
+      local.diagnostic_registered_all_logs_definitions.diagnostic_audit_registered_all_logs.policy_rule.then.effect == "AuditIfNotExists" &&
+      !can(local.diagnostic_registered_all_logs_assignments.diagnostic_audit_registered_all_logs.identity)
+    )
+    error_message = "Registered allLogs targets must be excluded from DINE but retain read-only, ID-filtered audit coverage."
+  }
+}
+
+run "profile_dine_disabled_preserves_existing_builtin_catalog" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled            = false
+        terraform_management_group_keys = ["platform-mg"]
+        audit_profiles = {
+          key_vault = { resource_type = "Microsoft.KeyVault/vaults", log_categories = ["AuditEvent"] }
+        }
+      }
+      remediation = {
+        enabled = true
+        dine_assignments = {
+          diagnostics_to_log_analytics = {
+            policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+            inject_law               = true
+            parameters = {
+              diagnosticSettingName = { value = "setByPolicy-LogAnalytics" }
+              resourceTypeList      = { value = ["Microsoft.KeyVault/vaults"] }
+            }
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition     = length(local.diagnostic_dine_definitions) == 0 && length(local.diagnostic_profile_dine_assignments) == 0 && contains(local.diagnostic_dine_resource_types_lower, "microsoft.keyvault/vaults")
+    error_message = "An unapproved category rollout must not silently change the existing fleet initiative."
+  }
+}
+
+run "rejects_diagnostic_resource_group_as_exact_ownership" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        terraform_resource_ids = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/app"]
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
+}
+
+run "rejects_overlapping_web_category_and_builtin_coverage" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      diagnostic_ownership = {
+        profile_dine_enabled = true
+        shared_scope_enabled = true
+        audit_profiles = {
+          web = { resource_type = "Microsoft.Web/sites", log_categories = ["AppServiceHTTPLogs"] }
+        }
+      }
+      remediation = {
+        enabled = true
+        dine_assignments = {
+          app_service_diagnostics = {
+            policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/c0d8e23a-47be-4032-961f-8b0ff3957061"
+            inject_law           = true
+            parameters           = { diagnosticSettingName = { value = "setByPolicy-LogAnalytics" } }
+          }
+        }
+      }
+    }
+  }
+  expect_failures = [terraform_data.enterprise_policy_contract]
 }
 
 run "flow_log_requires_approved_configuration" {

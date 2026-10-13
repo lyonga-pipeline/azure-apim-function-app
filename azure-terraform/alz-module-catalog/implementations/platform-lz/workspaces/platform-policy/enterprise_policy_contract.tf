@@ -21,6 +21,9 @@ resource "terraform_data" "enterprise_policy_contract" {
     log_analytics_workspace_location                   = local.log_analytics_workspace_location
     management_diagnostic_profile                      = local.management_diagnostic_profile
     diagnostic_terraform_scopes                        = local.diagnostic_terraform_scopes
+    diagnostic_terraform_resource_ids                  = local.diagnostic_terraform_resource_ids
+    diagnostic_shared_scope_enabled                    = local.diagnostic_shared_scope_enabled
+    diagnostic_profile_dine_enabled                    = local.diagnostic_profile_dine_enabled
     diagnostic_audit_profile_names                     = keys(local.diagnostic_audit_profiles)
     management_subscription_scope                      = local.management_subscription_scope
     network_flow_logging_enabled                       = try(local.network_flow_logging_policy.enabled, false)
@@ -54,9 +57,10 @@ resource "terraform_data" "enterprise_policy_contract" {
     precondition {
       condition = (
         !local.diagnostic_remediation_enabled ||
-        length(local.diagnostic_terraform_mg_keys) > 0 && !contains(local.diagnostic_terraform_scopes, "unset") && length(local.diagnostic_audit_profiles) > 0
+        (length(local.diagnostic_terraform_mg_keys) > 0 || length(local.diagnostic_terraform_resource_ids) > 0 || local.diagnostic_shared_scope_enabled) &&
+        !contains(local.diagnostic_terraform_scopes, "unset") && length(local.diagnostic_audit_profiles) > 0
       )
-      error_message = "Diagnostic DINE requires Terraform-owned management-group keys resolving to non-empty IDs and category-based audit_profiles. Unresolved keys: ${jsonencode(local.diagnostic_unresolved_mg_keys)}. Available keys: ${jsonencode(keys(local.management_group_ids))}. Governance workspace: ${var.governance_workspace_name}; public output names: ${jsonencode(keys(local.governance_outputs))}. Verify its applied management_group_ids output and scoped access, or provide the root management_group_ids map keyed exactly as diagnostic_ownership.terraform_management_group_keys."
+      error_message = "Diagnostic DINE requires explicit ownership: resolving Terraform-owned MG keys, terraform_resource_ids, or reviewed shared_scope_enabled = true, plus category-based audit_profiles. Unresolved keys: ${jsonencode(local.diagnostic_unresolved_mg_keys)}. Available keys: ${jsonencode(keys(local.management_group_ids))}. Governance workspace: ${var.governance_workspace_name}; public output names: ${jsonencode(keys(local.governance_outputs))}. Do not remove a platform boundary before registering its directly managed targets."
     }
 
     precondition {
@@ -69,7 +73,7 @@ resource "terraform_data" "enterprise_policy_contract" {
 
     precondition {
       condition = (
-        length(local.diagnostic_audit_assignments) == 0 || local.log_analytics_workspace_id != "unset"
+        (length(local.diagnostic_audit_assignments) == 0 && length(local.diagnostic_registered_all_logs_assignments) == 0) || local.log_analytics_workspace_id != "unset"
       )
       error_message = "Audit-only diagnostic checks require the central workspace ID."
     }
@@ -77,10 +81,33 @@ resource "terraform_data" "enterprise_policy_contract" {
     precondition {
       condition = (
         alltrue([for profile in values(local.diagnostic_audit_profiles) :
-          length(profile.log_categories) > 0 && !contains(["microsoft.storage/storageaccounts", "microsoft.insights/components"], lower(profile.resource_type))
-        ])
+          length(profile.log_categories) > 0 && length(distinct(profile.log_categories)) == length(profile.log_categories) &&
+          alltrue([for category in profile.log_categories : trimspace(category) == category && category != ""]) &&
+          !contains(["microsoft.storage/storageaccounts", "microsoft.insights/components"], lower(profile.resource_type))
+        ]) && length(distinct(local.diagnostic_profile_resource_types_lower)) == length(local.diagnostic_audit_profiles)
       )
-      error_message = "Audit profiles must have explicit log categories and target log-capable resources, not storage roots or Application Insights."
+      error_message = "Diagnostic profiles must have unique resource types and explicit, non-empty, unique log categories; do not target storage roots or Application Insights."
+    }
+
+    precondition {
+      condition = alltrue([for id in local.diagnostic_terraform_resource_ids :
+        can(regex("(?i)^/subscriptions/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/resourcegroups/[^/]+/providers/[^/]+/[^/]+/[^/]+(/[^/]+/[^/]+)*$", id)) &&
+        trimspace(id) == id && !endswith(id, "/") && !strcontains(lower(id), "/providers/microsoft.insights/diagnosticsettings/")
+      ])
+      error_message = "terraform_resource_ids must contain full target-resource IDs (including storage service child IDs), not setting IDs, RG/subscription IDs, or placeholders."
+    }
+
+    precondition {
+      condition     = !local.diagnostic_profile_dine_enabled || (length(local.diagnostic_audit_profiles) > 0 && contains(["DeployIfNotExists", "AuditIfNotExists", "Disabled"], local.diagnostic_profile_dine_effect))
+      error_message = "Profile DINE requires an approved category baseline and profile_dine_effect = DeployIfNotExists, AuditIfNotExists, or Disabled."
+    }
+
+    precondition {
+      condition = !local.diagnostic_profile_dine_enabled || (
+        !contains(local.diagnostic_profile_resource_types_lower, "microsoft.web/sites") ||
+        !anytrue([for key in keys(local.owned_dine_assignments) : contains(["app_service_diagnostics", "function_app_diagnostics"], key)])
+      )
+      error_message = "A Microsoft.Web/sites category profile must not overlap the App Service/Function built-ins. Retire that coverage or introduce explicitly disjoint kind filters first."
     }
 
     precondition {
@@ -88,7 +115,7 @@ resource "terraform_data" "enterprise_policy_contract" {
         !local.diagnostic_remediation_enabled ||
         local.diagnostic_dine_setting_name_is_clean
       )
-      error_message = "Diagnostic DINE assignments must use diagnosticSettingName = setByPolicy-LogAnalytics so Policy-owned settings do not collide with Terraform-owned diagnostic settings."
+      error_message = "Diagnostic DINE assignments must use diagnosticSettingName = setByPolicy-LogAnalytics. This separates deployment names; only explicit ownership boundaries prevent competing remediation."
     }
 
     precondition {

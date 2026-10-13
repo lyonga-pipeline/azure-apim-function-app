@@ -341,11 +341,18 @@ policy = {
     }
   }
 
-  # Direct diagnostics in every platform subscription remain Terraform-owned.
-  # Policy audits these scopes but never deploys/modifies their settings.
+  # Use one category baseline for audits and gap-filling DINE. Compliant
+  # settings are recognized regardless of name or deployment tool.
   diagnostic_ownership = {
     definition_management_group_key = "compeer-enterprise-mg"
+    profile_dine_enabled            = true
+    profile_dine_effect             = "DeployIfNotExists"
+    # Retain this existing boundary until all direct targets are inventoried.
+    # For a mixed scope, register only the directly owned target resource IDs,
+    # remove the broad MG exclusion, then explicitly approve shared_scope_enabled.
     terraform_management_group_keys = ["platform-mg"]
+    terraform_resource_ids          = []
+    shared_scope_enabled            = false
     # Add workload RG/subscription IDs here BEFORE adopting direct diagnostics.
     additional_terraform_scopes = []
     audit_profiles = {
@@ -421,7 +428,7 @@ policy = {
       diagnostics_to_log_analytics = {
         policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
         display_name             = "Compeer deploy diagnostics to central Log Analytics"
-        description              = "GOV-07: deploy missing allLogs outside Terraform-owned scopes; metrics remain the resource owner's responsibility."
+        description              = "GOV-07: deploy missing allLogs outside Terraform-owned scopes; category-profile types are handled separately with matching audit/DINE baselines. Metrics remain the resource owner's responsibility."
         inject_law               = true
         role_definition_ids = [
           "/providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293",

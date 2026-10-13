@@ -46,12 +46,16 @@ output "remediation_task_ids" {
 output "configuration_ownership" {
   description = "Effective ownership boundaries, not evidence of Azure deployment or compliance."
   value = {
-    diagnostic_terraform_scopes = local.diagnostic_terraform_scopes
-    diagnostic_policy_keys      = local.diagnostic_remediation_keys
-    diagnostic_audit_profiles   = local.diagnostic_audit_profiles
-    defender_policy_not_scopes  = local.defender_policy_not_scopes
-    defender_enabled_plans      = keys(local.defender_for_cloud_dine_assignments)
-    flow_log_policy_not_scopes  = try(local.network_flow_logging_policy.not_scopes, [])
-    remediation_tasks           = keys(try(local.remediation.tasks, {}))
+    diagnostic_terraform_scopes       = local.diagnostic_terraform_scopes
+    diagnostic_terraform_resource_ids = local.diagnostic_terraform_resource_ids
+    diagnostic_shared_scope_enabled   = local.diagnostic_shared_scope_enabled
+    diagnostic_profile_dine_enabled   = local.diagnostic_profile_dine_enabled
+    diagnostic_profile_dine_effect    = local.diagnostic_profile_dine_effect
+    diagnostic_policy_keys            = local.diagnostic_remediation_keys
+    diagnostic_audit_profiles         = local.diagnostic_audit_profiles
+    defender_policy_not_scopes        = local.defender_policy_not_scopes
+    defender_enabled_plans            = keys(local.defender_for_cloud_dine_assignments)
+    flow_log_policy_not_scopes        = try(local.network_flow_logging_policy.not_scopes, [])
+    remediation_tasks                 = keys(try(local.remediation.tasks, {}))
   }
 }
