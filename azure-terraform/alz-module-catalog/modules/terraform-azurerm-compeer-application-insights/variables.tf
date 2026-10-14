@@ -25,7 +25,7 @@ variable "daily_data_cap_in_gb" {
 }
 
 variable "daily_data_cap_notifications_disabled" {
-  description = "Specifies if a notification email will be send when the daily data volume cap is met."
+  description = "Legacy-compatible inverse flag: true disables daily cap notifications. Null/false keeps notifications enabled."
   type        = bool
   default     = null
 }

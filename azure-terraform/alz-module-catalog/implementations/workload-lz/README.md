@@ -15,6 +15,17 @@ instantiates exactly the same typed blueprint. This avoids environment-specific
 copies of the network/security implementation. This tree is for NEW states;
 the legacy platform-workload-spoke root/pattern remains unchanged.
 
+## Supported Toolchain
+
+Use Terraform 1.11.4 in HCP and on the VDI. The new patterns and adapters require
+>=1.11.4 and <2; CI is pinned to 1.11.4 rather than an untested floating latest.
+The floor reflects the verified test baseline, not a claim about the cause of
+the reported Terraform 1.7 mock-test failures. AzureRM >=4.81 and <5 is required.
+The shared Application Insights module retains its caller API while replacing
+the provider's deprecated inverse booleans internally. Existing consumers with
+older provider locks need a reviewed init -upgrade and plan before applying.
+The HCP workspace catalog is [here](../platform-lz/HCP-WORKSPACES.md#step-11-workload-templates).
+
 ## Replace Placeholders Before Enabling
 
 The committed terraform.tfvars files intentionally have enabled=false. Replace:
@@ -41,6 +52,14 @@ and tightly scoped read access to the producers' non-sensitive outputs.
 Do not grant full-state access just to obtain resource IDs. Setting
 use_tfe_outputs=false requires complete approved platform_inputs instead.
 
+tfe_outputs requires a valid approved HCP token with output-read access on the
+two producers; Azure dynamic credentials alone are not HCP API credentials.
+Keep any TFE_TOKEN sensitive and out of Git. Remote-state-sharing permissions
+do not apply to this data source, so do not broaden state sharing to troubleshoot
+empty outputs. Verify exact workspace names, token permissions, completed
+producer applies and non-sensitive root outputs instead. See
+[HashiCorp's distinction](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/state#data-source-configuration).
+
 Production is fixed to prod. Non-production defaults to dev and accepts test,
 uat and approved np1/np2/np3 aliases. Use a SEPARATE workspace/state per actual
 application and environment, not one shared state for unrelated applications.
@@ -60,6 +79,12 @@ permissions and separately approved, constrained role-assignment rights. Scope
 hub permissions to the existing hub VNet and DNS permissions to the actual
 existing zone. Hub/DNS resource providers must already be registered by their
 owners; the workload provider explicitly registers required workload namespaces.
+The bounded list includes Microsoft.Consumption for the subscription budget.
+This is an explicit registration policy, not a claim that every subscription
+requires manual registration. The run identity needs approved register/action
+permissions; registration alone does not grant budget-write permission or make
+an unsupported CSP offer support budgets. Validate billing/Cost Management
+availability with the CSP before enabling the examples.
 Keep policy assignment and privileged/PIM ownership with platform-policy and
 the authorization workspace. No subscription creation, MG moves, enterprise
 policy assignment, Defender pricing, central LAW, Sentinel or flow-log resource
@@ -140,6 +165,8 @@ working central Azure Monitor Private Link path.
 
 See [TESTING.md](TESTING.md) for the completed local checks and remaining live
 acceptance gates.
+Use [ACCEPTANCE.md](ACCEPTANCE.md) to record read-only client-environment
+connectivity checks without deploying or destroying the isolated test fixture.
 
 Run init/validate/test in each workspace. Automatic tests are mocked; they do
 not establish client-side deployment, licensing approval or live network access.

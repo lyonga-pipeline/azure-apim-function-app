@@ -87,8 +87,48 @@ example under Templates below — not a dedicated pattern. See
 
 | Workspace pattern | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-peering-<spoke>` | network-peering | `platform-network-peering` | Hub ↔ spoke VNet peering (both directions) + shared private-DNS VNet links. One per spoke, e.g. `platform-compeer-peering-internalapps-apim` |
-| `<env>-compeer-lz-<domain>-<appcode>` | workload-spoke | `platform-workload-spoke` | A workload landing zone: spoke VNet + subnets, NSGs, route tables, workload Key Vault, private endpoints, hub connection, workload RBAC. Examples: `prod-compeer-lz-internalapps-apim`, `dev-compeer-lz-internalapps-scheduler`, `prod-compeer-lz-sharedservices-apim` |
+| `platform-compeer-peering-<spoke>` | network-peering | `platform-network-peering` | Optional central attachment state: both peering directions + approved DNS links. Use only when the new spoke has manage_hub_attachment=false; otherwise the spoke composes the same pure Azure pattern. |
+| Existing legacy workload workspaces | workload-spoke (legacy) | `platform-workload-spoke` | Compatibility implementation for existing states. Superseded for NEW internal-applications deployments by the Step 11 roots below; do not repoint an existing state without a reviewed migration. |
+
+### Step 11 workload templates
+
+These working directories are under
+`azure-terraform/alz-module-catalog/implementations/workload-lz/workspaces/`,
+not the platform-lz directory above. Instantiate a separate HCP workspace/state
+per approved application and actual environment; the names below are examples.
+
+| Workspace pattern | Working dir | Profile |
+|---|---|---|
+| `prod-compeer-lz-internalapps-<appcode>` | `workload-internal-apps-prod` | Production; WKL-01 blueprint, mandatory private vault/UAMI, central monitoring, operational budget/alerts and optional application storage/backup registration |
+| `<env>-compeer-lz-internalapps-<appcode>` | `workload-internal-apps-nonprod` | dev/test/uat/approved np aliases; same security baseline with different cost/resilience/alerting defaults |
+
+Both committed examples are disabled placeholders. Select Terraform **1.11.4**
+in HCP and on the VDI: the new patterns require >=1.11.4 and <2, and catalog CI
+uses exactly 1.11.4. Newer versions need a reviewed test run before adoption.
+AzureRM remains on 4.x; the Application Insights module requires >=4.81.
+Keep workload provisioning permissions scoped to the workload subscription plus
+the approved hub VNet/DNS zones; do not grant workload teams platform-project
+Write access merely to consume published resource IDs.
+
+For HCP output access, exact producer names must match the actual organization,
+for example platform-compeer-management and platform-compeer-connectivity.
+The roots use tfe_outputs.nonsensitive_values, not terraform_remote_state.
+Configure the TFE provider with a valid, approved token with **Read outputs**
+access on those producer workspaces; keep the token sensitive and out of Git.
+Azure OIDC credentials do not authenticate the HCP API. Remote-state-sharing
+controls do **not** apply to tfe_outputs; do not enable full-state sharing or
+organization-wide access to fix an empty output map. First check token access,
+exact organization/workspace names, a completed producer apply, and non-sensitive
+root outputs. The deployment contract fails closed if required outputs are
+unreadable. Approved explicit platform_inputs remain an alternative.
+See [HashiCorp's state-access distinction](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/state#data-source-configuration)
+and [tfe_outputs](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/data-sources/outputs).
+
+Subscription creation/placement stays outside these spokes: CSP creation,
+governance hierarchy, dedicated subscription onboarding and authorization/policy
+owners remain unchanged. Future vending stays separate and disabled.
+For deployment gates and actual NET-22 evidence, see
+[the workload acceptance runbook](../workload-lz/ACCEPTANCE.md).
 
 ### Not deployed / reference only
 
@@ -119,7 +159,7 @@ example under Templates below — not a dedicated pattern. See
 
 - **Core platform workspaces to create now:** 14 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
 - **Buffer / conditional:** 5 (create only on the trigger above)
-- **Templates:** 2 (peering, workload-spoke) — instantiated many times
+- **Templates:** 2 Step 11 workload environment roots plus the optional central peering adapter; legacy workload-spoke is compatibility-only
 - **Total platform footprint with buffer:** ~19 + templates + N workload LZs
 
 ## Deployment order

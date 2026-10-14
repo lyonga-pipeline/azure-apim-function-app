@@ -36,10 +36,12 @@ output "app_id" {
 output "security_configuration" {
   description = "Non-secret observed telemetry configuration for workload integration checks."
   value = {
-    workspace_id                  = azurerm_application_insights.application_insights.workspace_id
-    sampling_percentage           = azurerm_application_insights.application_insights.sampling_percentage
-    local_authentication_disabled = azurerm_application_insights.application_insights.local_authentication_disabled
-    internet_ingestion_enabled    = azurerm_application_insights.application_insights.internet_ingestion_enabled
-    internet_query_enabled        = azurerm_application_insights.application_insights.internet_query_enabled
+    workspace_id                         = azurerm_application_insights.application_insights.workspace_id
+    sampling_percentage                  = azurerm_application_insights.application_insights.sampling_percentage
+    local_authentication_disabled        = !azurerm_application_insights.application_insights.local_authentication_enabled
+    ip_masking_enabled                   = azurerm_application_insights.application_insights.ip_masking_enabled
+    daily_data_cap_notifications_enabled = azurerm_application_insights.application_insights.daily_data_cap_notifications_enabled
+    internet_ingestion_enabled           = azurerm_application_insights.application_insights.internet_ingestion_enabled
+    internet_query_enabled               = azurerm_application_insights.application_insights.internet_query_enabled
   }
 }

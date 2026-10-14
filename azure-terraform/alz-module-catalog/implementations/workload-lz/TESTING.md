@@ -15,7 +15,7 @@ not Azure deployment evidence or stakeholder acceptance sign-off.
 | Shared VNet module | Regression suite | 4 passed |
 | Legacy workload-spoke pattern | Compatibility regression suite | 6 passed |
 | Shared storage-account module | Security/recovery regression suites | 28 passed |
-| Shared Application Insights module | Regression suite | 1 passed |
+| Shared Application Insights module | Regression suite; null/true/false inverse-input compatibility with non-deprecated provider attributes | 3 passed |
 | Shared budget module | Regression suite | 2 passed |
 | Shared action-group module | Regression suite | 3 passed |
 | Shared metric-alert module | Regression suite | 1 passed |
@@ -25,7 +25,8 @@ not Azure deployment evidence or stakeholder acceptance sign-off.
 | Canonical user-assigned-identity module | Identity outputs and validation regression suite | 9 passed |
 | Integration verifier and deployment guard | Offline Python tests | 18 passed |
 
-Total: 130 Terraform mock tests and 18 offline Python tests, all passing.
+Total: 132 Terraform mock tests and 18 offline Python tests, all passing.
+All 16 Terraform suites above were rerun after the review refinements.
 Terraform validate passed for both environment roots, the separate vault pattern
 and the live fixture. The blueprint's provider aliases were validated through
 both environment roots and the fixture. Formatting checks, shell syntax,
@@ -38,14 +39,32 @@ TFE provider or API-token dependency; HCP reads are confined to the adapters.
 Tests confirm both real environment roots select their respective profile and
 persist a correct first-of-month budget date with different approved amounts.
 
-Local tools: Terraform 1.11.4, AzureRM 4.81.0, TFE 0.82.0 in workload roots
+Supported Step 11 baseline and local tools: Terraform 1.11.4, AzureRM 4.81.0, TFE 0.82.0 in workload roots
 (0.80.0 in the legacy peering adapter), time 0.14.2 and
-Python 3.9.6. CI also runs the new root/blueprint tests and fixture validation;
+Python 3.9.6. New Step 11 patterns/adapters require Terraform >=1.11.4 and <2;
+catalog CI pins 1.11.4 instead of floating to latest. This sets a verified
+support boundary; the reported Terraform 1.7 mock failures were not reproduced
+or diagnosed here. CI also runs the new root/blueprint tests and fixture validation;
 CI itself and its TFLint/Checkov/secret-scan jobs were not executed locally.
-Existing Application Insights module inputs emit AzureRM deprecation warnings
-for older disabled/enabled argument names. These are warnings under the pinned
-AzureRM 4.x range, not failed validation or tests; a separate provider-v5 migration
-must update that shared API without breaking its existing consumers.
+Application Insights now uses daily_data_cap_notifications_enabled,
+ip_masking_enabled and local_authentication_enabled internally. Tests preserve
+the legacy module input meanings, defaults and inverse output contract; its
+provider floor is now 4.81 without enabling provider v5. Validation returned
+zero errors/warnings in all six checked entry points (both workload roots,
+vault pattern, live fixture, central peering root and Application Insights
+module). Unrelated shared-module/provider-v5 API migrations remain out of scope.
+
+## Review Follow-Up
+
+The workspace catalog now identifies both Step 11 roots and marks the legacy
+workload root compatibility-only. HCP output-read permissions are documented
+separately from full remote-state sharing; no HCP access settings were changed.
+Microsoft.Consumption is included in the bounded registration list for both
+workload roots and the isolated fixture. No Azure registration was executed.
+The [client acceptance runbook](ACCEPTANCE.md) separates read-only deployed-spoke
+checks from the optional billable fixture. Real IPAM, CSP readiness, recipients,
+positive budgets and live connectivity/sign-off remain deployment gates. Locks
+remain removed, as requested, and onboarding/vending ownership is unchanged.
 
 ## Repeat Locally
 

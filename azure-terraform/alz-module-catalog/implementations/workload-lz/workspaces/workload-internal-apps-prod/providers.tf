@@ -14,7 +14,7 @@ provider "azurerm" {
   subscription_id                 = coalesce(var.subscription_id, "00000000-0000-0000-0000-000000000000")
   tenant_id                       = var.tenant_id
   resource_provider_registrations = "none"
-  resource_providers_to_register  = ["Microsoft.Network", "Microsoft.KeyVault", "Microsoft.ManagedIdentity", "Microsoft.Insights", "Microsoft.Storage", "Microsoft.RecoveryServices"]
+  resource_providers_to_register  = ["Microsoft.Network", "Microsoft.KeyVault", "Microsoft.ManagedIdentity", "Microsoft.Insights", "Microsoft.Storage", "Microsoft.RecoveryServices", "Microsoft.Consumption"]
 }
 provider "azurerm" {
   alias = "connectivity"
