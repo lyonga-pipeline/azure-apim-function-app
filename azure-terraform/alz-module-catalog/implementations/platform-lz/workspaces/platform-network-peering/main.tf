@@ -9,11 +9,13 @@ module "network_peering" {
   providers = {
     azurerm.hub   = azurerm.hub
     azurerm.spoke = azurerm.spoke
+    azurerm.dns   = azurerm.dns
   }
 
   tenant_id                            = var.tenant_id
   hub_subscription_id                  = var.hub_subscription_id
   spoke_subscription_id                = var.spoke_subscription_id
+  private_dns_subscription_id          = var.private_dns_subscription_id
   use_tfe_outputs                      = try(var.network_peering.use_tfe_outputs, true)
   tfe_organization                     = coalesce(try(var.network_peering.tfe_organization, null), "Compeer-Financial-Services")
   platform_connectivity_workspace_name = try(var.network_peering.platform_connectivity_workspace_name, "platform-connectivity")
@@ -25,6 +27,7 @@ module "network_peering" {
   spoke_virtual_network_name           = try(var.network_peering.spoke_virtual_network_name, null)
   spoke_virtual_network_id             = try(var.network_peering.spoke_virtual_network_id, null)
   peering_name_prefix                  = try(var.network_peering.peering_name_prefix, "platform-lz")
+  peering_names                        = try(var.network_peering.peering_names, {})
   hub_to_spoke                         = try(var.network_peering.hub_to_spoke, {})
   spoke_to_hub                         = try(var.network_peering.spoke_to_hub, {})
   private_dns_zone_resource_group_name = try(var.network_peering.private_dns_zone_resource_group_name, null)

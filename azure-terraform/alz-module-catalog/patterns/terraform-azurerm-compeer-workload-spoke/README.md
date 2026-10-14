@@ -1,5 +1,10 @@
 # Workload Spoke Root
 
+For NEW WKL-01/NET-23/NET-24 deployments, use the focused
+`terraform-azurerm-compeer-spoke-landing-zone` blueprint and the workload-lz
+workspace templates. This pattern remains for compatibility; do not redirect
+an existing state to the new blueprint without a reviewed migration plan.
+
 ## Overview
 
 **What this deploys:** the template every application workload's network

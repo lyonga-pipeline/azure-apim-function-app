@@ -1,0 +1,3 @@
+# Only needed for the explicitly opted-in private managed-identity secret probe.
+azure-identity>=1.17,<2
+azure-keyvault-secrets>=4.8,<5

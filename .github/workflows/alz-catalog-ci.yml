@@ -40,12 +40,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Every module + pattern dir that has .tf files (skip network-peering:
-          # needs configuration_aliases, validated via its implementation).
+          # Alias-bearing patterns are validated through their implementation
+          # roots; their own mock tests explicitly supply the provider aliases.
           mapfile -t dirs < <(
             find "$CATALOG/modules" "$CATALOG/patterns" -maxdepth 1 -mindepth 1 -type d \
               | while read -r d; do ls "$d"/*.tf >/dev/null 2>&1 && echo "$d"; done \
-              | grep -v 'terraform-azurerm-compeer-network-peering$' \
+              | grep -Ev 'terraform-azurerm-compeer-(network-peering|hub-spoke-peering|spoke-landing-zone)$' \
               | sort
           )
           printf 'dirs=%s\n' "$(printf '%s\n' "${dirs[@]}" | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
@@ -116,6 +116,57 @@ jobs:
           else
             echo "no workspace tests/ - skipped"
           fi
+
+  workload-workspaces-validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [workload-internal-apps-prod, workload-internal-apps-nonprod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Validate and test environment root with real blueprint modules
+        working-directory: azure-terraform/alz-module-catalog/implementations/workload-lz/workspaces/${{ matrix.workspace }}
+        run: |
+          terraform init -backend=false -input=false -no-color
+          terraform validate -no-color
+          terraform test -no-color
+
+  spoke-blueprint-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Blueprint mock integration and negative tests
+        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone
+        run: |
+          terraform init -backend=false -input=false -no-color
+          terraform test -no-color
+      - name: Pure Azure peering pattern tests
+        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-hub-spoke-peering
+        run: |
+          terraform init -backend=false -input=false -no-color
+          terraform test -no-color
+      - name: Legacy HCP peering adapter tests
+        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-network-peering
+        run: |
+          terraform init -backend=false -input=false -no-color
+          terraform test -no-color
+      - name: Validate live fixture without deploying Azure resources
+        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone/integration-tests
+        run: |
+          terraform init -backend=false -input=false -no-color
+          terraform validate -no-color
+          bash -n run.sh
+          python3 -m unittest -v test_verify_spoke.py
 
   tflint:
     runs-on: ubuntu-latest

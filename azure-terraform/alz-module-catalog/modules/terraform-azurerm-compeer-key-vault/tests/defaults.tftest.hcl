@@ -32,6 +32,10 @@ run "secure_defaults" {
     condition     = length(azurerm_key_vault.keyvault.access_policy) == 0
     error_message = "no access policies when RBAC is on"
   }
+  assert {
+    condition     = output.security_configuration.purge_protection_enabled && output.security_configuration.soft_delete_retention_days == 90 && !output.security_configuration.public_network_access_enabled
+    error_message = "The additive security contract must expose observed resource settings without changing existing behavior."
+  }
 }
 
 run "keyed_access_policies" {

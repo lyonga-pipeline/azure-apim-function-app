@@ -32,3 +32,14 @@ output "app_id" {
   description = "Application ID (used by the Application Insights REST API)."
   value       = azurerm_application_insights.application_insights.app_id
 }
+
+output "security_configuration" {
+  description = "Non-secret observed telemetry configuration for workload integration checks."
+  value = {
+    workspace_id                  = azurerm_application_insights.application_insights.workspace_id
+    sampling_percentage           = azurerm_application_insights.application_insights.sampling_percentage
+    local_authentication_disabled = azurerm_application_insights.application_insights.local_authentication_disabled
+    internet_ingestion_enabled    = azurerm_application_insights.application_insights.internet_ingestion_enabled
+    internet_query_enabled        = azurerm_application_insights.application_insights.internet_query_enabled
+  }
+}

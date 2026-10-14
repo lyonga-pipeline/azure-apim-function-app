@@ -57,3 +57,8 @@ output "private_dns_zone_configs" {
   description = "Private DNS zone configuration details."
   value       = azurerm_private_endpoint.private_endpoint.private_dns_zone_configs
 }
+
+output "private_dns_zone_group" {
+  description = "Observed DNS zone-group configuration for parent-pattern integration checks."
+  value       = azurerm_private_endpoint.private_endpoint.private_dns_zone_group
+}

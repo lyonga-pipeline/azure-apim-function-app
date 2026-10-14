@@ -1,10 +1,11 @@
-# Network Peering Root
+# Network Peering HCP Adapter
 
 ## Overview
 
 **What this deploys:** the cross-subscription VNet peering + Private DNS
-zone links between one hub and one workload spoke — a template pattern, run
-once per spoke in its own dedicated HCP workspace.
+zone links between one hub and one workload spoke. This legacy HCP-output
+adapter delegates Azure resources to the pure hub-spoke-peering pattern.
+The spoke blueprint calls that same pure pattern without HCP dependencies.
 
 | Resource | Purpose |
 |---|---|
@@ -23,7 +24,22 @@ See `tests/contracts.tftest.hcl`.
 
 This root owns the cross-subscription network attachment between one hub VNet and one workload spoke VNet. It creates both Azure peering resources and links shared Private DNS zones to the spoke VNet.
 
-Keep this in a dedicated HCP workspace, for example `network-peering-online-banking-np1`. Do not also enable `hub_connection` in `workload-spoke` for the same spoke, because only one state should own each peering resource.
+Use this adapter in a dedicated HCP workspace when a separately privileged
+central attachment state is appropriate. A separate workspace is not required
+merely because there is a separate peering ticket. For platform-owned spoke
+provisioning the new blueprint composes the pure pattern directly. Do not also
+apply this adapter for a spoke with manage_hub_attachment=true, or enable legacy
+hub_connection for the same resource pair. Each peering has exactly one state.
+
+The azurerm.dns alias now targets the actual existing DNS subscription. In the
+platform-network-peering root, set optional private_dns_subscription_id when
+DNS is outside the hub subscription; null retains the previous hub default.
+Direct callers of this adapter must supply hub, spoke and dns provider aliases.
+Set each zone's actual resource_group_name or the correct shared default.
+The adapter now reads nonsensitive_values only; sensitive .values never fill
+missing public contracts. Azure names remain unchanged unless explicitly
+overridden. Moved blocks preserve existing internal peering/link addresses;
+review an actual plan for moves, not replacements, before upgrading a live state.
 
 ## Inputs
 

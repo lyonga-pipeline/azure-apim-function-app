@@ -13,6 +13,12 @@ variable "spoke_subscription_id" {
   type        = string
 }
 
+variable "private_dns_subscription_id" {
+  description = "Existing private DNS subscription UUID; null uses the hub subscription for backward compatibility."
+  type        = string
+  default     = null
+}
+
 variable "network_peering" {
   description = "Network peering workspace configuration."
   type        = any

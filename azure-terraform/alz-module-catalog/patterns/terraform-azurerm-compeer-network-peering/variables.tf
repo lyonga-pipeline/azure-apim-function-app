@@ -12,7 +12,13 @@ variable "tenant_id" {
 
 variable "hub_subscription_id" {
   type        = string
-  description = "Subscription ID that contains the hub VNet and shared Private DNS zones."
+  description = "Subscription ID that contains the hub VNet. Private DNS may be in a different approved subscription."
+}
+
+variable "private_dns_subscription_id" {
+  type        = string
+  description = "Actual existing private DNS subscription; null preserves the legacy hub-subscription default. Supply the matching azurerm.dns provider alias."
+  default     = null
 }
 
 variable "spoke_subscription_id" {
@@ -90,6 +96,15 @@ variable "peering_name_prefix" {
   type        = string
   description = "Stable name prefix for the two peering resources."
   default     = "online-banking-np1"
+}
+
+variable "peering_names" {
+  description = "Optional approved explicit names from the naming module; null values preserve legacy names and existing resource identities."
+  type = object({
+    hub_to_spoke = optional(string)
+    spoke_to_hub = optional(string)
+  })
+  default = {}
 }
 
 variable "hub_to_spoke" {

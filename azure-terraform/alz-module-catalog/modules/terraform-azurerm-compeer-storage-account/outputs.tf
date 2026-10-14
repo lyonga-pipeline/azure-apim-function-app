@@ -96,3 +96,19 @@ output "private_endpoint_ready_subresource_names" {
   description = "Common Private Endpoint subresource names exposed for composition by pattern modules."
   value       = ["blob", "dfs", "file", "queue", "table", "web"]
 }
+
+output "security_configuration" {
+  description = "Observed security/recovery flags only. No storage keys, SAS values or connection strings are exposed."
+  value = {
+    replication_type                = azurerm_storage_account.account.account_replication_type
+    public_network_access_enabled   = azurerm_storage_account.account.public_network_access_enabled
+    allow_nested_items_to_be_public = azurerm_storage_account.account.allow_nested_items_to_be_public
+    https_traffic_only_enabled      = azurerm_storage_account.account.https_traffic_only_enabled
+    min_tls_version                 = azurerm_storage_account.account.min_tls_version
+    # Declassify only this boolean; the legacy module marks its input sensitive.
+    shared_access_key_enabled       = nonsensitive(azurerm_storage_account.account.shared_access_key_enabled)
+    versioning_enabled              = try(azurerm_storage_account.account.blob_properties[0].versioning_enabled, null)
+    delete_retention_days           = try(azurerm_storage_account.account.blob_properties[0].delete_retention_policy[0].days, null)
+    container_delete_retention_days = try(azurerm_storage_account.account.blob_properties[0].container_delete_retention_policy[0].days, null)
+  }
+}

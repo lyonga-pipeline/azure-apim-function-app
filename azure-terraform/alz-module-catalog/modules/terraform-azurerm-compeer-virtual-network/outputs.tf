@@ -38,10 +38,12 @@ output "subnets" {
   description = "Map of caller-supplied subnet key to subnet attributes (id, name, address_prefixes, virtual_network_name)."
   value = {
     for key, value in azurerm_subnet.subnet : key => {
-      id                   = value.id
-      name                 = value.name
-      address_prefixes     = value.address_prefixes
-      virtual_network_name = value.virtual_network_name
+      id                                = value.id
+      name                              = value.name
+      address_prefixes                  = value.address_prefixes
+      virtual_network_name              = value.virtual_network_name
+      default_outbound_access_enabled   = value.default_outbound_access_enabled
+      private_endpoint_network_policies = value.private_endpoint_network_policies
     }
   }
 }

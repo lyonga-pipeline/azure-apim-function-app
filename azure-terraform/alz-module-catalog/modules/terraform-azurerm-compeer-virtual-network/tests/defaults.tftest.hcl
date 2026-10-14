@@ -39,3 +39,16 @@ run "rejects_empty_address_space" {
   variables { address_space = [] }
   expect_failures = [var.address_space]
 }
+
+run "subnet_contract_reports_observed_private_defaults" {
+  command = plan
+  variables {
+    subnets = {
+      private_endpoints = { address_prefixes = ["10.20.3.0/27"], default_outbound_access_enabled = false, private_endpoint_network_policies = "Enabled" }
+    }
+  }
+  assert {
+    condition     = !output.subnets.private_endpoints.default_outbound_access_enabled && output.subnets.private_endpoints.private_endpoint_network_policies == "Enabled"
+    error_message = "Subnet security output fields must reflect actual Azure resource configuration, not desired constants."
+  }
+}

@@ -17,3 +17,11 @@ provider "azurerm" {
 }
 
 provider "tfe" {}
+
+provider "azurerm" {
+  alias = "dns"
+  features {}
+  subscription_id                 = coalesce(var.private_dns_subscription_id, var.hub_subscription_id)
+  tenant_id                       = var.tenant_id
+  resource_provider_registrations = "none"
+}
