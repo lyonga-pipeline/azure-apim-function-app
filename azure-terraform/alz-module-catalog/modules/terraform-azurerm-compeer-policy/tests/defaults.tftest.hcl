@@ -93,6 +93,35 @@ run "mg_assignment_with_identity_not_scopes_and_message" {
   }
 }
 
+run "mg_assignment_preserves_json_parameter_types" {
+  command = plan
+
+  variables {
+    management_group_assignments = {
+      defender_storage = {
+        management_group_id  = "/providers/Microsoft.Management/managementGroups/corp"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/cfdc5972-75b3-4418-8ae1-7f5c36839390"
+        identity             = { type = "SystemAssigned" }
+        location             = "centralus"
+        parameters = {
+          effect                           = { value = "DeployIfNotExists" }
+          capGBPerMonthPerStorageAccount   = { value = 2048 }
+          isOnUploadMalwareScanningEnabled = { value = "false" }
+          isSensitiveDataDiscoveryEnabled  = { value = "true" }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      jsondecode(azurerm_management_group_policy_assignment.mg_assignment["defender_storage"].parameters).capGBPerMonthPerStorageAccount.value == 2048 &&
+      jsondecode(azurerm_management_group_policy_assignment.mg_assignment["defender_storage"].parameters).isOnUploadMalwareScanningEnabled.value == "false" &&
+      jsondecode(azurerm_management_group_policy_assignment.mg_assignment["defender_storage"].parameters).isSensitiveDataDiscoveryEnabled.value == "true"
+    )
+    error_message = "The actual Azure assignment payload must serialize the Storage cap as a number and its feature flags as strings."
+  }
+}
+
 run "subscription_and_resource_group_assignments" {
   command = plan
 

@@ -84,6 +84,67 @@ run "production_ownership_boundaries" {
   }
 }
 
+run "builtin_diagnostic_audits_have_unprivileged_assignment_identities" {
+  command = plan
+
+  assert {
+    condition = alltrue([for assignment in values(local.diagnostic_builtin_audit_assignments) :
+      try(assignment.identity.type, "") == "SystemAssigned" &&
+      try(assignment.location, "") == var.location &&
+      assignment.parameters.effect.value == "AuditIfNotExists" &&
+      !can(assignment.role_definition_ids)
+    ])
+    error_message = "Built-in definitions containing deployment details require an assignment identity even in audit mode, but must not receive remediation roles."
+  }
+  assert {
+    condition = alltrue([for key in keys(local.diagnostic_builtin_audit_assignments) :
+      !contains(keys(local.remediation.dine_assignments), key)
+    ]) && alltrue([for assignment in values(local.diagnostic_audit_assignments) : !can(assignment.identity)])
+    error_message = "Built-in audit identities must stay outside the remediation bundle; custom audit-only definitions do not need identities."
+  }
+}
+
+run "production_defender_storage_cap_remains_a_json_number" {
+  command = plan
+
+  assert {
+    condition = (
+      jsonencode(local.defender_for_cloud_dine_assignment_templates.defender_storage.parameters.capGBPerMonthPerStorageAccount.value) == "1000" &&
+      jsonencode(local.defender_for_cloud_dine_assignments.defender_storage.parameters.capGBPerMonthPerStorageAccount.value) == "1000" &&
+      jsonencode(local.remediation.dine_assignments.defender_storage.parameters.capGBPerMonthPerStorageAccount.value) == "1000"
+    )
+    error_message = "Defender Storage's Integer parameter must remain a JSON number through template selection and remediation merging."
+  }
+}
+
+run "defender_storage_override_preserves_builtin_parameter_types" {
+  command = plan
+  variables {
+    policy = {
+      enabled = true
+      defender_for_cloud_policy = {
+        enabled = true
+        plans = {
+          storage = {
+            enabled                              = true
+            cap_gb_per_month_per_storage_account = 2048
+            on_upload_malware_scanning_enabled   = false
+            sensitive_data_discovery_enabled     = true
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      jsonencode(local.remediation.dine_assignments.defender_storage.parameters.capGBPerMonthPerStorageAccount.value) == "2048" &&
+      local.remediation.dine_assignments.defender_storage.parameters.isOnUploadMalwareScanningEnabled.value == "false" &&
+      local.remediation.dine_assignments.defender_storage.parameters.isSensitiveDataDiscoveryEnabled.value == "true"
+    )
+    error_message = "Storage cap overrides must stay numeric while the built-in's feature flags remain strings."
+  }
+}
+
 run "registered_resource_ownership_keeps_audits_without_broad_exclusions" {
   command = plan
   variables {
@@ -360,7 +421,7 @@ run "omitted_defender_plans_stay_disabled" {
     }
   }
   assert {
-    condition     = keys(local.defender_for_cloud_dine_assignments) == tolist(["defender_servers"])
+    condition     = toset(keys(local.defender_for_cloud_dine_assignments)) == toset(["defender_servers"])
     error_message = "Enabling Servers must not silently enable seven other paid plans."
   }
 }

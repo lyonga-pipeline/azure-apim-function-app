@@ -116,6 +116,9 @@ locals {
         management_group_key     = mg_key
         policy_definition_id     = try(assignment.policy_definition_id, null)
         policy_set_definition_id = try(assignment.policy_set_definition_id, null)
+        # Azure requires an identity for built-in deployment metadata even in audit mode; no remediation RBAC is granted.
+        identity = { type = "SystemAssigned" }
+        location = coalesce(try(var.policy.policy_assignment_location, null), var.location)
         parameters = merge(try(assignment.parameters, {}), {
           effect       = { value = "AuditIfNotExists" }
           logAnalytics = { value = local.log_analytics_workspace_id }

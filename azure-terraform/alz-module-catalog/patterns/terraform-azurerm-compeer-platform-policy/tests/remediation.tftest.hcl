@@ -124,6 +124,61 @@ run "diagnostic_initiative_gets_identity_and_required_role" {
   }
 }
 
+run "audit_identity_does_not_grant_remediation_permissions" {
+  command = plan
+
+  variables {
+    management_group_policy_assignments = {
+      diagnostic_audit = {
+        management_group_key = "compeer-enterprise-mg"
+        policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/c0d8e23a-47be-4032-961f-8b0ff3957061"
+        identity             = { type = "SystemAssigned" }
+        location             = "centralus"
+        parameters           = { effect = { value = "AuditIfNotExists" } }
+      }
+    }
+  }
+  assert {
+    condition = (
+      local.management_group_policy_assignments_input.diagnostic_audit.identity.type == "SystemAssigned" &&
+      local.management_group_policy_assignments_input.diagnostic_audit.location == "centralus" &&
+      local.management_group_policy_assignments_input.diagnostic_audit.parameters.effect.value == "AuditIfNotExists" &&
+      length(azurerm_role_assignment.remediation) == 0 &&
+      length(azurerm_management_group_policy_remediation.task) == 0
+    )
+    error_message = "A required built-in audit identity must pass through without receiving remediation roles or tasks."
+  }
+}
+
+run "remediation_preserves_mixed_json_parameter_types" {
+  command = plan
+
+  variables {
+    remediation = {
+      enabled              = true
+      management_group_key = "compeer-enterprise-mg"
+      dine_assignments = {
+        defender_storage = {
+          policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/cfdc5972-75b3-4418-8ae1-7f5c36839390"
+          parameters = {
+            effect                           = { value = "DeployIfNotExists" }
+            capGBPerMonthPerStorageAccount   = { value = 2048 }
+            isOnUploadMalwareScanningEnabled = { value = "false" }
+            isSensitiveDataDiscoveryEnabled  = { value = "true" }
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      jsonencode(local.management_group_policy_assignments_input["rem-defender_storage"].parameters.capGBPerMonthPerStorageAccount.value) == "2048" &&
+      local.management_group_policy_assignments_input["rem-defender_storage"].parameters.isOnUploadMalwareScanningEnabled.value == "false"
+    )
+    error_message = "Mixed numeric/string policy parameters must keep their JSON types through the pattern."
+  }
+}
+
 run "rejects_missing_management_group_key" {
   command = plan
 

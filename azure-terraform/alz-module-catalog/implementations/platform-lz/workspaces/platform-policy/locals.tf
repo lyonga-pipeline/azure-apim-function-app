@@ -124,13 +124,14 @@ locals {
     }
   }
 
-  defender_for_cloud_dine_assignments = !try(local.defender_policy.enabled, false) ? {} : {
+  # Filter entries instead of unifying with {}: conditional map conversion can stringify Integer policy parameters.
+  defender_for_cloud_dine_assignments = {
     for key, assignment in local.defender_for_cloud_dine_assignment_templates : key => merge(
       assignment,
       { management_group_key = coalesce(try(local.defender_policy.management_group_key, null), "compeer-enterprise-mg") },
       length(local.defender_policy_not_scopes) > 0 ? { not_scopes = local.defender_policy_not_scopes } : {}
     )
-    if coalesce(try(local.defender_policy.plans[trimprefix(key, "defender_")].enabled, null), false)
+    if try(local.defender_policy.enabled, false) && coalesce(try(local.defender_policy.plans[trimprefix(key, "defender_")].enabled, null), false)
   }
 
   network_flow_logging_policy = try(var.policy.network_flow_logging_policy, {})
