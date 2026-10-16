@@ -18,6 +18,8 @@ output "connector_ids" {
       defender_for_identity         = try(azurerm_sentinel_data_connector_azure_advanced_threat_protection.defender_for_identity[0].id, null)
       defender_for_cloud_apps       = try(azurerm_sentinel_data_connector_microsoft_cloud_app_security.defender_for_cloud_apps[0].id, null)
       office_atp                    = try(azurerm_sentinel_data_connector_office_atp.office_atp[0].id, null)
+      office_irm                    = try(azurerm_sentinel_data_connector_office_irm.office_irm[0].id, null)
+      power_bi                      = try(azurerm_sentinel_data_connector_office_power_bi.power_bi[0].id, null)
       office_365                    = try(azurerm_sentinel_data_connector_office_365.office_365[0].id, null)
       threat_intelligence           = try(azurerm_sentinel_data_connector_threat_intelligence.threat_intelligence[0].id, null)
       microsoft_threat_intelligence = try(azurerm_sentinel_data_connector_microsoft_threat_intelligence.microsoft_threat_intelligence[0].id, null)
@@ -59,6 +61,12 @@ output "content_inventory" {
     automation_rules         = sort(keys(var.automation_rules))
     watchlists               = sort(keys(var.watchlists))
     baseline_enabled         = var.baseline_content.enabled
+    ingestion = {
+      endpoints     = sort(keys(local.ingestion_endpoints))
+      custom_tables = sort(keys(local.ingestion_tables))
+      rules         = sort(keys(local.ingestion_rules))
+      associations  = sort(keys(local.ingestion_associations))
+    }
   }
 }
 
@@ -67,5 +75,34 @@ output "source_coverage" {
   value = {
     available = sort(tolist(local.available_sources))
     unmet     = local.unmet_sources
+  }
+}
+
+output "data_collection_endpoint_ids" {
+  description = "Data collection endpoint IDs keyed by ingestion.endpoints key."
+  value       = { for key, resource in azurerm_monitor_data_collection_endpoint.endpoint : key => resource.id }
+}
+
+output "data_collection_rule_ids" {
+  description = "Data collection rule IDs keyed by ingestion.rules key."
+  value       = { for key, resource in azurerm_monitor_data_collection_rule.rule : key => resource.id }
+}
+
+output "custom_table_ids" {
+  description = "Custom table IDs keyed by table name."
+  value       = { for key, resource in azurerm_log_analytics_workspace_table_custom_log.table : key => resource.id }
+}
+
+output "ingestion_targets" {
+  description = "Connection details to hand to a third-party pipeline (Cribl and similar) for each custom_ingestion rule: the data collection endpoint URL, the rule's immutable ID and the stream name to send to. The pipeline's Entra application needs its object ID listed in that rule's publisher_principal_ids."
+  value = {
+    for key, rule in local.custom_ingestion_rules : key => {
+      table                   = rule.table_key
+      stream_name             = local.custom_input_streams[key]
+      dcr_id                  = azurerm_monitor_data_collection_rule.rule[key].id
+      dcr_immutable_id        = azurerm_monitor_data_collection_rule.rule[key].immutable_id
+      logs_ingestion_url      = azurerm_monitor_data_collection_endpoint.endpoint[rule.endpoint_key].logs_ingestion_endpoint
+      publisher_principal_ids = sort(tolist(rule.publisher_principal_ids))
+    }
   }
 }

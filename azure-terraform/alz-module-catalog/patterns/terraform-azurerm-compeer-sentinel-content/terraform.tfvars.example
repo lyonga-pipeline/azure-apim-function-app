@@ -19,3 +19,27 @@ microsoft_incident_rules = {
     severity_filter = ["High", "Medium"]
   }
 }
+
+# SOC-owned data sources: a firewall forwarder and Cloudflare logs through Cribl.
+# ingestion = {
+#   resource_group_name = "<management resource group>"
+#   location            = "centralus"
+#   endpoints           = { logs = { public_network_access_enabled = true } }
+#   custom_tables = {
+#     Cloudflare_CL = {
+#       retention_in_days       = 90
+#       total_retention_in_days = 548
+#       columns = [
+#         { name = "TimeGenerated", type = "dateTime" },
+#         { name = "ClientIP", type = "string" },
+#       ]
+#     }
+#   }
+#   rules = {
+#     palo-alto  = { preset = "cef", facility_names = ["local4"] }
+#     cloudflare = { preset = "custom_ingestion", endpoint_key = "logs", table_key = "Cloudflare_CL", publisher_principal_ids = ["<Cribl application object id>"] }
+#   }
+#   associations = {
+#     palo-alto-fwd1 = { rule_key = "palo-alto", target_resource_id = "<forwarder VM resource id>" }
+#   }
+# }

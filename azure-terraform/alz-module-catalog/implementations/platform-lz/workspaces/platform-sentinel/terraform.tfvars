@@ -26,6 +26,12 @@ sentinel = {
   #   common_security_log  <- Palo Alto CEF forwarder + data collection rule
   externally_provided_sources = []
 
+  # SOC-owned data sources (agent feeds and third-party pipelines such as
+  # Cribl delivering Cloudflare logs): data collection endpoints, custom
+  # tables, rules and associations. Leave null while platform-management owns
+  # the same rules; see the pattern README for the Cribl example.
+  ingestion = null
+
   baseline_content = { enabled = false }
 
   # Example, once the SOC approves it:

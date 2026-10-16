@@ -52,6 +52,22 @@ resource "azurerm_sentinel_data_connector_office_atp" "office_atp" {
   tenant_id                  = var.tenant_id
 }
 
+resource "azurerm_sentinel_data_connector_office_irm" "office_irm" {
+  count = local.connectors.office_irm ? 1 : 0
+
+  name                       = "office-irm"
+  log_analytics_workspace_id = local.workspace_id
+  tenant_id                  = var.tenant_id
+}
+
+resource "azurerm_sentinel_data_connector_office_power_bi" "power_bi" {
+  count = local.connectors.power_bi ? 1 : 0
+
+  name                       = "power-bi"
+  log_analytics_workspace_id = local.workspace_id
+  tenant_id                  = var.tenant_id
+}
+
 resource "azurerm_sentinel_data_connector_office_365" "office_365" {
   count = local.connectors.office_365 != null ? 1 : 0
 

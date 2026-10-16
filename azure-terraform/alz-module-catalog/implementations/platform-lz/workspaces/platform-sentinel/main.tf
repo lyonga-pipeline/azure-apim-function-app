@@ -52,6 +52,7 @@ module "sentinel_content" {
   externally_provided_sources = try(var.sentinel.externally_provided_sources, [])
   enforce_source_dependencies = try(var.sentinel.enforce_source_dependencies, true)
   data_connectors             = try(var.sentinel.data_connectors, {})
+  ingestion                   = try(var.sentinel.ingestion, null)
   taxii_passwords             = var.taxii_passwords
   scheduled_rules             = try(var.sentinel.scheduled_rules, {})
   nrt_rules                   = try(var.sentinel.nrt_rules, {})

@@ -50,9 +50,15 @@ bridges the two with a dependency contract instead of duplicating policy.
 - Data connectors, named like the legacy `terraform-azurerm-compeer-sentinel`
   module (`aad`, `mdatp`, `ti`, `mdc`) so an adopted connector can be imported:
   Entra ID, Defender XDR, Defender for Endpoint, Defender for Identity,
-  Defender for Cloud Apps, Defender for Office 365, Office 365, Defender for
-  Cloud (one per subscription), threat intelligence, Microsoft threat
-  intelligence feed, TAXII feeds.
+  Defender for Cloud Apps, Defender for Office 365, Office 365, Purview Insider
+  Risk Management, Power BI, Defender for Cloud (one per subscription), threat
+  intelligence, Microsoft threat intelligence feed, TAXII feeds.
+- Data source integration (`ingestion`): data collection endpoints, custom
+  tables with retention, data collection rules and their associations, for
+  agent feeds (Windows Security Events, Windows event logs, Syslog, CEF) and for
+  third-party pipelines that push through the Logs Ingestion API (Cribl
+  delivering Cloudflare logs). Each pipeline rule can grant its Entra
+  application Monitoring Metrics Publisher on that one rule.
 - Analytics rules: scheduled and near-real-time (with entity mapping, alert
   detail overrides, suppression, incident grouping and MITRE tactics and
   techniques), Microsoft security incident creation rules, template rules
@@ -62,6 +68,98 @@ bridges the two with a dependency contract instead of duplicating policy.
   with incident-modify, incident-task and playbook actions.
 - Watchlists with inline rows.
 - An opt-in baseline library of five identity and governance detections.
+
+## Connector catalog for an Azure and on-premises organization
+
+Where each common source comes from and which state owns it. "Source key" is the
+name a rule lists in `requires_sources`.
+
+| Source | Mechanism | Terraform location | Source key |
+| --- | --- | --- | --- |
+| Entra sign-in and audit logs | Tenant diagnostic setting | `platform-management` (`entra_diagnostic_settings`) | `entra_signin_logs`, `entra_audit_logs` |
+| Entra ID Protection alerts | Connector `entra_id` | this pattern | `security_alert` |
+| Azure Activity | Subscription diagnostic setting | `platform-management` | `azure_activity` |
+| Defender XDR, Endpoint, Identity, Cloud Apps, Office 365 | Connectors | this pattern | `security_alert` |
+| Defender for Cloud | Connector, one per subscription | this pattern | `security_alert` |
+| Office 365 (Exchange, SharePoint, Teams), Insider Risk, Power BI | Connectors | this pattern | `office_activity` |
+| Threat intelligence (platform, Microsoft feed, TAXII) | Connectors | this pattern | `threat_intelligence_indicator` |
+| Azure resource logs (Key Vault, firewall, NSG, Storage, SQL, App Gateway) | Diagnostic settings | owning patterns, `platform-policy` DINE as backstop | `azure_diagnostics` |
+| VNet flow logs and Traffic Analytics | Flow-log policy | `platform-policy` | Traffic Analytics tables |
+| Windows Security Events (domain controllers, servers, Arc machines) | AMA + data collection rule | `ingestion` preset `windows_security_events` | `windows_security_events` |
+| Windows DNS, AD and other event logs | AMA + data collection rule | `ingestion` preset `windows_events` | `Event` table (no source key) |
+| Linux Syslog | AMA + data collection rule | `ingestion` preset `syslog` | `syslog` |
+| Palo Alto and other CEF firewalls | AMA on a forwarder + data collection rule | `ingestion` preset `cef` | `common_security_log` |
+| Third-party SaaS through a pipeline (Cloudflare through Cribl) | Logs Ingestion API into a custom table | `ingestion` preset `custom_ingestion` | the table name, for example `Cloudflare_CL` |
+
+Not covered here: AWS and GCP connectors, ServiceNow and other ticketing
+integrations (Security Operations), and any source whose owner has not decided
+how it will deliver.
+
+## Third-party feeds through Cribl (Cloudflare example)
+
+Cribl does not use a Sentinel connector. It posts to the Logs Ingestion API,
+which needs a data collection endpoint, a data collection rule, a custom table,
+and an Entra application allowed to publish to that rule. The pattern builds the
+first three and the permission; the application and its secret are created
+outside it:
+
+```hcl
+ingestion = {
+  resource_group_name = "<management resource group>"
+  location            = "centralus"
+  endpoints = {
+    logs = { public_network_access_enabled = true } # decide: reachable from Cribl, or private link
+  }
+  custom_tables = {
+    Cloudflare_CL = {
+      retention_in_days       = 90
+      total_retention_in_days = 548
+      columns = [
+        { name = "TimeGenerated", type = "dateTime" },
+        { name = "ClientIP", type = "string" },
+        { name = "EdgeResponseStatus", type = "int" },
+        { name = "Raw", type = "dynamic" },
+      ]
+    }
+  }
+  rules = {
+    cloudflare = {
+      preset                  = "custom_ingestion"
+      endpoint_key            = "logs"
+      table_key               = "Cloudflare_CL"
+      publisher_principal_ids = ["<object ID of Cribl's Entra application>"]
+    }
+  }
+}
+```
+
+The `ingestion_targets` output returns what to enter in Cribl's destination: the
+endpoint URL, the rule's immutable ID and the stream name. Use the table's real
+schema from your Cloudflare log fields; `TimeGenerated` is required. If Cribl
+sends a different shape than the table, set `input_stream_name`,
+`stream_columns` and `transform_kql` on the rule and the pattern routes it into
+the table. Re-creating this later is a code change, not a manual rebuild: the
+table, endpoint and rule are all in the repository.
+
+## Terraform and manual configuration drift
+
+Terraform only manages what is in its tfvars. Connectors a person enables in the
+portal, content hub solutions and rules created by hand are left alone. Drift
+appears in two places:
+
+- **Objects Terraform owns that someone edits in the portal.** The next apply
+  reverts the edit. This matters most for analytics rules the SOC tunes. Keep
+  tuned rules out of the tfvars (the SOC owns them in the portal), or keep them
+  in Terraform and tune through a pull request. Decide per rule; do not split one
+  rule between both.
+- **Connectors and data collection plumbing.** These are set once and rarely
+  edited, so they drift least and benefit most from being in code (an
+  accidental delete is a plan diff, not an outage).
+
+`plan` shows exactly which objects differ, so a scheduled plan against this
+workspace is a drift report. If the SOC prefers to create rules in the portal
+and have Terraform stop reverting them after creation, that needs a separate
+ownership mode that this pattern does not provide yet.
 
 ## Dependency contract
 
@@ -158,7 +256,8 @@ workspace and the key.
 | Log Analytics workspace, retention, Sentinel onboarding | `platform-management` |
 | Activity Log and Entra diagnostic settings | `platform-management` |
 | Resource-log diagnostic safety net, Defender plans | `platform-policy` (and `platform-management` for its own subscription) |
-| CEF forwarder and its data collection rule | connectivity / Palo Alto owners |
+| CEF forwarder VM | connectivity / Palo Alto owners |
+| Data collection endpoints, custom tables, rules and associations for SOC sources | this pattern (`ingestion`) - or `platform-management`, never both for the same rule |
 | Connectors, rules, automation rules, watchlists | this pattern (`platform-sentinel`) |
 | Playbooks (Logic Apps), ServiceNow SIR integration | Security Operations |
 | Sentinel RBAC (Reader, Responder, Contributor) | `platform-authorization` |
@@ -200,6 +299,13 @@ the connector. Review a plan in each workspace before any apply.
 - The workspace must already be onboarded. The `platform-sentinel` workspace
   checks `sentinel_onboarding_id` from `platform-management` and stops if it is
   missing.
+- Scope the run identity to what each layer needs instead of Contributor on the
+  workspace or subscription: Microsoft Sentinel Contributor on the workspace for
+  connectors, rules and watchlists; a role that can create data collection
+  endpoints and rules and custom tables for `ingestion`; Role Based Access
+  Control rights limited to the rule scope when `publisher_principal_ids` is
+  used. Confirm the exact role for each tenant-level connector against
+  Microsoft's connector documentation before granting it.
 - Tenant-level connectors need the run identity to hold the Entra or Defender
   role Microsoft documents for that connector, and the tenant needs the matching
   license. A plan can succeed and the apply still be refused for either reason.
@@ -225,7 +331,7 @@ az rest --method get \
 
 ## Tests
 
-`terraform test` runs mocked-provider checks (about 60). They cover typed
+`terraform test` runs mocked-provider checks (about 80). They cover typed
 validation of every enum Microsoft documents, the dependency contract, the
 baseline library, automation-rule condition encoding and UUID derivation,
 watchlist rows, connector names and telemetry sources. They run on Terraform
@@ -239,9 +345,12 @@ baseline and any new rule in a non-production workspace first.
 ## Limits and extension points
 
 - Not covered: hunting queries, content hub solutions, UEBA/entity analytics,
-  TI indicators, AWS and other cloud connectors, playbook (Logic App) creation.
-  Add them as sibling files or patterns; do not widen this one to own the
-  telemetry plumbing.
+  TI indicators, AWS and other cloud connectors, playbook (Logic App) creation,
+  and diagnostic settings (Activity Log, Entra, resource logs stay with the
+  patterns and policies that own them). Add them as sibling files or patterns.
+- The provider's `Direct` data collection rule kind is not exposed: it is not
+  accepted by every azurerm 4.x release this pattern allows. Pipelines post
+  through a data collection endpoint.
 - The azurerm fusion rule's `name` is deprecated for provider v5; the provider
   constraint (`< 5.0`) keeps this pattern from adopting v5 unnoticed.
 - Built-in anomaly rules cannot be deleted in Azure: removing one from the

@@ -78,3 +78,26 @@ run "manage_onboarding_here_skips_the_management_onboarding_check" {
     error_message = "manage_onboarding = true must let the workspace proceed without a management onboarding output"
   }
 }
+
+run "ingestion_is_passed_through_to_the_pattern" {
+  command = plan
+  variables {
+    use_tfe_outputs            = false
+    log_analytics_workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mgmt/providers/Microsoft.OperationalInsights/workspaces/law-platform"
+    sentinel = {
+      enabled = true
+      ingestion = {
+        resource_group_name = "rg-mgmt"
+        location            = "centralus"
+        endpoints           = { logs = { public_network_access_enabled = true } }
+        custom_tables       = { Cloudflare_CL = { columns = [{ name = "TimeGenerated", type = "dateTime" }] } }
+        rules               = { cloudflare = { preset = "custom_ingestion", endpoint_key = "logs", table_key = "Cloudflare_CL" } }
+      }
+    }
+  }
+
+  assert {
+    condition     = output.content_inventory.ingestion.rules == tolist(["cloudflare"]) && contains(output.source_coverage.available, "Cloudflare_CL")
+    error_message = "the workspace must hand ingestion through to the pattern"
+  }
+}

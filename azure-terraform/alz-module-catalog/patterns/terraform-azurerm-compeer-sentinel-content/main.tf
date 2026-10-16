@@ -30,12 +30,17 @@ locals {
       local.connectors.microsoft_threat_intelligence != null,
       length(local.connectors.threat_intelligence_taxii) > 0,
     ])
-    office_activity = local.connectors.office_365 != null
+    office_activity = anytrue([
+      local.connectors.office_365 != null,
+      local.connectors.office_irm,
+      local.connectors.power_bi,
+    ])
   }
 
   available_sources = toset(concat(
     var.externally_provided_sources,
     [for source, provided in local.connector_sources : source if provided],
+    local.ingestion_sources,
   ))
 }
 

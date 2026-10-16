@@ -43,9 +43,9 @@ variable "externally_provided_sources" {
         "azure_activity", "entra_audit_logs", "entra_signin_logs", "common_security_log",
         "security_alert", "threat_intelligence_indicator", "office_activity", "syslog",
         "windows_security_events", "azure_diagnostics",
-      ], source)
+      ], source) || can(regex("^[A-Za-z][A-Za-z0-9_]*_CL$", source))
     ])
-    error_message = "externally_provided_sources entries must be known sources: azure_activity, entra_audit_logs, entra_signin_logs, common_security_log, security_alert, threat_intelligence_indicator, office_activity, syslog, windows_security_events, azure_diagnostics."
+    error_message = "externally_provided_sources entries must be known sources (azure_activity, entra_audit_logs, entra_signin_logs, common_security_log, security_alert, threat_intelligence_indicator, office_activity, syslog, windows_security_events, azure_diagnostics) or a custom table name ending in _CL."
   }
 }
 
@@ -70,6 +70,8 @@ variable "data_connectors" {
     defender_for_identity   = optional(bool, false)
     defender_for_cloud_apps = optional(object({ alerts_enabled = optional(bool, true), discovery_logs_enabled = optional(bool, false) }))
     office_atp              = optional(bool, false) # Defender for Office 365
+    office_irm              = optional(bool, false) # Microsoft Purview Insider Risk Management
+    power_bi                = optional(bool, false)
     office_365 = optional(object({
       exchange_enabled   = optional(bool, true)
       sharepoint_enabled = optional(bool, true)
@@ -132,6 +134,130 @@ variable "taxii_passwords" {
   type        = map(string)
   default     = {}
   sensitive   = true
+}
+
+# -----------------------------------------------------------------------------
+# Data source integration: data collection endpoints, custom tables, data
+# collection rules and their associations. This is what feeds Sentinel from
+# agents (Windows Security Events, Syslog, CEF) and from third-party pipelines
+# that push through the Logs Ingestion API (for example Cribl delivering
+# Cloudflare logs). Leave null when platform-management already owns these.
+# -----------------------------------------------------------------------------
+
+variable "ingestion" {
+  description = "Data source integration owned by the SOC. resource_group_name and location place the endpoints and rules (normally the management resource group). presets: custom_ingestion (Logs Ingestion API into a custom table - Cribl and other pipelines), windows_security_events (AMA, Microsoft-SecurityEvent), windows_events (AMA, Microsoft-Event with your XPath queries), syslog (AMA, Microsoft-Syslog), cef (AMA over syslog, Microsoft-CommonSecurityLog)."
+  type = object({
+    resource_group_name = string
+    location            = string
+    tags                = optional(map(string), {})
+    endpoints = optional(map(object({
+      name                          = optional(string)
+      description                   = optional(string)
+      public_network_access_enabled = bool # no default on purpose: reachability from the pipeline vs private link is a decision
+    })), {})
+    custom_tables = optional(map(object({
+      description             = optional(string)
+      plan                    = optional(string, "Analytics")
+      retention_in_days       = optional(number)
+      total_retention_in_days = optional(number)
+      columns = list(object({
+        name        = string
+        type        = string
+        description = optional(string)
+      }))
+    })), {})
+    rules = optional(map(object({
+      name         = optional(string)
+      description  = optional(string)
+      preset       = string
+      endpoint_key = optional(string)
+      # custom_ingestion
+      table_key         = optional(string)
+      input_stream_name = optional(string) # default Custom-<table>; set to ingest a raw shape and transform it
+      stream_columns = optional(list(object({
+        name = string
+        type = string
+      })))
+      transform_kql           = optional(string)
+      publisher_principal_ids = optional(set(string), []) # get Monitoring Metrics Publisher on THIS rule only
+      # windows_events
+      x_path_queries = optional(list(string))
+      # syslog / cef
+      facility_names = optional(list(string))
+      log_levels     = optional(list(string), ["*"])
+    })), {})
+    associations = optional(map(object({
+      name               = optional(string)
+      rule_key           = string
+      target_resource_id = string
+    })), {})
+  })
+  default = null
+
+  validation {
+    condition     = var.ingestion == null ? true : alltrue([for key in keys(var.ingestion.endpoints) : can(regex("^[a-z0-9][a-z0-9-]{0,62}$", key))])
+    error_message = "ingestion.endpoints keys must be lowercase letters, numbers and hyphens."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for key, table in var.ingestion.custom_tables :
+      can(regex("^[A-Za-z][A-Za-z0-9_]*_CL$", key)) &&
+      contains(["Analytics", "Basic"], table.plan) &&
+      length(table.columns) > 0 &&
+      contains([for column in table.columns : column.name], "TimeGenerated") &&
+      alltrue([for column in table.columns : can(regex("^[A-Za-z][A-Za-z0-9_]*$", column.name)) && contains(["boolean", "dateTime", "dynamic", "guid", "int", "long", "real", "string"], column.type)]) &&
+      (table.plan == "Basic" ? table.retention_in_days == null : true) &&
+      (table.retention_in_days == null ? true : table.retention_in_days >= 4 && table.retention_in_days <= 730) &&
+      (table.total_retention_in_days == null ? true : table.total_retention_in_days >= 4 && table.total_retention_in_days <= 4383) &&
+      (table.total_retention_in_days == null || table.retention_in_days == null ? true : table.total_retention_in_days >= table.retention_in_days)
+    ])
+    error_message = "ingestion.custom_tables keys must be table names ending in _CL; each needs plan Analytics or Basic, at least one column including TimeGenerated, column types from boolean/dateTime/dynamic/guid/int/long/real/string, retention_in_days 4-730 (not settable on Basic), and total_retention_in_days no shorter than retention_in_days."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for key, rule in var.ingestion.rules :
+      can(regex("^[a-z0-9][a-z0-9-]{0,62}$", key)) &&
+      contains(["custom_ingestion", "windows_security_events", "windows_events", "syslog", "cef"], rule.preset) &&
+      (rule.endpoint_key == null ? true : contains(keys(var.ingestion.endpoints), rule.endpoint_key))
+    ])
+    error_message = "ingestion.rules keys must be lowercase letters, numbers and hyphens; preset must be custom_ingestion, windows_security_events, windows_events, syslog or cef; endpoint_key must name an entry in ingestion.endpoints."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for rule in values(var.ingestion.rules) :
+      rule.preset != "custom_ingestion" ? (rule.table_key == null && rule.input_stream_name == null && rule.transform_kql == null && length(rule.publisher_principal_ids) == 0) : (
+        (rule.table_key == null ? false : contains(keys(var.ingestion.custom_tables), rule.table_key)) &&
+        rule.endpoint_key != null &&
+        (rule.input_stream_name == null ? true : can(regex("^Custom-[A-Za-z0-9_]+$", rule.input_stream_name)))
+      )
+    ])
+    error_message = "A custom_ingestion rule needs table_key naming an ingestion.custom_tables entry, an endpoint_key (the data collection endpoint the pipeline posts to), and an input_stream_name (when set) starting with Custom-. Table, stream, transform and publisher settings belong only to custom_ingestion rules."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for rule in values(var.ingestion.rules) :
+      (rule.preset == "windows_events" ? (rule.x_path_queries == null ? false : length(rule.x_path_queries) > 0) : rule.x_path_queries == null) &&
+      (contains(["syslog", "cef"], rule.preset) ? (rule.facility_names == null ? false : length(rule.facility_names) > 0) : rule.facility_names == null) &&
+      (rule.facility_names == null ? true : alltrue([for facility in rule.facility_names : contains(["alert", "*", "audit", "auth", "authpriv", "clock", "cron", "daemon", "ftp", "kern", "local0", "local1", "local2", "local3", "local4", "local5", "local6", "local7", "lpr", "mail", "mark", "news", "nopri", "ntp", "syslog", "user", "uucp"], facility)])) &&
+      alltrue([for level in rule.log_levels : contains(["Debug", "Info", "Notice", "Warning", "Error", "Critical", "Alert", "Emergency", "*"], level)])
+    ])
+    error_message = "windows_events rules need x_path_queries; syslog and cef rules need facility_names (supported syslog facilities, or *) and log_levels from Debug/Info/Notice/Warning/Error/Critical/Alert/Emergency/*. Those settings are not valid on other presets."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for rule in values(var.ingestion.rules) :
+      alltrue([for column in coalesce(rule.stream_columns, []) : can(regex("^[A-Za-z][A-Za-z0-9_]*$", column.name)) && contains(["string", "int", "long", "real", "boolean", "datetime", "dynamic"], column.type)])
+    ])
+    error_message = "ingestion.rules[*].stream_columns types must be string, int, long, real, boolean, datetime or dynamic."
+  }
+  validation {
+    condition = var.ingestion == null ? true : alltrue([
+      for association in values(var.ingestion.associations) :
+      contains(keys(var.ingestion.rules), association.rule_key) &&
+      can(regex("(?i)^/subscriptions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/resourceGroups/[^/]+/providers/", association.target_resource_id))
+    ])
+    error_message = "ingestion.associations need a rule_key naming an ingestion.rules entry and a full resource ID for target_resource_id (a VM, Arc machine or scale set)."
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -244,8 +370,8 @@ variable "scheduled_rules" {
     error_message = "scheduled_rules allow at most 10 entity_mappings, each a supported entity_type with 1 to 3 field_mappings."
   }
   validation {
-    condition     = alltrue([for rule in values(var.scheduled_rules) : alltrue([for source in rule.requires_sources : contains(["azure_activity", "entra_audit_logs", "entra_signin_logs", "common_security_log", "security_alert", "threat_intelligence_indicator", "office_activity", "syslog", "windows_security_events", "azure_diagnostics"], source)])])
-    error_message = "scheduled_rules requires_sources entries must be known sources (see externally_provided_sources)."
+    condition     = alltrue([for rule in values(var.scheduled_rules) : alltrue([for source in rule.requires_sources : (contains(["azure_activity", "entra_audit_logs", "entra_signin_logs", "common_security_log", "security_alert", "threat_intelligence_indicator", "office_activity", "syslog", "windows_security_events", "azure_diagnostics"], source) || can(regex("^[A-Za-z][A-Za-z0-9_]*_CL$", source)))])])
+    error_message = "scheduled_rules requires_sources entries must be known sources or a custom table name ending in _CL (see externally_provided_sources)."
   }
 }
 
@@ -311,8 +437,8 @@ variable "nrt_rules" {
     error_message = "nrt_rules allow at most 5 entity_mappings, each with 1 to 3 field_mappings."
   }
   validation {
-    condition     = alltrue([for rule in values(var.nrt_rules) : alltrue([for source in rule.requires_sources : contains(["azure_activity", "entra_audit_logs", "entra_signin_logs", "common_security_log", "security_alert", "threat_intelligence_indicator", "office_activity", "syslog", "windows_security_events", "azure_diagnostics"], source)])])
-    error_message = "nrt_rules requires_sources entries must be known sources (see externally_provided_sources)."
+    condition     = alltrue([for rule in values(var.nrt_rules) : alltrue([for source in rule.requires_sources : (contains(["azure_activity", "entra_audit_logs", "entra_signin_logs", "common_security_log", "security_alert", "threat_intelligence_indicator", "office_activity", "syslog", "windows_security_events", "azure_diagnostics"], source) || can(regex("^[A-Za-z][A-Za-z0-9_]*_CL$", source)))])])
+    error_message = "nrt_rules requires_sources entries must be known sources or a custom table name ending in _CL (see externally_provided_sources)."
   }
 }
 
