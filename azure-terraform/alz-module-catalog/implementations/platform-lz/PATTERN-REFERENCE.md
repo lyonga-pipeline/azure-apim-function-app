@@ -21,6 +21,7 @@ files (e.g. `platform-management`'s alerts live in `platform_alerts.tf`, not
 5. `subscription-onboarding` → workspace `platform-subscription-onboarding`
 6. `platform-policy` → workspace `platform-policy`
 7. `platform-management` → workspace `platform-management`
+   - `sentinel-content` → workspace `platform-sentinel` (after management; Sentinel connectors/rules/automation/watchlists as code)
 8. `platform-connectivity` → workspace `platform-connectivity`
 9. `platform-identity` → workspace `platform-identity-security`
 10. `platform-hybrid-connectivity` → workspace `platform-hybrid-connectivity`
@@ -507,6 +508,7 @@ live in `authorization`/`governance`/`policy`.
 | `azurerm_security_center_workspace` | — | Points a subscription's Defender findings at this LAW |
 | `platform_storage_diagnostics` | Diagnostic settings | Storage logs → LAW |
 | `sentinel` | `terraform-azurerm-compeer-sentinel` | Phase 7 — onboarding, data connectors (identity/Defender/threat-intel), scheduled detection rules |
+| `sentinel-content` (separate pattern, workspace `platform-sentinel`) | `patterns/terraform-azurerm-compeer-sentinel-content` | Sentinel content as code: connectors, scheduled/NRT/Microsoft-incident/template/anomaly rules, automation rules, watchlists, opt-in baseline; plan-time check that every rule's telemetry source is provided. See the pattern README for ownership and the platform-management handover. |
 | `azurerm_monitor_diagnostic_setting.subscription_activity_log` | — | Azure control-plane audit trail (Activity Log) → LAW |
 | `azurerm_monitor_aad_diagnostic_setting.entra` | — | **Phase 1 §9** — Entra sign-in/audit/PIM logs → LAW. The identity-monitoring foundation |
 | `azurerm_consumption_budget_subscription` | — | Subscription-scope cost governance |

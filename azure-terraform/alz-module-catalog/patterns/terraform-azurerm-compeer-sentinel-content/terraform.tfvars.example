@@ -1,0 +1,21 @@
+# Minimal useful start: alerts from Defender for Cloud become incidents, the
+# SOC-approved baseline identity detections are on, and the exports they depend
+# on are declared as delivered by platform-management.
+log_analytics_workspace_id = "/subscriptions/<management subscription id>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>"
+tenant_id                  = "<tenant id>"
+
+data_connectors = {
+  defender_for_cloud = { default = {} }
+}
+
+externally_provided_sources = ["azure_activity", "entra_audit_logs", "entra_signin_logs"]
+
+baseline_content = { enabled = true }
+
+microsoft_incident_rules = {
+  defender-for-cloud-high-medium = {
+    display_name    = "Defender for Cloud - High and Medium"
+    product_filter  = "Azure Security Center"
+    severity_filter = ["High", "Medium"]
+  }
+}
