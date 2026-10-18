@@ -60,13 +60,16 @@ def verify_control_plane(contract, command=az_json):
                 and rule["properties"].get("priority") == 4096
                 for rule in rules
             ), f"Missing default deny {direction} on {key}")
-        routes = get(route_id)["properties"].get("routes", [])
-        require(any(
-            route["properties"].get("addressPrefix") == "0.0.0.0/0"
-            and route["properties"].get("nextHopType") == "VirtualAppliance"
-            and route["properties"].get("nextHopIpAddress") == contract["security_baseline"]["egress_next_hop_ip"]
-            for route in routes
-        ), f"Missing approved inspected default route on {key}")
+        route_properties = get(route_id)["properties"]
+        require(route_properties.get("disableBgpRoutePropagation") is True, f"Gateway BGP bypass enabled on {key}")
+        routes = route_properties.get("routes", [])
+        for prefix in ["0.0.0.0/0", *contract["security_baseline"].get("inspection_address_prefixes", [])]:
+            require(any(
+                route["properties"].get("addressPrefix") == prefix
+                and route["properties"].get("nextHopType") == "VirtualAppliance"
+                and route["properties"].get("nextHopIpAddress") == contract["security_baseline"]["egress_next_hop_ip"]
+                for route in routes
+            ), f"Missing approved inspected route {prefix} on {key}")
         if key == "private_endpoints":
             private_prefixes = subnet.get("addressPrefixes", []) or [subnet["addressPrefix"]]
             require(not subnet.get("delegations"), "Private endpoint subnet is delegated")
@@ -126,21 +129,25 @@ def verify_application_services(contract, get):
     services = contract["application_services"]
     profile = contract["environment_profile"]
     workspace_id = contract["diagnostic_ownership"]["workspace_id"]
-    insights = get(services["application_insights_id"], "2020-02-02")["properties"]
-    require(insights.get("DisableLocalAuth") is True, "Application Insights local/key authentication is enabled")
-    require(insights.get("WorkspaceResourceId", "").lower() == workspace_id.lower(), "Application Insights uses the wrong central workspace")
-    require(insights.get("SamplingPercentage") == profile["telemetry_sampling_percentage"], "Telemetry sampling differs from the resolved environment profile")
+    if services.get("application_insights_id"):
+        insights = get(services["application_insights_id"], "2020-02-02")["properties"]
+        require(insights.get("DisableLocalAuth") is True, "Application Insights local/key authentication is enabled")
+        require(insights.get("WorkspaceResourceId", "").lower() == workspace_id.lower(), "Application Insights uses the wrong central workspace")
+        require(insights.get("SamplingPercentage") == profile["telemetry_sampling_percentage"], "Telemetry sampling differs from the resolved environment profile")
 
-    alert = get(services["failed_requests_alert_id"], "2018-03-01")["properties"]
-    require(alert.get("enabled") is True and alert.get("severity") == profile["alert_severity"], "Application failure alert is disabled or has the wrong severity")
-    destinations = {action.get("actionGroupId", "").lower() for action in alert.get("actions", [])}
-    require(destinations and destinations == {item.lower() for item in services["action_group_ids"]}, "Application alert has missing/wrong destinations")
-    budget = get(services["budget_id"], "2023-05-01")["properties"]
-    require(budget.get("amount") == services["budget_amount"], "Budget does not match the approved amount")
-    notifications = list(budget.get("notifications", {}).values())
-    for threshold, kind in [(80, "Actual"), (100, "Actual"), (100, "Forecasted")]:
-        require(any(item.get("enabled") is True and item.get("threshold") == threshold and item.get("thresholdType") == kind
-                    and item.get("contactGroups") for item in notifications), "Budget notification coverage is incomplete")
+    if services.get("failed_requests_alert_id"):
+        require(services.get("application_insights_id"), "Application alert requires enabled telemetry")
+        alert = get(services["failed_requests_alert_id"], "2018-03-01")["properties"]
+        require(alert.get("enabled") is True and alert.get("severity") == profile["alert_severity"], "Application failure alert is disabled or has the wrong severity")
+        destinations = {action.get("actionGroupId", "").lower() for action in alert.get("actions", [])}
+        require(destinations and destinations == {item.lower() for item in services["action_group_ids"]}, "Application alert has missing/wrong destinations")
+    if services.get("budget_id"):
+        budget = get(services["budget_id"], "2023-05-01")["properties"]
+        require(budget.get("amount") == services["budget_amount"], "Budget does not match the approved amount")
+        notifications = list(budget.get("notifications", {}).values())
+        for threshold, kind in [(80, "Actual"), (100, "Actual"), (100, "Forecasted")]:
+            require(any(item.get("enabled") is True and item.get("threshold") == threshold and item.get("thresholdType") == kind
+                        and item.get("contactGroups") for item in notifications), "Budget notification coverage is incomplete")
 
     for key, account in services.get("storage", {}).items():
         observed = get(account["id"], "2023-05-01")

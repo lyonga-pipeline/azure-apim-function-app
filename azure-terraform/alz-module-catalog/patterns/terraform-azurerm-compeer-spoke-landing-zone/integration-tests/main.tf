@@ -80,9 +80,13 @@ module "spoke" {
   egress_next_hop_ip            = "10.250.0.4"
   allow_azure_provided_dns      = true
   private_endpoint_client_cidrs = var.private_endpoint_client_cidrs
+  monitoring = {
+    enabled        = var.enable_optional_operations_test
+    alerts_enabled = var.enable_optional_operations_test
+  }
   operations = {
-    notification_emails = [var.notification_email]
-    budget              = { amount = var.monthly_budget_amount, start_date = formatdate("YYYY-MM-01'T'00:00:00'Z'", "${var.created_on}T00:00:00Z") }
+    notification_emails = compact([var.notification_email])
+    budget              = { enabled = var.enable_optional_operations_test, amount = var.monthly_budget_amount, start_date = formatdate("YYYY-MM-01'T'00:00:00'Z'", "${var.created_on}T00:00:00Z") }
   }
   storage_accounts = { for key in ["data"] : key => {} if var.enable_blob_storage_test }
   workload_tags = {
@@ -120,17 +124,20 @@ resource "azurerm_role_assignment" "probe_operator" {
 
 output "spoke" {
   value = {
-    contract_version         = module.spoke.contract_version
-    context                  = module.spoke.context
-    resource_group_names     = module.spoke.resource_group_names
-    spoke_virtual_network_id = module.spoke.spoke_virtual_network_id
-    subnet_ids               = module.spoke.subnet_ids
-    key_vault                = module.spoke.key_vault
-    workload_identity        = module.spoke.workload_identity
-    attachment_contract      = module.spoke.attachment_contract
-    diagnostic_ownership     = module.spoke.diagnostic_ownership
-    security_baseline        = module.spoke.security_baseline
-    environment_profile      = module.spoke.environment_profile
-    application_services     = module.spoke.application_services
+    contract_version           = module.spoke.contract_version
+    context                    = module.spoke.context
+    resource_group_names       = module.spoke.resource_group_names
+    resource_group_ids         = module.spoke.resource_group_ids
+    log_analytics_workspace_id = module.spoke.log_analytics_workspace_id
+    mandatory_tag_keys         = module.spoke.mandatory_tag_keys
+    spoke_virtual_network_id   = module.spoke.spoke_virtual_network_id
+    subnet_ids                 = module.spoke.subnet_ids
+    key_vault                  = module.spoke.key_vault
+    workload_identity          = module.spoke.workload_identity
+    attachment_contract        = module.spoke.attachment_contract
+    diagnostic_ownership       = module.spoke.diagnostic_ownership
+    security_baseline          = module.spoke.security_baseline
+    environment_profile        = module.spoke.environment_profile
+    application_services       = module.spoke.application_services
   }
 }

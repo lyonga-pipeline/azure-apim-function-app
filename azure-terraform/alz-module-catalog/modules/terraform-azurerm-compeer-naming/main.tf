@@ -66,7 +66,9 @@ locals {
 
   # The sentinel allows checks.tf to report a clear missing-domain error.
   stem = local.scope == "workload" ? (
-    local.appcode == null ? "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.region}-${local.env}" : "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.appcode}-${local.region}-${local.env}"
+    var.workload_stem_include_domain ? (
+      local.appcode == null ? "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.region}-${local.env}" : "${coalesce(local.domain, "MISSING-DOMAIN")}-${local.appcode}-${local.region}-${local.env}"
+    ) : "${local.workload_token}-${local.region}-${local.env}"
   ) : "platform-${local.region}-${local.env}"
 
   st_suffix = var.storage_uniqueness == "" ? "" : substr(md5(var.storage_uniqueness), 0, 4)

@@ -47,6 +47,7 @@ mock_provider "tfe" {
     defaults = {
       nonsensitive_values = {
         contract_version                  = "0.1.0"
+        mandatory_tag_keys                = ["application", "environment", "owner", "cost_center"]
         log_analytics_workspace_id        = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/law"
         hub_virtual_network_id            = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
         hub_virtual_network_address_space = ["10.102.0.0/21"]
@@ -78,7 +79,6 @@ run "enabled_workspace_consumes_public_contracts" {
       appcode            = "orders"
       address_space      = ["10.200.0.0/20"]
       egress_next_hop_ip = "10.102.0.4"
-      operations         = { notification_emails = ["ops@example.com"], budget = { amount = 1000 } }
       subnets = {
         app               = { address_prefixes = ["10.200.0.0/24"] }
         private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
@@ -92,12 +92,16 @@ run "enabled_workspace_consumes_public_contracts" {
   assert {
     condition = (
       output.spoke.contract_version == "1.0.0" &&
+      toset(output.spoke.mandatory_tag_keys) == toset(["application", "environment", "owner", "cost_center"]) &&
+      output.spoke.log_analytics_workspace_id == output.spoke.diagnostic_ownership.workspace_id &&
+      toset(keys(output.spoke.resource_group_ids)) == toset(["network", "security", "application"]) &&
       output.spoke.attachment_contract.spoke_virtual_network_name == "orders-cus-prod-spoke-vnet" &&
       output.spoke.diagnostic_ownership.workspace_id == "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/law" &&
       output.spoke.security_baseline.flow_log_owner == "platform-policy" &&
       output.spoke.environment_profile.tier == "production" && output.spoke.environment_profile.alert_severity == 1 &&
-      output.spoke.application_services.application_resource_group_name == "internal-apps-orders-cus-prod-application-rg" &&
-      output.spoke.application_services.budget_start_date == "2026-10-01T00:00:00Z" && output.spoke.application_services.budget_amount == 1000
+      output.spoke.application_services.application_resource_group_name == "orders-cus-prod-app-rg" &&
+      output.spoke.application_services.budget_id == null && output.spoke.application_services.application_insights_id == null &&
+      toset(keys(output.spoke.resource_group_names)) == toset(["network", "security", "application"])
     )
     error_message = "The environment workspace must deploy the shared blueprint from non-sensitive platform contracts, preserving service ownership."
   }

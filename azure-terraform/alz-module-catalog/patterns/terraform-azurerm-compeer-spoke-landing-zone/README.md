@@ -7,6 +7,8 @@ association, peering, DNS-link, identity, diagnostics, monitoring, storage and
 budget modules. It does
 not copy the identity-specific names or invalid `scope = "identity"` from the
 supplied reference; naming scope is `workload`, and RG outputs are keyed maps.
+Source-to-code decisions, explicit holds and unresolved approval gates are in
+[DESIGN-ALIGNMENT.md](../../implementations/workload-lz/DESIGN-ALIGNMENT.md).
 
 Step 11.4 uses the separate reusable hub-spoke-peering Azure pattern, rather
 than copying its two peering resources into the blueprint. The older
@@ -17,8 +19,9 @@ and identity modules through parent-owned composition, not duplicate wrappers.
 
 ## What It Creates
 
-- Network, security, application and operations RGs in the workload subscription,
-  plus a data RG only when storage is requested, with approved generated
+- Network, security and app-purpose RGs in the workload subscription, with
+  an operations RG only for approved optional operations and a data RG only
+  when storage is requested, with approved generated
   names and mandatory tags. The shared root persists `created_on` with time_static.
 - One VNet and IPAM-supplied IPv4 subnets, addressed by stable logical keys.
   The private_endpoints subnet is mandatory, non-delegated and NSG-enforced.
@@ -27,8 +30,10 @@ and identity modules through parent-owned composition, not duplicate wrappers.
   private-vault HTTPS, load-balancer probes and hub-routed outbound HTTPS.
   Application-specific ports require explicit reviewed rules at priorities
   300-4000. Reserved baseline rules cannot be overwritten.
-- Explicit `default_outbound_access_enabled=false` and a default route through
-  an approved hub firewall/NVA IP. No public IP, NAT gateway, firewall, bastion,
+- Explicit `default_outbound_access_enabled=false`, disabled gateway BGP route
+  propagation, and default plus specific hub/approved remote-prefix routes
+  through the approved NVA. Sunstream traffic is denied at priority 100 before
+  application rules. No public IP, NAT gateway, firewall, bastion,
   VPN, Route Server or other duplicate hub services are created.
 - Both reciprocal hub peerings and a link to the EXISTING Key Vault private
   DNS zone, unless the central attachment state owns all three instead.
@@ -37,11 +42,13 @@ and identity modules through parent-owned composition, not duplicate wrappers.
   Administrator, Contributor or Owner.
 - Approved Reader/Contributor workload groups. Resource-lock creation and its
   input/output switch have been removed, not merely disabled.
-- Workspace-based Application Insights, Entra-only telemetry authentication,
+- Optional, default-OFF workspace-based Application Insights, Entra-only telemetry authentication,
   workload-scoped Monitoring Metrics Publisher, an operational action group (or
   approved existing groups), an application failure alert and a monthly budget
-  with 80/100% actual and 100% forecast notifications. The budget amount and real
-  recipients are mandatory approved inputs, not invented defaults.
+  with 80/100% actual and 100% forecast notifications. OBS-09/OBS-04 activation
+  examples are commented out in the roots. Budget ownership stays with governance
+  unless explicitly handed off; enabling one here requires approved amounts and
+  recipients and must not duplicate the onboarding baseline.
 - Optional private Blob accounts, each with its own PE, central zone registration,
   TLS 1.2, no shared keys/public access, versioning and soft deletion. Account
   metrics go on the account; read/write/delete logs go on blobServices/default.
@@ -83,7 +90,7 @@ Applications consume application_services, subnet_ids, key_vault,
 workload_identity and context. These are real resources/contracts, not a claim
 that the application runtime has already been deployed.
 
-The application team still configures telemetry SDK/agents, attaches/selects
+When telemetry is approved and enabled, the application team configures SDK/agents, attaches/selects
 the identity, and obtains approved Application Insights connection metadata.
 Entra authentication is mandatory; no instrumentation key or connection string
 is published in the public spoke contract. Public HTTPS ingestion/query is the
@@ -98,12 +105,81 @@ meet the production/non-production RPO/RTO. SQL/PaaS backups and restore drills
 remain with their workload patterns. Terraform removal stops VM protection and
 retains backup data in the supplied roots; it does not purge recovery points.
 
+## Useful Legacy Capabilities
+
+The compatibility workload-spoke pattern was reviewed for capabilities that fit
+this blueprint's existing ownership and security boundaries. The following
+optional inputs are retained without changing existing names or resource addresses:
+
+- Subnet rules accept source/destination port sets and existing application
+  security group IDs, using the same catalog NSG module as the legacy pattern.
+  Choose one singular/plural port form and one prefix/prefix-set/ASG form per
+  address side. An omitted source port still means `*`. Baseline rule names,
+  priorities, inspected egress and the Internet-wide inbound prohibition remain
+  enforced. ASGs are application-owned, must be in the workload subscription,
+  and their NIC membership must belong to this VNet; this blueprint does not
+  deploy compute or discover NIC membership.
+- Workload group grants can select `resource_group_keys` instead of every
+  blueprint RG. Only Reader/Contributor remain allowed. The optional `data`
+  key exists only when storage is requested. Omission preserves the previous
+  grant keys and all-RG behavior; explicitly narrowing a deployed grant revokes
+  its omitted assignments and must be reviewed in the plan.
+- `workload_tags.application_component` and `workload_tags.modified_on` use
+  the existing shared tag module and its validation. These values are optional
+  approved metadata, not generated timestamps; `created_on` remains persisted
+  by the deployment root and `created_by` stays Terraform.
+
+Example inside `workload_access_group_ids`:
+
+```hcl
+application_team = {
+  principal_id        = "REPLACE_APPROVED_GROUP_OBJECT_ID"
+  role                = "Contributor"
+  resource_group_keys = ["application"]
+}
+```
+
+Example custom subnet rule (inside an application subnet's `rules`):
+
+```hcl
+private_web = {
+  protocol                   = "Tcp"
+  destination_port_ranges    = ["443", "8443"]
+  source_address_prefix      = "10.102.0.0/21" # Replace with the approved source.
+  destination_address_prefix = "*"
+  access                     = "Allow"
+  priority                   = 300
+  direction                  = "Inbound"
+}
+```
+
+The legacy lock input, optional/less restrictive vault settings, one-way peering,
+arbitrary privileged roles and generic cross-owner diagnostic/private-endpoint
+deployment paths are deliberately not imported. Service-specific parent modules
+own application endpoints; platform policy owns Defender and VNet flow logging.
+
+## File Layout
+
+- `main.tf`: all provisioning module blocks and VM backup registration.
+- `locals.tf`: one locals block for names, profiles, networking and access maps.
+- `contracts.tf`: provider-context reads and network/capability contract checks.
+- `variables.tf`: all blueprint inputs and their validations.
+- `outputs.tf`: public consumer interfaces; held service IDs are null.
+- `moved.tf`: existing state-address migration declarations.
+
+This file-only reorganization does not change Terraform addresses. The legacy
+compatibility pattern and its deployments are not migrated or rewritten.
+
 ## Contract And Network Guards
 
 `platform` consumes ONLY public management/connectivity contract 0.1.0 fields:
 central LAW ID, hub VNet ID/ranges, existing vault/optional Blob private-zone IDs, DNS IPs, and
 an optional DDoS plan ID. Missing/changed contracts fail rather than omitting
 security resources. Explicit approved values are supported for isolated tests.
+The shared adapter also reads governance's non-sensitive mandatory_tag_keys,
+checks workload tags against that list, and republishes the keys with RG IDs
+and the LAW ID. Standalone compositions without that optional list use the
+shared tag module's standard. Applications do not need platform-state access.
 
 The provider aliases are `azurerm` (workload), `azurerm.connectivity` (hub) and
 `azurerm.dns` (actual zone subscription, which can differ from the hub).
@@ -114,6 +190,12 @@ IPAM reserved/on-prem ranges. This is not a global IPAM allocator: callers must
 provide the complete approved reserved-range inventory and a real next-hop IP.
 The next hop must be within the hub range. Actual firewall/NVA readiness and
 inspection rules are network-team dependencies; Terraform cannot infer them.
+Hub and Sunstream prefixes are inserted automatically into every spoke route table;
+Sunstream stays NSG-denied. Provide
+exact identity/on-prem/other-spoke `inspection_address_prefixes` from the approved
+route plan. The network owner must add reciprocal spoke routes to its hub tables
+and validate effective routes and symmetry. IPAM inventory and route intent are
+separate inputs; neither is discovered automatically.
 
 Central hybrid DNS is the default. An empty server list requires explicit
 `allow_azure_provided_dns=true`. Linking a private zone does not create a DNS
@@ -130,7 +212,8 @@ on-prem routes are being exchanged.
 | Configuration | Owner |
 | --- | --- |
 | Workload RGs, VNet, subnet NSGs/UDRs, identity, vault and AuditEvent setting | This workload state |
-| Application telemetry, alerts/budget, requested Blob accounts/diagnostics and explicit VM backup enrollments | This workload state |
+| Approved optional telemetry/alerts, requested Blob accounts/diagnostics and VM backup enrollments | This workload state |
+| Subscription budget | Governance baseline by default; this state only after explicit handoff |
 | Both peerings and required vault/Blob-zone VNet links | This state when manage_hub_attachment=true |
 | Same attachment resources | Central attachment state when manage_hub_attachment=false |
 | Central LAW, Sentinel, platform monitoring | platform-management |
@@ -176,13 +259,21 @@ test, uat or the approved np1/np2/np3 aliases, never prod.
 Do not point an existing legacy platform-workload-spoke state at this blueprint.
 The resource addresses, mandatory vault and RG layout differ. Existing workloads
 require a reviewed migration/state-move plan. The legacy pattern is unchanged.
+The new blueprint uses Appendix F `<app>-cus-<env>-<purpose>-rg` names, with
+`app` as the application RG purpose and `application` retained as its logical
+output/access key. This corrects the earlier domain-prefixed RGs. Existing
+spokes need a replacement/migration review, not a blind apply. Existing optional
+telemetry/alerts/budgets must retain explicit enable flags until an approved
+removal; disabling an existing resource plans deletion, not a pause.
 
 ## Tests
 
 `terraform test` uses mocked Azure providers but REAL catalog modules. It
 includes an apply-style composition test and negative cases for overlap,
 out-of-VNet subnets, wrong provider subscriptions, contract drift, Internet-wide
-inbound rules and bypass routes. Both environment roots test disabled placeholders
+inbound rules and bypass routes. It also covers real-module augmented NSG/ASG
+composition, invalid rule forms, scoped RG access, legacy default compatibility
+and optional standard tag metadata. Both environment roots test disabled placeholders
 and enabled public-contract consumption. The separate vault suite checks its
 observed security settings, private access, role scope and input validation.
 
@@ -190,6 +281,7 @@ The integration-tests directory contains a REAL Azure deployment fixture and
 run.sh. It is deliberately excluded from automatic mock tests. Read its README
 before opting in: it incurs costs, needs an isolated subscription and cannot
 prove private DNS or secret access from an unconnected public CI runner.
+The offline Python suite also checks the requested main/locals/contracts layout.
 
 ## Architecture References
 

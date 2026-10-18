@@ -289,3 +289,12 @@ Tests cover platform and workload context, region/environment/scope validation,
 approved and missing abbreviations, keyed resources, numeric Function App
 instances, collisions, invalid tokens, deterministic storage uniqueness, and
 Azure length and character limits.
+
+## New Workload Placement Compatibility
+
+New Appendix F workload roots can set `workload_stem_include_domain=false` so
+keyed resource groups use `<workload>-<region>-<env>-<purpose>-rg`, matching the
+refined placement sheet. The spoke blueprint opts in and supplies `app` as its
+application RG purpose. The default remains true for existing domain-prefixed
+consumers; changing a deployed caller can cause resource replacements and
+requires a reviewed migration. Platform naming is unaffected by this switch.

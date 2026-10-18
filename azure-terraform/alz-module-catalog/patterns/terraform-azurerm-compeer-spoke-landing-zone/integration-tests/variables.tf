@@ -30,10 +30,17 @@ variable "created_on" {
 variable "notification_email" {
   description = "Approved test notification recipient; never invent a client distribution list."
   type        = string
+  default     = null
 }
 variable "monthly_budget_amount" {
   description = "Approved isolated-subscription monthly budget in its billing currency; alerts do not limit charges."
   type        = number
+  default     = 0
+}
+variable "enable_optional_operations_test" {
+  description = "Explicit opt-in to test approved Phase 2 telemetry/alerts and a test-only subscription budget; false exercises the Phase 1 foundation."
+  type        = bool
+  default     = false
 }
 variable "enable_blob_storage_test" {
   description = "Exercise the optional private Blob capability and its observed control-plane recovery/diagnostic settings."

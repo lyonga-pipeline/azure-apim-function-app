@@ -37,6 +37,11 @@ variable "connectivity_workspace_name" {
   type        = string
   default     = "platform-connectivity"
 }
+variable "governance_workspace_name" {
+  description = "HCP producer of the approved mandatory-tag-key contract; onboarding remains owned there."
+  type        = string
+  default     = "platform-governance"
+}
 variable "platform_inputs" {
   description = "Explicit public-contract overrides for isolated deployment/tests; never secrets or full remote state."
   type        = any

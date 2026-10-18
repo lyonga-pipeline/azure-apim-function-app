@@ -38,6 +38,11 @@ variable "use_tfe_outputs" {
   type        = bool
   default     = true
 }
+variable "governance_workspace_name" {
+  description = "HCP producer of approved mandatory tag keys; subscription onboarding stays with governance."
+  type        = string
+  default     = "platform-governance"
+}
 variable "platform_inputs" {
   description = "Explicit approved public-contract values, useful for an isolated integration environment."
   type        = any

@@ -2,11 +2,11 @@
 
 NOT run by ordinary terraform test or pull-request CI. This fixture creates
 billable RGs, a hub/spoke, LAW, private DNS, private endpoints, identity,
-purge-protected vault, Application Insights, operational alerting/budget and a
+purge-protected vault, optional Application Insights/operational alerts/budget and a
 private Blob account in an explicitly supplied isolated subscription.
 It never reads client platform state or deploys into client hub/DNS resources.
 
-Prerequisites: Terraform >=1.7, Azure CLI, Python 3, approved authentication and
+Prerequisites: Terraform >=1.11.4 and <2, Azure CLI, Python 3, approved authentication and
 resource-provider/role-assignment permissions in the isolated test subscription.
 Use a persistent/protected runner workspace so a failed cleanup does not lose
 the Terraform state. Do not run simultaneously with the same run_id/state.
@@ -17,8 +17,10 @@ export TF_VAR_test_subscription_id='<ISOLATED_TEST_SUBSCRIPTION_UUID>'
 export TF_VAR_run_id='<UNIQUE_APPROVED_RUN_ID>'
 export TF_VAR_cost_center='<APPROVED_TEST_COST_CENTER>'
 export TF_VAR_created_on='<YYYY-MM-DD>'
-export TF_VAR_notification_email='<APPROVED_TEST_NOTIFICATION_EMAIL>'
-export TF_VAR_monthly_budget_amount='<APPROVED_POSITIVE_BILLING_CURRENCY_AMOUNT>'
+# Optional approved Phase 2 extension coverage (otherwise held/omitted):
+# export TF_VAR_enable_optional_operations_test=true
+# export TF_VAR_notification_email='<APPROVED_TEST_NOTIFICATION_EMAIL>'
+# export TF_VAR_monthly_budget_amount='<APPROVED_POSITIVE_BILLING_CURRENCY_AMOUNT>'
 bash run.sh
 ```
 
@@ -27,8 +29,10 @@ subnet defaults, NSG denies, route associations, reciprocal Connected peerings,
 approved PE/DNS-zone registration, central AuditEvent diagnostics and scoped
 workload identity role, then destroys resources even if a check fails. It does
 not mistake configured Terraform outputs for a successful Azure write path.
-It also reads actual Entra-only Application Insights, alert destinations,
-budget notifications and optional Blob security/recovery/diagnostic properties.
+It checks specific inspection routes and disabled gateway BGP propagation.
+When explicitly enabled, it also reads actual Entra-only Application Insights,
+alert destinations and budget notifications. Optional Blob security/recovery/
+diagnostic properties are checked independently.
 enable_blob_storage_test defaults true; false explicitly omits that capability.
 No VM or backup vault is created. VM backup enrollment is mock-tested against
 approved existing IDs; testing actual backup/restore requires a separately

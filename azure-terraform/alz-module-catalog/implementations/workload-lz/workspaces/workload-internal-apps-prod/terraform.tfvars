@@ -4,14 +4,17 @@
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"
+governance_workspace_name   = "REPLACE_GOVERNANCE_WORKSPACE"
 
 spoke = {
-  enabled                       = false
-  appcode                       = "REPLACE_APPROVED_APPCODE"
-  domain                        = "internal-apps"
-  location                      = "centralus"
-  address_space                 = ["REPLACE_IPAM_APPROVED_PROD_VNET_CIDR"]
-  reserved_address_spaces       = []
+  enabled                 = false
+  appcode                 = "REPLACE_APPROVED_APPCODE"
+  domain                  = "internal-apps"
+  location                = "centralus"
+  address_space           = ["REPLACE_IPAM_APPROVED_PROD_VNET_CIDR"]
+  reserved_address_spaces = []
+  # Complete approved remote prefixes before enabling; hub prefixes are automatic.
+  # inspection_address_prefixes = ["REPLACE_IDENTITY_ONPREM_OTHER_SPOKE_CIDRS"]
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IP"
   allow_azure_provided_dns      = false
   manage_hub_attachment         = true
@@ -43,24 +46,27 @@ spoke = {
     secret_officer_group_ids = {}
   }
   workload_access_group_ids = {}
-  operations = {
-    notification_emails = ["REPLACE_PRODUCTION_ONCALL_EMAIL"]
-    action_group_ids    = []
-    budget              = { amount = 0 } # REQUIRED: approved positive amount in billing currency.
-  }
-  monitoring = {
-    sampling_percentage      = 100
-    failed_request_threshold = 5 # Starting point; tune against the workload SLO.
-    # Entra-authenticated HTTPS, routed through hub egress. For private-only
-    # telemetry, first establish the centrally owned AMPLS/DNS path.
-    internet_ingestion_enabled = true
-    internet_query_enabled     = true
-    private_link_ready         = false
-  }
-  # Add only Blob stores the application actually needs. The production profile
-  # defaults each account to ZRS and 30-day Blob/container soft deletion.
-  storage_accounts = {}
-  # Existing VM IDs plus approved workload-subscription vault/policy; no empty
-  # backup vault or compute is deployed by this common mixed-workload template.
-  backup = null
+  # ON HOLD: OBS-09 and OBS-04 are Phase 2. R3.4 coverage is still a go-live
+  # gate; activation needs workload/SOC approval, SLOs, recipients and a tested
+  # network path. These examples are intentionally commented out, not deployed.
+  # monitoring = {
+  #   enabled                    = true
+  #   alerts_enabled             = true
+  #   sampling_percentage        = 100
+  #   failed_request_threshold   = 5
+  #   internet_ingestion_enabled = true
+  #   internet_query_enabled     = true
+  #   private_link_ready         = false
+  # }
+  # operations = {
+  #   notification_emails = ["REPLACE_PRODUCTION_ONCALL_EMAIL"]
+  #   action_group_ids    = []
+  #   # Budget remains in the governance subscription baseline. Only enable
+  #   # after handing ownership to this state; never create a second owner.
+  #   budget = { enabled = true, amount = 0 } # Replace with approved positive amount.
+  # }
+  # ON HOLD: WKL-05 data services until an actual workload requirement is approved.
+  # storage_accounts = { data = {} } # Production: ZRS, 30-day soft deletion.
+  # Existing compute + approved same-subscription RSV/policy are prerequisites.
+  # backup = { recovery_vault_id = "REPLACE", backup_policy_id = "REPLACE", virtual_machines = { app = "REPLACE" } }
 }

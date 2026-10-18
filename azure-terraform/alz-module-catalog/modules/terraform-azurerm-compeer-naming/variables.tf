@@ -59,6 +59,12 @@ variable "appcode" {
   }
 }
 
+variable "workload_stem_include_domain" {
+  description = "Compatibility switch: true preserves legacy domain-prefixed keyed names. New Appendix F workload roots use false for <workload>-<region>-<env> names. Review replacements before changing an existing deployment."
+  type        = bool
+  default     = true
+}
+
 variable "abbreviation" {
   description = "Optional approved short discriminator override for Key Vault/storage names. See README."
   type        = string

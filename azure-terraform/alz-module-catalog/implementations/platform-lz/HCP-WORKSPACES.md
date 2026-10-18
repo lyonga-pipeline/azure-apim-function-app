@@ -100,7 +100,7 @@ per approved application and actual environment; the names below are examples.
 
 | Workspace pattern | Working dir | Profile |
 |---|---|---|
-| `prod-compeer-lz-internalapps-<appcode>` | `workload-internal-apps-prod` | Production; WKL-01 blueprint, mandatory private vault/UAMI, central monitoring, operational budget/alerts and optional application storage/backup registration |
+| `prod-compeer-lz-internalapps-<appcode>` | `workload-internal-apps-prod` | Production; WKL-01 blueprint, mandatory private vault/UAMI and central diagnostics; Phase 2 telemetry/alerts/data services held; budget stays with governance unless handed off |
 | `<env>-compeer-lz-internalapps-<appcode>` | `workload-internal-apps-nonprod` | dev/test/uat/approved np aliases; same security baseline with different cost/resilience/alerting defaults |
 
 Both committed examples are disabled placeholders. Select Terraform **1.11.4**
@@ -112,7 +112,9 @@ the approved hub VNet/DNS zones; do not grant workload teams platform-project
 Write access merely to consume published resource IDs.
 
 For HCP output access, exact producer names must match the actual organization,
-for example platform-compeer-management and platform-compeer-connectivity.
+for example platform-compeer-management, platform-compeer-connectivity and
+platform-compeer-governance. The last supplies mandatory_tag_keys, which the
+spoke validates and republishes with the LAW/RG IDs for application consumers.
 The roots use tfe_outputs.nonsensitive_values, not terraform_remote_state.
 Configure the TFE provider with a valid, approved token with **Read outputs**
 access on those producer workspaces; keep the token sensitive and out of Git.

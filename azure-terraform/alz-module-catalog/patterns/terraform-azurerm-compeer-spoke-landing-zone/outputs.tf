@@ -4,8 +4,23 @@ output "contract_version" {
 }
 
 output "resource_group_names" {
-  description = "Workload network, security, application, operations and optional data RGs."
+  description = "Logical RG keys: network, security, application (app-rg), plus operations/data only when their optional services are approved."
   value       = module.resource_groups.group_names
+}
+
+output "resource_group_ids" {
+  description = "Application-consumable RG IDs keyed by logical purpose."
+  value       = module.resource_groups.group_ids
+}
+
+output "log_analytics_workspace_id" {
+  description = "Approved LAW passthrough so application roots do not need platform output/state access."
+  value       = var.platform.log_analytics_workspace_id
+}
+
+output "mandatory_tag_keys" {
+  description = "Approved governance keys passed through by the adapter; standalone compositions default to the shared tag module's standard."
+  value       = local.mandatory_tag_keys
 }
 
 output "spoke_virtual_network_id" {
@@ -66,6 +81,8 @@ output "security_baseline" {
     key_vault_purge_protection      = module.key_vault.security_configuration.purge_protection_enabled
     flow_log_owner                  = "platform-policy"
     defender_owner                  = "platform-policy"
+    inspection_address_prefixes     = local.inspection_address_prefixes
+    gateway_bgp_propagation_enabled = false
     nsg_ids                         = { for key, nsg in module.network_security_groups : key => nsg.id }
     route_table_ids                 = { for key, route in module.route_tables : key => route.id }
     vault_role_assignment_ids       = module.key_vault.role_assignment_ids
@@ -81,13 +98,13 @@ output "application_services" {
   description = "Consumer metadata for separately deployed mixed compute workloads. No instrumentation key or connection string is published here."
   value = {
     application_resource_group_name = module.resource_groups.group_names["application"]
-    application_insights_id         = module.application_insights.id
-    application_insights_name       = module.application_insights.name
+    application_insights_id         = try(module.application_insights[0].id, null)
+    application_insights_name       = try(module.application_insights[0].name, null)
     action_group_ids                = local.action_group_ids
-    budget_id                       = module.budget.id
-    budget_amount                   = var.operations.budget.amount
-    budget_start_date               = var.operations.budget.start_date
-    failed_requests_alert_id        = module.failed_requests_alert.id
+    budget_id                       = try(module.budget[0].id, null)
+    budget_amount                   = var.operations.budget.enabled ? var.operations.budget.amount : null
+    budget_start_date               = var.operations.budget.enabled ? var.operations.budget.start_date : null
+    failed_requests_alert_id        = try(module.failed_requests_alert[0].id, null)
     storage = { for key, account in module.storage : key => {
       id                        = account.id, name = account.name, blob_endpoint = account.primary_blob_endpoint,
       private_endpoint_id       = module.storage_endpoints[key].id,

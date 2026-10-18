@@ -1,7 +1,8 @@
 # Internal Applications Workload Landing Zones
 
 See [STEP11.md](STEP11.md) for all seven component mappings and the peering
-code/state ownership decision.
+code/state ownership decision. [DESIGN-ALIGNMENT.md](DESIGN-ALIGNMENT.md) records
+the actual v13/v4/refined-placement review, source conflicts and holds.
 
 | Ticket | Artifact |
 | --- | --- |
@@ -30,7 +31,7 @@ The HCP workspace catalog is [here](../platform-lz/HCP-WORKSPACES.md#step-11-wor
 
 The committed terraform.tfvars files intentionally have enabled=false. Replace:
 
-1. HCP organization and exact management/connectivity workspace names.
+1. HCP organization and exact management/connectivity/governance workspace names.
 2. Approved application code, application/owner, source repository, cost center,
    classification, criticality and DR requirements.
 3. IPAM-approved VNet/application/private-endpoint subnet CIDRs and the complete
@@ -39,11 +40,10 @@ The committed terraform.tfvars files intentionally have enabled=false. Replace:
    firewall next hop. Hybrid DNS IPs come from the connectivity contract unless
    explicitly overridden in platform_inputs.
 5. Approved operator/read groups and application ingress/inter-tier rules.
-6. Real per-environment operational recipients (or approved existing action-group
-   IDs) and approved positive monthly budget amounts. The committed zero amounts
-   deliberately fail validation if enabled unchanged. Budget currency follows
-   subscription billing; alerts do not cap charges. The shared root persists the
-   initial first-of-month start date; use an explicit valid date when required.
+6. If activating commented-out optional operations, provide approved recipients
+   (or existing action groups), actual SLO settings, and a positive budget only
+   after its governance ownership is explicitly handed off. OBS-09/OBS-04 remain
+   off by default; R3.4 production coverage still requires security sign-off.
 
 Set these as Terraform-category HCP variables, not secret values in tfvars:
 tenant_id, subscription_id, connectivity_subscription_id and (if different)
@@ -53,12 +53,19 @@ Do not grant full-state access just to obtain resource IDs. Setting
 use_tfe_outputs=false requires complete approved platform_inputs instead.
 
 tfe_outputs requires a valid approved HCP token with output-read access on the
-two producers; Azure dynamic credentials alone are not HCP API credentials.
+three producers; Azure dynamic credentials alone are not HCP API credentials.
 Keep any TFE_TOKEN sensitive and out of Git. Remote-state-sharing permissions
 do not apply to this data source, so do not broaden state sharing to troubleshoot
 empty outputs. Verify exact workspace names, token permissions, completed
 producer applies and non-sensitive root outputs instead. See
 [HashiCorp's distinction](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/state#data-source-configuration).
+
+The spoke republishes workload resource-group IDs, the approved LAW ID and
+governance mandatory_tag_keys for application roots. The governance list must
+be readable/non-empty (or supplied explicitly in platform_inputs), and all its
+keys must be present in workload tags. Applications need no platform-state read
+grant just to obtain these values. The standalone blueprint defaults to the
+shared tag module's standard when no governance list is supplied.
 
 Production is fixed to prod. Non-production defaults to dev and accepts test,
 uat and approved np1/np2/np3 aliases. Use a SEPARATE workspace/state per actual
@@ -125,11 +132,13 @@ Tune alert counts/sampling to actual application SLOs and use ZRS in staging
 when testing production resilience. KV purge protection, private endpoints,
 keyless storage, NSG/UDR enforcement and central security logging do not weaken.
 
-Always-created foundation: network/security/application/operations RGs,
+Always-created foundation: network/security/app-purpose RGs,
 VNet/subnets/NSGs/UDRs, hub/DNS attachments under the chosen owner, workload UAMI,
-private Key Vault, workspace-based Application Insights, operational alert route,
-failure alert and approved subscription budget. The existing central LAW,
+and private Key Vault with audit diagnostics. The existing central LAW,
 Sentinel, Defender/flow-log policies and hybrid shared services are reused.
+Application Insights/alerts are Phase 2 opt-ins; the operations RG exists only
+when optional operations are selected. The subscription budget remains with
+governance by default. Both roots comment out deferred activation examples.
 
 Enable optional Blob stores ONLY for an application that needs them:
 
@@ -155,7 +164,8 @@ vaults and compute remain owned by their existing deployment states.
 
 Mixed-workload compute, databases, ingress/WAF and service-specific data backups
 are intentionally separate application patterns. They consume spoke outputs;
-none is universally appropriate to deploy in an empty landing zone. Set up the
+none is universally appropriate to deploy in an empty landing zone. When approved
+telemetry is enabled, set up the
 application SDK/agents and managed-identity telemetry credential. Initial
 telemetry endpoints are Entra-authenticated public HTTPS via hub egress, not
 private-only AMPLS. A private-only mode requires the separately approved,

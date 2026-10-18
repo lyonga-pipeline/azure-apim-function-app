@@ -15,5 +15,6 @@ module "deployment" {
   tfe_organization            = var.tfe_organization
   management_workspace_name   = var.management_workspace_name
   connectivity_workspace_name = var.connectivity_workspace_name
+  governance_workspace_name   = var.governance_workspace_name
   platform_inputs             = var.platform_inputs
 }

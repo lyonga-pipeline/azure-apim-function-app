@@ -1,7 +1,39 @@
 # Verification Record
 
+## Current Design-Alignment Verification: 2026-10-17
+
+Checked the v13 design, v4 component workbook, refined placement worksheet,
+detailed network deployment document and IAC-10 contract draft. Traceability,
+holds, ownership and unresolved approvals are in [DESIGN-ALIGNMENT.md](DESIGN-ALIGNMENT.md).
+
+| Suite rerun | Result |
+| --- | --- |
+| Spoke blueprint: actual catalog composition with mocked providers | 60 passed |
+| Naming: legacy defaults plus Appendix F workload opt-in | 60 passed |
+| Production and nonproduction roots, including disabled placeholders and public governance/LAW/RG passthrough | 2 + 2 passed |
+| Separate workload Key Vault | 8 passed |
+| Reciprocal peering pattern | 10 passed |
+| Legacy workload-spoke compatibility | 6 passed |
+| Shared tags / NSG modules | 47 + 3 passed |
+| Offline integration verifier, live-deployment guard and file-layout tests | 24 passed |
+
+Total: **198 Terraform mock tests and 24 offline Python tests passed** on
+Terraform 1.11.4. Both workload roots and the isolated live fixture passed
+terraform validate with zero errors/warnings. Tests cover held-service omission,
+placement names, governance tag contracts, specific NVA routes, disabled BGP
+propagation, Sunstream isolation, duplicate-route rejection and optional-service
+security. Formatting, shell syntax and diff-whitespace checks were also run.
+
+No Azure apply or live data-plane/route/ingestion probe was performed. All client
+acceptance gates below remain pending; optional telemetry holds do not waive
+R3.4. Existing-state RG replacements and optional-resource removals require a
+reviewed HCP plan and migration, not an automatic apply.
+
+## Historical Verification: 2026-10-14
+
 Local verification completed on 2026-10-14. This is implementation/test evidence,
-not Azure deployment evidence or stakeholder acceptance sign-off.
+not Azure deployment evidence or stakeholder acceptance sign-off. The following
+counts describe that earlier snapshot, not the current results above.
 
 ## Results
 

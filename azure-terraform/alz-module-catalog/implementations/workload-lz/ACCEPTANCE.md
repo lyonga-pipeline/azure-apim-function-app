@@ -10,11 +10,11 @@ Locks remain deliberately absent. Do not add them as an acceptance prerequisite.
 | Gate | Required evidence / owner |
 | --- | --- |
 | Subscription | CSP supplies actual IDs; subscription-onboarding owns correct prod/non-prod MG placement and approved access. No subscription is created or moved by the spoke. |
-| Platform contracts | Successful management/connectivity applies; actual HCP names and scoped output-read access, or approved explicit inputs. Do not turn on full-state sharing for tfe_outputs. |
+| Platform contracts | Successful management/connectivity/governance applies; actual HCP names and scoped output-read access, or approved explicit inputs including mandatory_tag_keys. Do not turn on full-state sharing for tfe_outputs. |
 | NET-01 / IPAM | Approved VNet/subnet ranges plus complete relevant on-prem, reserved and other-spoke inventory. reserved_address_spaces=[] is not evidence of an overlap-free enterprise network; only supplied ranges and the published hub are checked. |
-| NET-02 / hub | Actual hub VNet, NVA frontend next hop, inspected egress and return-route readiness. A Route Server IP is not a firewall next hop. DNS zones/providers point to their actual subscription. |
+| NET-02 / hub | Actual hub VNet/NVA next hop, exact inspection_address_prefixes, disabled spoke BGP propagation, reciprocal hub routes, firewall/SNAT approval and return-path readiness. DNS zones/providers point to their actual subscription. |
 | IAC-07 / access | Approved deployment identity, workload/hub/DNS scope permissions and constrained RBAC-assignment rights; existing authorized runner for private data-plane checks. |
-| Operations | Real recipients and positive approved budget in billing currency. amount=0 deliberately blocks an unchanged enabled example. Confirm Cost Management/budget availability under the CSP offer. |
+| Operations | Governance owns the subscription baseline budget; confirm CSP support. Optional workload telemetry/alerts are held pending approval. If enabled, require real recipients/SLOs; a spoke budget requires explicit ownership handoff and positive approved amount. R3.4 go-live coverage remains mandatory regardless of phase holds. |
 | Policy | Approved applicable Defender/diagnostic/flow-log assignments and remediation permissions; platform-policy remains the owner. Read compliance after convergence, not just after assignment creation. |
 | Attachment | One state owns both peering directions and required DNS links. Use manage_hub_attachment=false only with an approved central attachment owner. |
 

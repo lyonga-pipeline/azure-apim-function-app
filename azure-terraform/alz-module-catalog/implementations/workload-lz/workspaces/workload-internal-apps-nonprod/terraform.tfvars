@@ -4,15 +4,18 @@
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"
+governance_workspace_name   = "REPLACE_GOVERNANCE_WORKSPACE"
 environment                 = "dev"
 
 spoke = {
-  enabled                       = false
-  appcode                       = "REPLACE_APPROVED_APPCODE"
-  domain                        = "internal-apps"
-  location                      = "centralus"
-  address_space                 = ["REPLACE_IPAM_APPROVED_NONPROD_VNET_CIDR"]
-  reserved_address_spaces       = []
+  enabled                 = false
+  appcode                 = "REPLACE_APPROVED_APPCODE"
+  domain                  = "internal-apps"
+  location                = "centralus"
+  address_space           = ["REPLACE_IPAM_APPROVED_NONPROD_VNET_CIDR"]
+  reserved_address_spaces = []
+  # Complete approved remote prefixes before enabling; hub prefixes are automatic.
+  # inspection_address_prefixes = ["REPLACE_IDENTITY_ONPREM_OTHER_SPOKE_CIDRS"]
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IP"
   allow_azure_provided_dns      = false
   manage_hub_attachment         = true
@@ -44,20 +47,23 @@ spoke = {
     secret_officer_group_ids = {}
   }
   workload_access_group_ids = {}
-  operations = {
-    notification_emails = ["REPLACE_NONPRODUCTION_TEAM_EMAIL"]
-    action_group_ids    = []
-    budget              = { amount = 0 } # REQUIRED: separate approved non-production amount.
-  }
-  monitoring = {
-    sampling_percentage        = 20
-    failed_request_threshold   = 20
-    internet_ingestion_enabled = true
-    internet_query_enabled     = true
-    private_link_ready         = false
-  }
-  # Non-production defaults to LRS and 7-day Blob/container soft deletion.
-  # Set replication_type="ZRS" for production-like staging/reliability tests.
-  storage_accounts = {}
-  backup           = null
+  # ON HOLD: OBS-09/OBS-04 Phase 2; activate only after workload/SOC approval.
+  # monitoring = {
+  #   enabled                    = true
+  #   alerts_enabled             = true
+  #   sampling_percentage        = 20
+  #   failed_request_threshold   = 20
+  #   internet_ingestion_enabled = true
+  #   internet_query_enabled     = true
+  #   private_link_ready         = false
+  # }
+  # operations = {
+  #   notification_emails = ["REPLACE_NONPRODUCTION_TEAM_EMAIL"]
+  #   action_group_ids    = []
+  #   # Governance owns the subscription budget unless explicitly handed off.
+  #   budget = { enabled = true, amount = 0 } # Approved positive amount required.
+  # }
+  # ON HOLD: WKL-05 until workload data requirements are approved.
+  # storage_accounts = { data = {} } # Nonprod: LRS, 7-day soft deletion.
+  # backup = { recovery_vault_id = "REPLACE", backup_policy_id = "REPLACE", virtual_machines = { app = "REPLACE" } }
 }

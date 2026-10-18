@@ -56,7 +56,7 @@ class ControlPlaneTests(unittest.TestCase):
             self.vault: {"properties": {"enableRbacAuthorization": True, "publicNetworkAccess": "Disabled", "enablePurgeProtection": True, "softDeleteRetentionInDays": 90, "networkAcls": {"defaultAction": "Deny", "bypass": "None"}}},
             self.subnet: {"properties": {"defaultOutboundAccess": False, "privateEndpointNetworkPolicies": "Enabled", "networkSecurityGroup": {"id": self.nsg}, "routeTable": {"id": self.route}, "addressPrefixes": ["10.251.1.0/27"]}},
             self.nsg: {"properties": {"securityRules": [{"properties": {"direction": direction, "access": "Deny", "priority": 4096}} for direction in ["Inbound", "Outbound"]]}},
-            self.route: {"properties": {"routes": [{"properties": {"addressPrefix": "0.0.0.0/0", "nextHopType": "VirtualAppliance", "nextHopIpAddress": "10.250.0.4"}}]}},
+            self.route: {"properties": {"disableBgpRoutePropagation": True, "routes": [{"properties": {"addressPrefix": "0.0.0.0/0", "nextHopType": "VirtualAppliance", "nextHopIpAddress": "10.250.0.4"}}]}},
             self.endpoint: {"properties": {"subnet": {"id": self.subnet}, "privateLinkServiceConnections": [{"properties": {"privateLinkServiceId": self.vault, "groupIds": ["vault"], "privateLinkServiceConnectionState": {"status": "Approved"}}}]}},
             self.endpoint + "/privateDnsZoneGroups/default": {"properties": {"privateDnsZoneConfigs": [{"properties": {"privateDnsZoneId": self.zone}}]}},
             self.zone + "/virtualNetworkLinks": {"value": [{"properties": {"virtualNetwork": {"id": self.spoke}, "registrationEnabled": False}}]},
@@ -76,6 +76,24 @@ class ControlPlaneTests(unittest.TestCase):
 
     def test_complete_observed_baseline_passes(self):
         self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
+
+    def test_phase_one_without_held_services_passes(self):
+        services = self.contract["application_services"]
+        for key in ("application_insights_id", "failed_requests_alert_id", "budget_id"):
+            services[key] = None
+        for resource_id in (self.insights, self.alert, self.budget):
+            del self.resources[resource_id]
+        verify_control_plane(self.contract, self.azure)
+
+    def test_missing_specific_inspection_route_fails(self):
+        self.contract["security_baseline"]["inspection_address_prefixes"] = ["10.250.0.0/24"]
+        with self.assertRaisesRegex(AssertionError, "10.250.0.0/24"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_learned_gateway_bypass_fails(self):
+        self.resources[self.route]["properties"]["disableBgpRoutePropagation"] = False
+        with self.assertRaisesRegex(AssertionError, "BGP bypass"):
+            verify_control_plane(self.contract, self.azure)
 
     def test_public_vault_fails(self):
         self.resources[self.vault]["properties"]["publicNetworkAccess"] = "Enabled"

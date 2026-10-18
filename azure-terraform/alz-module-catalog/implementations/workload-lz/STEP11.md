@@ -1,7 +1,9 @@
 # Step 11 Coverage And Architecture
 
-Reviewed against the supplied component-list screenshot and NET-22 / 204115
-acceptance criteria. All seven functions have code implementations and local
+Reviewed against the actual v13 design, v4 component workbook, refined resource
+placement sheet and NET-22 / 204115 acceptance criteria. See
+[DESIGN-ALIGNMENT.md](DESIGN-ALIGNMENT.md) for source rows, phase holds and conflicts.
+All seven Step 11 functions have code implementations and local
 tests. That is not client deployment, enterprise certification or ticket sign-off.
 
 | Step | Component | Implementation | Evidence |
@@ -12,7 +14,7 @@ tests. That is not client deployment, enterprise certification or ticket sign-of
 | 11.4 | NET-22 bidirectional peering | hub-spoke-peering pure Azure pattern, called by the blueprint or HCP adapter | Both directions, gateway pairing, names, subscription/tenant/DNS guards; optional live Connected checks |
 | 11.5 | NET-29 private endpoint pattern | Canonical private-endpoint module composed by the Key Vault/storage parents | Correct target, subnet, subresource and central zone-group wiring; no standalone duplicate PE state |
 | 11.6 | WKL-07 workload Key Vault | Separate workload-key-vault pattern, mandatory inside blueprint | Private-only RBAC vault, purge protection, central diagnostics and scoped service roles |
-| 11.7 | IAM-06 managed identity | Canonical user-assigned-identity module plus parent-owned role assignments | ID/client ID/principal outputs, vault-scoped Secrets User, component-scoped telemetry publishing; optional explicit Blob access |
+| 11.7 | IAM-06 managed identity | Canonical user-assigned-identity module plus parent-owned role assignments | ID/client ID/principal outputs, vault-scoped Secrets User; telemetry/Blob access only when their approved optional parent is enabled |
 
 The seven components do not need seven wrapper modules or seven workspaces.
 NET-29 follows the component list's intent: let the parent own its endpoint and
@@ -54,10 +56,11 @@ it does not authorize broad management of the hub or DNS subscription.
 
 ## Enterprise Controls And Boundaries
 
-- Existing management/connectivity output contracts only; no full state or
+- Existing management/connectivity/governance public output contracts only; no full state or
   sensitive-output fallback. The peering core itself needs no HCP provider/token.
-- Separate workload environments/subscriptions, tags, identities, access groups
-  and approved budgets; production resilience/alerting profiles with the same
+- Separate workload environments/subscriptions, tags, identities and access groups;
+  budgets remain in the governance subscription baseline unless handed off.
+  Production resilience/optional alerting profiles retain the same
   private/RBAC/security baseline in non-production.
 - Approved IPAM ranges, NSG/UDR on each subnet, explicit hub/NVA egress and DNS
   forwarding dependency. Gateway flags default off until network approval.
@@ -67,9 +70,10 @@ it does not authorize broad management of the hub or DNS subscription.
   owners. No duplicate hub appliances, bastion, security instance or DNS zones.
 - No workload resource locks. Mixed compute, ingress, database lifecycle and
   service-specific backups remain application-specific, as requested.
-- Application Insights public HTTPS ingestion/query is Entra-authenticated and
-  explicit in tfvars. Private-only telemetry needs the centrally approved AMPLS
-  path; this code does not pretend that path is already established.
+- OBS-09 Application Insights and OBS-04 workload alerts are off by default;
+  activation examples are commented out. Private-only telemetry needs the
+  centrally approved AMPLS path; that path is not created here. Phase holds do
+  not waive mandatory R3.4 production observability requirements.
 
 The legacy HCP network-peering adapter retains Azure names by default and has
 moved blocks for its internal module refactor. The new spoke also has moved
@@ -80,7 +84,8 @@ These declarations do not transfer ownership between separate state files.
 ## Remaining Acceptance Gates
 
 Committed examples stay disabled with placeholders. Supply approved IPAM,
-subscriptions, groups, budgets and recipients, then validate in an isolated or
+subscriptions and groups (plus approved budgets/recipients if activating those
+extensions), then validate in an isolated or
 approved staging environment. NET-22 acceptance requires both Connected
 peerings plus representative shared-service access, effective routes/firewall
 symmetry and hybrid DNS, not just two resource IDs. NET-29/IAM-06 acceptance

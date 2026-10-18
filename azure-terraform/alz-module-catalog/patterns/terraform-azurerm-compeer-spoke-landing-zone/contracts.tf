@@ -6,16 +6,6 @@ data "azurerm_client_config" "dns" {
   provider = azurerm.dns
 }
 
-locals {
-  # cidrhost parses IPv4; integer ranges allow complete containment/overlap checks, including differently sized prefixes.
-  cidrs = distinct(concat(var.address_space, var.platform.hub_address_space, var.reserved_address_spaces, flatten([for subnet in values(var.subnets) : subnet.address_prefixes])))
-  cidr_ranges = { for cidr in local.cidrs : cidr => {
-    first = try(sum([for i, octet in split(".", cidrhost(cidr, 0)) : parseint(octet, 10) * pow(256, 3 - i)]), 0)
-    last  = try(sum([for i, octet in split(".", cidrhost(cidr, -1)) : parseint(octet, 10) * pow(256, 3 - i)]), 0)
-  } }
-  subnet_prefixes  = flatten([for key, subnet in var.subnets : [for cidr in subnet.address_prefixes : { key = key, cidr = cidr }]])
-  egress_ip_number = try(sum([for i, octet in split(".", var.egress_next_hop_ip) : parseint(octet, 10) * pow(256, 3 - i)]), -1)
-}
 
 resource "terraform_data" "contracts" {
   input = {
@@ -24,6 +14,10 @@ resource "terraform_data" "contracts" {
     attachment_owner     = var.manage_hub_attachment ? "this-blueprint" : "central-attachment-workspace"
   }
   lifecycle {
+    precondition {
+      condition     = length(local.mandatory_tag_keys) > 0 && length(setsubtract(local.mandatory_tag_keys, toset(keys(module.tags.tags)))) == 0
+      error_message = "Workload tags must include every approved governance mandatory tag key; resolve metadata before deploying."
+    }
     precondition {
       condition     = var.platform.management_contract_version == "0.1.0" && var.platform.connectivity_contract_version == "0.1.0"
       error_message = "Management/connectivity must publish the supported 0.1.0 public contracts. Resolve output access/version drift rather than falling back silently."
@@ -71,6 +65,37 @@ resource "terraform_data" "contracts" {
     precondition {
       condition     = (length(var.platform.dns_server_ips) > 0 || var.allow_azure_provided_dns) && alltrue([for ip in var.platform.dns_server_ips : can(cidrnetmask("${ip}/32"))])
       error_message = "Supply approved hybrid DNS server IPs or explicitly approve allow_azure_provided_dns. Private zone links alone do not configure custom DNS forwarding."
+    }
+    precondition {
+      condition = alltrue(flatten([for cidr in local.inspection_address_prefixes : [for spoke in var.address_space :
+        local.cidr_ranges[cidr].last < local.cidr_ranges[spoke].first || local.cidr_ranges[cidr].first > local.cidr_ranges[spoke].last
+      ]])) && alltrue([for subnet in values(var.subnets) : !subnet.bgp_route_propagation_enabled])
+      error_message = "Inspection prefixes must not overlap this spoke. Disable gateway BGP propagation on spoke route tables so learned routes cannot bypass the approved hub NVA."
+    }
+  }
+}
+
+resource "terraform_data" "capability_contract" {
+  lifecycle {
+    precondition {
+      condition = length(var.storage_accounts) == 0 || (
+        can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.platform.storage_blob_private_dns_zone_id)) &&
+        try(lower(split("/", var.platform.storage_blob_private_dns_zone_id)[2]) == lower(data.azurerm_client_config.dns.subscription_id), false)
+      )
+      error_message = "Private Blob storage requires the actual existing central Blob DNS-zone ID and its correct DNS provider subscription."
+    }
+    precondition {
+      condition = !local.is_production || alltrue([for key in keys(var.storage_accounts) :
+        contains(["ZRS", "GZRS", "RAGZRS"], local.storage_replication[key]) && local.storage_retention[key] >= 30
+      ])
+      error_message = "This production profile requires zone-redundant storage and at least 30 days of Blob/container delete retention. Region/DR exceptions need a separately reviewed profile."
+    }
+    precondition {
+      condition = var.backup == null ? true : (
+        try(lower(split("/", var.backup.recovery_vault_id)[2]) == lower(var.subscription_id), false) &&
+        alltrue([for id in values(var.backup.virtual_machines) : try(lower(split("/", id)[2]) == lower(var.subscription_id), false)])
+      )
+      error_message = "VMs and their Recovery Services vault must belong to this workload subscription. Cross-subscription backup is not assumed."
     }
   }
 }
