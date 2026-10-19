@@ -50,6 +50,7 @@ spoke = {
   # ON HOLD: OBS-09/OBS-04 Phase 2; activate only after workload/SOC approval.
   # monitoring = {
   #   enabled                    = true
+  #   create_application_insights = true # Only if this application needs a NEW component.
   #   alerts_enabled             = true
   #   sampling_percentage        = 20
   #   failed_request_threshold   = 20
@@ -57,9 +58,14 @@ spoke = {
   #   internet_query_enabled     = true
   #   private_link_ready         = false
   # }
+  # To REUSE instead, omit create_application_insights and supply
+  # monitoring.existing_application_insights = { id = "REPLACE_COMPONENT_ARM_ID", workspace_id = "REPLACE_APPROVED_LAW_ARM_ID" }.
+  # Full mutually exclusive examples: ../../REUSE.md. A shared LAW is not a shared component.
   # operations = {
-  #   notification_emails = ["REPLACE_NONPRODUCTION_TEAM_EMAIL"]
-  #   action_group_ids    = []
+  #   platform_action_group_keys = ["primary"] # Reuse management's published group.
+  #   # Or supply action_group_ids = ["REPLACE_APPROVED_ACTION_GROUP_ARM_ID"].
+  #   # For a different application audience ONLY: remove the shared key and set
+  #   # create_action_group = true; notification_emails = ["REPLACE_NONPRODUCTION_TEAM_EMAIL"].
   #   # Governance owns the subscription budget unless explicitly handed off.
   #   budget = { enabled = true, amount = 0 } # Approved positive amount required.
   # }

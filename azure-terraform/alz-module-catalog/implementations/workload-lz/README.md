@@ -3,6 +3,8 @@
 See [STEP11.md](STEP11.md) for all seven component mappings and the peering
 code/state ownership decision. [DESIGN-ALIGNMENT.md](DESIGN-ALIGNMENT.md) records
 the actual v13/v4/refined-placement review, source conflicts and holds.
+See [REUSE.md](REUSE.md) for platform-service reuse, explicit creation choices
+and existing-deployment migration cautions.
 
 | Ticket | Artifact |
 | --- | --- |
@@ -40,8 +42,11 @@ The committed terraform.tfvars files intentionally have enabled=false. Replace:
    firewall next hop. Hybrid DNS IPs come from the connectivity contract unless
    explicitly overridden in platform_inputs.
 5. Approved operator/read groups and application ingress/inter-tier rules.
-6. If activating commented-out optional operations, provide approved recipients
-   (or existing action groups), actual SLO settings, and a positive budget only
+6. If activating commented-out optional operations, reuse approved platform
+   action-group keys/existing IDs, or explicitly authorize a new application
+   group with create_action_group=true and recipients. Explicitly create or
+   reuse the approved application/environment telemetry component, supply
+   actual SLO settings, and use a positive budget only
    after its governance ownership is explicitly handed off. OBS-09/OBS-04 remain
    off by default; R3.4 production coverage still requires security sign-off.
 
@@ -137,7 +142,14 @@ VNet/subnets/NSGs/UDRs, hub/DNS attachments under the chosen owner, workload UAM
 and private Key Vault with audit diagnostics. The existing central LAW,
 Sentinel, Defender/flow-log policies and hybrid shared services are reused.
 Application Insights/alerts are Phase 2 opt-ins; the operations RG exists only
-when optional operations are selected. The subscription budget remains with
+when a local telemetry component, action group or alert needs it. Reference-only
+telemetry and budget-only shared contacts need no empty operations RG.
+The adapter reads management's existing action_group_ids public output and
+defaults to primary only when published/enabled and no explicit ID/local-create
+choice is supplied. It does not modify shared contacts. Existing approved
+Application Insights components can be referenced without taking ownership or
+changing their settings; creation and delegated role management are explicit.
+The subscription budget remains with
 governance by default. Both roots comment out deferred activation examples.
 
 Enable optional Blob stores ONLY for an application that needs them:

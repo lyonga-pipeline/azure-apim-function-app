@@ -1,6 +1,41 @@
 # Verification Record
 
-## Current Design-Alignment Verification: 2026-10-17
+## Current Shared-Service Reuse Verification: 2026-10-19
+
+Updated the blueprint and both adapters to reference approved platform action
+groups and optionally reuse existing application/environment Application Insights
+components. Creation and delegated telemetry-role management are explicit;
+shared resource configuration remains with its original owner. See [REUSE.md](REUSE.md).
+
+| Suite rerun | Result |
+| --- | --- |
+| Spoke blueprint, actual catalog composition with mocked Azure | 72 passed |
+| Production / non-production roots, including public-output shared-service reuse | 3 + 3 passed |
+| Dedicated workload Key Vault / reciprocal peering | 8 + 10 passed |
+| Shared role assignments / action groups / Application Insights | 8 + 3 + 3 passed |
+| Shared metric alert / budget | 1 + 2 passed |
+| Offline integration verifier, deployment guard and file-layout checks | 29 passed |
+
+Total rerun: **113 Terraform mock tests and 29 offline Python tests passed** on
+Terraform 1.11.4. Both roots and the isolated fixture pass terraform validate
+without errors/warnings; scoped formatting, shell syntax and git diff --check
+also pass. Historical suites below not listed here were not rerun for this change.
+
+New coverage checks existing-ID/key reuse without duplicates, missing-key
+failure, explicit create requirements, conflicting create/reuse choices, wrong
+LAW/component IDs, externally owned telemetry with opt-in scoped access, and no
+unused contacts/operations RG. The offline verifier additionally rejects disabled
+groups, wrong alert-component scopes and wrong budget notification audiences,
+while preserving an existing telemetry owner's sampling choice.
+
+No Azure apply, state handoff, permission change, live notification or ingestion
+probe was performed. Mocked cross-subscription references do not establish live
+authorization or delivery. All client acceptance gates remain pending; held
+activation examples remain commented and both templates remain disabled.
+An existing owned component/group needs the documented explicit creation flags
+to retain ownership; changing it to reuse is not an automatic safe migration.
+
+## Historical Design-Alignment Verification: 2026-10-17
 
 Checked the v13 design, v4 component workbook, refined placement worksheet,
 detailed network deployment document and IAC-10 contract draft. Traceability,

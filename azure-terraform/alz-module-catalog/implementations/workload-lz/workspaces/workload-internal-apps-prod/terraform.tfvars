@@ -51,6 +51,7 @@ spoke = {
   # network path. These examples are intentionally commented out, not deployed.
   # monitoring = {
   #   enabled                    = true
+  #   create_application_insights = true # Only if this application needs a NEW component.
   #   alerts_enabled             = true
   #   sampling_percentage        = 100
   #   failed_request_threshold   = 5
@@ -58,9 +59,14 @@ spoke = {
   #   internet_query_enabled     = true
   #   private_link_ready         = false
   # }
+  # To REUSE instead, omit create_application_insights and supply
+  # monitoring.existing_application_insights = { id = "REPLACE_COMPONENT_ARM_ID", workspace_id = "REPLACE_APPROVED_LAW_ARM_ID" }.
+  # Full mutually exclusive examples: ../../REUSE.md. A shared LAW is not a shared component.
   # operations = {
-  #   notification_emails = ["REPLACE_PRODUCTION_ONCALL_EMAIL"]
-  #   action_group_ids    = []
+  #   platform_action_group_keys = ["primary"] # Reuse management's published group.
+  #   # Or supply action_group_ids = ["REPLACE_APPROVED_ACTION_GROUP_ARM_ID"].
+  #   # For a different application audience ONLY: remove the shared key and set
+  #   # create_action_group = true; notification_emails = ["REPLACE_PRODUCTION_ONCALL_EMAIL"].
   #   # Budget remains in the governance subscription baseline. Only enable
   #   # after handing ownership to this state; never create a second owner.
   #   budget = { enabled = true, amount = 0 } # Replace with approved positive amount.

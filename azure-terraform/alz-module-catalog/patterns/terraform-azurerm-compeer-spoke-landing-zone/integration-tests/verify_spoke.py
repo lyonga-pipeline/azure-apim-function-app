@@ -133,12 +133,18 @@ def verify_application_services(contract, get):
         insights = get(services["application_insights_id"], "2020-02-02")["properties"]
         require(insights.get("DisableLocalAuth") is True, "Application Insights local/key authentication is enabled")
         require(insights.get("WorkspaceResourceId", "").lower() == workspace_id.lower(), "Application Insights uses the wrong central workspace")
-        require(insights.get("SamplingPercentage") == profile["telemetry_sampling_percentage"], "Telemetry sampling differs from the resolved environment profile")
+        if services.get("application_insights_configuration_managed", True):
+            require(insights.get("SamplingPercentage") == profile["telemetry_sampling_percentage"], "Telemetry sampling differs from the resolved environment profile")
+
+    for group_id in services.get("action_group_ids", []):
+        group = get(group_id, "2023-01-01")["properties"]
+        require(group.get("enabled") is True, "An approved action group is disabled")
 
     if services.get("failed_requests_alert_id"):
         require(services.get("application_insights_id"), "Application alert requires enabled telemetry")
         alert = get(services["failed_requests_alert_id"], "2018-03-01")["properties"]
         require(alert.get("enabled") is True and alert.get("severity") == profile["alert_severity"], "Application failure alert is disabled or has the wrong severity")
+        require({scope.lower() for scope in alert.get("scopes", [])} == {services["application_insights_id"].lower()}, "Application alert targets the wrong telemetry component")
         destinations = {action.get("actionGroupId", "").lower() for action in alert.get("actions", [])}
         require(destinations and destinations == {item.lower() for item in services["action_group_ids"]}, "Application alert has missing/wrong destinations")
     if services.get("budget_id"):
@@ -147,7 +153,8 @@ def verify_application_services(contract, get):
         notifications = list(budget.get("notifications", {}).values())
         for threshold, kind in [(80, "Actual"), (100, "Actual"), (100, "Forecasted")]:
             require(any(item.get("enabled") is True and item.get("threshold") == threshold and item.get("thresholdType") == kind
-                        and item.get("contactGroups") for item in notifications), "Budget notification coverage is incomplete")
+                        and {group.lower() for group in item.get("contactGroups", [])} == {group.lower() for group in services["action_group_ids"]}
+                        and item.get("contactGroups") for item in notifications), "Budget notification coverage is incomplete or uses the wrong destinations")
 
     for key, account in services.get("storage", {}).items():
         observed = get(account["id"], "2023-05-01")

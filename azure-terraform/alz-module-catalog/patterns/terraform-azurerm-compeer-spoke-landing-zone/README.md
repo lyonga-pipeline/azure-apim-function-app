@@ -9,6 +9,8 @@ not copy the identity-specific names or invalid `scope = "identity"` from the
 supplied reference; naming scope is `workload`, and RG outputs are keyed maps.
 Source-to-code decisions, explicit holds and unresolved approval gates are in
 [DESIGN-ALIGNMENT.md](../../implementations/workload-lz/DESIGN-ALIGNMENT.md).
+Shared-service selection, exact create/reuse examples and existing-state
+migration cautions are in [REUSE.md](../../implementations/workload-lz/REUSE.md).
 
 Step 11.4 uses the separate reusable hub-spoke-peering Azure pattern, rather
 than copying its two peering resources into the blueprint. The older
@@ -42,9 +44,14 @@ and identity modules through parent-owned composition, not duplicate wrappers.
   Administrator, Contributor or Owner.
 - Approved Reader/Contributor workload groups. Resource-lock creation and its
   input/output switch have been removed, not merely disabled.
-- Optional, default-OFF workspace-based Application Insights, Entra-only telemetry authentication,
-  workload-scoped Monitoring Metrics Publisher, an operational action group (or
-  approved existing groups), an application failure alert and a monthly budget
+- Optional, default-OFF application telemetry: explicitly create workspace-based
+  Application Insights or reference an approved existing application/environment
+  component. New components use Entra-only authentication and scoped Monitoring
+  Metrics Publisher. Reused components remain externally owned, including their
+  identity grants unless explicitly delegated. Alerts reuse approved platform
+  action-group keys or existing IDs; new contacts require create_action_group=true
+  and recipients. No group is created without an alert/budget consumer. An
+  optional application failure alert and a monthly budget
   with 80/100% actual and 100% forecast notifications. OBS-09/OBS-04 activation
   examples are commented out in the roots. Budget ownership stays with governance
   unless explicitly handed off; enabling one here requires approved amounts and
@@ -94,10 +101,14 @@ When telemetry is approved and enabled, the application team configures SDK/agen
 the identity, and obtains approved Application Insights connection metadata.
 Entra authentication is mandatory; no instrumentation key or connection string
 is published in the public spoke contract. Public HTTPS ingestion/query is the
-explicit initial setting, reached through approved hub egress and authenticated
+explicit initial setting for NEW components, reached through approved hub egress and authenticated
 by Entra/RBAC. It is NOT private-only telemetry. Disable either endpoint only
 after the centrally owned AMPLS/private DNS path works and set private_link_ready.
 That declaration does not create or independently prove AMPLS connectivity.
+Reused components retain their owner's configuration; their actual workspace,
+Entra authentication and network/identity path require live verification.
+The central LAW can serve distinct components; do not combine unrelated apps
+or production/non-production telemetry simply to avoid a new component.
 
 Recovery is workload-specific: VM backup enrollment requires real VM/vault/policy
 IDs, proper backup permissions and region compatibility; approved policies must
@@ -174,7 +185,10 @@ compatibility pattern and its deployments are not migrated or rewritten.
 
 `platform` consumes ONLY public management/connectivity contract 0.1.0 fields:
 central LAW ID, hub VNet ID/ranges, existing vault/optional Blob private-zone IDs, DNS IPs, and
-an optional DDoS plan ID. Missing/changed contracts fail rather than omitting
+an optional DDoS plan ID, plus published action-group IDs for reuse. The shared
+adapter selects only management's enabled primary group by default; explicit
+IDs/local creation suppress that automatic audience selection. Missing selected
+keys fail; there is no fallback creation. Missing/changed contracts fail rather than omitting
 security resources. Explicit approved values are supported for isolated tests.
 The shared adapter also reads governance's non-sensitive mandatory_tag_keys,
 checks workload tags against that list, and republishes the keys with RG IDs
@@ -212,7 +226,8 @@ on-prem routes are being exchanged.
 | Configuration | Owner |
 | --- | --- |
 | Workload RGs, VNet, subnet NSGs/UDRs, identity, vault and AuditEvent setting | This workload state |
-| Approved optional telemetry/alerts, requested Blob accounts/diagnostics and VM backup enrollments | This workload state |
+| Explicitly created application telemetry, workload alerts, requested Blob accounts/diagnostics and VM backup enrollments | This workload state |
+| Reused Application Insights / action groups | Existing resource owner; spoke references IDs only; publishing grant only with explicit delegation |
 | Subscription budget | Governance baseline by default; this state only after explicit handoff |
 | Both peerings and required vault/Blob-zone VNet links | This state when manage_hub_attachment=true |
 | Same attachment resources | Central attachment state when manage_hub_attachment=false |

@@ -39,6 +39,8 @@ locals {
     dns_server_ips                   = try(var.platform_inputs.dns_server_ips, local.connectivity.dns_server_ips, [])
     ddos_protection_plan_id          = try(var.platform_inputs.ddos_protection_plan_id, local.connectivity.ddos_protection_plan_id, null)
     mandatory_tag_keys               = try(var.platform_inputs.mandatory_tag_keys, local.governance.mandatory_tag_keys, [])
+    # Disabled platform groups are not notification routes; never select a different audience implicitly.
+    action_group_ids = try(var.platform_inputs.action_group_ids, try(local.management.action_group_enabled, true) == false ? {} : try(local.management.action_group_ids, {}))
   }
 }
 
@@ -92,6 +94,10 @@ module "blueprint" {
   key_vault                     = try(var.configuration.key_vault, {})
   workload_access_group_ids     = try(var.configuration.workload_access_group_ids, {})
   operations = {
+    create_action_group = try(var.configuration.operations.create_action_group, false)
+    platform_action_group_keys = try(var.configuration.operations.platform_action_group_keys,
+      !try(var.configuration.operations.create_action_group, false) && length(try(var.configuration.operations.action_group_ids, [])) == 0 && contains(keys(local.platform.action_group_ids), "primary") ? ["primary"] : []
+    )
     notification_emails = try(var.configuration.operations.notification_emails, [])
     action_group_ids    = try(var.configuration.operations.action_group_ids, [])
     budget = {

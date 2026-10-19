@@ -59,8 +59,9 @@ variables {
   }
   egress_next_hop_ip = "10.102.0.4"
   # Explicitly exercise the opt-in Phase 2 extensions in this shared fixture.
-  monitoring = { enabled = true, alerts_enabled = true }
+  monitoring = { enabled = true, create_application_insights = true, alerts_enabled = true }
   operations = {
+    create_action_group = true
     notification_emails = ["workload-ops@example.com"]
     budget              = { enabled = true, amount = 1000, start_date = "2026-10-01T00:00:00Z" }
   }
@@ -79,6 +80,176 @@ variables {
     storage_blob_private_dns_zone_id = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
     dns_server_ips                   = ["10.102.0.10", "10.102.0.11"]
   }
+}
+
+run "reuse_explicit_action_group_without_local_contacts" {
+  command = apply
+  variables {
+    operations = { action_group_ids = ["/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/operations"] }
+  }
+  assert {
+    condition = (
+      length(module.alert_contacts) == 0 && length(output.application_services.created_action_group_ids) == 0 &&
+      output.application_services.action_group_ids == tolist(var.operations.action_group_ids) &&
+      one(local.action_group_ids) == one(var.operations.action_group_ids)
+    )
+    error_message = "An approved existing action group must be referenced, never recreated or assigned new recipients."
+  }
+}
+
+run "reuse_platform_action_group_by_contract_key" {
+  command = apply
+  variables {
+    operations = { platform_action_group_keys = ["primary"] }
+    platform = {
+      management_contract_version   = "0.1.0", connectivity_contract_version = "0.1.0"
+      log_analytics_workspace_id    = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      hub_virtual_network_id        = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
+      hub_address_space             = ["10.102.0.0/21"], dns_server_ips = ["10.102.0.10"]
+      key_vault_private_dns_zone_id = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+      action_group_ids              = { primary = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/platform" }
+    }
+  }
+  assert {
+    condition     = length(module.alert_contacts) == 0 && one(output.application_services.action_group_ids) == var.platform.action_group_ids.primary
+    error_message = "Management's named public action-group output must route alerts without a duplicate workload group."
+  }
+}
+
+run "missing_platform_group_never_falls_back_to_creation" {
+  command = plan
+  variables { operations = { platform_action_group_keys = ["not-published"] } }
+  expect_failures = [terraform_data.capability_contract]
+}
+
+run "emails_alone_never_authorize_group_creation" {
+  command = plan
+  variables { operations = { notification_emails = ["ops@example.com"] } }
+  expect_failures = [var.operations]
+}
+
+run "no_notification_resources_without_a_consumer" {
+  command = apply
+  variables {
+    monitoring = { enabled = true, create_application_insights = true }
+    operations = { create_action_group = true, notification_emails = ["ops@example.com"] }
+  }
+  assert {
+    condition     = length(module.alert_contacts) == 0 && length(module.failed_requests_alert) == 0 && length(module.budget) == 0 && length(output.application_services.action_group_ids) == 0
+    error_message = "Telemetry alone must not create an unused action group, alert or budget."
+  }
+}
+
+run "reuse_existing_application_component_without_taking_ownership" {
+  command = apply
+  variables {
+    operations = {}
+    monitoring = {
+      enabled = true
+      existing_application_insights = {
+        id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/components/approved-application"
+        workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      }
+    }
+  }
+  assert {
+    condition = (
+      length(module.application_insights) == 0 && length(module.telemetry_access.ids) == 0 &&
+      !contains(keys(output.resource_group_names), "operations") &&
+      output.application_services.application_insights_id == var.monitoring.existing_application_insights.id &&
+      output.application_services.application_insights_name == "approved-application" &&
+      output.application_services.application_insights_owner == "existing-resource-owner" &&
+      !output.application_services.application_insights_configuration_managed && !output.application_services.telemetry_access_managed
+    )
+    error_message = "Reuse must not create a second component, empty operations RG or unapproved role assignment."
+  }
+}
+
+run "reuse_component_with_explicitly_delegated_identity_access" {
+  command = apply
+  variables {
+    operations = {}
+    monitoring = {
+      enabled                          = true
+      manage_existing_telemetry_access = true
+      existing_application_insights = {
+        id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/components/approved-application"
+        workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      }
+    }
+  }
+  assert {
+    condition     = length(module.application_insights) == 0 && module.telemetry_access.assignments.workload.scope == var.monitoring.existing_application_insights.id && output.application_services.telemetry_access_managed
+    error_message = "Explicitly delegated access must target only the existing component, without managing its lifecycle."
+  }
+}
+
+run "rejects_telemetry_without_an_explicit_resource_decision" {
+  command = plan
+  variables { monitoring = { enabled = true } }
+  expect_failures = [var.monitoring]
+}
+
+run "shared_budget_contacts_need_no_empty_operations_group" {
+  command = apply
+  variables {
+    monitoring = {}
+    operations = {
+      action_group_ids = ["/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/operations"]
+      budget           = { enabled = true, amount = 1000, start_date = "2026-10-01T00:00:00Z" }
+    }
+  }
+  assert {
+    condition = (
+      length(module.budget) == 1 && length(module.alert_contacts) == 0 &&
+      !contains(keys(output.resource_group_names), "operations") &&
+      output.application_services.application_insights_id == null &&
+      length(output.application_services.action_group_ids) == 1
+    )
+    error_message = "A handed-off subscription budget must reuse its notification route without an unused operations RG or telemetry component."
+  }
+}
+
+run "rejects_workspace_id_used_as_telemetry_component" {
+  command = plan
+  variables {
+    monitoring = {
+      enabled = true
+      existing_application_insights = {
+        id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+        workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      }
+    }
+  }
+  expect_failures = [var.monitoring]
+}
+
+run "rejects_create_and_reuse_of_same_component" {
+  command = plan
+  variables {
+    monitoring = {
+      enabled = true, create_application_insights = true
+      existing_application_insights = {
+        id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/components/approved-application"
+        workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      }
+    }
+  }
+  expect_failures = [var.monitoring]
+}
+
+run "rejects_reuse_against_a_different_workspace" {
+  command = plan
+  variables {
+    monitoring = {
+      enabled = true
+      existing_application_insights = {
+        id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/components/approved-application"
+        workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/wrong-law"
+      }
+    }
+  }
+  expect_failures = [terraform_data.capability_contract]
 }
 
 run "legacy_augmented_rules_reuse_catalog_nsg_without_weakening_baseline" {
@@ -620,13 +791,13 @@ run "rejects_unroutable_operational_alerts" {
 
 run "rejects_unapproved_budget_placeholder" {
   command = plan
-  variables { operations = { notification_emails = ["ops@example.com"], budget = { enabled = true, amount = 0, start_date = "2026-10-01T00:00:00Z" } } }
+  variables { operations = { create_action_group = true, notification_emails = ["ops@example.com"], budget = { enabled = true, amount = 0, start_date = "2026-10-01T00:00:00Z" } } }
   expect_failures = [var.operations]
 }
 
 run "rejects_private_monitoring_without_ready_platform_path" {
   command = plan
-  variables { monitoring = { enabled = true, internet_ingestion_enabled = false } }
+  variables { monitoring = { enabled = true, create_application_insights = true, internet_ingestion_enabled = false } }
   expect_failures = [var.monitoring]
 }
 

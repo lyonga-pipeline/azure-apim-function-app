@@ -97,14 +97,18 @@ output "environment_profile" {
 output "application_services" {
   description = "Consumer metadata for separately deployed mixed compute workloads. No instrumentation key or connection string is published here."
   value = {
-    application_resource_group_name = module.resource_groups.group_names["application"]
-    application_insights_id         = try(module.application_insights[0].id, null)
-    application_insights_name       = try(module.application_insights[0].name, null)
-    action_group_ids                = local.action_group_ids
-    budget_id                       = try(module.budget[0].id, null)
-    budget_amount                   = var.operations.budget.enabled ? var.operations.budget.amount : null
-    budget_start_date               = var.operations.budget.enabled ? var.operations.budget.start_date : null
-    failed_requests_alert_id        = try(module.failed_requests_alert[0].id, null)
+    application_resource_group_name            = module.resource_groups.group_names["application"]
+    application_insights_id                    = local.application_insights_id
+    application_insights_name                  = local.application_insights_name
+    application_insights_owner                 = !var.monitoring.enabled ? null : local.create_application_insights ? "this-workload-state" : "existing-resource-owner"
+    telemetry_access_managed                   = local.manage_telemetry_access
+    application_insights_configuration_managed = local.create_application_insights
+    action_group_ids                           = local.action_group_ids
+    created_action_group_ids                   = [for group in module.alert_contacts : group.id]
+    budget_id                                  = try(module.budget[0].id, null)
+    budget_amount                              = var.operations.budget.enabled ? var.operations.budget.amount : null
+    budget_start_date                          = var.operations.budget.enabled ? var.operations.budget.start_date : null
+    failed_requests_alert_id                   = try(module.failed_requests_alert[0].id, null)
     storage = { for key, account in module.storage : key => {
       id                        = account.id, name = account.name, blob_endpoint = account.primary_blob_endpoint,
       private_endpoint_id       = module.storage_endpoints[key].id,

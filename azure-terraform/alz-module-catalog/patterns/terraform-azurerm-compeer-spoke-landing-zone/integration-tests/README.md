@@ -33,6 +33,11 @@ It checks specific inspection routes and disabled gateway BGP propagation.
 When explicitly enabled, it also reads actual Entra-only Application Insights,
 alert destinations and budget notifications. Optional Blob security/recovery/
 diagnostic properties are checked independently.
+It also checks that referenced action groups are enabled. When run against
+approved contracts referencing existing telemetry, workspace/authentication
+checks still apply but sampling remains with that resource's owner. The isolated
+fixture exercises creation; mocked root tests exercise cross-subscription ID
+reuse. Neither is evidence of shared client permissions or real alert delivery.
 enable_blob_storage_test defaults true; false explicitly omits that capability.
 No VM or backup vault is created. VM backup enrollment is mock-tested against
 approved existing IDs; testing actual backup/restore requires a separately

@@ -395,6 +395,8 @@ policy = {
     management_group_key = "compeer-enterprise-mg"
     location             = "centralus"
     # Existing-resource remediation is opt-in, bounded, and separately approved.
+    # remediation-example.tf adds a separate subscription-targeted backfill input;
+    # keep this manual task map and the existing assignments intact.
     tasks = {}
     dine_assignments = {
       app_service_diagnostics = {

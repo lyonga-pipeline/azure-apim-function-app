@@ -68,6 +68,10 @@ it does not authorize broad management of the hub or DNS subscription.
   group, central diagnostics and exact-resource ownership metadata.
 - Central LAW/Sentinel/Defender/flow-log policies remain with existing platform
   owners. No duplicate hub appliances, bastion, security instance or DNS zones.
+- Shared action groups are referenced from management's public output or approved
+  IDs. A new application group/component requires explicit creation; an existing
+  approved application/environment telemetry component can be referenced without
+  owning its configuration or grants. See [REUSE.md](REUSE.md).
 - No workload resource locks. Mixed compute, ingress, database lifecycle and
   service-specific backups remain application-specific, as requested.
 - OBS-09 Application Insights and OBS-04 workload alerts are off by default;

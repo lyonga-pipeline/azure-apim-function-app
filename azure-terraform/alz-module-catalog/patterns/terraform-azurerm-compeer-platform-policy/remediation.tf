@@ -34,7 +34,7 @@ resource "azurerm_role_assignment" "remediation" {
 
 # Existing resources are remediated only by an explicitly approved task.
 resource "azurerm_management_group_policy_remediation" "task" {
-  for_each = local.rem_enabled ? var.remediation.tasks : {}
+  for_each = { for key, task in var.remediation.tasks : key => task if local.rem_enabled && task.subscription_id == null }
 
   name                           = each.key
   management_group_id            = try(local.remediation_assignments_input["rem-${each.value.assignment_key}"].management_group_id, null)
@@ -47,17 +47,40 @@ resource "azurerm_management_group_policy_remediation" "task" {
 
   lifecycle {
     precondition {
-      condition     = contains(keys(local.rem_assignments), each.value.assignment_key)
-      error_message = "Remediation task assignment_key must identify an enabled DINE assignment."
+      condition     = local.remediation_task_contracts[each.key].assignment_enabled
+      error_message = "Remediation task assignment_key must identify an enabled, enforcing DINE assignment."
     }
     precondition {
-      condition = try(
-        contains(["DeployIfNotExists", "Modify"], coalesce(try(local.rem_assignments[each.value.assignment_key].parameters.effect.value, null), "DeployIfNotExists")) &&
-        length(local.rem_assignments[each.value.assignment_key].role_definition_ids) > 0 &&
-        ((try(local.rem_assignments[each.value.assignment_key].policy_set_definition_id, null) == null && try(local.rem_assignments[each.value.assignment_key].policy_set_definition_key, null) == null) ||
-        length(trimspace(coalesce(each.value.policy_definition_reference_id, " "))) > 0), false
-      )
+      condition     = local.remediation_task_contracts[each.key].deployment_allowed
       error_message = "Tasks require an active assignment with remediation RBAC; initiative tasks also require a policy_definition_reference_id."
+    }
+  }
+
+  depends_on = [azurerm_role_assignment.remediation]
+}
+
+# Reuse inherited MG assignments, but remediate only the explicitly selected subscription.
+resource "azurerm_subscription_policy_remediation" "task" {
+  for_each = { for key, task in var.remediation.tasks : key => task if local.rem_enabled && task.subscription_id != null }
+
+  name                           = each.key
+  subscription_id                = each.value.subscription_id
+  policy_assignment_id           = try(module.policy.management_group_assignment_ids["rem-${each.value.assignment_key}"], null)
+  policy_definition_reference_id = each.value.policy_definition_reference_id
+  location_filters               = each.value.location_filters
+  resource_discovery_mode        = each.value.resource_discovery_mode
+  resource_count                 = each.value.resource_count
+  parallel_deployments           = each.value.parallel_deployments
+  failure_percentage             = each.value.failure_percentage
+
+  lifecycle {
+    precondition {
+      condition     = local.remediation_task_contracts[each.key].assignment_enabled && local.remediation_task_contracts[each.key].deployment_allowed
+      error_message = "A subscription task requires an enabled, enforcing DINE/Modify assignment, remediation RBAC and a verified child reference for an initiative."
+    }
+    precondition {
+      condition     = local.remediation_task_contracts[each.key].subscription_not_excluded
+      error_message = "This subscription is explicitly excluded from the selected assignment. Keep directly managed Defender/diagnostic ownership outside Policy backfill."
     }
   }
 

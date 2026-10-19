@@ -203,6 +203,8 @@ locals {
         try(local.network_flow_logging_policy.location, null),
         var.location
       )
+      # Backfill is opt-in and must not replace existing approved tasks or assignments.
+      tasks = merge(try(var.policy.remediation.tasks, {}), local.existing_resource_tasks)
     },
     {
       dine_assignments = merge(

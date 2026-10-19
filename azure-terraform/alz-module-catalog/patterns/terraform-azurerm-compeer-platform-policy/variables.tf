@@ -166,9 +166,12 @@ variable "remediation" {
     # unrelated assignment parameter values into one common map element type.
     dine_assignments = optional(any, {})
     tasks = optional(map(object({
-      assignment_key                 = string
+      assignment_key = string
+      # Null preserves existing MG-scoped task addresses; an ID confines a backfill to one subscription.
+      subscription_id                = optional(string)
       policy_definition_reference_id = optional(string)
       location_filters               = optional(list(string))
+      resource_discovery_mode        = optional(string, "ExistingNonCompliant")
       resource_count                 = optional(number, 100)
       parallel_deployments           = optional(number, 5)
       failure_percentage             = optional(number, 0.1)
@@ -206,5 +209,23 @@ variable "remediation" {
       task.failure_percentage >= 0 && task.failure_percentage <= 1
     ])
     error_message = "Remediation tasks require integer resource_count 1-50000, integer parallel_deployments 1-30, and failure_percentage 0-1."
+  }
+
+  validation {
+    condition = alltrue([for task in values(var.remediation.tasks) :
+      task.subscription_id == null ? true : (
+        can(regex("(?i)^/subscriptions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$", task.subscription_id)) &&
+        lower(task.subscription_id) != "/subscriptions/00000000-0000-0000-0000-000000000000"
+      )
+    ])
+    error_message = "A subscription-scoped task requires a nonzero full /subscriptions/<UUID> ID, not a display name or placeholder."
+  }
+
+  validation {
+    condition = alltrue([for task in values(var.remediation.tasks) :
+      contains(["ExistingNonCompliant", "ReEvaluateCompliance"], task.resource_discovery_mode) &&
+      (task.subscription_id != null || task.resource_discovery_mode == "ExistingNonCompliant")
+    ])
+    error_message = "Use ExistingNonCompliant or ReEvaluateCompliance. AzureRM MG-scoped tasks support only ExistingNonCompliant; use a subscription task for a fresh scan."
   }
 }

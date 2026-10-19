@@ -66,6 +66,7 @@ variable "platform" {
     dns_server_ips                   = optional(list(string), [])
     ddos_protection_plan_id          = optional(string)
     mandatory_tag_keys               = optional(set(string))
+    action_group_ids                 = optional(map(string), {})
   })
 }
 
@@ -254,10 +255,12 @@ variable "workload_access_group_ids" {
 }
 
 variable "operations" {
-  description = "Optional workload operations. Subscription budgets default off (governance owns onboarding); enable only after an explicit ownership handoff, never in two states."
+  description = "Reuse approved platform action-group keys or explicit IDs. A new application action group requires create_action_group=true and recipients. Subscription budgets remain off unless ownership is handed off."
   type = object({
-    notification_emails = optional(set(string), [])
-    action_group_ids    = optional(set(string), [])
+    create_action_group        = optional(bool, false)
+    platform_action_group_keys = optional(set(string), [])
+    notification_emails        = optional(set(string), [])
+    action_group_ids           = optional(set(string), [])
     budget = optional(object({
       enabled    = optional(bool, false)
       amount     = optional(number, 0)
@@ -267,11 +270,12 @@ variable "operations" {
   default = {}
   validation {
     condition = (
-      (!(var.monitoring.alerts_enabled || var.operations.budget.enabled) || length(var.operations.notification_emails) + length(var.operations.action_group_ids) > 0) &&
+      (var.operations.create_action_group ? length(var.operations.notification_emails) > 0 : length(var.operations.notification_emails) == 0) &&
+      (!(var.monitoring.alerts_enabled || var.operations.budget.enabled) || var.operations.create_action_group || length(var.operations.action_group_ids) + length(var.operations.platform_action_group_keys) > 0) &&
       alltrue([for email in var.operations.notification_emails : can(regex("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", email)) && !strcontains(lower(email), "replace")]) &&
       alltrue([for id in var.operations.action_group_ids : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Insights/actionGroups/[^/]+$", id))])
     )
-    error_message = "Provide approved, real notification emails and/or existing action-group ARM IDs; placeholders cannot receive operational alerts."
+    error_message = "Reuse approved action-group keys/IDs, or explicitly enable create_action_group with real recipients. Emails alone never authorize creation; enabled alerts/budgets require a route."
   }
   validation {
     condition     = !var.operations.budget.enabled || (var.operations.budget.amount > 0 && can(regex("^[0-9]{4}-[0-9]{2}-01T00:00:00Z$", var.operations.budget.start_date)) && can(formatdate("YYYY-MM-DD", var.operations.budget.start_date)))
@@ -280,25 +284,38 @@ variable "operations" {
 }
 
 variable "monitoring" {
-  description = "Workspace-based application telemetry. Tune sampling/failure thresholds to the actual SLO; private-only endpoints require the separately owned Azure Monitor Private Link path."
+  description = "Optional application telemetry: explicitly create a component or reuse an approved existing component/LAW pair. Reused resources remain externally owned; role assignment on them requires explicit opt-in."
   type = object({
-    enabled                    = optional(bool, false)
-    alerts_enabled             = optional(bool, false)
-    sampling_percentage        = optional(number)
-    failed_request_threshold   = optional(number)
-    internet_ingestion_enabled = optional(bool, true)
-    internet_query_enabled     = optional(bool, true)
-    private_link_ready         = optional(bool, false)
+    enabled                     = optional(bool, false)
+    create_application_insights = optional(bool, false)
+    existing_application_insights = optional(object({
+      id           = string
+      workspace_id = string
+    }))
+    manage_existing_telemetry_access = optional(bool, false)
+    alerts_enabled                   = optional(bool, false)
+    sampling_percentage              = optional(number)
+    failed_request_threshold         = optional(number)
+    internet_ingestion_enabled       = optional(bool, true)
+    internet_query_enabled           = optional(bool, true)
+    private_link_ready               = optional(bool, false)
   })
   default = {}
   validation {
     condition = (
+      !(var.monitoring.create_application_insights && var.monitoring.existing_application_insights != null) &&
+      (!var.monitoring.enabled || var.monitoring.create_application_insights || var.monitoring.existing_application_insights != null) &&
+      (!var.monitoring.manage_existing_telemetry_access || (var.monitoring.enabled && var.monitoring.existing_application_insights != null)) &&
       (!var.monitoring.alerts_enabled || var.monitoring.enabled) &&
       (var.monitoring.sampling_percentage == null ? true : var.monitoring.sampling_percentage > 0 && var.monitoring.sampling_percentage <= 100) &&
       (var.monitoring.failed_request_threshold == null ? true : var.monitoring.failed_request_threshold > 0) &&
-      (!var.monitoring.enabled || (var.monitoring.internet_ingestion_enabled && var.monitoring.internet_query_enabled) || var.monitoring.private_link_ready)
+      (!var.monitoring.enabled || !var.monitoring.create_application_insights || (var.monitoring.internet_ingestion_enabled && var.monitoring.internet_query_enabled) || var.monitoring.private_link_ready)
     )
-    error_message = "Alerts require enabled telemetry. Use valid sampling/thresholds; enabled private-only telemetry requires a working approved central Azure Monitor Private Link/DNS path."
+    error_message = "Enabled telemetry requires either explicit creation or an existing component, never both. Alerts require telemetry; existing-role management requires reuse. Created private-only telemetry needs an approved AMPLS/DNS path and valid sampling/thresholds."
+  }
+  validation {
+    condition     = var.monitoring.existing_application_insights == null ? true : length(regexall("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Insights/components/[^/]+$", var.monitoring.existing_application_insights.id)) > 0
+    error_message = "Existing Application Insights requires its actual component ARM ID; a LAW ID is not an Application Insights component."
   }
 }
 

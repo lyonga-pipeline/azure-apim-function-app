@@ -35,6 +35,11 @@ control. These supersede `compeer-alz-avm/stacks/{07-identity-groups,
 
 Each root has its own `terraform.tfvars.example` and should be attached to a distinct HCP Terraform workspace working directory.
 
+For opt-in backfill of existing subscriptions after the DINE rollout, see
+[platform-policy/remediation-example.tf](workspaces/platform-policy/remediation-example.tf).
+It reuses existing assignments and keeps targets empty until explicit approval;
+the comments explain the related implementation changes and rollout checks.
+
 ## Dependency Model
 
 Dependent roots consume approved outputs with the HCP Terraform `tfe_outputs` data source, or through explicit IDs supplied as workspace variables. Do not use broad remote-state access for normal dependencies.

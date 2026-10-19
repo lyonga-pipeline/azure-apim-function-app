@@ -30,5 +30,5 @@ module "policy" {
   private_only_connectivity           = try(var.policy.private_only_connectivity, {})
   remediation                         = local.remediation
 
-  depends_on = [terraform_data.enterprise_policy_contract]
+  depends_on = [terraform_data.enterprise_policy_contract, terraform_data.existing_resource_remediation_contract]
 }

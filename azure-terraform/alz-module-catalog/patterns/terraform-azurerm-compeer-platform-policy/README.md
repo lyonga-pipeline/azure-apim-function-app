@@ -118,6 +118,19 @@ Before enabling a remediation policy:
 
 `remediation.tasks` defaults to `{}`. Each opted-in task references an enabled assignment by key, has bounded resource count/concurrency/failure threshold, and depends on remediation RBAC. Initiative tasks require a verified `policy_definition_reference_id`; use one task per selected child. Apply assignments/RBAC first, allow permissions to propagate, trigger a compliance scan, then approve a separate task change. AzureRM 4.x management-group remediation uses existing compliance results, not a `resource_discovery_mode` argument. A completed task is not a recurring controller: a fresh approved task name is needed for another run. Disabled or audit-only assignments cannot receive these tasks. See [Microsoft's remediation workflow](https://learn.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources).
 
+For a bounded subscription pilot, add subscription_id = "/subscriptions/<UUID>"
+to a task. It reuses this pattern's existing inherited MG assignment and identity;
+no duplicate policy assignment or subscription pricing resource is created.
+Subscription tasks optionally accept resource_discovery_mode =
+"ReEvaluateCompliance" for a fresh scan, or "ExistingNonCompliant" (default).
+An explicitly excluded subscription, non-enforcing/audit assignment, or initiative
+without a verified child reference is rejected. Azure must also verify that the
+assignment actually applies to the selected subscription through MG ancestry;
+these inputs cannot discover live hierarchy/exemptions or prove RBAC propagation.
+Existing tasks with no subscription_id retain their MG resource addresses and
+behavior. remediation_task_ids includes both task kinds. See the runnable
+[implementation example](../../implementations/platform-lz/workspaces/platform-policy/remediation-example.tf).
+
 Policy-created settings are expected only in Policy-owned scopes. Naming prevents name collisions, not duplicate ingestion; explicit scope boundaries prevent concurrent writers. When a workspace adopts diagnostics, exclude that scope first and import the existing setting into its designated Terraform address, or remove the duplicate only after verifying ingestion through the intended setting. Never use blanket `ignore_changes` to hide conflicting ownership. See the deployable root README for the ownership and rollout checklist.
 
 ## Exemptions

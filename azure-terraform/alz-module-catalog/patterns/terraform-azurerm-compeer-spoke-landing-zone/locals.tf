@@ -1,8 +1,11 @@
 locals {
-  is_production       = var.environment == "prod"
-  operations_enabled  = var.monitoring.enabled || var.operations.budget.enabled
-  mandatory_tag_keys  = var.platform.mandatory_tag_keys == null ? toset(module.tags.mandatory_keys) : var.platform.mandatory_tag_keys
-  resource_group_keys = concat(["network", "security", "application"], local.operations_enabled ? ["operations"] : [], length(var.storage_accounts) > 0 ? ["data"] : [])
+  is_production               = var.environment == "prod"
+  notification_required       = var.monitoring.alerts_enabled || var.operations.budget.enabled
+  create_action_group         = local.notification_required && var.operations.create_action_group
+  create_application_insights = var.monitoring.enabled && var.monitoring.create_application_insights
+  operations_enabled          = local.create_application_insights || local.create_action_group || var.monitoring.alerts_enabled
+  mandatory_tag_keys          = var.platform.mandatory_tag_keys == null ? toset(module.tags.mandatory_keys) : var.platform.mandatory_tag_keys
+  resource_group_keys         = concat(["network", "security", "application"], local.operations_enabled ? ["operations"] : [], length(var.storage_accounts) > 0 ? ["data"] : [])
   # Preserve consumer keys while matching the refined placement sheet's app-rg purpose.
   resource_group_purposes = { for key in local.resource_group_keys : key => key == "application" ? "app" : key }
   environment_profile = {
@@ -101,8 +104,18 @@ locals {
     default-egress = { address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = var.egress_next_hop_ip }
   }) }
 
-  workload_stem    = trimsuffix(module.naming.workload_vnet, "-spoke-vnet")
-  action_group_ids = local.operations_enabled ? concat(tolist(var.operations.action_group_ids), [for group in module.alert_contacts : group.id]) : []
+  workload_stem = trimsuffix(module.naming.workload_vnet, "-spoke-vnet")
+  action_group_ids = local.notification_required ? distinct(concat(
+    [for key in var.operations.platform_action_group_keys : lookup(var.platform.action_group_ids, key, null) if contains(keys(var.platform.action_group_ids), key)],
+    tolist(var.operations.action_group_ids), [for group in module.alert_contacts : group.id]
+  )) : []
+  application_insights_id = var.monitoring.enabled ? (
+    var.monitoring.existing_application_insights == null ? try(module.application_insights[0].id, null) : var.monitoring.existing_application_insights.id
+  ) : null
+  application_insights_name = var.monitoring.enabled ? (
+    var.monitoring.existing_application_insights == null ? try(module.application_insights[0].name, null) : try(split("/", var.monitoring.existing_application_insights.id)[8], null)
+  ) : null
+  manage_telemetry_access = local.create_application_insights || var.monitoring.manage_existing_telemetry_access
 
   workload_access_assignments = merge([for scope_key in local.resource_group_keys : {
     for key, assignment in var.workload_access_group_ids : "${scope_key}-${key}" => {

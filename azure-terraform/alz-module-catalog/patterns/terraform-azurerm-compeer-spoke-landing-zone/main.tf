@@ -281,19 +281,20 @@ module "storage_blob_diagnostics" {
 
 module "alert_contacts" {
   source              = "../../modules/terraform-azurerm-compeer-actiongroup"
-  count               = local.operations_enabled && length(var.operations.notification_emails) > 0 ? 1 : 0
+  count               = local.create_action_group ? 1 : 0
   name                = "${local.workload_stem}-operations-ag"
   short_name          = substr("${var.appcode}-${var.environment}", 0, 12)
   resource_group_name = module.resource_groups.group_names["operations"]
   receivers = { email = { for email in var.operations.notification_emails : email => {
     email_address = email, use_common_alert_schema = true
   } } }
-  tags = module.tags.tags
+  tags       = module.tags.tags
+  depends_on = [terraform_data.capability_contract]
 }
 
 # ON HOLD by default: OBS-09 is Phase 2; activate only with approved workload telemetry scope.
 module "application_insights" {
-  count                                 = var.monitoring.enabled ? 1 : 0
+  count                                 = local.create_application_insights ? 1 : 0
   source                                = "../../modules/terraform-azurerm-compeer-application-insights"
   name                                  = "${local.workload_stem}-appi"
   resource_group_name                   = module.resource_groups.group_names["operations"]
@@ -308,17 +309,19 @@ module "application_insights" {
   internet_query_enabled                = var.monitoring.internet_query_enabled
   daily_data_cap_notifications_disabled = false
   tags                                  = module.tags.tags
+  depends_on                            = [terraform_data.capability_contract]
 }
 
 module "telemetry_access" {
   source = "../../modules/terraform-azurerm-compeer-role-assignments"
   assignments = { for key in ["workload"] : key => {
-    scope                            = module.application_insights[0].id
+    scope                            = local.application_insights_id
     principal_id                     = module.workload_identity.principal_id
     principal_type                   = "ServicePrincipal"
     role_definition_name             = "Monitoring Metrics Publisher"
     skip_service_principal_aad_check = true
-  } if var.monitoring.enabled }
+  } if local.manage_telemetry_access }
+  depends_on = [terraform_data.capability_contract]
 }
 
 # ON HOLD by default: OBS-04 workload alerts require approved recipients and SLOs.
@@ -327,7 +330,7 @@ module "failed_requests_alert" {
   source              = "../../modules/terraform-azurerm-compeer-monitor-metric-alert"
   name                = "${local.workload_stem}-failed-requests"
   resource_group_name = module.resource_groups.group_names["operations"]
-  scopes              = [module.application_insights[0].id]
+  scopes              = [local.application_insights_id]
   description         = "Application request failures exceeded the workload profile threshold; tune against the approved SLO."
   severity            = local.environment_profile.alert_severity
   frequency           = local.environment_profile.alert_frequency
@@ -341,8 +344,9 @@ module "failed_requests_alert" {
       threshold        = local.environment_profile.failed_request_threshold
     }
   }
-  actions = { for index, id in local.action_group_ids : "recipient-${index}" => { action_group_id = id } }
-  tags    = module.tags.tags
+  actions    = { for index, id in local.action_group_ids : "recipient-${index}" => { action_group_id = id } }
+  tags       = module.tags.tags
+  depends_on = [terraform_data.capability_contract]
 }
 
 # Subscription baseline belongs to governance; enable here only after explicit ownership handoff.
@@ -365,6 +369,7 @@ module "budget" {
       threshold = 100, threshold_type = "Forecasted", contact_groups = local.action_group_ids
     }
   }
+  depends_on = [terraform_data.capability_contract]
 }
 
 resource "azurerm_backup_protected_vm" "workload" {

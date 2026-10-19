@@ -39,7 +39,7 @@ output "remediation_assignment_principal_ids" {
 }
 
 output "remediation_task_ids" {
-  description = "Explicitly approved remediation task IDs; empty until tasks are opted in."
+  description = "Explicitly approved MG/subscription remediation task IDs; empty until tasks are opted in. Task IDs are not compliance evidence."
   value       = try(module.policy[0].remediation_task_ids, {})
 }
 

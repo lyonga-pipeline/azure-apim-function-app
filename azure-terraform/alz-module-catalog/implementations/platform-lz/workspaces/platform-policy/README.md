@@ -23,6 +23,7 @@ Set these as workspace or variable-set values, not in committed tfvars:
 | `tenant_id` | Terraform | Entra tenant ID. |
 | `execution_subscription_id` | Terraform | Subscription context required by the AzureRM provider; policy resources can still be created at management-group scope. |
 | `management_subscription_id` | Terraform | Optional actual management subscription UUID when the producer's public output is unavailable; preserves the Defender exclusion and must agree with the output when available. |
+| `existing_resource_remediation` | Terraform, HCL enabled | Optional approved subscription/plan backfill selection; defaults to empty targets. See remediation-example.tf. Does not replace the policy object. |
 | `TFC_AZURE_PROVIDER_AUTH` | Environment | Enables HCP dynamic Azure credentials. |
 | `TFC_AZURE_RUN_CLIENT_ID` | Environment | Client ID used by HCP dynamic credentials. |
 
@@ -53,7 +54,7 @@ The governance baseline is not repeated here. See the pattern README for the com
 - The checked-in Defender selection enables Servers P1, Storage with malware scanning and sensitive-data discovery, Key Vault, App Service, Azure SQL databases, SQL servers on machines, Containers, and Resource Manager at `compeer-enterprise-mg`. This preserves the prior selection; it is not evidence of client licensing approval or deployment. Servers P2 and Defender CSPM remain separate security/licensing decisions.
 - Defender Storage's `capGBPerMonthPerStorageAccount` is an Integer, while its two feature switches are Strings (`"true"` / `"false"`) in built-in definition `cfdc5972-75b3-4418-8ae1-7f5c36839390` v1.5.0. Assignment selection preserves those JSON types; do not wrap the heterogeneous assignment object in a conditional that coerces all parameter values to strings.
 - The workspace grants each assignment identity its configured roles at that assignment's management-group scope. Diagnostic, Defender, and flow-log target scopes are independent. The run identity needs policy and role-assignment permissions at those scopes.
-- Existing-resource remediation tasks remain disabled (`tasks = {}`) until a separately approved, bounded pilot. New-resource DINE evaluation can still deploy missing settings in Policy-owned scopes; disabling tasks is not disabling DINE.
+- Existing-resource remediation remains opt-in: the manual tasks map and existing_resource_remediation targets default empty. An approved selection starts bounded jobs on apply; new-resource DINE remains independent of this backfill.
 - VM guest logs are intentionally excluded until an Azure Monitor Agent Data Collection Rule is approved and configured in `platform-management`.
 - Policy remediation still depends on target subscriptions having the required resource providers registered (`Microsoft.Network`, `Microsoft.Security`, and service-specific providers). Subscription onboarding or each resource-owning workspace should register providers before remediation is expected to converge.
 - Private connectivity starts in Audit.
@@ -183,6 +184,52 @@ tasks = {
 ```
 
 A region filter/resource count limits size, not an exact resource allowlist. Use a pilot MG/scope for precise targeting. Initiative tasks additionally require the actual verified `policy_definition_reference_id`. Start a new task revision only after another approval; do not repeatedly rerun blindly.
+
+### Existing Subscription Backfill
+
+[remediation-example.tf](remediation-example.tf) is executable workspace code,
+with commented, placeholder-only HCP/tfvars examples and a separate variable.
+It addresses the actual missing step from the portal review: assigning DINE
+does not deploy the missing plans/flow logs on already-existing subscriptions.
+Do not replace the entire policy object or duplicate its existing assignments.
+
+1. Verify the applied HCP commit/overrides and actual Defender plan state. Review
+   the eight currently selected plans and costs with Security; this helper adds
+   no new plans, subplans or contacts and does not remediate CIS, tags or locks.
+2. Verify target subscription ancestry, exclusions, provider registration and
+   assignment-identity RBAC. The management subscription stays Defender-excluded.
+   The HCP run identity also needs permission to create PolicyInsights remediation
+   resources at each selected subscription. No automatic registration or extra
+   role grant is added by this helper.
+3. Set existing_resource_remediation with an approved stable batch_name, actual
+   subscription UUIDs and explicit defender_targets.plan_keys. Start with a
+   small pilot. Each selected plan gets one subscription-scoped job, no region
+   filter, a resource cap of one, serial deployment and zero failure tolerance.
+4. Optionally select flow_log_targets separately, with an approved resource cap.
+   Those jobs use the existing policy's Central US region filter. Network Watcher
+   already reported compliant, so no second Watcher deployment is added. Confirm
+   actual watcher/storage/LAW accessibility and the applicable noncompliant VNets;
+   a cap of one does not name a particular VNet. Diagnostics backfill remains
+   separate because directly owned targets must stay protected from policy writes.
+5. Review the plan: expect remediation resources and a batch contract only,
+   without new pricing resources, policy assignments or changes to exclusions.
+   Subscription jobs request ReEvaluateCompliance before acting on unmet policy
+   conditions. After apply inspect job/deployment results, actual pricing and
+   flow-log resources, raw storage log arrival and LAW Traffic Analytics. A
+   task ID, passing mock test or green assignment is not end-to-end evidence.
+
+The helper merges with manually configured policy.remediation.tasks and rejects
+name collisions. The generic pattern still accepts lower-scope initiative jobs
+when a verified child reference is supplied; none are generated here. Backfill
+inherits all existing assignment exclusions and cannot make all CIS/MCSB controls
+green. Correct non-DINE settings in their owning Terraform workspace, or approve
+an intentional exception rather than hiding a finding.
+
+Keep names stable during a batch; a new batch name deliberately starts new jobs.
+Record completion evidence, then retire completed target selections through a
+reviewed plan so a service-expired task is not unintentionally recreated later.
+Removing a task record does not undo prior changes made by its deployment.
+No Azure scan, remediation or pricing operation runs merely from adding this file.
 
 For a Policy-to-Terraform handover: exclude the target scope first, freeze concurrent changes, match the intended configuration to the existing setting, import it into exactly one owning state, and confirm a no-op plan. For Terraform-to-SOC handover, use a reviewed `removed` block with `destroy = false` and adopt the resource in the new owner; do not merely remove its resource block. Never mask competing writers with `ignore_changes`.
 

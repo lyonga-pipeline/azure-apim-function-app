@@ -211,6 +211,21 @@ locals {
 
   rem_assignments = { for k, v in try(local.rem.dine_assignments, {}) : k => v if local.rem_enabled }
 
+  remediation_task_contracts = {
+    for key, task in var.remediation.tasks : key => {
+      assignment_enabled = contains(keys(local.rem_assignments), task.assignment_key) && try(local.rem_assignments[task.assignment_key].enforce, true)
+      deployment_allowed = try(
+        contains(["DeployIfNotExists", "Modify"], coalesce(try(local.rem_assignments[task.assignment_key].parameters.effect.value, null), "DeployIfNotExists")) &&
+        length(local.rem_assignments[task.assignment_key].role_definition_ids) > 0 &&
+        ((try(local.rem_assignments[task.assignment_key].policy_set_definition_id, null) == null && try(local.rem_assignments[task.assignment_key].policy_set_definition_key, null) == null) ||
+        length(trimspace(coalesce(task.policy_definition_reference_id, " "))) > 0), false
+      )
+      subscription_not_excluded = task.subscription_id == null ? true : !contains([
+        for scope in coalesce(try(local.rem_assignments[task.assignment_key].not_scopes, null), []) : lower(trimsuffix(scope, "/"))
+      ], lower(task.subscription_id))
+    }
+  }
+
   remediation_role_assignments = merge([
     for assignment_key, assignment in local.rem_assignments : {
       for role_definition_id in try(assignment.role_definition_ids, []) :

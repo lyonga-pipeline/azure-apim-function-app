@@ -62,7 +62,8 @@ class ControlPlaneTests(unittest.TestCase):
             self.zone + "/virtualNetworkLinks": {"value": [{"properties": {"virtualNetwork": {"id": self.spoke}, "registrationEnabled": False}}]},
             self.vault + "/providers/Microsoft.Insights/diagnosticSettings": {"value": [{"properties": {"workspaceId": self.law, "logs": [{"category": "AuditEvent", "enabled": True}]}}]},
             self.insights: {"properties": {"DisableLocalAuth": True, "WorkspaceResourceId": self.law, "SamplingPercentage": 20}},
-            self.alert: {"properties": {"enabled": True, "severity": 3, "actions": [{"actionGroupId": self.group}]}},
+            self.alert: {"properties": {"enabled": True, "severity": 3, "scopes": [self.insights], "actions": [{"actionGroupId": self.group}]}},
+            self.group: {"properties": {"enabled": True}},
             self.budget: {"properties": {"amount": 100, "notifications": {str(index): {"enabled": True, "threshold": threshold, "thresholdType": kind, "contactGroups": [self.group]}
                                                                        for index, (threshold, kind) in enumerate([(80, "Actual"), (100, "Actual"), (100, "Forecasted")])}}},
         }
@@ -84,6 +85,33 @@ class ControlPlaneTests(unittest.TestCase):
         for resource_id in (self.insights, self.alert, self.budget):
             del self.resources[resource_id]
         verify_control_plane(self.contract, self.azure)
+
+    def test_reused_telemetry_preserves_its_owner_sampling(self):
+        self.contract["application_services"]["application_insights_configuration_managed"] = False
+        self.resources[self.insights]["properties"]["SamplingPercentage"] = 37
+        verify_control_plane(self.contract, self.azure)
+
+    def test_reused_telemetry_still_requires_the_approved_workspace(self):
+        self.contract["application_services"]["application_insights_configuration_managed"] = False
+        self.resources[self.insights]["properties"]["WorkspaceResourceId"] = self.law + "-wrong"
+        with self.assertRaisesRegex(AssertionError, "wrong central workspace"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_disabled_shared_notification_group_fails(self):
+        self.resources[self.group]["properties"]["enabled"] = False
+        with self.assertRaisesRegex(AssertionError, "action group is disabled"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_alert_for_reused_component_cannot_target_another_application(self):
+        self.contract["application_services"]["application_insights_configuration_managed"] = False
+        self.resources[self.alert]["properties"]["scopes"] = [self.insights + "-another-application"]
+        with self.assertRaisesRegex(AssertionError, "wrong telemetry component"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_budget_cannot_notify_a_different_shared_audience(self):
+        self.resources[self.budget]["properties"]["notifications"]["0"]["contactGroups"] = [self.group + "-wrong-audience"]
+        with self.assertRaisesRegex(AssertionError, "wrong destinations"):
+            verify_control_plane(self.contract, self.azure)
 
     def test_missing_specific_inspection_route_fails(self):
         self.contract["security_baseline"]["inspection_address_prefixes"] = ["10.250.0.0/24"]

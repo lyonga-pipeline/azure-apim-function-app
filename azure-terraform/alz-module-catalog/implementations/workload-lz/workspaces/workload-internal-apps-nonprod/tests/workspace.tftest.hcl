@@ -46,8 +46,13 @@ mock_provider "tfe" {
   mock_data "tfe_outputs" {
     defaults = {
       nonsensitive_values = {
-        contract_version                  = "0.1.0"
-        mandatory_tag_keys                = ["application", "environment", "owner", "cost_center"]
+        contract_version     = "0.1.0"
+        mandatory_tag_keys   = ["application", "environment", "owner", "cost_center"]
+        action_group_enabled = true
+        action_group_ids = {
+          primary  = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/platform-primary"
+          security = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/security-only"
+        }
         log_analytics_workspace_id        = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/law"
         hub_virtual_network_id            = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
         hub_virtual_network_address_space = ["10.102.0.0/21"]
@@ -64,6 +69,49 @@ run "committed_placeholders_are_inert" {
   assert {
     condition     = output.spoke == null && output.spoke_virtual_network_id == null && length(output.subnet_ids) == 0
     error_message = "Committed placeholders must not create a partial spoke or read client platform outputs."
+  }
+}
+
+run "approved_shared_monitoring_is_referenced_without_duplicates" {
+  command = apply
+  variables {
+    subscription_id              = "11111111-1111-1111-1111-111111111111"
+    tenant_id                    = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    connectivity_subscription_id = "22222222-2222-2222-2222-222222222222"
+    private_dns_subscription_id  = "33333333-3333-3333-3333-333333333333"
+    tfe_organization             = "integration-fixture"
+    spoke = {
+      enabled            = true
+      appcode            = "orders"
+      address_space      = ["10.200.0.0/20"]
+      egress_next_hop_ip = "10.102.0.4"
+      subnets = {
+        app               = { address_prefixes = ["10.200.0.0/24"] }
+        private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+      }
+      workload_tags = {
+        application         = "orders", owner = "Applications", source_repo = "ado://Compeer/workloads", criticality_tier = "tier-2",
+        data_classification = "confidential", lifecycle_state = "active", cost_center = "CC-0000", gl_category = "cloud-infrastructure", dr_tier = "silver"
+      }
+      monitoring = {
+        enabled = true, alerts_enabled = true
+        existing_application_insights = {
+          id           = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/components/approved-application"
+          workspace_id = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/law"
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      output.spoke.application_services.application_insights_owner == "existing-resource-owner" &&
+      !output.spoke.application_services.application_insights_configuration_managed &&
+      !output.spoke.application_services.telemetry_access_managed &&
+      one(output.spoke.application_services.action_group_ids) == "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/platform-primary" &&
+      length(output.spoke.application_services.created_action_group_ids) == 0 &&
+      output.spoke.application_services.budget_id == null
+    )
+    error_message = "The adapter must select only the approved primary audience from management outputs and reference existing telemetry without creating or taking ownership of shared services."
   }
 }
 run "enabled_workspace_consumes_public_contracts" {

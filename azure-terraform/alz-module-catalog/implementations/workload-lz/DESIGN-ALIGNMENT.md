@@ -72,6 +72,16 @@ Production/non-production profiles remain distinct for approved optional
 resilience, telemetry and alerts. Both retain identical private vault, RBAC,
 encryption, NSG/UDR and central security-diagnostic controls.
 
+The 2026-10-19 reuse refinement does not release these holds or move resources:
+management's existing primary action group can be referenced via its public
+output; a new application group requires explicit creation and recipients.
+Approved existing application/environment Application Insights components can
+also be referenced without managing their settings or identity grants. Creating
+a new component or delegating a scoped publishing grant is explicit. Central
+LAW, hub/DNS, policy and backup-vault ownership remain unchanged. Dedicated
+workload vault/UAMI requirements are not replaced by shared platform security
+resources. See [REUSE.md](REUSE.md) for configuration and state-handoff cautions.
+
 ## Conflicts And Go-Live Gates
 
 1. **R3.4 overrides a simplistic phase checklist.** Component rows OBS-04,

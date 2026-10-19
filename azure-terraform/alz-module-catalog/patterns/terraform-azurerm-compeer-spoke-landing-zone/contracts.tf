@@ -78,6 +78,16 @@ resource "terraform_data" "contracts" {
 resource "terraform_data" "capability_contract" {
   lifecycle {
     precondition {
+      condition     = var.monitoring.existing_application_insights == null ? true : lower(var.monitoring.existing_application_insights.workspace_id) == lower(var.platform.log_analytics_workspace_id)
+      error_message = "Reused Application Insights must declare the approved central LAW ID. Its owner must also verify actual workspace linkage, Entra authentication and ingestion in Azure."
+    }
+    precondition {
+      condition = !local.notification_required || alltrue([
+        for key in var.operations.platform_action_group_keys : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Insights/actionGroups/[^/]+$", lookup(var.platform.action_group_ids, key, "")))
+      ])
+      error_message = "Selected platform action-group keys must exist and contain valid ARM IDs in the approved management contract. Supply an existing ID or explicitly create an application group; missing shared services never trigger fallback creation."
+    }
+    precondition {
       condition = length(var.storage_accounts) == 0 || (
         can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.platform.storage_blob_private_dns_zone_id)) &&
         try(lower(split("/", var.platform.storage_blob_private_dns_zone_id)[2]) == lower(data.azurerm_client_config.dns.subscription_id), false)
