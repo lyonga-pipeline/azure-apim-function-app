@@ -1,6 +1,10 @@
 resource "terraform_data" "tag_contract" {
   lifecycle {
     precondition {
+      condition     = var.diagnostics.existing_setting == null ? true : lower(var.diagnostics.existing_setting.workspace_id) == lower(var.log_analytics_workspace_id)
+      error_message = "Reused vault diagnostics must declare the approved central LAW as their destination."
+    }
+    precondition {
       condition     = try(var.tags.environment == var.environment && var.tags.appcode == lower(var.appcode), false)
       error_message = "Vault environment/appcode tags must match the naming inputs; do not mislabel non-production vaults as production."
     }
@@ -79,10 +83,22 @@ module "roles" {
 }
 
 module "diagnostics" {
+  count                      = var.diagnostics.enabled && var.diagnostics.existing_setting == null ? 1 : 0
   source                     = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
   name                       = "diag-${module.vault.name}-law"
   target_resource_id         = module.vault.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
   logs                       = { audit = { category = "AuditEvent" } }
   metrics                    = { all = { category = "AllMetrics" } }
+}
+
+resource "terraform_data" "diagnostic_reuse_contract" {
+  lifecycle {
+    precondition {
+      condition = var.diagnostics.existing_setting == null ? true : (
+        lower(join("/", slice(split("/", var.diagnostics.existing_setting.id), 0, length(split("/", var.diagnostics.existing_setting.id)) - 4))) == lower(module.vault.id)
+      )
+      error_message = "The existing diagnostic setting must belong to this exact workload vault. Reuse does not adopt or change the external setting."
+    }
+  }
 }

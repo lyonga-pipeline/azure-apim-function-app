@@ -68,9 +68,8 @@ module "blueprint" {
   source = "../../../patterns/terraform-azurerm-compeer-spoke-landing-zone"
   count  = local.enabled ? 1 : 0
   providers = {
-    azurerm              = azurerm
-    azurerm.connectivity = azurerm.connectivity
-    azurerm.dns          = azurerm.dns
+    azurerm     = azurerm
+    azurerm.dns = azurerm.dns
   }
   subscription_id = var.subscription_id
   tenant_id       = var.tenant_id
@@ -88,7 +87,7 @@ module "blueprint" {
   subnets                       = try(var.configuration.subnets, {})
   egress_next_hop_ip            = try(var.configuration.egress_next_hop_ip, "unset")
   allow_azure_provided_dns      = try(var.configuration.allow_azure_provided_dns, false)
-  manage_hub_attachment         = try(var.configuration.manage_hub_attachment, true)
+  manage_hub_attachment         = try(var.configuration.manage_hub_attachment, false)
   gateway_transit_enabled       = try(var.configuration.gateway_transit_enabled, false)
   private_endpoint_client_cidrs = try(var.configuration.private_endpoint_client_cidrs, [])
   key_vault                     = try(var.configuration.key_vault, {})
@@ -96,17 +95,13 @@ module "blueprint" {
   operations = {
     create_action_group = try(var.configuration.operations.create_action_group, false)
     platform_action_group_keys = try(var.configuration.operations.platform_action_group_keys,
-      !try(var.configuration.operations.create_action_group, false) && length(try(var.configuration.operations.action_group_ids, [])) == 0 && contains(keys(local.platform.action_group_ids), "primary") ? ["primary"] : []
+      try(var.configuration.monitoring.existing_failed_requests_alert, null) == null && !try(var.configuration.operations.create_action_group, false) && length(try(var.configuration.operations.action_group_ids, [])) == 0 && contains(keys(local.platform.action_group_ids), "primary") ? ["primary"] : []
     )
     notification_emails = try(var.configuration.operations.notification_emails, [])
     action_group_ids    = try(var.configuration.operations.action_group_ids, [])
-    budget = {
-      enabled    = try(var.configuration.operations.budget.enabled, false)
-      amount     = try(var.configuration.operations.budget.amount, 0)
-      start_date = try(coalesce(try(var.configuration.operations.budget.start_date, null), formatdate("YYYY-MM-01'T'00:00:00'Z'", time_static.deployment_created[0].rfc3339)), "2000-01-01T00:00:00Z")
-    }
   }
   monitoring       = try(var.configuration.monitoring, {})
+  diagnostics      = try(var.configuration.diagnostics, {})
   storage_accounts = try(var.configuration.storage_accounts, {})
   backup           = try(var.configuration.backup, null)
   depends_on       = [terraform_data.deployment_contract]

@@ -1,4 +1,44 @@
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_resource "azurerm_private_endpoint" {
+    defaults = {
+      private_dns_zone_configs = [{
+        name                = "vault"
+        id                  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/security/providers/Microsoft.Network/privateEndpoints/vault/privateDnsZoneGroups/default/privateDnsZoneConfigs/vault"
+        private_dns_zone_id = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+        record_sets         = []
+      }]
+    }
+  }
+  mock_resource "azurerm_key_vault" {
+    defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/security/providers/Microsoft.KeyVault/vaults/orders-cus-prod-vault" }
+  }
+}
+
+run "rejects_turning_off_required_audit_coverage" {
+  command = plan
+  variables { diagnostics = { enabled = false } }
+  expect_failures = [var.diagnostics]
+}
+
+run "rejects_external_audit_setting_on_another_vault" {
+  command = plan
+  override_module {
+    target  = module.vault
+    outputs = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/security/providers/Microsoft.KeyVault/vaults/orders-cus-prod-vault" }
+  }
+  variables {
+    diagnostics = {
+      enabled = false
+      existing_setting = {
+        id                = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/security/providers/Microsoft.KeyVault/vaults/other-vault/providers/Microsoft.Insights/diagnosticSettings/external"
+        workspace_id      = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+        log_categories    = ["AuditEvent"]
+        metric_categories = ["AllMetrics"]
+      }
+    }
+  }
+  expect_failures = [terraform_data.diagnostic_reuse_contract]
+}
 
 variables {
   resource_group_name        = "internal-apps-orders-cus-prod-security-rg"
@@ -37,10 +77,33 @@ run "secure_baseline_and_private_dns_are_wired" {
     condition = (
       module.private_endpoint.subnet_id == var.private_endpoint_subnet_id &&
       module.private_endpoint.private_service_connection[0].subresource_names == tolist(["vault"]) &&
-      module.diagnostics.destinations.log_analytics_workspace_id == var.log_analytics_workspace_id &&
+      module.diagnostics[0].destinations.log_analytics_workspace_id == var.log_analytics_workspace_id &&
       length(local.role_assignments) == 0
     )
     error_message = "Vault access must use the approved private subnet/central LAW and must not grant deployment-identity secret access implicitly."
+  }
+}
+
+run "public_endpoint_and_security_outputs_use_child_contracts" {
+  command = apply
+  assert {
+    condition = (
+      output.security_configuration == module.vault.security_configuration &&
+      output.security_configuration.rbac_authorization_enabled &&
+      !output.security_configuration.public_network_access_enabled &&
+      output.security_configuration.purge_protection_enabled &&
+      output.security_configuration.soft_delete_retention_days == 90
+    )
+    error_message = "The public security output must preserve observed child attributes, not desired constants or a null fallback."
+  }
+  assert {
+    condition = (
+      output.private_endpoint_configuration.subnet_id == var.private_endpoint_subnet_id &&
+      output.private_endpoint_configuration.target_resource_id == module.vault.id &&
+      toset(output.private_endpoint_configuration.subresource_names) == toset(["vault"]) &&
+      output.private_endpoint_configuration.private_dns_zone_ids == [var.private_dns_zone_id]
+    )
+    error_message = "The endpoint output must read private_dns_zone_configs from the supported base-module interface."
   }
 }
 
@@ -80,6 +143,21 @@ run "nonproduction_has_identical_security_controls" {
 run "rejects_mislabeled_environment" {
   command = plan
   variables { environment = "dev" }
+  expect_failures = [terraform_data.tag_contract]
+}
+
+run "rejects_reused_vault_diagnostics_to_another_workspace" {
+  command = plan
+  variables {
+    diagnostics = {
+      existing_setting = {
+        id                = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/security/providers/Microsoft.KeyVault/vaults/orders-cus-prod-vault/providers/Microsoft.Insights/diagnosticSettings/external"
+        workspace_id      = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/wrong-law"
+        log_categories    = ["AuditEvent"]
+        metric_categories = ["AllMetrics"]
+      }
+    }
+  }
   expect_failures = [terraform_data.tag_contract]
 }
 

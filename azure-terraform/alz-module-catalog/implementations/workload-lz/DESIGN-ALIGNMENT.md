@@ -31,15 +31,21 @@ and disabled deployment examples, mixed compute kept separate, and subscription
 onboarding/vending retained by platform-governance. No unrelated platform
 resource is moved between subscriptions by this change.
 
+The later 2026-10-19 ownership decision selects a separate platform-owned
+attachment state, rather than embedded spoke peering. The blueprint publishes
+intent and creates no attachment resources or hub provider. This changes state
+ownership, not Azure resource placement. Follow ATTACHMENT.md before upgrading
+an existing state that still owns peerings or zone links.
+
 ## Phase 1 Placement And Step 11 Coverage
 
 | Source | Required outcome | Code implementation |
 | --- | --- | --- |
 | Deployment Order rows 97-99; Component List WKL-01, NET-23/24 | One reusable blueprint, same module with separate prod/nonprod inputs | patterns/terraform-azurerm-compeer-spoke-landing-zone and shared/main.tf; two disabled workspace templates |
 | Refined Placement rows 38/41; Appendix F | <app>-cus-<env>-network-rg and <app>-cus-<env>-spoke-vnet in the workload subscription | Canonical naming module; new blueprint opts out of legacy domain-prefixed RG names |
-| Refined Placement rows 39/42; WKL-07, IAM-06; design 9.1 | Workload vault, private endpoint and UAMI in each workload subscription's security RG | Mandatory workload-key-vault pattern; private-only RBAC, purge protection, scoped Secrets User and central AuditEvent diagnostics |
+| Refined Placement rows 39/42; WKL-07, IAM-06; design 9.1 | Workload vault, private endpoint and UAMI in each workload subscription's security RG | Dedicated vault by default; user-approved 2026-10-20 opt-out for secretless workloads. Enabled vaults retain private-only RBAC, purge protection, scoped Secrets User and required central AuditEvent diagnostics; see CAPABILITIES.md |
 | Refined Placement row 40; design 10.6 | <app>-cus-<env>-app-rg reserved for the internal pilot | Logical output/access key application remains stable; Azure purpose is app; compute stays application-owned |
-| Deployment Order row 100; NET-22 | Both peering directions, forwarded traffic and correct ownership | Separate reusable hub-spoke-peering pattern composed by the blueprint, with hub provider alias; external-attachment mode prevents a second owner |
+| Deployment Order row 100; NET-22 | Both peering directions, forwarded traffic and correct ownership | Separate platform-owned attachment state composes the reusable hub-spoke-peering pattern from the spoke's versioned contract; no hub provider or attachment resources in blueprint |
 | Deployment Order rows 101-103; NET-29/IAM-06 | Parent-owned endpoints, existing central DNS, scoped identity | Vault owns endpoint/zone group; optional Blob parent uses its own group; no duplicate DNS zone or unrestricted identity roles |
 | Design 8.2/8.5; Deployment Order rows 66-67; detailed network document | Spoke inspection via Palo Alto NVA, not direct gateway bypass; Sunstream isolation | Default plus exact hub/approved remote-prefix UDRs; BGP propagation disabled; reserved baseline routes; Sunstream priority-100 denies |
 | OBS-01/02, GOV-07; design 13 | Reuse centralized logging and policy owners | Existing approved LAW ID; direct vault/optional Blob diagnostics; platform-policy owns compatible DINE, Defender and VNet flow logs |
@@ -48,8 +54,9 @@ The two platform endpoint rows 24-25 are explicitly **On Hold** in the refined
 sheet. They concern the PLATFORM vault/storage endpoints attached to the hub,
 not the workload vault endpoints in rows 39/42. Accordingly the spoke still
 creates its required private vault endpoint and creates no platform endpoint.
-The supplied connectivity/DNS aliases govern hub peerings and existing zone
-links; workload resources remain on the workload provider.
+Hub/spoke/DNS aliases in the central attachment workspace govern both peerings
+and existing-zone VNet links. Workload resources remain on the workload provider;
+private-endpoint DNS zone groups stay parent-owned.
 
 ## Commented-Out Or Unprovisioned Capabilities
 
@@ -61,7 +68,7 @@ behind explicit opt-ins, rather than deleting working capabilities.
 | --- | --- |
 | Application Insights, telemetry publishing role | OBS-09, Component List row 124, is Phase 2. monitoring.enabled defaults false. No telemetry component or role is created while held. |
 | Workload failure alerts and their action group | OBS-04, row 81, is Phase 2. monitoring.alerts_enabled defaults false; requires enabled telemetry and approved recipients. No unused operations RG/action group is created in the Phase 1 default. |
-| Subscription budget | GOV-13 row 14 says Phase 2, while Refined Placement note row 52 calls for a subscription baseline budget at creation. Keep baseline ownership with governance. operations.budget.enabled defaults false; the spoke opt-in is only for an approved ownership handoff, never a second budget owner. |
+| Subscription budget | GOV-13 row 14 says Phase 2, while Refined Placement note row 52 calls for a subscription baseline budget at creation. User decision for this package: remove budget code, inputs and outputs. Phase 2 ownership remains with governance; no spoke opt-in exists. |
 | Workload Blob/data services | WKL-05 row 105 is Phase 2. storage_accounts defaults empty; its example is commented out pending an actual workload need and existing central Blob DNS zone. If approved, production uses ZRS/30-day recovery, nonprod LRS/7-day recovery; security remains equal. |
 | VM backup enrollment | No compute is deployed here. backup defaults null, with a commented example pending real VM IDs and an approved same-subscription RSV/policy. Platform vaults are not recreated in every spoke. |
 | Workload locks | Deliberately absent per user decision. No lock resource or enable switch is reintroduced. |
@@ -114,8 +121,9 @@ resources. See [REUSE.md](REUSE.md) for configuration and state-handoff cautions
    the subscription's correct environment MG and subscription baseline, policy
    convergence, separate prod/nonprod run identities, PIM and scoped DNS/hub
    permissions. HCP output-read access is not full-state sharing. Registry
-   publishing/version pinning is a release gate; this catalog uses local module
-   paths for coordinated development and does not invent private registry IDs.
+   publishing/API compatibility is a release gate for the separately maintained
+   HCP-pinned local copy. This repository uses the existing catalog modules,
+   with the same blueprint behavior and tests. See README.md and TESTING.md.
 
 ## Existing-State Caution
 
@@ -123,10 +131,11 @@ These are new-deployment templates. Correcting domain-prefixed RGs to the
 refined sheet's workload-prefixed names (and application-rg to app-rg) may
 replace deployed RGs/resources. Do not apply a replacement plan to an existing
 spoke without a reviewed migration. The naming module keeps legacy defaults
-for other callers. If existing telemetry/alerts/budgets are already deployed,
-retain their explicit enabled flags pending approval; switching them off plans
-removal, not a nondestructive pause. Moved blocks preserve the old module
-addresses when those approved capabilities remain enabled. Review all plans in
+for other callers. If existing telemetry/alerts are already deployed, retain
+their explicit enabled flags pending approval; switching them off plans removal,
+not a nondestructive pause. Existing budgets require a separate reviewed state
+handoff before adopting this budget-free package. Moved blocks preserve only the
+remaining approved telemetry addresses. Review all plans in
 HCP; no Azure apply, state migration or policy change was performed here.
 
 Microsoft's [route-selection documentation](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview)

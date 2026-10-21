@@ -47,6 +47,7 @@ module "law" {
 }
 
 resource "azurerm_private_dns_zone" "vault" {
+  count               = var.enable_vault_test ? 1 : 0
   name                = "privatelink.vaultcore.azure.net"
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
@@ -62,9 +63,8 @@ resource "azurerm_private_dns_zone" "blob" {
 module "spoke" {
   source = "./.."
   providers = {
-    azurerm              = azurerm
-    azurerm.connectivity = azurerm
-    azurerm.dns          = azurerm
+    azurerm     = azurerm
+    azurerm.dns = azurerm
   }
   subscription_id = var.test_subscription_id
   tenant_id       = data.azurerm_client_config.current.tenant_id
@@ -80,6 +80,7 @@ module "spoke" {
   egress_next_hop_ip            = "10.250.0.4"
   allow_azure_provided_dns      = true
   private_endpoint_client_cidrs = var.private_endpoint_client_cidrs
+  key_vault                     = { enabled = var.enable_vault_test }
   monitoring = {
     enabled                     = var.enable_optional_operations_test
     create_application_insights = var.enable_optional_operations_test
@@ -88,7 +89,6 @@ module "spoke" {
   operations = {
     create_action_group = var.enable_optional_operations_test
     notification_emails = var.enable_optional_operations_test ? compact([var.notification_email]) : []
-    budget              = { enabled = var.enable_optional_operations_test, amount = var.monthly_budget_amount, start_date = formatdate("YYYY-MM-01'T'00:00:00'Z'", "${var.created_on}T00:00:00Z") }
   }
   storage_accounts = { for key in ["data"] : key => {} if var.enable_blob_storage_test }
   workload_tags = {
@@ -110,13 +110,32 @@ module "spoke" {
     hub_virtual_network_id           = module.hub.id
     hub_address_space                = module.hub.address_space
     log_analytics_workspace_id       = module.law.id
-    key_vault_private_dns_zone_id    = azurerm_private_dns_zone.vault.id
+    key_vault_private_dns_zone_id    = try(azurerm_private_dns_zone.vault[0].id, null)
     storage_blob_private_dns_zone_id = try(azurerm_private_dns_zone.blob[0].id, null)
   }
 }
 
+module "attachment" {
+  source = "../../terraform-azurerm-compeer-network-peering"
+  providers = {
+    azurerm.hub   = azurerm
+    azurerm.spoke = azurerm
+    azurerm.dns   = azurerm
+  }
+  tenant_id                     = data.azurerm_client_config.current.tenant_id
+  hub_subscription_id           = var.test_subscription_id
+  spoke_subscription_id         = var.test_subscription_id
+  private_dns_subscription_id   = var.test_subscription_id
+  hub_virtual_network_id        = module.spoke.attachment_contract.hub_virtual_network_id
+  spoke_virtual_network_id      = module.spoke.attachment_contract.spoke_virtual_network_id
+  use_tfe_outputs               = false
+  use_spoke_attachment_contract = true
+  spoke_attachment_contract     = module.spoke.attachment_contract
+  tags                          = local.tags
+}
+
 resource "azurerm_role_assignment" "probe_operator" {
-  count                            = var.enable_secret_probe_operator ? 1 : 0
+  count                            = var.enable_secret_probe_operator && var.enable_vault_test ? 1 : 0
   scope                            = module.spoke.key_vault.id
   principal_id                     = data.azurerm_client_config.current.object_id
   principal_type                   = var.runner_principal_type

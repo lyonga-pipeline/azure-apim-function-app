@@ -151,28 +151,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Blueprint mock integration and negative tests
-        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone
-        run: |
-          terraform init -backend=false -input=false -no-color
-          terraform test -no-color
-      - name: Pure Azure peering pattern tests
-        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-hub-spoke-peering
-        run: |
-          terraform init -backend=false -input=false -no-color
-          terraform test -no-color
-      - name: Legacy HCP peering adapter tests
-        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-network-peering
-        run: |
-          terraform init -backend=false -input=false -no-color
-          terraform test -no-color
-      - name: Validate live fixture without deploying Azure resources
-        working-directory: azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone/integration-tests
-        run: |
-          terraform init -backend=false -input=false -no-color
-          terraform validate -no-color
-          bash -n run.sh
-          python3 -m unittest -v test_verify_spoke.py
+      - name: Spoke, attachment, workspace, helper and seven tfvars variant suites
+        working-directory: azure-terraform/alz-module-catalog
+        run: bash implementations/workload-lz/test.sh
 
   tflint:
     runs-on: ubuntu-latest

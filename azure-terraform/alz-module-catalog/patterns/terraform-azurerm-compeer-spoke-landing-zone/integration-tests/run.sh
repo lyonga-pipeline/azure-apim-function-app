@@ -5,12 +5,17 @@ if [[ "${ALLOW_LIVE_AZURE_TEST:-}" != "true" ]]; then
   printf '%s\n' 'Refusing deployment: set ALLOW_LIVE_AZURE_TEST=true only for an approved isolated test subscription.' >&2
   exit 2
 fi
+if [[ "${TF_VAR_enable_vault_test:-true}" == "false" && ( "${VERIFY_PRIVATE_DNS:-false}" == "true" || "${VERIFY_SECRET_ACCESS:-false}" == "true" || "${TF_VAR_enable_secret_probe_operator:-false}" == "true" ) ]]; then
+  printf '%s\n' 'Secretless spoke: disable vault DNS/secret probes and temporary vault operator access before deploying.' >&2
+  exit 2
+fi
 : "${TF_VAR_test_subscription_id:?Set the isolated test subscription UUID}"
 : "${TF_VAR_run_id:?Set a unique run ID}"
 : "${TF_VAR_cost_center:?Set the approved test cost center}"
 : "${TF_VAR_created_on:?Set a stable YYYY-MM-DD test-run date}"
-: "${TF_VAR_notification_email:?Set the approved test notification email}"
-: "${TF_VAR_monthly_budget_amount:?Set the approved positive test budget amount}"
+if [[ "${TF_VAR_enable_optional_operations_test:-false}" == "true" ]]; then
+  : "${TF_VAR_notification_email:?Set the approved test notification email}"
+fi
 cd "$(dirname "$0")"
 export TF_VAR_allow_live_deployment=true
 

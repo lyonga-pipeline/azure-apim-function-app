@@ -1,18 +1,17 @@
 module "naming" {
-  source                       = "../../modules/terraform-azurerm-compeer-naming"
-  scope                        = "workload"
-  region                       = var.location
-  environment                  = var.environment
-  domain                       = var.domain
-  appcode                      = var.appcode
-  workload_stem_include_domain = false
-  resource_group_keys          = values(local.resource_group_purposes)
-  storage_account_keys         = keys(var.storage_accounts)
-  storage_uniqueness           = var.subscription_id
-  subnet_keys                  = keys(var.subnets)
-  nsg_keys                     = keys(var.subnets)
-  route_table_keys             = keys(var.subnets)
-  user_assigned_identity_keys  = ["workload"]
+  source                      = "../../modules/terraform-azurerm-compeer-naming"
+  scope                       = "workload"
+  region                      = var.location
+  environment                 = var.environment
+  domain                      = var.domain
+  appcode                     = var.appcode
+  resource_group_keys         = values(local.resource_group_purposes)
+  storage_account_keys        = keys(local.enabled_storage_accounts)
+  storage_uniqueness          = var.subscription_id
+  subnet_keys                 = keys(var.subnets)
+  nsg_keys                    = keys(var.subnets)
+  route_table_keys            = keys(var.subnets)
+  user_assigned_identity_keys = ["workload"]
 }
 
 module "tags" {
@@ -37,7 +36,7 @@ module "tags" {
 module "resource_groups" {
   source = "../../modules/terraform-azurerm-compeer-resource-group"
   resource_groups = { for key in local.resource_group_keys : key => {
-    name     = module.naming.resource_group_names[local.resource_group_purposes[key]]
+    name     = local.resource_group_names[local.resource_group_purposes[key]]
     location = var.location
     tags     = module.tags.tags
   } }
@@ -52,15 +51,8 @@ module "network" {
   address_space           = var.address_space
   dns_servers             = var.platform.dns_server_ips
   ddos_protection_plan_id = var.platform.ddos_protection_plan_id
-  subnets = { for key, subnet in var.subnets : module.naming.subnet_names[key] => {
-    address_prefixes                              = subnet.address_prefixes
-    service_endpoints                             = subnet.service_endpoints
-    default_outbound_access_enabled               = false
-    private_endpoint_network_policies             = "Enabled"
-    private_link_service_network_policies_enabled = true
-    delegations                                   = subnet.delegations
-  } }
-  tags = module.tags.tags
+  subnets                 = local.network_subnets
+  tags                    = module.tags.tags
 }
 
 
@@ -99,59 +91,6 @@ module "route_associations" {
   route_table_id = module.route_tables[each.key].id
 }
 
-module "attachment_naming" {
-  source                 = "../../modules/terraform-azurerm-compeer-naming"
-  scope                  = "workload"
-  region                 = var.location
-  environment            = var.environment
-  domain                 = var.domain
-  appcode                = var.appcode
-  private_dns_link_vnets = [module.naming.workload_vnet]
-  vnet_peerings = {
-    spoke = { local_vnet = module.naming.workload_vnet, remote_vnet = try(split("/", var.platform.hub_virtual_network_id)[8], "hub") }
-    hub   = { local_vnet = try(split("/", var.platform.hub_virtual_network_id)[8], "hub"), remote_vnet = module.naming.workload_vnet }
-  }
-}
-
-module "peering" {
-  source = "../terraform-azurerm-compeer-hub-spoke-peering"
-  count  = var.manage_hub_attachment ? 1 : 0
-  providers = {
-    azurerm.hub   = azurerm.connectivity
-    azurerm.spoke = azurerm
-    azurerm.dns   = azurerm.dns
-  }
-  tenant_id                   = var.tenant_id
-  hub_subscription_id         = data.azurerm_client_config.connectivity.subscription_id
-  spoke_subscription_id       = var.subscription_id
-  private_dns_subscription_id = data.azurerm_client_config.dns.subscription_id
-  hub_virtual_network_id      = var.platform.hub_virtual_network_id
-  spoke_virtual_network_id    = module.network.id
-  peering_names = {
-    hub_to_spoke = module.attachment_naming.vnet_peering_names["hub"]
-    spoke_to_hub = module.attachment_naming.vnet_peering_names["spoke"]
-  }
-  hub_to_spoke = { allow_gateway_transit = var.gateway_transit_enabled }
-  spoke_to_hub = { use_remote_gateways = var.gateway_transit_enabled }
-  # Zone links are owned once by the parent blueprint, through its DNS alias.
-  private_dns_zones = {}
-}
-
-module "private_dns_link" {
-  source    = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
-  providers = { azurerm = azurerm.dns }
-  links = { for key in ["vault"] : key => {
-    name                  = module.attachment_naming.private_dns_link_names[module.naming.workload_vnet]
-    resource_group_name   = try(split("/", var.platform.key_vault_private_dns_zone_id)[4], "")
-    private_dns_zone_name = "privatelink.vaultcore.azure.net"
-    virtual_network_id    = module.network.id
-    registration_enabled  = false
-    tags                  = module.tags.tags
-  } if var.manage_hub_attachment }
-  tags       = module.tags.tags
-  depends_on = [module.peering]
-}
-
 module "workload_identity" {
   source              = "../../modules/terraform-azurerm-compeer-user-assigned-identity"
   name                = module.naming.user_assigned_identity_names["workload"]
@@ -161,6 +100,7 @@ module "workload_identity" {
 }
 
 module "key_vault" {
+  count                      = var.key_vault.enabled ? 1 : 0
   source                     = "../terraform-azurerm-compeer-workload-key-vault"
   resource_group_name        = module.resource_groups.group_names["security"]
   location                   = var.location
@@ -173,12 +113,16 @@ module "key_vault" {
   private_endpoint_subnet_id = local.subnet_ids["private_endpoints"]
   private_dns_zone_id        = var.platform.key_vault_private_dns_zone_id
   log_analytics_workspace_id = var.platform.log_analytics_workspace_id
+  diagnostics = {
+    enabled          = var.diagnostics.enabled
+    existing_setting = lookup(var.diagnostics.existing_settings, "key_vault", null)
+  }
   secret_readers = merge(var.key_vault.secret_readers, {
     workload = { principal_id = module.workload_identity.principal_id, principal_type = "ServicePrincipal" }
   })
   secret_officer_group_ids = var.key_vault.secret_officer_group_ids
   tags                     = module.tags.tags
-  depends_on               = [module.nsg_associations, module.route_associations, module.private_dns_link]
+  depends_on               = [module.nsg_associations, module.route_associations]
 }
 
 module "workload_access" {
@@ -188,33 +132,28 @@ module "workload_access" {
 
 module "storage" {
   source                            = "../../modules/terraform-azurerm-compeer-storage-account"
-  for_each                          = var.storage_accounts
-  name                              = coalesce(each.value.name, module.naming.storage_account_names[each.key])
+  for_each                          = local.storage_settings
+  name                              = each.value.name
   resource_group_name               = module.resource_groups.group_names["data"]
   location                          = var.location
-  account_replication_type          = local.storage_replication[each.key]
-  min_tls_version                   = "TLS1_2"
-  https_traffic_only_enabled        = true
-  public_network_access_enabled     = false
-  allow_nested_items_to_be_public   = false
-  shared_access_key_enabled         = false
-  default_to_oauth_authentication   = true
-  infrastructure_encryption_enabled = true
-  cross_tenant_replication_enabled  = false
-  network_rules                     = { default_action = "Deny", bypass = ["None"] }
-  blob_properties = {
-    versioning_enabled              = true
-    change_feed_enabled             = true
-    delete_retention_days           = local.storage_retention[each.key]
-    container_delete_retention_days = local.storage_retention[each.key]
-  }
-  tags       = module.tags.tags
-  depends_on = [terraform_data.capability_contract]
+  account_replication_type          = each.value.account_replication_type
+  min_tls_version                   = each.value.min_tls_version
+  https_traffic_only_enabled        = each.value.https_traffic_only_enabled
+  public_network_access_enabled     = each.value.public_network_access_enabled
+  allow_nested_items_to_be_public   = each.value.allow_nested_items_to_be_public
+  shared_access_key_enabled         = each.value.shared_access_key_enabled
+  default_to_oauth_authentication   = each.value.default_to_oauth_authentication
+  infrastructure_encryption_enabled = each.value.infrastructure_encryption_enabled
+  cross_tenant_replication_enabled  = each.value.cross_tenant_replication_enabled
+  network_rules                     = each.value.network_rules
+  blob_properties                   = each.value.blob_properties
+  tags                              = module.tags.tags
+  depends_on                        = [terraform_data.capability_contract]
 }
 
 module "storage_endpoints" {
   source              = "../../modules/terraform-azurerm-compeer-private-endpoint"
-  for_each            = var.storage_accounts
+  for_each            = local.enabled_storage_accounts
   name                = "${local.workload_stem}-${each.key}-blob-pe"
   resource_group_name = module.resource_groups.group_names["data"]
   location            = var.location
@@ -227,27 +166,12 @@ module "storage_endpoints" {
   }]
   private_dns_zone_group = [{ name = "default", private_dns_zone_ids = [var.platform.storage_blob_private_dns_zone_id] }]
   tags                   = module.tags.tags
-  depends_on             = [module.nsg_associations, module.route_associations, module.storage_dns_link]
-}
-
-module "storage_dns_link" {
-  source    = "../../modules/terraform-azurerm-compeer-private-dns-vnet-link"
-  providers = { azurerm = azurerm.dns }
-  links = { for key in ["blob"] : key => {
-    name                  = module.attachment_naming.private_dns_link_names[module.naming.workload_vnet]
-    resource_group_name   = try(split("/", var.platform.storage_blob_private_dns_zone_id)[4], "")
-    private_dns_zone_name = "privatelink.blob.core.windows.net"
-    virtual_network_id    = module.network.id
-    registration_enabled  = false
-    tags                  = module.tags.tags
-  } if var.manage_hub_attachment && length(var.storage_accounts) > 0 }
-  tags       = module.tags.tags
-  depends_on = [terraform_data.capability_contract, module.peering]
+  depends_on             = [module.nsg_associations, module.route_associations]
 }
 
 module "storage_access" {
   source = "../../modules/terraform-azurerm-compeer-role-assignments"
-  assignments = { for key, account in var.storage_accounts : key => {
+  assignments = { for key, account in local.enabled_storage_accounts : key => {
     scope                            = module.storage[key].id
     principal_id                     = module.workload_identity.principal_id
     principal_type                   = "ServicePrincipal"
@@ -258,16 +182,17 @@ module "storage_access" {
 
 module "storage_metrics" {
   source                     = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each                   = var.storage_accounts
+  for_each                   = { for key, account in local.enabled_storage_accounts : key => account if var.diagnostics.enabled && !contains(keys(var.diagnostics.existing_settings), "storage.${key}.account") }
   name                       = "diag-${module.storage[each.key].name}-law"
   target_resource_id         = module.storage[each.key].id
   log_analytics_workspace_id = var.platform.log_analytics_workspace_id
   metrics                    = { all = { category = "AllMetrics" } }
+  depends_on                 = [terraform_data.reuse_contract]
 }
 
 module "storage_blob_diagnostics" {
   source                     = "../../modules/terraform-azurerm-compeer-diagnostic-settings"
-  for_each                   = var.storage_accounts
+  for_each                   = { for key, account in local.enabled_storage_accounts : key => account if var.diagnostics.enabled && !contains(keys(var.diagnostics.existing_settings), "storage.${key}.blob") }
   name                       = "diag-${module.storage[each.key].name}-blob-law"
   target_resource_id         = "${module.storage[each.key].id}/blobServices/default"
   log_analytics_workspace_id = var.platform.log_analytics_workspace_id
@@ -276,7 +201,8 @@ module "storage_blob_diagnostics" {
     write  = { category = "StorageWrite" }
     delete = { category = "StorageDelete" }
   }
-  metrics = { transaction = { category = "Transaction" } }
+  metrics    = { transaction = { category = "Transaction" } }
+  depends_on = [terraform_data.reuse_contract]
 }
 
 module "alert_contacts" {
@@ -326,7 +252,7 @@ module "telemetry_access" {
 
 # ON HOLD by default: OBS-04 workload alerts require approved recipients and SLOs.
 module "failed_requests_alert" {
-  count               = var.monitoring.alerts_enabled ? 1 : 0
+  count               = local.create_failed_requests_alert ? 1 : 0
   source              = "../../modules/terraform-azurerm-compeer-monitor-metric-alert"
   name                = "${local.workload_stem}-failed-requests"
   resource_group_name = module.resource_groups.group_names["operations"]
@@ -349,31 +275,8 @@ module "failed_requests_alert" {
   depends_on = [terraform_data.capability_contract]
 }
 
-# Subscription baseline belongs to governance; enable here only after explicit ownership handoff.
-module "budget" {
-  count           = var.operations.budget.enabled ? 1 : 0
-  source          = "../../modules/terraform-azurerm-compeer-budget"
-  scope_type      = "subscription"
-  subscription_id = var.subscription_id
-  budget_name     = "${local.workload_stem}-monthly-budget"
-  amount          = var.operations.budget.amount
-  start_date      = var.operations.budget.start_date
-  notifications = {
-    actual_80 = {
-      threshold = 80, threshold_type = "Actual", contact_groups = local.action_group_ids
-    }
-    actual_100 = {
-      threshold = 100, threshold_type = "Actual", contact_groups = local.action_group_ids
-    }
-    forecast_100 = {
-      threshold = 100, threshold_type = "Forecasted", contact_groups = local.action_group_ids
-    }
-  }
-  depends_on = [terraform_data.capability_contract]
-}
-
 resource "azurerm_backup_protected_vm" "workload" {
-  for_each            = var.backup == null ? {} : var.backup.virtual_machines
+  for_each            = local.backup_enabled ? var.backup.virtual_machines : {}
   resource_group_name = try(split("/", var.backup.recovery_vault_id)[4], "")
   recovery_vault_name = try(split("/", var.backup.recovery_vault_id)[8], "")
   source_vm_id        = each.value

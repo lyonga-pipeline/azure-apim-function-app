@@ -32,18 +32,18 @@ variable "notification_email" {
   type        = string
   default     = null
 }
-variable "monthly_budget_amount" {
-  description = "Approved isolated-subscription monthly budget in its billing currency; alerts do not limit charges."
-  type        = number
-  default     = 0
-}
 variable "enable_optional_operations_test" {
-  description = "Explicit opt-in to test approved Phase 2 telemetry/alerts and a test-only subscription budget; false exercises the Phase 1 foundation."
+  description = "Explicit opt-in to test approved Phase 2 telemetry/alerts; false exercises the Phase 1 foundation."
   type        = bool
   default     = false
 }
 variable "enable_blob_storage_test" {
   description = "Exercise the optional private Blob capability and its observed control-plane recovery/diagnostic settings."
+  type        = bool
+  default     = true
+}
+variable "enable_vault_test" {
+  description = "False exercises the approved secretless-spoke variant; vault DNS/secret probes must also be disabled."
   type        = bool
   default     = true
 }

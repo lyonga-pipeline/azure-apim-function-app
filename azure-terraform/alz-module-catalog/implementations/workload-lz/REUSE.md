@@ -5,6 +5,11 @@ Reuse is a reference, not an import or an ownership transfer. Both workspace
 templates remain disabled; optional telemetry/alerts/data services stay held
 until their existing approval gates are met. No locks are added.
 
+Current capability switches, external diagnostics/alert reuse and lifecycle cautions
+are in [CAPABILITIES.md](CAPABILITIES.md). Runnable complete variants live in the
+blueprint's examples folder. The dedicated vault remains the default; the approved
+secretless variant may opt out without substituting the platform vault.
+
 ## Resource Decisions
 
 | Resource | Decision |
@@ -12,11 +17,11 @@ until their existing approval gates are met. No locks are added.
 | Central LAW | Existing management output, used for workload diagnostics and approved telemetry. No spoke LAW. |
 | Action groups | Reuse management's published primary group, selected approved keys, or explicit existing IDs. Create only for a genuinely different approved application audience. |
 | Application Insights | Off by default. Explicitly reference an existing approved application/environment component, or explicitly create one when required. A central LAW does not imply a central Application Insights component exists. |
-| Hub, hybrid DNS, private DNS zones, optional DDoS plan | Existing connectivity contracts; only the approved peering/link owner manages attachments. |
+| Hub, hybrid DNS, private DNS zones, optional DDoS plan | Existing connectivity contracts. A separate platform attachment state owns both peerings and required VNet/zone links; the blueprint has no hub provider or attachment blocks. See ATTACHMENT.md. |
 | Sentinel, Defender, flow logs | Existing management/policy owners. No copies in the spoke. |
 | Recovery Services vault and backup policy | Existing same-workload-subscription IDs; the optional spoke capability only enrolls specified existing VMs. No new vault/policy. |
-| Subscription budget | Governance owns the baseline. Spoke creation remains off unless explicitly handed over. |
-| Workload Key Vault and UAMI | Dedicated per workload/environment, as required by WKL-07/IAM-06. Do not put application secrets in the platform vault or reuse a broad platform identity. |
+| Subscription budget | Removed from this Phase 1 package; Phase 2 belongs with the governance owner. |
+| Workload Key Vault and UAMI | UAMI remains dedicated. Vault is dedicated by default; the approved key_vault.enabled=false variation is only for workloads needing no vault. Do not put application secrets in the platform vault or reuse a broad platform identity. |
 | Blob data accounts | Empty by default; create only for an actual application requirement. Platform audit/artifact/flow-log accounts are not general application data stores. Existing application stores remain with their owner and are consumed by application code, not recreated here. |
 | NSGs, UDRs, private endpoints, diagnostic settings and workload alerts | Resource-specific configuration, not interchangeable shared services. The selected resource owner manages it; policy recognizes the compliant configuration. |
 
@@ -28,8 +33,8 @@ outputs**, passes the IDs into `platform.action_group_ids`, and resolves
 `operations.platform_action_group_keys`. No producer output or contract version
 change is necessary.
 
-When alerts or an explicitly handed-off budget are enabled, the workspace
-adapter defaults to `primary` only when it is published and not disabled.
+The workspace adapter selects `primary` only when it is published and not
+disabled; it is used as a notification route when approved alerts are enabled.
 It never subscribes every published audience. An explicit ID list or local
 creation request suppresses that automatic selection. Explicit keys and IDs
 can intentionally be combined; identical IDs are deduplicated.
@@ -60,7 +65,7 @@ operations = {
 ```
 
 Emails alone are rejected rather than implicitly authorizing a new group.
-A new group is not created without a notification consumer (alert or budget).
+A new group is not created without an enabled alert consumer.
 An unavailable selected key fails the plan instead of falling back to creation.
 The standalone blueprint has no automatic HCP discovery: callers supply
 `platform.action_group_ids` and select keys, or provide explicit IDs.
@@ -118,8 +123,7 @@ operations = { platform_action_group_keys = ["primary"] }
 The workload state then owns the new component and its scoped publishing role;
 the LAW and action group remain shared. Alerts can remain disabled independently.
 With telemetry off, no component/publishing role is created. Reuse without
-workload alerts creates no empty operations RG. Budget-only shared contacts
-also do not create an operations RG.
+workload alerts creates no empty operations RG.
 
 ## Existing Deployments
 

@@ -3,9 +3,10 @@
 ## Overview
 
 **What this deploys:** the cross-subscription VNet peering + Private DNS
-zone links between one hub and one workload spoke. This legacy HCP-output
+zone links between one hub and one workload spoke. This HCP-output
 adapter delegates Azure resources to the pure hub-spoke-peering pattern.
-The spoke blueprint calls that same pure pattern without HCP dependencies.
+The spoke blueprint publishes a versioned contract and creates no attachments.
+The central workspace calls this adapter, which retains legacy input compatibility.
 
 | Resource | Purpose |
 |---|---|
@@ -24,12 +25,17 @@ See `tests/contracts.tftest.hcl`.
 
 This root owns the cross-subscription network attachment between one hub VNet and one workload spoke VNet. It creates both Azure peering resources and links shared Private DNS zones to the spoke VNet.
 
-Use this adapter in a dedicated HCP workspace when a separately privileged
-central attachment state is appropriate. A separate workspace is not required
-merely because there is a separate peering ticket. For platform-owned spoke
-provisioning the new blueprint composes the pure pattern directly. Do not also
-apply this adapter for a spoke with manage_hub_attachment=true, or enable legacy
-hub_connection for the same resource pair. Each peering has exactly one state.
+Use this adapter in a dedicated platform-owned HCP workspace per approved
+application/environment attachment. This is Compeer's selected model; central
+does not mean one global state or all-spoke identity. Set
+use_spoke_attachment_contract=true to consume the spoke's public versioned
+contract and required DNS links. For version 2, this adapter calls the pinned
+naming module centrally; the spoke supplies context, not attachment names.
+Missing/incompatible contracts or
+competing ownership fail; gateway intent requires matching explicit approval.
+Do not enable legacy hub_connection for the same pair. Each resource has one owner.
+See [ATTACHMENT.md](../../implementations/workload-lz/ATTACHMENT.md) before
+adopting this for existing spoke-owned resources.
 
 The azurerm.dns alias now targets the actual existing DNS subscription. In the
 platform-network-peering root, set optional private_dns_subscription_id when
@@ -55,7 +61,18 @@ By default this root consumes upstream HCP Terraform workspace outputs with `tfe
 
 Do not rename `terraform.tfvars.example` to `terraform.tfvars` in this root. HCP Terraform automatically loads checked-in `terraform.tfvars` files, and placeholder values can override missing workspace variables.
 
-The `platform-connectivity` workspace must publish:
+In contract mode, connectivity must publish hub_virtual_network_id and the
+spoke must publish attachment_contract after a successful apply. DNS metadata
+comes from that contract. Version 2 contains naming_context (region, environment,
+domain and appcode), not peering_names or DNS link_name. The central naming call
+uses the actual hub/spoke VNet names to generate the same canonical names as
+before. Version 1 published names remain supported without renaming.
+Central peering_names and private_dns_link_names overrides can preserve approved
+custom Azure names during migration; unknown DNS override keys fail the plan.
+Optional explicit contract input is supported for isolated/manual deployment,
+with the same ownership validation.
+
+In legacy input mode, the `platform-connectivity` workspace must publish:
 
 - `hub_resource_group_name`
 - `hub_virtual_network_name`
@@ -80,7 +97,9 @@ This token is not an Azure credential and does not grant access to Azure resourc
 
 Do not enable broad remote state sharing for this pattern. Remote state sharing is mainly for `terraform_remote_state`, which reads from state snapshots. `tfe_outputs` is preferred because it reads declared outputs through the HCP Terraform API instead of granting backend-level state access.
 
-Manual variables remain as an override/fallback. Set `use_tfe_outputs = false` and provide the values directly if output sharing is not available.
+In contract mode, manual operation requires use_tfe_outputs=false plus an
+approved spoke_attachment_contract; it does not silently fall back to partial
+VNet IDs. In legacy mode only, explicit variables retain their old behavior.
 
 Manual fallback example:
 
@@ -128,10 +147,10 @@ After ExpressRoute or VPN gateway is deployed in the hub, set `hub_to_spoke.allo
 
 ## Permissions
 
-The HCP run identity needs network permissions in both subscriptions:
-
-- `Network Contributor` on the hub VNet or hub network resource group.
-- `Network Contributor` on the spoke VNet or spoke network resource group.
-- `Private DNS Zone Contributor` on the hub Private DNS zone resource group.
+The HCP run identity needs narrowly scoped lifecycle permissions on both approved
+VNets and the exact DNS zones. Prefer security-reviewed custom roles including
+necessary VNet/peering read, create/update/delete and peer/join actions, plus
+required DNS-link operations. Write-only is insufficient; subscription-wide
+Owner/Network Contributor is not required merely for attachment.
 
 The Azure dynamic credential or federated credential must cover this workspace for both plan and apply phases.

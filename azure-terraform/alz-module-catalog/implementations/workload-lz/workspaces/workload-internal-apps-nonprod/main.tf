@@ -1,11 +1,10 @@
 module "deployment" {
   source = "../../shared"
   providers = {
-    azurerm              = azurerm
-    azurerm.connectivity = azurerm.connectivity
-    azurerm.dns          = azurerm.dns
-    tfe                  = tfe
-    time                 = time
+    azurerm     = azurerm
+    azurerm.dns = azurerm.dns
+    tfe         = tfe
+    time        = time
   }
   subscription_id             = var.subscription_id
   tenant_id                   = var.tenant_id

@@ -32,6 +32,47 @@ variable "use_tfe_outputs" {
   default     = true
 }
 
+variable "use_spoke_attachment_contract" {
+  description = "Require a central-owned spoke contract. Version 2 publishes identity/DNS requirements; this pattern generates attachment names. Version 1 remains readable for migration. False retains legacy adapter inputs."
+  type        = bool
+  default     = false
+}
+
+variable "spoke_attachment_contract" {
+  description = "Explicit approved contract for isolated/manual compositions; otherwise read the spoke's non-sensitive attachment_contract output."
+  type = object({
+    contract_version                 = string
+    owner                            = string
+    hub_virtual_network_id           = string
+    spoke_virtual_network_id         = string
+    spoke_virtual_network_name       = string
+    spoke_resource_group_name        = string
+    gateway_transit_enabled          = bool
+    tags                             = optional(map(string), {})
+    key_vault_private_dns_zone_id    = optional(string)
+    storage_blob_private_dns_zone_id = optional(string)
+    naming_context = optional(object({
+      region      = string
+      environment = string
+      domain      = string
+      appcode     = string
+    }))
+    # Read-only compatibility with already-published version 1 contracts.
+    peering_names = optional(object({
+      hub_to_spoke = string
+      spoke_to_hub = string
+    }))
+    private_dns_zones = map(object({
+      name                  = string
+      resource_group_name   = string
+      link_name             = optional(string)
+      registration_enabled  = bool
+      link_to_spoke_enabled = optional(bool, true)
+    }))
+  })
+  default = null
+}
+
 variable "tfe_organization" {
   type        = string
   description = "HCP Terraform organization that contains the producer workspaces."
@@ -99,12 +140,22 @@ variable "peering_name_prefix" {
 }
 
 variable "peering_names" {
-  description = "Optional approved explicit names from the naming module; null values preserve legacy names and existing resource identities."
+  description = "Central-owner name overrides for existing resources. Version 2 otherwise uses the pinned naming module; version 1 retains its published names, and legacy mode retains prefix defaults."
   type = object({
     hub_to_spoke = optional(string)
     spoke_to_hub = optional(string)
   })
   default = {}
+}
+
+variable "private_dns_link_names" {
+  description = "Central-owner overrides keyed by DNS-zone key, for preserving approved existing link names during migration. New version 2 attachments otherwise use the naming module."
+  type        = map(string)
+  default     = {}
+  validation {
+    condition     = alltrue([for name in values(var.private_dns_link_names) : name != null && try(length(trimspace(name)) > 0, false)])
+    error_message = "Explicit DNS link names must not be null or empty."
+  }
 }
 
 variable "hub_to_spoke" {

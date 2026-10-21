@@ -109,7 +109,7 @@ run "approved_shared_monitoring_is_referenced_without_duplicates" {
       !output.spoke.application_services.telemetry_access_managed &&
       one(output.spoke.application_services.action_group_ids) == "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/platform-primary" &&
       length(output.spoke.application_services.created_action_group_ids) == 0 &&
-      output.spoke.application_services.budget_id == null
+      !contains(keys(output.spoke.application_services), "budget_id")
     )
     error_message = "The adapter must select only the approved primary audience from management outputs and reference existing telemetry without creating or taking ownership of shared services."
   }
@@ -140,6 +140,10 @@ run "enabled_workspace_consumes_public_contracts" {
   assert {
     condition = (
       output.spoke.contract_version == "1.0.0" &&
+      output.attachment_contract.owner == "central-attachment-workspace" &&
+      output.attachment_contract.contract_version == "2.0.0" &&
+      !contains(keys(output.attachment_contract), "peering_names") &&
+      contains(keys(output.attachment_contract.private_dns_zones), "key_vault") &&
       toset(output.spoke.mandatory_tag_keys) == toset(["application", "environment", "owner", "cost_center"]) &&
       output.spoke.log_analytics_workspace_id == output.spoke.diagnostic_ownership.workspace_id &&
       toset(keys(output.spoke.resource_group_ids)) == toset(["network", "security", "application"]) &&
@@ -148,7 +152,7 @@ run "enabled_workspace_consumes_public_contracts" {
       output.spoke.security_baseline.flow_log_owner == "platform-policy" &&
       output.spoke.environment_profile.tier == "non-production" && output.spoke.environment_profile.alert_severity == 3 &&
       output.spoke.application_services.application_resource_group_name == "orders-cus-dev-app-rg" &&
-      output.spoke.application_services.budget_id == null && output.spoke.application_services.application_insights_id == null &&
+      !contains(keys(output.spoke.application_services), "budget_id") && output.spoke.application_services.application_insights_id == null &&
       toset(keys(output.spoke.resource_group_names)) == toset(["network", "security", "application"])
     )
     error_message = "The environment workspace must deploy the shared blueprint from non-sensitive platform contracts, preserving service ownership."

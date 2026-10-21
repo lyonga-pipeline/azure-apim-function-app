@@ -9,9 +9,10 @@
 network_peering = {
   enabled                              = false
   use_tfe_outputs                      = true
+  use_spoke_attachment_contract        = true
   tfe_organization                     = "Compeer-Financial-Services"
   platform_connectivity_workspace_name = "platform-connectivity"
-  workload_spoke_workspace_name        = "workload-spoke-internal-apps-prod"
+  workload_spoke_workspace_name        = "REPLACE_ACTUAL_APPLICATION_ENVIRONMENT_SPOKE_WORKSPACE"
   peering_name_prefix                  = "internal-apps-prod"
   hub_to_spoke                         = {}
   spoke_to_hub                         = {}

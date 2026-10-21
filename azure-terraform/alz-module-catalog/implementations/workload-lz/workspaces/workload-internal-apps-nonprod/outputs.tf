@@ -22,3 +22,8 @@ output "subnet_ids" {
   description = "Subnet resource IDs keyed by stable logical input keys."
   value       = try(module.deployment.spoke.subnet_ids, {})
 }
+
+output "attachment_contract" {
+  description = "Public, versioned input for the platform-owned attachment workspace; not proof of connectivity."
+  value       = try(module.deployment.spoke.attachment_contract, null)
+}

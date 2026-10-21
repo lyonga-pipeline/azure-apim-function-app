@@ -3,6 +3,7 @@
 See [STEP11.md](STEP11.md) for all seven component mappings and the peering
 code/state ownership decision. [DESIGN-ALIGNMENT.md](DESIGN-ALIGNMENT.md) records
 the actual v13/v4/refined-placement review, source conflicts and holds.
+The selected central attachment model and migration steps are in [ATTACHMENT.md](ATTACHMENT.md).
 See [REUSE.md](REUSE.md) for platform-service reuse, explicit creation choices
 and existing-deployment migration cautions.
 
@@ -27,7 +28,10 @@ the reported Terraform 1.7 mock-test failures. AzureRM >=4.81 and <5 is required
 The shared Application Insights module retains its caller API while replacing
 the provider's deprecated inverse booleans internally. Existing consumers with
 older provider locks need a reviewed init -upgrade and plan before applying.
-The HCP workspace catalog is [here](../platform-lz/HCP-WORKSPACES.md#step-11-workload-templates).
+Workspace paths are listed below and in [HCP-WORKSPACES.md](../platform-lz/HCP-WORKSPACES.md).
+The catalog uses local module sources; the HCP-pinned Compeer copy stays outside
+the repository. Run `bash implementations/workload-lz/test.sh` from the catalog
+root for the same capability, ownership, workspace and example coverage.
 
 ## Replace Placeholders Before Enabling
 
@@ -46,8 +50,7 @@ The committed terraform.tfvars files intentionally have enabled=false. Replace:
    action-group keys/existing IDs, or explicitly authorize a new application
    group with create_action_group=true and recipients. Explicitly create or
    reuse the approved application/environment telemetry component, supply
-   actual SLO settings, and use a positive budget only
-   after its governance ownership is explicitly handed off. OBS-09/OBS-04 remain
+   actual SLO settings. Budgets are removed from this Phase 1 package. OBS-09/OBS-04 remain
    off by default; R3.4 production coverage still requires security sign-off.
 
 Set these as Terraform-category HCP variables, not secret values in tfvars:
@@ -87,25 +90,25 @@ azure-terraform/alz-module-catalog/implementations/workload-lz/workspaces/worklo
 ## Access And Ownership
 
 The workload run identity needs workload RG/network/Key Vault/identity creation
-permissions and separately approved, constrained role-assignment rights. Scope
-hub permissions to the existing hub VNet and DNS permissions to the actual
-existing zone. Hub/DNS resource providers must already be registered by their
+permissions and separately approved, constrained role-assignment rights. It no
+longer needs hub peering write permissions or a hub provider. Scope required
+private-endpoint zone join/read permissions to the actual existing zone.
+Hub/DNS resource providers must already be registered by their
 owners; the workload provider explicitly registers required workload namespaces.
-The bounded list includes Microsoft.Consumption for the subscription budget.
-This is an explicit registration policy, not a claim that every subscription
-requires manual registration. The run identity needs approved register/action
-permissions; registration alone does not grant budget-write permission or make
-an unsupported CSP offer support budgets. Validate billing/Cost Management
-availability with the CSP before enabling the examples.
+The bounded list excludes Microsoft.Consumption: this package creates no budgets.
+The run identity needs approved register/action permissions for the listed
+workload namespaces; registration does not grant resource-write permissions.
 Keep policy assignment and privileged/PIM ownership with platform-policy and
 the authorization workspace. No subscription creation, MG moves, enterprise
 policy assignment, Defender pricing, central LAW, Sentinel or flow-log resource
 is deployed from the spoke state.
 
-By default the blueprint owns BOTH peerings and required vault/Blob-zone VNet links.
-If the central attachment workspace owns these, set manage_hub_attachment=false
-and use the published attachment contract. Do not also deploy local half-peerings
-or duplicate private DNS zones. An existing zone may be in the old connectivity
+The blueprint creates NO peerings or vault/Blob-zone VNet links. Keep
+manage_hub_attachment=false; the separately approved platform attachment state
+owns both directions and required links from the versioned public contract.
+Apply foundation first, attachment second, then validate application connectivity.
+Do not also deploy local half-peerings or duplicate private DNS zones.
+An existing zone may be in the old connectivity
 subscription; private_dns_subscription_id must point there, not automatically
 to the new hub subscription.
 
@@ -131,26 +134,26 @@ Both roots deploy the same governed security baseline, but actual profiles diffe
 | Optional Blob storage default | ZRS, 30-day deletion recovery | LRS, 7-day deletion recovery |
 | Application telemetry sampling | 100% initial setting | 20% initial setting |
 | Failure alert | Severity 1, PT1M evaluation, count 5 | Severity 3, PT5M evaluation, count 20 |
-| Access groups, subscriptions, recipients and budget | Independent production inputs | Independent non-production inputs |
+| Access groups, subscriptions and recipients | Independent production inputs | Independent non-production inputs |
 
 Tune alert counts/sampling to actual application SLOs and use ZRS in staging
 when testing production resilience. KV purge protection, private endpoints,
 keyless storage, NSG/UDR enforcement and central security logging do not weaken.
 
 Always-created foundation: network/security/app-purpose RGs,
-VNet/subnets/NSGs/UDRs, hub/DNS attachments under the chosen owner, workload UAMI,
+VNet/subnets/NSGs/UDRs, workload UAMI,
 and private Key Vault with audit diagnostics. The existing central LAW,
 Sentinel, Defender/flow-log policies and hybrid shared services are reused.
 Application Insights/alerts are Phase 2 opt-ins; the operations RG exists only
 when a local telemetry component, action group or alert needs it. Reference-only
-telemetry and budget-only shared contacts need no empty operations RG.
+telemetry needs no empty operations RG.
 The adapter reads management's existing action_group_ids public output and
 defaults to primary only when published/enabled and no explicit ID/local-create
 choice is supplied. It does not modify shared contacts. Existing approved
 Application Insights components can be referenced without taking ownership or
 changing their settings; creation and delegated role management are explicit.
-The subscription budget remains with
-governance by default. Both roots comment out deferred activation examples.
+Budgets are not implemented in this package; Phase 2 ownership remains with
+governance. Both roots comment out deferred telemetry activation examples.
 
 Enable optional Blob stores ONLY for an application that needs them:
 

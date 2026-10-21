@@ -72,6 +72,27 @@ variable "log_analytics_workspace_id" {
   }
 }
 
+variable "diagnostics" {
+  description = "Create audit diagnostics by default, or reference an externally owned compliant setting without importing or updating it. Disabling creation requires an existing setting."
+  type = object({
+    enabled = optional(bool, true)
+    existing_setting = optional(object({
+      id                = string
+      workspace_id      = string
+      log_categories    = optional(set(string), [])
+      metric_categories = optional(set(string), [])
+    }))
+  })
+  default = {}
+  validation {
+    condition = var.diagnostics.existing_setting == null ? var.diagnostics.enabled : (
+      try(length(regexall("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.KeyVault/vaults/[^/]+/providers/Microsoft\\.Insights/diagnosticSettings/[^/]+$", var.diagnostics.existing_setting.id)) > 0, false) &&
+      contains(var.diagnostics.existing_setting.log_categories, "AuditEvent") && contains(var.diagnostics.existing_setting.metric_categories, "AllMetrics")
+    )
+    error_message = "Vault auditing cannot be disabled: create it or supply an existing vault diagnosticSettings ARM ID with AuditEvent/AllMetrics."
+  }
+}
+
 variable "secret_readers" {
   description = "Stable logical keys mapped to approved workload identity/group object IDs. Vault-scoped Secrets User only."
   type = map(object({

@@ -61,7 +61,7 @@ variable "platform" {
     log_analytics_workspace_id       = string
     hub_virtual_network_id           = string
     hub_address_space                = list(string)
-    key_vault_private_dns_zone_id    = string
+    key_vault_private_dns_zone_id    = optional(string)
     storage_blob_private_dns_zone_id = optional(string)
     dns_server_ips                   = optional(list(string), [])
     ddos_protection_plan_id          = optional(string)
@@ -162,20 +162,9 @@ variable "subnets" {
     condition = alltrue(flatten([for subnet in values(var.subnets) : [for rule in values(subnet.rules) : [for id in concat(
       rule.source_application_security_group_ids == null ? [] : tolist(rule.source_application_security_group_ids),
       rule.destination_application_security_group_ids == null ? [] : tolist(rule.destination_application_security_group_ids)
-      ) : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/applicationSecurityGroups/[^/]+$", id)) && try(lower(split("/", id)[2]) == lower(var.subscription_id), false)
+      ) : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/applicationSecurityGroups/[^/]+$", id))
     ]]]))
-    error_message = "ASG rules require applicationSecurityGroups ARM IDs in the workload subscription. The application owner must ensure ASG NIC membership belongs to this VNet."
-  }
-  validation {
-    condition = alltrue([for subnet in values(var.subnets) :
-      length(distinct([for rule in values(subnet.rules) : "${rule.direction}:${rule.priority}"])) == length(subnet.rules) &&
-      alltrue([for name in keys(subnet.rules) : !startswith(name, "baseline-")]) &&
-      alltrue([for name in keys(subnet.routes) : name != "default-egress" && !startswith(name, "baseline-")]) &&
-      alltrue([for route in values(subnet.routes) : route.address_prefix != "0.0.0.0/0" && !contains(local.inspection_address_prefixes, route.address_prefix) && can(cidrnetmask(route.address_prefix)) && (
-        route.next_hop_type == "None" || (route.next_hop_type == "VirtualAppliance" && route.next_hop_in_ip_address == var.egress_next_hop_ip)
-      )])
-    ])
-    error_message = "Rule priorities must be unique per direction; baseline- names are reserved. Custom IPv4 routes may blackhole or use the approved NVA, never bypass inspection."
+    error_message = "ASG rules require applicationSecurityGroups ARM IDs. The application owner must ensure ASG NIC membership belongs to this VNet."
   }
 }
 
@@ -195,13 +184,17 @@ variable "allow_azure_provided_dns" {
 }
 
 variable "manage_hub_attachment" {
-  description = "True: this state owns BOTH peerings and the vault-zone link. False: a central attachment state owns all three; never split or double-own them."
+  description = "Deprecated compatibility guard. Must be false: central attachment owns both peerings and VNet-to-zone links. Migrate existing state before adopting this version."
   type        = bool
-  default     = true
+  default     = false
+  validation {
+    condition     = !var.manage_hub_attachment
+    error_message = "Spoke-owned attachment has been removed. Hand off existing peerings/DNS links without deleting Azure resources, then set manage_hub_attachment=false and use the central attachment workspace."
+  }
 }
 
 variable "gateway_transit_enabled" {
-  description = "Enable paired hub gateway-transit/spoke remote-gateway flags only after network approval and gateway readiness."
+  description = "Requested gateway-transit intent published to the central owner; not applied by the spoke. Central approval and gateway readiness are required."
   type        = bool
   default     = false
 }
@@ -217,8 +210,9 @@ variable "private_endpoint_client_cidrs" {
 }
 
 variable "key_vault" {
-  description = "Dedicated vault is mandatory. Reader identities use vault-scoped Secrets User; operator access is explicit. No secrets enter Terraform state."
+  description = "Dedicated private vault by default. Set enabled=false only for a workload that needs no vault; never share a platform secrets vault as a substitute. No secrets enter state."
   type = object({
+    enabled  = optional(bool, true)
     name     = optional(string)
     sku_name = optional(string, "standard")
     secret_readers = optional(map(object({
@@ -234,6 +228,26 @@ variable "key_vault" {
   }
 }
 
+variable "diagnostics" {
+  description = "Required audit coverage. enabled controls creation, not whether auditing is required. Existing settings stay externally owned; keys are key_vault, storage.<account-key>.account and storage.<account-key>.blob."
+  type = object({
+    enabled = optional(bool, true)
+    existing_settings = optional(map(object({
+      id                = string
+      workspace_id      = string
+      log_categories    = optional(set(string), [])
+      metric_categories = optional(set(string), [])
+    })), {})
+  })
+  default = {}
+  validation {
+    condition = alltrue([for setting in values(var.diagnostics.existing_settings) :
+      try(length(regexall("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/[^/]+/.+/providers/Microsoft\\.Insights/diagnosticSettings/[^/]+$", setting.id)) > 0, false)
+    ])
+    error_message = "Reused diagnostics require canonical ARM diagnosticSettings IDs, not Terraform pipe-delimited IDs. The external owner must verify the live configuration."
+  }
+}
+
 variable "workload_access_group_ids" {
   description = "Approved group object IDs receiving Reader/Contributor. Optional resource_group_keys narrows a grant; omission preserves access to all blueprint RGs. Privileged roles/PIM remain outside this blueprint."
   type = map(object({
@@ -246,40 +260,24 @@ variable "workload_access_group_ids" {
     condition     = alltrue([for assignment in values(var.workload_access_group_ids) : contains(["Reader", "Contributor"], assignment.role)])
     error_message = "Workload access supports Reader or Contributor only; privileged roles remain with the authorization/PIM owner."
   }
-  validation {
-    condition = alltrue([for assignment in values(var.workload_access_group_ids) : assignment.resource_group_keys == null ? true : (
-      length(assignment.resource_group_keys) > 0 && length(setsubtract(assignment.resource_group_keys, toset(local.resource_group_keys))) == 0
-    )])
-    error_message = "resource_group_keys must select non-empty, existing blueprint RG keys: network, security, application, operations, and data only when storage is configured."
-  }
 }
 
 variable "operations" {
-  description = "Reuse approved platform action-group keys or explicit IDs. A new application action group requires create_action_group=true and recipients. Subscription budgets remain off unless ownership is handed off."
+  description = "Reuse approved platform action-group keys or explicit IDs. A new application action group requires create_action_group=true and recipients. Budgets are outside this Phase 1 package."
   type = object({
     create_action_group        = optional(bool, false)
     platform_action_group_keys = optional(set(string), [])
     notification_emails        = optional(set(string), [])
     action_group_ids           = optional(set(string), [])
-    budget = optional(object({
-      enabled    = optional(bool, false)
-      amount     = optional(number, 0)
-      start_date = optional(string, "2000-01-01T00:00:00Z")
-    }), {})
   })
   default = {}
   validation {
     condition = (
       (var.operations.create_action_group ? length(var.operations.notification_emails) > 0 : length(var.operations.notification_emails) == 0) &&
-      (!(var.monitoring.alerts_enabled || var.operations.budget.enabled) || var.operations.create_action_group || length(var.operations.action_group_ids) + length(var.operations.platform_action_group_keys) > 0) &&
       alltrue([for email in var.operations.notification_emails : can(regex("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", email)) && !strcontains(lower(email), "replace")]) &&
       alltrue([for id in var.operations.action_group_ids : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Insights/actionGroups/[^/]+$", id))])
     )
-    error_message = "Reuse approved action-group keys/IDs, or explicitly enable create_action_group with real recipients. Emails alone never authorize creation; enabled alerts/budgets require a route."
-  }
-  validation {
-    condition     = !var.operations.budget.enabled || (var.operations.budget.amount > 0 && can(regex("^[0-9]{4}-[0-9]{2}-01T00:00:00Z$", var.operations.budget.start_date)) && can(formatdate("YYYY-MM-DD", var.operations.budget.start_date)))
-    error_message = "Set an approved positive monthly budget in the billing currency and a stable first-of-month UTC start_date. Budgets notify; they do not cap spending."
+    error_message = "Reuse approved action-group keys/IDs, or explicitly enable create_action_group with real recipients. Emails alone never authorize creation; enabled alerts require a route."
   }
 }
 
@@ -294,11 +292,17 @@ variable "monitoring" {
     }))
     manage_existing_telemetry_access = optional(bool, false)
     alerts_enabled                   = optional(bool, false)
-    sampling_percentage              = optional(number)
-    failed_request_threshold         = optional(number)
-    internet_ingestion_enabled       = optional(bool, true)
-    internet_query_enabled           = optional(bool, true)
-    private_link_ready               = optional(bool, false)
+    create_failed_requests_alert     = optional(bool, true)
+    existing_failed_requests_alert = optional(object({
+      id                      = string
+      application_insights_id = string
+      action_group_ids        = set(string)
+    }))
+    sampling_percentage        = optional(number)
+    failed_request_threshold   = optional(number)
+    internet_ingestion_enabled = optional(bool, true)
+    internet_query_enabled     = optional(bool, true)
+    private_link_ready         = optional(bool, false)
   })
   default = {}
   validation {
@@ -307,6 +311,7 @@ variable "monitoring" {
       (!var.monitoring.enabled || var.monitoring.create_application_insights || var.monitoring.existing_application_insights != null) &&
       (!var.monitoring.manage_existing_telemetry_access || (var.monitoring.enabled && var.monitoring.existing_application_insights != null)) &&
       (!var.monitoring.alerts_enabled || var.monitoring.enabled) &&
+      (!var.monitoring.alerts_enabled || (var.monitoring.create_failed_requests_alert != (var.monitoring.existing_failed_requests_alert != null))) &&
       (var.monitoring.sampling_percentage == null ? true : var.monitoring.sampling_percentage > 0 && var.monitoring.sampling_percentage <= 100) &&
       (var.monitoring.failed_request_threshold == null ? true : var.monitoring.failed_request_threshold > 0) &&
       (!var.monitoring.enabled || !var.monitoring.create_application_insights || (var.monitoring.internet_ingestion_enabled && var.monitoring.internet_query_enabled) || var.monitoring.private_link_ready)
@@ -317,11 +322,20 @@ variable "monitoring" {
     condition     = var.monitoring.existing_application_insights == null ? true : length(regexall("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Insights/components/[^/]+$", var.monitoring.existing_application_insights.id)) > 0
     error_message = "Existing Application Insights requires its actual component ARM ID; a LAW ID is not an Application Insights component."
   }
+  validation {
+    condition = var.monitoring.existing_failed_requests_alert == null ? true : (
+      can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Insights/metricAlerts/[^/]+$", var.monitoring.existing_failed_requests_alert.id)) &&
+      length(var.monitoring.existing_failed_requests_alert.action_group_ids) > 0 &&
+      alltrue([for id in var.monitoring.existing_failed_requests_alert.action_group_ids : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Insights/actionGroups/[^/]+$", id))])
+    )
+    error_message = "Reused failed-request alerts need a metric-alert ARM ID, their actual Application Insights scope and non-empty existing action-group IDs. Set create_failed_requests_alert=false to reuse."
+  }
 }
 
 variable "storage_accounts" {
   description = "Optional, actually consumed private Blob stores. No unused account is deployed by default. Azure Files/queues/ADLS need separate service-specific extensions."
   type = map(object({
+    enabled                    = optional(bool, true)
     name                       = optional(string)
     replication_type           = optional(string)
     delete_retention_days      = optional(number)
@@ -329,10 +343,10 @@ variable "storage_accounts" {
   }))
   default = {}
   validation {
-    condition = alltrue([for account in values(var.storage_accounts) :
+    condition = alltrue([for account in values(var.storage_accounts) : !account.enabled || (
       (account.replication_type == null ? true : contains(["LRS", "ZRS", "GRS", "RAGRS", "GZRS", "RAGZRS"], account.replication_type)) &&
       (account.delete_retention_days == null ? true : account.delete_retention_days >= 7 && account.delete_retention_days <= 365 && floor(account.delete_retention_days) == account.delete_retention_days)
-    ])
+    )])
     error_message = "Storage uses approved replication types and 7-365 whole days of delete retention; production applies stronger additional checks."
   }
 }
@@ -340,13 +354,14 @@ variable "storage_accounts" {
 variable "backup" {
   description = "Optional VM backup registration into an existing workload-subscription vault/policy. Compute and the vault/policy lifecycle remain with their approved owners."
   type = object({
+    enabled           = optional(bool, true)
     recovery_vault_id = string
     backup_policy_id  = string
     virtual_machines  = map(string)
   })
   default = null
   validation {
-    condition = var.backup == null ? true : (
+    condition = var.backup == null ? true : !var.backup.enabled || (
       length(var.backup.virtual_machines) > 0 &&
       can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.RecoveryServices/vaults/[^/]+$", var.backup.recovery_vault_id)) &&
       startswith(lower(var.backup.backup_policy_id), "${lower(var.backup.recovery_vault_id)}/backuppolicies/") &&

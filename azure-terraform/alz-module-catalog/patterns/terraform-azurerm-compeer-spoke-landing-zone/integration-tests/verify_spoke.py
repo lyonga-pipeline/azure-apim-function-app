@@ -35,15 +35,6 @@ def verify_control_plane(contract, command=az_json):
         url = f"https://management.azure.com{resource_id}?api-version={version}"
         return command("rest", "--method", "get", "--url", url)
 
-    vault_id = contract["key_vault"]["id"]
-    vault = get(vault_id, "2023-07-01")["properties"]
-    require(vault.get("enableRbacAuthorization") is True, "Vault RBAC is not enabled")
-    require(vault.get("publicNetworkAccess") == "Disabled", "Vault public access is not disabled")
-    require(vault.get("enablePurgeProtection") is True, "Vault purge protection is not enabled")
-    require(vault.get("softDeleteRetentionInDays") == 90, "Vault soft-delete retention is not 90 days")
-    require(vault.get("networkAcls", {}).get("defaultAction") == "Deny", "Vault ACLs are not deny-by-default")
-    require(vault.get("networkAcls", {}).get("bypass") == "None", "Unexpected vault service bypass")
-
     private_prefixes = []
     for key, subnet_id in contract["subnet_ids"].items():
         subnet = get(subnet_id)["properties"]
@@ -86,6 +77,19 @@ def verify_control_plane(contract, command=az_json):
             for peer in peerings
         ), "A reciprocal, connected peering with forwarded traffic is missing")
 
+    if contract.get("key_vault") is None:
+        verify_application_services(contract, get)
+        return private_prefixes
+
+    vault_id = contract["key_vault"]["id"]
+    vault = get(vault_id, "2023-07-01")["properties"]
+    require(vault.get("enableRbacAuthorization") is True, "Vault RBAC is not enabled")
+    require(vault.get("publicNetworkAccess") == "Disabled", "Vault public access is not disabled")
+    require(vault.get("enablePurgeProtection") is True, "Vault purge protection is not enabled")
+    require(vault.get("softDeleteRetentionInDays") == 90, "Vault soft-delete retention is not 90 days")
+    require(vault.get("networkAcls", {}).get("defaultAction") == "Deny", "Vault ACLs are not deny-by-default")
+    require(vault.get("networkAcls", {}).get("bypass") == "None", "Unexpected vault service bypass")
+
     endpoint_id = contract["key_vault"]["private_endpoint_id"]
     endpoint = get(endpoint_id)["properties"]
     require(endpoint.get("subnet", {}).get("id", "").lower() == contract["subnet_ids"]["private_endpoints"].lower(), "Vault endpoint uses the wrong subnet")
@@ -109,11 +113,7 @@ def verify_control_plane(contract, command=az_json):
         for link in links
     ), "Spoke is not linked to the approved private zone")
 
-    diagnostics = get(vault_id + "/providers/Microsoft.Insights/diagnosticSettings", "2021-05-01-preview").get("value", [])
-    matching = [item for item in diagnostics
-                if item["properties"].get("workspaceId", "").lower() == contract["diagnostic_ownership"]["workspace_id"].lower()
-                and any(log.get("enabled") is True and log.get("category") == "AuditEvent" for log in item["properties"].get("logs", []))]
-    require(len(matching) == 1, "Expected one central AuditEvent setting; missing/duplicate ownership must be reviewed")
+    verify_diagnostics(contract, get, vault_id, {"AuditEvent"}, {"AllMetrics"}, "Vault AuditEvent")
     roles = command("role", "assignment", "list", "--scope", vault_id)
     require(any(
         role.get("scope", "").lower() == vault_id.lower()
@@ -123,6 +123,23 @@ def verify_control_plane(contract, command=az_json):
     ), "Workload identity does not have vault-scoped Secrets User access")
     verify_application_services(contract, get)
     return private_prefixes
+
+
+def verify_diagnostics(contract, get, target_id, logs, metrics, label):
+    settings = get(target_id + "/providers/Microsoft.Insights/diagnosticSettings", "2021-05-01-preview").get("value", [])
+    workspace = contract["diagnostic_ownership"]["workspace_id"].lower()
+    central = [item for item in settings if item["properties"].get("workspaceId", "").lower() == workspace]
+
+    def categories(item, kind):
+        return {entry.get("category") for entry in item["properties"].get(kind, []) if entry.get("enabled") is True}
+
+    matching = [item for item in central if logs.issubset(categories(item, "logs")) and metrics.issubset(categories(item, "metrics"))]
+    overlapping = [item for item in central if logs.intersection(categories(item, "logs")) or metrics.intersection(categories(item, "metrics"))]
+    require(len(matching) == 1 and len(overlapping) == 1, f"{label} logs/metrics are missing or duplicate diagnostic ownership exists")
+    # Declared reuse is not proof of live state; verify the exact externally owned setting.
+    for setting_id in contract["diagnostic_ownership"].get("existing_setting_ids", {}).values():
+        if setting_id.lower().rsplit("/providers/", 1)[0] == target_id.lower():
+            require(matching[0].get("id", "").lower() == setting_id.lower(), f"{label} reused setting does not match its declared ARM ID")
 
 
 def verify_application_services(contract, get):
@@ -143,19 +160,19 @@ def verify_application_services(contract, get):
     if services.get("failed_requests_alert_id"):
         require(services.get("application_insights_id"), "Application alert requires enabled telemetry")
         alert = get(services["failed_requests_alert_id"], "2018-03-01")["properties"]
-        require(alert.get("enabled") is True and alert.get("severity") == profile["alert_severity"], "Application failure alert is disabled or has the wrong severity")
+        managed = services.get("failed_requests_alert_owner", "this-workload-state") == "this-workload-state"
+        require(alert.get("enabled") is True and (not managed or alert.get("severity") == profile["alert_severity"]), "Application failure alert is disabled or has the wrong severity")
+        require(any(
+            criterion.get("metricName") == "requests/failed"
+            and criterion.get("metricNamespace", "").lower() == "microsoft.insights/components"
+            and criterion.get("timeAggregation") == "Count"
+            and criterion.get("operator") == "GreaterThanOrEqual"
+            and isinstance(criterion.get("threshold"), (int, float)) and criterion["threshold"] > 0
+            for criterion in alert.get("criteria", {}).get("allOf", [])
+        ), "Application failure alert is missing the approved failed-request metric criterion")
         require({scope.lower() for scope in alert.get("scopes", [])} == {services["application_insights_id"].lower()}, "Application alert targets the wrong telemetry component")
         destinations = {action.get("actionGroupId", "").lower() for action in alert.get("actions", [])}
         require(destinations and destinations == {item.lower() for item in services["action_group_ids"]}, "Application alert has missing/wrong destinations")
-    if services.get("budget_id"):
-        budget = get(services["budget_id"], "2023-05-01")["properties"]
-        require(budget.get("amount") == services["budget_amount"], "Budget does not match the approved amount")
-        notifications = list(budget.get("notifications", {}).values())
-        for threshold, kind in [(80, "Actual"), (100, "Actual"), (100, "Forecasted")]:
-            require(any(item.get("enabled") is True and item.get("threshold") == threshold and item.get("thresholdType") == kind
-                        and {group.lower() for group in item.get("contactGroups", [])} == {group.lower() for group in services["action_group_ids"]}
-                        and item.get("contactGroups") for item in notifications), "Budget notification coverage is incomplete or uses the wrong destinations")
-
     for key, account in services.get("storage", {}).items():
         observed = get(account["id"], "2023-05-01")
         properties = observed["properties"]
@@ -181,10 +198,8 @@ def verify_application_services(contract, get):
         links = get(zone_id + "/virtualNetworkLinks", "2020-06-01").get("value", [])
         require(any(link["properties"].get("virtualNetwork", {}).get("id", "").lower() == contract["spoke_virtual_network_id"].lower()
                     and link["properties"].get("registrationEnabled") is False for link in links), f"Storage {key} zone is not linked to the spoke")
-        diagnostics = get(account["id"] + "/blobServices/default/providers/Microsoft.Insights/diagnosticSettings", "2021-05-01-preview").get("value", [])
-        matching = [item for item in diagnostics if item["properties"].get("workspaceId", "").lower() == workspace_id.lower()
-                    and {"StorageRead", "StorageWrite", "StorageDelete"}.issubset({log.get("category") for log in item["properties"].get("logs", []) if log.get("enabled") is True})]
-        require(len(matching) == 1, f"Storage {key} Blob logs are missing or duplicated")
+        verify_diagnostics(contract, get, account["id"], set(), {"AllMetrics"}, f"Storage {key} account metrics")
+        verify_diagnostics(contract, get, account["id"] + "/blobServices/default", {"StorageRead", "StorageWrite", "StorageDelete"}, {"Transaction"}, f"Storage {key} Blob logs")
 
 
 def verify_private_dns(vault_uri, prefixes, resolve=socket.getaddrinfo):
@@ -227,6 +242,8 @@ def main():
     args = parser.parse_args()
     with (sys.stdin if args.contract == "-" else open(args.contract, encoding="utf-8")) as source:
         contract = json.load(source)
+    require(not (args.private_dns or args.secret_probe) or contract.get("key_vault") is not None,
+            "Vault DNS/secret probes require an enabled vault; omit these flags for a secretless spoke")
     deadline = time.monotonic() + args.timeout
     prefixes = retry_until(lambda: verify_control_plane(contract), deadline)
     if args.private_dns or args.secret_probe:

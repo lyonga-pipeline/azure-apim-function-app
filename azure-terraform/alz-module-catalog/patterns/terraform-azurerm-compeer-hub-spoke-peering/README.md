@@ -3,23 +3,20 @@
 NET-22 / Step 11.4 / ticket 204115. Pure Azure composition: one hub-to-spoke
 peering, one spoke-to-hub peering and OPTIONAL existing-zone VNet links. No
 HCP provider, remote state, token, VNet, DNS zone, gateway or firewall is created.
-The same implementation is consumed by the spoke blueprint and by the legacy
-network-peering HCP adapter. Do not duplicate the two peering resources elsewhere.
+The implementation is consumed by the platform-owned network-peering HCP
+adapter and the isolated test fixture, not the spoke blueprint. Do not duplicate
+the two peering resources elsewhere.
 
 ## Code Reuse Versus State Ownership
 
-For Compeer's platform-provisioned internal spokes, compose this reusable pattern
-inside the spoke blueprint. The platform provisioning identity owns that state;
-application teams own separate compute/application states and do not receive its
-hub credentials. A separate ticket is a reusable capability, not a reason to
-split every resource into another state.
-
-Use a separately privileged attachment state when application teams own spoke
-deployment or a separate approval/lifecycle boundary is needed. Set the spoke's
-manage_hub_attachment=false BEFORE deploying that ownership model. The attachment
-state must own BOTH peering directions and the required DNS links. Never apply
-both ownership modes to the same connection. Moving an existing attachment
-between states requires reviewed state removal/import, not just toggling a flag.
+Compeer's selected model is a separately privileged central attachment state
+owning BOTH peering directions and the required DNS links. Spoke provisioning
+publishes intent only and has no hub provider or peering/link modules.
+The central state consumes the versioned contract after the spoke apply.
+Central means platform-owned, not necessarily one shared state for every spoke.
+Moving an existing attachment between states requires a reviewed non-destructive
+handoff, not toggling a flag. See
+[ATTACHMENT.md](../../implementations/workload-lz/ATTACHMENT.md).
 
 The existing platform-network-peering workspace is an HCP-output-reading adapter
 for that central-state model; the Azure implementation remains this pattern.
@@ -37,12 +34,12 @@ module "peering" {
   hub_subscription_id   = var.hub_subscription_id
   spoke_subscription_id = var.spoke_subscription_id
   hub_virtual_network_id   = var.hub_virtual_network_id
-  spoke_virtual_network_id = module.network.id
+  spoke_virtual_network_id = var.spoke_virtual_network_id
   peering_names = {
     hub_to_spoke = module.naming.vnet_peering_names["hub"]
     spoke_to_hub = module.naming.vnet_peering_names["spoke"]
   }
-  private_dns_zones = {} # The parent blueprint owns its zone links exactly once.
+  private_dns_zones = var.approved_private_dns_zones # From the spoke contract.
 }
 ```
 

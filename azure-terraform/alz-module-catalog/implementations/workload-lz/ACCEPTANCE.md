@@ -14,15 +14,15 @@ Locks remain deliberately absent. Do not add them as an acceptance prerequisite.
 | NET-01 / IPAM | Approved VNet/subnet ranges plus complete relevant on-prem, reserved and other-spoke inventory. reserved_address_spaces=[] is not evidence of an overlap-free enterprise network; only supplied ranges and the published hub are checked. |
 | NET-02 / hub | Actual hub VNet/NVA next hop, exact inspection_address_prefixes, disabled spoke BGP propagation, reciprocal hub routes, firewall/SNAT approval and return-path readiness. DNS zones/providers point to their actual subscription. |
 | IAC-07 / access | Approved deployment identity, workload/hub/DNS scope permissions and constrained RBAC-assignment rights; existing authorized runner for private data-plane checks. |
-| Operations | Governance owns the subscription baseline budget; confirm CSP support. Optional workload telemetry/alerts are held pending approval. If enabled, require real recipients/SLOs; a spoke budget requires explicit ownership handoff and positive approved amount. R3.4 go-live coverage remains mandatory regardless of phase holds. |
+| Operations | Budgets are removed from this Phase 1 package. Optional workload telemetry/alerts are held pending approval. If enabled, require real recipients/SLOs. R3.4 go-live coverage remains mandatory regardless of phase holds. |
 | Reused services | Confirm selected management action-group keys/IDs, enabled status, intended audience and actual test delivery. For existing Application Insights, confirm the real central LAW linkage, application/environment isolation, Entra authentication, SDK ingestion and the owner of its UAMI grant. A supplied ID/workspace declaration or successful mock is not live verification. See REUSE.md. |
 | Policy | Approved applicable Defender/diagnostic/flow-log assignments and remediation permissions; platform-policy remains the owner. Read compliance after convergence, not just after assignment creation. |
-| Attachment | One state owns both peering directions and required DNS links. Use manage_hub_attachment=false only with an approved central attachment owner. |
+| Attachment | Separate platform-owned state owns both peering directions and required DNS links. The blueprint has no attachment blocks/hub provider; manage_hub_attachment must be false. Follow ATTACHMENT.md for existing-state handoff. |
 
-The blueprint can create a spoke and then compose its peering pattern in the
-same apply. A reusable NET-22 code dependency is not a requirement to deploy a
-peering before the NET-23 VNet exists. In external-attachment mode the order is
-spoke creation, central attachment, then connectivity validation.
+Deployment order is spoke creation, approved central attachment, then connectivity
+validation. The spoke publishes a versioned contract; central reads it after a
+successful producer apply. Do not create a reverse state dependency or claim
+connectivity merely because the foundation apply succeeded.
 
 ## Read-Only Client Checks
 
@@ -74,7 +74,7 @@ workload host exists yet, keep those criteria pending until the pilot workload.
 | Effective routes, NSGs, NVA/return path and required shared services | Pending |
 | Central diagnostic ingestion without duplicate settings | Pending |
 | Approved Defender/flow-log compliance after convergence | Pending |
-| Operational alert routing, budget support and approved thresholds | Pending |
+| Operational alert routing and approved thresholds, when enabled | Pending |
 | Application/platform/network/security stakeholder sign-off | Pending |
 
 The isolated integration-tests fixture remains optional automated Azure evidence

@@ -16,6 +16,10 @@ variable "configuration" {
   description = "Spoke inputs; enabled=false is inert and safe with placeholders. Pattern inputs are strongly typed at the blueprint boundary."
   type        = any
   default     = { enabled = false }
+  validation {
+    condition     = !can(var.configuration.operations.budget)
+    error_message = "operations.budget was removed from this Phase 1 package. Remove the legacy input; manage Phase 2 budgets separately with the governance owner."
+  }
 }
 variable "use_tfe_outputs" {
   description = "Read only approved public platform outputs; false requires explicit platform_inputs."

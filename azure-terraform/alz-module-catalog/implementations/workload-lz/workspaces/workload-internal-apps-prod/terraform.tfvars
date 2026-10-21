@@ -1,6 +1,7 @@
 # Ticket 204094 / NET-23.
 # Set tenant_id, subscription_id, connectivity_subscription_id and
 # private_dns_subscription_id in HCP Terraform, not as committed credentials.
+# connectivity_subscription_id is only a legacy DNS-subscription fallback; no hub provider is configured.
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"
@@ -17,7 +18,7 @@ spoke = {
   # inspection_address_prefixes = ["REPLACE_IDENTITY_ONPREM_OTHER_SPOKE_CIDRS"]
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IP"
   allow_azure_provided_dns      = false
-  manage_hub_attachment         = true
+  manage_hub_attachment         = false # Both peerings and VNet/DNS links belong to central attachment.
   gateway_transit_enabled       = false
   private_endpoint_client_cidrs = []
   workload_tags = {
@@ -41,11 +42,13 @@ spoke = {
     }
   }
   key_vault = {
+    enabled                  = true # Set false only for an approved secretless workload.
     sku_name                 = "standard"
     secret_readers           = {}
     secret_officer_group_ids = {}
   }
   workload_access_group_ids = {}
+  diagnostics               = { enabled = true, existing_settings = {} } # Creation off requires external coverage for enabled targets.
   # ON HOLD: OBS-09 and OBS-04 are Phase 2. R3.4 coverage is still a go-live
   # gate; activation needs workload/SOC approval, SLOs, recipients and a tested
   # network path. These examples are intentionally commented out, not deployed.
@@ -67,9 +70,6 @@ spoke = {
   #   # Or supply action_group_ids = ["REPLACE_APPROVED_ACTION_GROUP_ARM_ID"].
   #   # For a different application audience ONLY: remove the shared key and set
   #   # create_action_group = true; notification_emails = ["REPLACE_PRODUCTION_ONCALL_EMAIL"].
-  #   # Budget remains in the governance subscription baseline. Only enable
-  #   # after handing ownership to this state; never create a second owner.
-  #   budget = { enabled = true, amount = 0 } # Replace with approved positive amount.
   # }
   # ON HOLD: WKL-05 data services until an actual workload requirement is approved.
   # storage_accounts = { data = {} } # Production: ZRS, 30-day soft deletion.

@@ -9,7 +9,7 @@ variable "tenant_id" {
   default     = null
 }
 variable "connectivity_subscription_id" {
-  description = "Actual hub subscription UUID; the run identity needs only the approved attachment permissions there."
+  description = "Compatibility fallback for private_dns_subscription_id only. No hub provider or peering write permission is used by the spoke."
   type        = string
   default     = null
 }

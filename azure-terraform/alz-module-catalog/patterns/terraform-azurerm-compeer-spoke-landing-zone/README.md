@@ -1,20 +1,37 @@
 # Spoke Landing Zone Blueprint
 
+This catalog pattern uses the repository's local modules without the
+`workload_stem_include_domain` input. The RG-name adapter in `locals.tf`
+preserves Appendix F names for legacy or canonical module outputs.
+Cross-input guards live in `contracts.tf`, while variable validations remain
+self-contained. Terraform >=1.11.4 is still required. See
+[testing and troubleshooting](../../implementations/workload-lz/TESTING.md) before initialization/testing.
+
+Initialization requires supported Terraform and public provider access/cache.
+The private-registry Compeer copy is kept outside this repository. The two copies
+share blueprint behavior, tests and examples; only their dependency sources differ.
+
 New-deployment blueprint for WKL-01 / ticket 204092. The production (NET-23 /
 204094) and non-production (NET-24 / 204114) workspaces use this same pattern.
 It composes the catalog's resource-group, naming, tags, VNet/subnet, NSG, route,
-association, peering, DNS-link, identity, diagnostics, monitoring, storage and
-budget modules. It does
+association, identity, diagnostics, monitoring and storage modules. It does
 not copy the identity-specific names or invalid `scope = "identity"` from the
 supplied reference; naming scope is `workload`, and RG outputs are keyed maps.
 Source-to-code decisions, explicit holds and unresolved approval gates are in
 [DESIGN-ALIGNMENT.md](../../implementations/workload-lz/DESIGN-ALIGNMENT.md).
+Capability switches and runnable tfvars variants are documented in [examples/README.md](examples/README.md).
+The approved secretless-workload variation uses key_vault.enabled=false. Enabled
+vault/storage resources still require managed or explicitly reused audit coverage.
+Existing alert-rule reuse is explicit; it does not change the external rule or contacts.
+
 Shared-service selection, exact create/reuse examples and existing-state
 migration cautions are in [REUSE.md](../../implementations/workload-lz/REUSE.md).
 
-Step 11.4 uses the separate reusable hub-spoke-peering Azure pattern, rather
-than copying its two peering resources into the blueprint. The older
-network-peering HCP adapter delegates to the same implementation. See
+Step 11.4 belongs to the separate platform-owned network-peering HCP adapter,
+which calls the reusable hub-spoke-peering pattern. The blueprint publishes a
+versioned attachment_contract and creates no peering or VNet-to-DNS-zone link.
+See [ATTACHMENT.md](../../implementations/workload-lz/ATTACHMENT.md) for the
+two-stage deployment and existing-state handoff. See
 implementations/workload-lz/STEP11.md for all seven Step 11 capabilities and the
 code/state ownership decision. NET-29 and IAM-06 reuse the canonical endpoint
 and identity modules through parent-owned composition, not duplicate wrappers.
@@ -37,8 +54,10 @@ and identity modules through parent-owned composition, not duplicate wrappers.
   through the approved NVA. Sunstream traffic is denied at priority 100 before
   application rules. No public IP, NAT gateway, firewall, bastion,
   VPN, Route Server or other duplicate hub services are created.
-- Both reciprocal hub peerings and a link to the EXISTING Key Vault private
-  DNS zone, unless the central attachment state owns all three instead.
+- A version 2 attachment contract containing approved hub/spoke IDs, workload
+  naming context, gateway intent and required existing DNS-zone metadata.
+  Peering/DNS-link names are generated only by the central attachment pattern,
+  which also creates both peerings and vault/optional Blob VNet links.
 - A user-assigned workload identity and the separate workload-key-vault pattern
   by default. The identity receives vault-scoped Secrets User, not Officer,
   Administrator, Contributor or Owner.
@@ -50,13 +69,11 @@ and identity modules through parent-owned composition, not duplicate wrappers.
   Metrics Publisher. Reused components remain externally owned, including their
   identity grants unless explicitly delegated. Alerts reuse approved platform
   action-group keys or existing IDs; new contacts require create_action_group=true
-  and recipients. No group is created without an alert/budget consumer. An
-  optional application failure alert and a monthly budget
-  with 80/100% actual and 100% forecast notifications. OBS-09/OBS-04 activation
-  examples are commented out in the roots. Budget ownership stays with governance
-  unless explicitly handed off; enabling one here requires approved amounts and
-  recipients and must not duplicate the onboarding baseline.
-- Optional private Blob accounts, each with its own PE, central zone registration,
+  and recipients. No group is created without an enabled alert consumer. An
+  optional application failure alert uses those destinations. OBS-09/OBS-04
+  activation examples are commented out in the roots. Budgets are removed from
+  this Phase 1 package, not merely switched off.
+- Optional private Blob accounts, each with its own PE, central DNS zone group,
   TLS 1.2, no shared keys/public access, versioning and soft deletion. Account
   metrics go on the account; read/write/delete logs go on blobServices/default.
   No allLogs category is applied to the storage-account parent.
@@ -71,7 +88,7 @@ subscription. Application secrets remain scoped to their own workload.
 
 | Setting | Production | Non-production |
 | --- | --- | --- |
-| Subscription, names, identities, vault, access groups, on-call recipients and budget | Separate approved production values | Separate approved non-production values |
+| Subscription, names, identities, vault, access groups and on-call recipients | Separate approved production values | Separate approved non-production values |
 | Optional Blob replication | ZRS by default; ZRS/GZRS/RAGZRS required | LRS default; may select ZRS for staging |
 | Blob/container soft deletion | 30 days minimum | 7 days default |
 | Telemetry sampling | 100% starting setting | 20% starting setting |
@@ -195,9 +212,10 @@ checks workload tags against that list, and republishes the keys with RG IDs
 and the LAW ID. Standalone compositions without that optional list use the
 shared tag module's standard. Applications do not need platform-state access.
 
-The provider aliases are `azurerm` (workload), `azurerm.connectivity` (hub) and
-`azurerm.dns` (actual zone subscription, which can differ from the hub).
-The pattern checks all provider subscriptions and the common tenant.
+The provider aliases are `azurerm` (workload) and `azurerm.dns` (actual
+zone subscription, which can differ from the hub). No hub provider is required.
+The pattern checks workload/DNS contexts; the central owner independently
+checks its hub/spoke/DNS providers and shared tenant before attaching.
 
 CIDRs are checked for full containment and overlap, including hub and supplied
 IPAM reserved/on-prem ranges. This is not a global IPAM allocator: callers must
@@ -216,9 +234,9 @@ Central hybrid DNS is the default. An empty server list requires explicit
 forwarder or make on-prem/custom DNS resolve Azure private names. Validate the
 real forwarding path before accepting workload secret consumption.
 
-Gateway transit defaults off. Enable `gateway_transit_enabled` only after the
-network team confirms gateway/Route Server/SD-WAN readiness; both required
-peering flags are changed together. A configured route/flag is not proof that
+Gateway transit defaults off. `gateway_transit_enabled` publishes requested
+intent only. The central owner must approve matching paired flags after the
+network team confirms gateway/Route Server/SD-WAN readiness. A configured route/flag is not proof that
 on-prem routes are being exchanged.
 
 ## Ownership
@@ -228,19 +246,19 @@ on-prem routes are being exchanged.
 | Workload RGs, VNet, subnet NSGs/UDRs, identity, vault and AuditEvent setting | This workload state |
 | Explicitly created application telemetry, workload alerts, requested Blob accounts/diagnostics and VM backup enrollments | This workload state |
 | Reused Application Insights / action groups | Existing resource owner; spoke references IDs only; publishing grant only with explicit delegation |
-| Subscription budget | Governance baseline by default; this state only after explicit handoff |
-| Both peerings and required vault/Blob-zone VNet links | This state when manage_hub_attachment=true |
-| Same attachment resources | Central attachment state when manage_hub_attachment=false |
+| Subscription budget | Not implemented; Phase 2 governance concern |
+| Both peerings and required vault/Blob-zone VNet links | Separate platform-owned central attachment state |
+| Workload private endpoints and their DNS zone groups | This workload state; approved existing-zone join permissions still required |
 | Central LAW, Sentinel, platform monitoring | platform-management |
 | Approved Defender plans, VNet flow logging and diagnostic safety net | platform-policy |
 | Subscriptions, MG placement, privileged groups/PIM | Existing onboarding/authorization owners |
 
-Never manage a peering or zone link from two states. Switching attachment owners
-on a deployed spoke is an explicit state handover/import exercise, not a toggle
-to apply blindly. External mode publishes attachment_contract but does not claim
-that connectivity is live. The existing platform-network-peering root can
-consume the flat VNet/RG outputs; configure its DNS provider correctly if the
-existing zone lives outside the hub subscription.
+Never manage a peering or zone link from two states. The deprecated
+manage_hub_attachment input must be false; true fails. Removing its resource
+blocks can propose deletions in old states: follow ATTACHMENT.md before applying
+to an existing deployment. There is no automatic state handoff or Azure change.
+The platform-network-peering root consumes the public versioned contract in
+contract mode, including all required DNS links, rather than just flat VNet IDs.
 
 The vault diagnostic baseline is AuditEvent + central LAW, compatible with the
 category DINE policy. Compliant Terraform settings satisfy DINE independent of
@@ -272,18 +290,23 @@ they are not client-ready deployment values. The nonprod root accepts dev,
 test, uat or the approved np1/np2/np3 aliases, never prod.
 
 Do not point an existing legacy platform-workload-spoke state at this blueprint.
-The resource addresses, mandatory vault and RG layout differ. Existing workloads
+The resource addresses, dedicated-vault default and RG layout differ. Existing workloads
 require a reviewed migration/state-move plan. The legacy pattern is unchanged.
 The new blueprint uses Appendix F `<app>-cus-<env>-<purpose>-rg` names, with
 `app` as the application RG purpose and `application` retained as its logical
 output/access key. This corrects the earlier domain-prefixed RGs. Existing
 spokes need a replacement/migration review, not a blind apply. Existing optional
-telemetry/alerts/budgets must retain explicit enable flags until an approved
-removal; disabling an existing resource plans deletion, not a pause.
+telemetry/alerts must retain explicit enable flags until an approved removal;
+disabling an existing resource plans deletion, not a pause. Existing budget
+resources need a separate reviewed ownership handoff before adopting this
+budget-free package; removing configuration can plan destruction.
 
 ## Tests
 
-`terraform test` uses mocked Azure providers but REAL catalog modules. It
+`terraform test` uses mocked Azure providers and real local catalog modules.
+Run `bash implementations/workload-lz/test.sh` from the catalog root for the
+blueprint, attachment, helper, workspace, Python and example suites. These checks
+do not certify private registry releases or live Azure deployment. The suite
 includes an apply-style composition test and negative cases for overlap,
 out-of-VNet subnets, wrong provider subscriptions, contract drift, Internet-wide
 inbound rules and bypass routes. It also covers real-module augmented NSG/ASG

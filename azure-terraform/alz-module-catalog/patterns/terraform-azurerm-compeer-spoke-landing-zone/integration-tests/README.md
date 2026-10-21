@@ -2,9 +2,13 @@
 
 NOT run by ordinary terraform test or pull-request CI. This fixture creates
 billable RGs, a hub/spoke, LAW, private DNS, private endpoints, identity,
-purge-protected vault, optional Application Insights/operational alerts/budget and a
+purge-protected vault, optional Application Insights/operational alerts and a
 private Blob account in an explicitly supplied isolated subscription.
 It never reads client platform state or deploys into client hub/DNS resources.
+The fixture now composes foundation and central attachment as separate modules:
+the spoke publishes its contract, and the attachment module creates both
+peerings and the required VNet/DNS links. Only this isolated fixture uses one
+test state for both stages; production uses separate platform-owned states.
 
 Prerequisites: Terraform >=1.11.4 and <2, Azure CLI, Python 3, approved authentication and
 resource-provider/role-assignment permissions in the isolated test subscription.
@@ -20,7 +24,6 @@ export TF_VAR_created_on='<YYYY-MM-DD>'
 # Optional approved Phase 2 extension coverage (otherwise held/omitted):
 # export TF_VAR_enable_optional_operations_test=true
 # export TF_VAR_notification_email='<APPROVED_TEST_NOTIFICATION_EMAIL>'
-# export TF_VAR_monthly_budget_amount='<APPROVED_POSITIVE_BILLING_CURRENCY_AMOUNT>'
 bash run.sh
 ```
 
@@ -31,7 +34,7 @@ workload identity role, then destroys resources even if a check fails. It does
 not mistake configured Terraform outputs for a successful Azure write path.
 It checks specific inspection routes and disabled gateway BGP propagation.
 When explicitly enabled, it also reads actual Entra-only Application Insights,
-alert destinations and budget notifications. Optional Blob security/recovery/
+alert destinations. No budgets are created. Optional Blob security/recovery/
 diagnostic properties are checked independently.
 It also checks that referenced action groups are enabled. When run against
 approved contracts referencing existing telemetry, workspace/authentication
@@ -39,6 +42,21 @@ checks still apply but sampling remains with that resource's owner. The isolated
 fixture exercises creation; mocked root tests exercise cross-subscription ID
 reuse. Neither is evidence of shared client permissions or real alert delivery.
 enable_blob_storage_test defaults true; false explicitly omits that capability.
+enable_vault_test defaults true. Set it false for an approved secretless-spoke
+test; the fixture then requests no vault DNS link. Vault DNS/secret probes and
+temporary vault operator access must also be off. The driver rejects that
+contradiction before deployment, and the verifier still checks the network,
+peerings and every enabled storage/telemetry capability.
+
+The verifier checks root storage AllMetrics, Blob read/write/delete plus
+Transaction metrics, and vault AuditEvent plus AllMetrics. It checks declared
+external diagnostic IDs against observed settings and rejects duplicate
+coverage. Existing failed-request alerts must be enabled, scoped to the right
+component and have valid metric criteria and actual action-group destinations;
+their approved severity remains with the existing owner. The isolated fixture
+does not pretend to create an external owner's existing resources. Reuse variants
+are mock-composed from the real examples; actual shared-resource permissions and
+configuration must be verified in a staging environment before client adoption.
 No VM or backup vault is created. VM backup enrollment is mock-tested against
 approved existing IDs; testing actual backup/restore requires a separately
 approved VM and policy in staging. Blob data-plane access is not claimed by the

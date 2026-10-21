@@ -88,7 +88,7 @@ example under Templates below — not a dedicated pattern. See
 
 | Workspace pattern | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-peering-<spoke>` | network-peering | `platform-network-peering` | Optional central attachment state: both peering directions + approved DNS links. Use only when the new spoke has manage_hub_attachment=false; otherwise the spoke composes the same pure Azure pattern. |
+| `platform-compeer-peering-<spoke>` | network-peering | `platform-network-peering` | Required separate platform-owned attachment stage for each enabled new spoke: both peerings + exact DNS links from its versioned public contract. Spoke blueprint creates neither. Keep environments/identities scoped; central ownership does not mean one global state. |
 | Existing legacy workload workspaces | workload-spoke (legacy) | `platform-workload-spoke` | Compatibility implementation for existing states. Superseded for NEW internal-applications deployments by the Step 11 roots below; do not repoint an existing state without a reviewed migration. |
 
 ### Step 11 workload templates
@@ -162,7 +162,7 @@ For deployment gates and actual NET-22 evidence, see
 
 - **Core platform workspaces to create now:** 14 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
 - **Buffer / conditional:** 5 (create only on the trigger above)
-- **Templates:** 2 Step 11 workload environment roots plus the optional central peering adapter; legacy workload-spoke is compatibility-only
+- **Templates:** 2 Step 11 workload environment roots plus the required central attachment stage; all committed examples remain disabled and legacy workload-spoke is compatibility-only
 - **Total platform footprint with buffer:** ~19 + templates + N workload LZs
 
 ## Deployment order
@@ -170,7 +170,8 @@ For deployment gates and actual NET-22 evidence, see
 `governance → authorization → workload-identity → privileged-access →
 subscription-onboarding → policy → management → connectivity → identity →
 directory-services → hybrid-connectivity → palo-alto → cloudflare-connectors →
-cloudflare-edge`, then peering + workload LZs (including a shared-services
+cloudflare-edge`, then workload foundation, central attachment, and live acceptance
+(including a shared-services
 workload spoke, if/when one is instantiated — see the retirement note above).
 
 - `authorization` runs right after `governance` — its role assignments target the

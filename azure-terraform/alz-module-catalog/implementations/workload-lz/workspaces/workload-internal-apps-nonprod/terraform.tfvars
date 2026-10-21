@@ -1,6 +1,7 @@
 # Ticket 204114 / NET-24.
 # Set tenant_id, subscription_id, connectivity_subscription_id and
 # private_dns_subscription_id in HCP Terraform, not as committed credentials.
+# connectivity_subscription_id is only a legacy DNS-subscription fallback; no hub provider is configured.
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"
@@ -18,7 +19,7 @@ spoke = {
   # inspection_address_prefixes = ["REPLACE_IDENTITY_ONPREM_OTHER_SPOKE_CIDRS"]
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IP"
   allow_azure_provided_dns      = false
-  manage_hub_attachment         = true
+  manage_hub_attachment         = false # Both peerings and VNet/DNS links belong to central attachment.
   gateway_transit_enabled       = false
   private_endpoint_client_cidrs = []
   workload_tags = {
@@ -42,11 +43,13 @@ spoke = {
     }
   }
   key_vault = {
+    enabled                  = true # Same security baseline; optional only for a secretless workload.
     sku_name                 = "standard"
     secret_readers           = {}
     secret_officer_group_ids = {}
   }
   workload_access_group_ids = {}
+  diagnostics               = { enabled = true, existing_settings = {} }
   # ON HOLD: OBS-09/OBS-04 Phase 2; activate only after workload/SOC approval.
   # monitoring = {
   #   enabled                    = true
@@ -66,8 +69,6 @@ spoke = {
   #   # Or supply action_group_ids = ["REPLACE_APPROVED_ACTION_GROUP_ARM_ID"].
   #   # For a different application audience ONLY: remove the shared key and set
   #   # create_action_group = true; notification_emails = ["REPLACE_NONPRODUCTION_TEAM_EMAIL"].
-  #   # Governance owns the subscription budget unless explicitly handed off.
-  #   budget = { enabled = true, amount = 0 } # Approved positive amount required.
   # }
   # ON HOLD: WKL-05 until workload data requirements are approved.
   # storage_accounts = { data = {} } # Nonprod: LRS, 7-day soft deletion.

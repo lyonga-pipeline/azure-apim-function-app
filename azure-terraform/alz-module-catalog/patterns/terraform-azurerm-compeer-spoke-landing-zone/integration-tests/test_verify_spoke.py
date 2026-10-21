@@ -11,6 +11,12 @@ from verify_spoke import secret_roundtrip, verify_control_plane, verify_private_
 
 
 class DeploymentGuardTests(unittest.TestCase):
+    def test_secretless_driver_rejects_vault_probes_before_deployment(self):
+        environment = dict(os.environ, ALLOW_LIVE_AZURE_TEST="true", TF_VAR_enable_vault_test="false", VERIFY_SECRET_ACCESS="true")
+        result = subprocess.run(["bash", str(Path(__file__).with_name("run.sh"))], env=environment, capture_output=True, text=True, timeout=10, check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Secretless spoke", result.stderr)
+
     def test_live_driver_refuses_without_explicit_approval(self):
         environment = dict(os.environ)
         environment.pop("ALLOW_LIVE_AZURE_TEST", None)
@@ -37,7 +43,6 @@ class ControlPlaneTests(unittest.TestCase):
         self.insights = base + "Microsoft.Insights/components/test"
         self.alert = base + "Microsoft.Insights/metricAlerts/test"
         self.group = base + "Microsoft.Insights/actionGroups/test"
-        self.budget = "/subscriptions/11111111-1111-1111-1111-111111111111/providers/Microsoft.Consumption/budgets/test"
         self.principal = "22222222-2222-2222-2222-222222222222"
         self.contract = {
             "contract_version": "1.0.0",
@@ -50,7 +55,7 @@ class ControlPlaneTests(unittest.TestCase):
             "workload_identity": {"principal_id": self.principal},
             "environment_profile": {"telemetry_sampling_percentage": 20, "alert_severity": 3},
             "application_services": {"application_insights_id": self.insights, "failed_requests_alert_id": self.alert, "action_group_ids": [self.group],
-                                     "budget_id": self.budget, "budget_amount": 100, "storage": {}},
+                                     "storage": {}},
         }
         self.resources = {
             self.vault: {"properties": {"enableRbacAuthorization": True, "publicNetworkAccess": "Disabled", "enablePurgeProtection": True, "softDeleteRetentionInDays": 90, "networkAcls": {"defaultAction": "Deny", "bypass": "None"}}},
@@ -64,11 +69,11 @@ class ControlPlaneTests(unittest.TestCase):
             self.insights: {"properties": {"DisableLocalAuth": True, "WorkspaceResourceId": self.law, "SamplingPercentage": 20}},
             self.alert: {"properties": {"enabled": True, "severity": 3, "scopes": [self.insights], "actions": [{"actionGroupId": self.group}]}},
             self.group: {"properties": {"enabled": True}},
-            self.budget: {"properties": {"amount": 100, "notifications": {str(index): {"enabled": True, "threshold": threshold, "thresholdType": kind, "contactGroups": [self.group]}
-                                                                       for index, (threshold, kind) in enumerate([(80, "Actual"), (100, "Actual"), (100, "Forecasted")])}}},
         }
         for local, remote in [(self.spoke, self.hub), (self.hub, self.spoke)]:
             self.resources[local + "/virtualNetworkPeerings"] = {"value": [{"properties": {"remoteVirtualNetwork": {"id": remote}, "peeringState": "Connected", "allowForwardedTraffic": True}}]}
+        self.resources[self.vault + "/providers/Microsoft.Insights/diagnosticSettings"]["value"][0]["properties"]["metrics"] = [{"category": "AllMetrics", "enabled": True}]
+        self.resources[self.alert]["properties"]["criteria"] = {"allOf": [{"metricName": "requests/failed", "metricNamespace": "Microsoft.Insights/components", "timeAggregation": "Count", "operator": "GreaterThanOrEqual", "threshold": 20}]}
 
     def azure(self, *arguments):
         if arguments[0] == "role":
@@ -78,13 +83,58 @@ class ControlPlaneTests(unittest.TestCase):
     def test_complete_observed_baseline_passes(self):
         self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
 
+    def test_implicit_subnet_outbound_access_fails(self):
+        for value in (True, None):
+            with self.subTest(default_outbound_access=value):
+                self.resources[self.subnet]["properties"]["defaultOutboundAccess"] = value
+                with self.assertRaisesRegex(AssertionError, "Implicit outbound access"):
+                    verify_control_plane(self.contract, self.azure)
+
+    def test_disabled_private_endpoint_network_policies_fail(self):
+        for value in ("Disabled", "NetworkSecurityGroupEnabled", None):
+            with self.subTest(private_endpoint_network_policies=value):
+                self.resources[self.subnet]["properties"]["privateEndpointNetworkPolicies"] = value
+                with self.assertRaisesRegex(AssertionError, "Private endpoint policies disabled"):
+                    verify_control_plane(self.contract, self.azure)
+
     def test_phase_one_without_held_services_passes(self):
         services = self.contract["application_services"]
-        for key in ("application_insights_id", "failed_requests_alert_id", "budget_id"):
+        for key in ("application_insights_id", "failed_requests_alert_id"):
             services[key] = None
-        for resource_id in (self.insights, self.alert, self.budget):
+        for resource_id in (self.insights, self.alert):
             del self.resources[resource_id]
         verify_control_plane(self.contract, self.azure)
+
+    def test_secretless_spoke_still_checks_network_and_telemetry(self):
+        self.contract["key_vault"] = None
+        del self.resources[self.vault]
+        verify_control_plane(self.contract, self.azure)
+        self.resources[self.hub + "/virtualNetworkPeerings"]["value"] = []
+        with self.assertRaisesRegex(AssertionError, "peering"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_reused_alert_retains_owner_severity_but_must_have_valid_criteria(self):
+        self.contract["application_services"]["failed_requests_alert_owner"] = "existing-resource-owner"
+        self.resources[self.alert]["properties"]["severity"] = 1
+        verify_control_plane(self.contract, self.azure)
+        self.resources[self.alert]["properties"]["criteria"]["allOf"][0]["metricName"] = "requests/count"
+        with self.assertRaisesRegex(AssertionError, "metric criterion"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_reuse_requires_the_actual_declared_diagnostic_setting(self):
+        setting_id = self.vault + "/providers/Microsoft.Insights/diagnosticSettings/external"
+        self.contract["diagnostic_ownership"]["existing_setting_ids"] = {"key_vault": setting_id}
+        values = self.resources[self.vault + "/providers/Microsoft.Insights/diagnosticSettings"]["value"]
+        values[0]["id"] = setting_id
+        verify_control_plane(self.contract, self.azure)
+        values[0]["id"] += "-different"
+        with self.assertRaisesRegex(AssertionError, "declared ARM ID"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_vault_audit_metrics_cannot_be_missing(self):
+        self.resources[self.vault + "/providers/Microsoft.Insights/diagnosticSettings"]["value"][0]["properties"]["metrics"] = []
+        with self.assertRaisesRegex(AssertionError, "logs/metrics"):
+            verify_control_plane(self.contract, self.azure)
 
     def test_reused_telemetry_preserves_its_owner_sampling(self):
         self.contract["application_services"]["application_insights_configuration_managed"] = False
@@ -106,11 +156,6 @@ class ControlPlaneTests(unittest.TestCase):
         self.contract["application_services"]["application_insights_configuration_managed"] = False
         self.resources[self.alert]["properties"]["scopes"] = [self.insights + "-another-application"]
         with self.assertRaisesRegex(AssertionError, "wrong telemetry component"):
-            verify_control_plane(self.contract, self.azure)
-
-    def test_budget_cannot_notify_a_different_shared_audience(self):
-        self.resources[self.budget]["properties"]["notifications"]["0"]["contactGroups"] = [self.group + "-wrong-audience"]
-        with self.assertRaisesRegex(AssertionError, "wrong destinations"):
             verify_control_plane(self.contract, self.azure)
 
     def test_missing_specific_inspection_route_fails(self):
@@ -154,11 +199,6 @@ class ControlPlaneTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "destinations"):
             verify_control_plane(self.contract, self.azure)
 
-    def test_missing_forecast_budget_notification_fails(self):
-        del self.resources[self.budget]["properties"]["notifications"]["2"]
-        with self.assertRaisesRegex(AssertionError, "Budget notification"):
-            verify_control_plane(self.contract, self.azure)
-
     def add_storage(self):
         account = self.spoke.split("/providers/")[0] + "/providers/Microsoft.Storage/storageAccounts/workload"
         endpoint = self.endpoint + "-blob"
@@ -171,6 +211,8 @@ class ControlPlaneTests(unittest.TestCase):
         self.resources[endpoint + "/privateDnsZoneGroups/default"] = {"properties": {"privateDnsZoneConfigs": [{"properties": {"privateDnsZoneId": zone}}]}}
         self.resources[zone + "/virtualNetworkLinks"] = {"value": [{"properties": {"virtualNetwork": {"id": self.spoke}, "registrationEnabled": False}}]}
         self.resources[account + "/blobServices/default/providers/Microsoft.Insights/diagnosticSettings"] = {"value": [{"properties": {"workspaceId": self.law, "logs": [{"category": category, "enabled": True} for category in ["StorageRead", "StorageWrite", "StorageDelete"]]}}]}
+        self.resources[account + "/blobServices/default/providers/Microsoft.Insights/diagnosticSettings"]["value"][0]["properties"]["metrics"] = [{"category": "Transaction", "enabled": True}]
+        self.resources[account + "/providers/Microsoft.Insights/diagnosticSettings"] = {"value": [{"properties": {"workspaceId": self.law, "metrics": [{"category": "AllMetrics", "enabled": True}]}}]}
         return account
 
     def test_observed_private_storage_passes(self):
@@ -184,6 +226,19 @@ class ControlPlaneTests(unittest.TestCase):
             verify_control_plane(self.contract, self.azure)
 
     def test_missing_blob_child_diagnostics_fails(self):
+        account = self.add_storage()
+        self.resources[account + "/blobServices/default/providers/Microsoft.Insights/diagnosticSettings"]["value"] = []
+        with self.assertRaisesRegex(AssertionError, "Blob logs"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_missing_root_storage_metrics_fails(self):
+        account = self.add_storage()
+        self.resources[account + "/providers/Microsoft.Insights/diagnosticSettings"]["value"] = []
+        with self.assertRaisesRegex(AssertionError, "account metrics"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_secretless_storage_still_requires_blob_auditing(self):
+        self.contract["key_vault"] = None
         account = self.add_storage()
         self.resources[account + "/blobServices/default/providers/Microsoft.Insights/diagnosticSettings"]["value"] = []
         with self.assertRaisesRegex(AssertionError, "Blob logs"):

@@ -4,7 +4,7 @@ variable "tenant_id" {
 }
 
 variable "hub_subscription_id" {
-  description = "Connectivity/hub subscription ID (contains the hub VNet + Private DNS zones). Set as a workspace-level Terraform-category variable in HCP."
+  description = "Actual hub VNet subscription UUID. DNS can be in a different subscription. Set as a workspace-level Terraform-category variable in HCP."
   type        = string
 }
 

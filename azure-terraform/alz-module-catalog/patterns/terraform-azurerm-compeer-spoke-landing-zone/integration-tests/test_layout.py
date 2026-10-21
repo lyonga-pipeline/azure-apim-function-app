@@ -29,6 +29,15 @@ class BlueprintLayoutTests(unittest.TestCase):
             if re.search(r"^variable\s+", path.read_text(), re.MULTILINE):
                 self.assertEqual(path.name, "variables.tf")
 
+    def test_blueprint_cannot_create_peerings_or_vnet_zone_links(self):
+        source = "\n".join(path.read_text() for path in BLUEPRINT.glob("*.tf"))
+        self.assertNotIn('module "attachment_naming"', source)
+        self.assertNotIn("private_dns_link_vnets", source)
+        self.assertNotIn('source = "../terraform-azurerm-compeer-hub-spoke-peering"', source)
+        self.assertNotRegex(source, r'source\s*=\s*"[^"]*(?:vnet-peering|private-dns-vnet-link)"')
+        self.assertNotRegex(source, r'resource\s+"azurerm_(?:virtual_network_peering|private_dns_zone_virtual_network_link)"')
+        self.assertNotIn("azurerm.connectivity", source)
+
 
 if __name__ == "__main__":
     unittest.main()

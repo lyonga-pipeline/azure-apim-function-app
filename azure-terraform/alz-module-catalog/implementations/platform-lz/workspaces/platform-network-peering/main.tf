@@ -17,6 +17,8 @@ module "network_peering" {
   spoke_subscription_id                = var.spoke_subscription_id
   private_dns_subscription_id          = var.private_dns_subscription_id
   use_tfe_outputs                      = try(var.network_peering.use_tfe_outputs, true)
+  use_spoke_attachment_contract        = try(var.network_peering.use_spoke_attachment_contract, false)
+  spoke_attachment_contract            = try(var.network_peering.spoke_attachment_contract, null)
   tfe_organization                     = coalesce(try(var.network_peering.tfe_organization, null), "Compeer-Financial-Services")
   platform_connectivity_workspace_name = try(var.network_peering.platform_connectivity_workspace_name, "platform-connectivity")
   workload_spoke_workspace_name        = try(var.network_peering.workload_spoke_workspace_name, "workload-spoke")
@@ -32,5 +34,6 @@ module "network_peering" {
   spoke_to_hub                         = try(var.network_peering.spoke_to_hub, {})
   private_dns_zone_resource_group_name = try(var.network_peering.private_dns_zone_resource_group_name, null)
   private_dns_zones                    = try(var.network_peering.private_dns_zones, {})
+  private_dns_link_names               = try(var.network_peering.private_dns_link_names, {})
   tags                                 = try(var.network_peering.tags, {})
 }
