@@ -65,8 +65,10 @@ coverage; retain the documented security/operations release sign-off.
 
 ## Basic Usage
 
-Caller example from the catalog/package root; define these root variables and
+Local-development caller example from the catalog/package root; define these root variables and
 configure providers/backend using the supplied [workspace templates](../../implementations/workload-lz/workspaces).
+Deployment roots instead select an independent fixed blueprint release per
+application/environment; see [isolation and promotion](../../implementations/workload-lz/ISOLATION.md).
 There is no global `enabled` input on this module; deployment roots/examples
 provide their own enable/approval gates.
 
@@ -99,7 +101,7 @@ output "attachment_contract" {
 ```
 
 Re-export required contracts from the caller: child-module outputs are not
-automatically visible to another HCP workspace. The shared deployment adapter
+automatically visible to another HCP workspace. Each environment deployment root
 reads declared platform outputs with `tfe_outputs`, not full remote state.
 It additionally requires readable governance `mandatory_tag_keys`. Output-read
 authorization is separate from Azure authentication; do not enable broad state sharing.
@@ -140,7 +142,7 @@ authorization is separate from Azure authentication; do not enable broad state s
 `criticality_tier`, `data_classification`, `lifecycle_state`, `cost_center`,
 `gl_category`, `dr_tier`. Optional: `application_component`, `modified_on`,
 `additional_tags`. Keep `created_on` lifecycle-owned and stable, never `timestamp()`;
-the shared root persists it with `time_static`. Approved mandatory keys must exist.
+the environment root persists it with `time_static`. Approved mandatory keys must exist.
 
 **Platform fields:** `management_contract_version` and
 `connectivity_contract_version` must both be `"0.1.0"`; provide
@@ -176,7 +178,7 @@ This creates an application component and failed-request rule, referencing
 the key set with `action_group_ids=[existing_id]`. To create a new application
 group, use `create_action_group=true` and approved `notification_emails`.
 Emails are invalid when creation is false; no group is created without a new alert consumer.
-The shared workspace adapter can select the enabled platform `primary` group;
+The environment deployment root can select the enabled platform `primary` group;
 a direct module call must choose its routes explicitly.
 
 ### Reuse Telemetry And An Existing Alert

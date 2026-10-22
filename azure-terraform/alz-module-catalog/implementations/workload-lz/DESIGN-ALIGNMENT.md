@@ -21,7 +21,7 @@ without modification from the supplied azure-cloud directory.
   adapter uses existing approved catalog contract names/version 0.1.0 rather
   than changing deployed platform output APIs to the draft's prefixed names.
   The spoke now republishes resource-group IDs, approved LAW ID and the
-  governance mandatory_tag_keys list to application roots. The shared adapter
+  governance mandatory_tag_keys list to application roots. Each environment root
   reads only nonsensitive_values from governance and fails if its key list is
   empty or required workload metadata is missing; it never grants an application
   root access to full platform state.
@@ -41,7 +41,7 @@ an existing state that still owns peerings or zone links.
 
 | Source | Required outcome | Code implementation |
 | --- | --- | --- |
-| Deployment Order rows 97-99; Component List WKL-01, NET-23/24 | One reusable blueprint, same module with separate prod/nonprod inputs | patterns/terraform-azurerm-compeer-spoke-landing-zone and shared/main.tf; two disabled workspace templates |
+| Deployment Order rows 97-99; Component List WKL-01, NET-23/24 | One reusable blueprint, same module with separate prod/nonprod inputs | patterns/terraform-azurerm-compeer-spoke-landing-zone; two disabled workspace roots with direct independent release pins; see ISOLATION.md |
 | Refined Placement rows 38/41; Appendix F | <app>-cus-<env>-network-rg and <app>-cus-<env>-spoke-vnet in the workload subscription | Canonical naming module; new blueprint opts out of legacy domain-prefixed RG names |
 | Refined Placement rows 39/42; WKL-07, IAM-06; design 9.1 | Workload vault, private endpoint and UAMI in each workload subscription's security RG | Dedicated vault by default; user-approved 2026-10-20 opt-out for secretless workloads. Enabled vaults retain private-only RBAC, purge protection, scoped Secrets User and required central AuditEvent diagnostics; see CAPABILITIES.md |
 | Refined Placement row 40; design 10.6 | <app>-cus-<env>-app-rg reserved for the internal pilot | Logical output/access key application remains stable; Azure purpose is app; compute stays application-owned |

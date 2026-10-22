@@ -8,9 +8,9 @@ tests. That is not client deployment, enterprise certification or ticket sign-of
 
 | Step | Component | Implementation | Evidence |
 | --- | --- | --- | --- |
-| 11.1 | WKL-01 spoke blueprint | spoke-landing-zone pattern plus shared public-contract adapter | Real module composition, contract/subscription guards, IPAM overlap and network/security negative tests |
-| 11.2 | NET-23 production spoke | workload-internal-apps-prod root calling the shared blueprint | Enabled-root mock apply, production profile and disabled-placeholder tests |
-| 11.3 | NET-24 non-production spoke | workload-internal-apps-nonprod root calling the same blueprint | Enabled-root mock apply, non-production profile, same security controls |
+| 11.1 | WKL-01 spoke blueprint | Reusable spoke-landing-zone pattern; public-contract reads in each environment root | Real module composition, contract/subscription guards, IPAM overlap and network/security negative tests |
+| 11.2 | NET-23 production spoke | workload-internal-apps-prod root directly pinning its blueprint release | Enabled-root mock apply, production profile, disabled placeholders and address-migration tests |
+| 11.3 | NET-24 non-production spoke | workload-internal-apps-nonprod root independently pinning the same blueprint | Enabled-root mock apply, non-production profile, same security controls and address-migration tests |
 | 11.4 | NET-22 bidirectional peering | Platform-owned network-peering adapter calling the hub-spoke-peering pattern; blueprint publishes intent only | Cross-state contract consumption, both directions, gateway approval, subscription/tenant/DNS guards; optional live Connected checks |
 | 11.5 | NET-29 private endpoint pattern | Canonical private-endpoint module composed by the Key Vault/storage parents | Correct target, subnet, subresource and central zone-group wiring; no standalone duplicate PE state |
 | 11.6 | WKL-07 workload Key Vault | Dedicated workload-key-vault pattern by default; approved secretless workload opt-out | Private-only RBAC vault, purge protection, required central diagnostics and scoped service roles when enabled; see CAPABILITIES.md |
@@ -30,9 +30,9 @@ platform-owned workspace. See [ATTACHMENT.md](ATTACHMENT.md) for deployment,
 permissions and the required existing-state handoff.
 
 ```text
-Platform provisioning state
-  -> shared public-contract adapter
-  -> spoke blueprint
+Per-application/environment provisioning state and independently pinned root
+  -> reads public platform contracts
+  -> versioned spoke blueprint (not live shared/)
        -> private Key Vault + endpoint + scoped identity access
        -> publishes versioned attachment_contract
 
@@ -45,6 +45,9 @@ Application state
   -> consumes spoke IDs/contracts
   -> deploys mixed-workload compute and application-specific services
 ```
+
+Both environment roots can follow `main` without following live blueprint changes.
+See [ISOLATION.md](ISOLATION.md) for promotion, workspace settings and migration.
 
 The spoke has no hub provider or peering/link module calls. The deprecated
 manage_hub_attachment input must remain false; true fails with migration

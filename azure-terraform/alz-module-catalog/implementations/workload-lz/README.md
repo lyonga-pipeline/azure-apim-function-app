@@ -14,10 +14,13 @@ and existing-deployment migration cautions.
 | 204114 / NET-24 | workspaces/workload-internal-apps-nonprod |
 | 204117 / WKL-07 | Separate workload-key-vault pattern, embedded by default |
 
-Both workspace roots call shared/, which reads public platform contracts and
-instantiates exactly the same typed blueprint. This avoids environment-specific
-copies of the network/security implementation. This tree is for NEW states;
-the legacy platform-workload-spoke root/pattern remains unchanged.
+Each workspace root calls an independently pinned release of the same typed
+blueprint directly. Public-contract reads and stable deployment metadata live
+in the root; network/security implementation stays in the reusable pattern.
+The live `shared/` adapter is deprecated and no longer consumed by these roots.
+See [ISOLATION.md](ISOLATION.md) for trunk-based release promotion, exact HCP
+working-directory/trigger settings and existing-state migration. The unrelated
+legacy platform-workload-spoke root/pattern remains unchanged.
 
 ## Supported Toolchain
 
@@ -29,8 +32,10 @@ The shared Application Insights module retains its caller API while replacing
 the provider's deprecated inverse booleans internally. Existing consumers with
 older provider locks need a reviewed init -upgrade and plan before applying.
 Workspace paths are listed below and in [HCP-WORKSPACES.md](../platform-lz/HCP-WORKSPACES.md).
-The catalog uses local module sources; the HCP-pinned Compeer copy stays outside
-the repository. Run `bash implementations/workload-lz/test.sh` from the catalog
+The catalog pattern uses local child modules; deployment roots fetch its fixed
+commit archive, including those children. The HCP-pinned Compeer copy stays outside
+the repository and requires its own verified blueprint publication before adopting
+registry-based root pins. Run `bash implementations/workload-lz/test.sh` from the catalog
 root for the same capability, ownership, workspace and example coverage.
 
 ## Replace Placeholders Before Enabling
@@ -79,6 +84,8 @@ Production is fixed to prod. Non-production defaults to dev and accepts test,
 uat and approved np1/np2/np3 aliases. Use a SEPARATE workspace/state per actual
 application and environment, not one shared state for unrelated applications.
 The ticket-root directories are templates for that per-application instantiation.
+For independent promotion, give every app/environment its own directory and
+module release pin, not just another workspace pointing to the same root.
 
 HCP VCS working directories, relative to the repository:
 
@@ -147,7 +154,7 @@ Sentinel, Defender/flow-log policies and hybrid shared services are reused.
 Application Insights/alerts are Phase 2 opt-ins; the operations RG exists only
 when a local telemetry component, action group or alert needs it. Reference-only
 telemetry needs no empty operations RG.
-The adapter reads management's existing action_group_ids public output and
+Each root reads management's existing action_group_ids public output and
 defaults to primary only when published/enabled and no explicit ID/local-create
 choice is supplied. It does not modify shared contacts. Existing approved
 Application Insights components can be referenced without taking ownership or
@@ -166,7 +173,7 @@ storage_accounts = {
 This is inside spoke in terraform.tfvars. Names, private endpoints, Blob zone
 registration, versioning, retention and diagnostics are wired automatically;
 replication_type/delete_retention_days can be explicitly increased. The public
-connectivity contract must publish the existing Blob zone. The adapter supports
+connectivity contract must publish the existing Blob zone. Each root supports
 both convenience output IDs and actual zone-name/key maps. No storage is created
 by default, so no unused account is introduced.
 

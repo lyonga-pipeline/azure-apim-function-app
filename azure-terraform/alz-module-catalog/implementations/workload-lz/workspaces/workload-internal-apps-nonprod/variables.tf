@@ -52,6 +52,10 @@ variable "spoke" {
   description = "Deployment configuration. Keep enabled=false until all placeholders and IPAM approvals are resolved."
   type        = any
   default     = { enabled = false }
+  validation {
+    condition     = !can(var.spoke.operations.budget)
+    error_message = "operations.budget was removed from this Phase 1 package. Remove the legacy input; manage Phase 2 budgets separately with the governance owner."
+  }
 }
 
 variable "environment" {

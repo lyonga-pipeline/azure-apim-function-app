@@ -15,17 +15,17 @@ output "uri" {
 
 output "private_endpoint_id" {
   description = "Private endpoint resource ID."
-  value       = module.private_endpoint.id
+  value       = try(module.private_endpoint["default"].id, null)
 }
 
 output "private_endpoint_configuration" {
   description = "Non-secret observed parent-owned endpoint wiring; does not prove live DNS or endpoint approval."
-  value = {
-    subnet_id            = module.private_endpoint.subnet_id
-    target_resource_id   = module.private_endpoint.private_service_connection[0].private_connection_resource_id
-    subresource_names    = module.private_endpoint.private_service_connection[0].subresource_names
-    private_dns_zone_ids = [for config in module.private_endpoint.private_dns_zone_configs : config.private_dns_zone_id]
-  }
+  value = try({
+    subnet_id            = module.private_endpoint["default"].subnet_id
+    target_resource_id   = module.private_endpoint["default"].private_service_connection[0].private_connection_resource_id
+    subresource_names    = module.private_endpoint["default"].private_service_connection[0].subresource_names
+    private_dns_zone_ids = [for config in module.private_endpoint["default"].private_dns_zone_configs : config.private_dns_zone_id]
+  }, null)
 }
 
 output "role_assignment_ids" {
@@ -56,4 +56,30 @@ output "security_configuration" {
 output "role_assignments" {
   description = "Observed vault-scoped assignments; contains no credentials."
   value       = module.roles.assignments
+}
+
+output "private_endpoints" {
+  description = "Observed endpoint configuration keyed by the caller's stable keys; does not assert approval or live DNS."
+  value = { for key, endpoint in module.private_endpoint : key => {
+    id                    = endpoint.id
+    subnet_id             = endpoint.subnet_id
+    target_resource_id    = endpoint.private_service_connection[0].private_connection_resource_id
+    private_dns_zone_ids  = [for config in endpoint.private_dns_zone_configs : config.private_dns_zone_id]
+    network_interface_ids = endpoint.network_interface_ids
+  } }
+}
+
+output "key_ids" {
+  description = "Versioned IDs of optional service-generated keys; no private key material is returned."
+  value       = module.keys.ids
+}
+
+output "key_versionless_ids" {
+  description = "Versionless key URIs for services that support automatic adoption of rotated keys."
+  value       = module.keys.versionless_ids
+}
+
+output "metric_alert_ids" {
+  description = "Optional availability, latency and saturation alerts; existing action groups remain externally owned."
+  value       = { for key, alert in module.metric_alerts : key => alert.id }
 }

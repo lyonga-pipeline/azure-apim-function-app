@@ -97,6 +97,12 @@ These working directories are under
 `azure-terraform/alz-module-catalog/implementations/workload-lz/workspaces/`,
 not the platform-lz directory above. Instantiate a separate HCP workspace/state
 per approved application and actual environment; the names below are examples.
+For independently promoted applications/environments, also instantiate a distinct
+root directory with its own exact blueprint release pin and VCS trigger path.
+Do not share one working directory and choose the deployment with runtime tfvars.
+Both roots now call the blueprint directly, not the live workload-lz/shared adapter.
+See [isolation and same-state migration](../workload-lz/ISOLATION.md) for the
+required main-branch workspace settings and promotion sequence.
 
 | Workspace pattern | Working dir | Profile |
 |---|---|---|

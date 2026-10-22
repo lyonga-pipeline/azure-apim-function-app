@@ -28,7 +28,7 @@ secretless variant may opt out without substituting the platform vault.
 ## Action Group Wiring
 
 `platform-management` already publishes `action_group_ids` (including `primary`)
-and `action_group_enabled`. The shared adapter reads these **non-sensitive public
+and `action_group_enabled`. Each environment root reads these **non-sensitive public
 outputs**, passes the IDs into `platform.action_group_ids`, and resolves
 `operations.platform_action_group_keys`. No producer output or contract version
 change is necessary.

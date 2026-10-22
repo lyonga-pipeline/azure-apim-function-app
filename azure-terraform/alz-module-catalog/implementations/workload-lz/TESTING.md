@@ -1,10 +1,11 @@
 # Workload Landing Zone Verification
 
-The repository uses local catalog modules. The HCP-pinned Compeer copy is kept
-outside this repository; it is not a second checked-in source tree. Blueprint,
-vault, central attachment, workspace and example behavior are aligned between
-the copies. Dependency sources and environment-specific runbooks intentionally
-differ. No private registry fixtures or downloaded module caches are published.
+The catalog pattern uses local child modules; environment roots independently
+pin the complete catalog package to a fixed commit archive. The Compeer copy is kept
+outside this repository; it is not a second checked-in source tree. It has its
+own dependency sources and runbook. The expanded standalone-vault options below
+are verified in this catalog; these results do not certify the external Compeer
+copy or any private registry release. No downloaded module caches are published.
 
 ## Run The Regression
 
@@ -25,38 +26,53 @@ The script runs:
 
 - Blueprint positive/negative mock integration tests and all capability flags.
 - Workload vault, paired peering core and central attachment adapter tests.
-- Shared adapter and production/non-production workspace tests.
+- Legacy adapter and directly pinned production/non-production workspace tests.
+- Environment-source/layout checks and same-state adapter-removal migration fixtures.
 - Central network-peering workspace tests and complete-root validation.
 - Local naming, VNet, storage, telemetry, vault, peering and DNS-link helper tests.
 - Seven actual example tfvars variants with disabled, approval-denied and enabled
   composition runs for each, not a separate test-only copy of the inputs.
+- Four standalone vault tfvars variants covering minimal/advanced private,
+  external diagnostics and an explicitly restricted-public exception.
 - Python observed-state verifier, private probe and source-layout tests.
 - Example/live-fixture init and validate plus live-driver shell syntax checking.
 
 The same script runs in `.github/workflows/alz-catalog-ci.yml`. It does not invoke
-the billable live-test driver or `terraform apply`. Native test apply operations
-use only the suites' mock providers, never an Azure deployment.
+the billable live-test driver. Native test apply operations use only the suites'
+mock providers. Migration fixtures apply only local built-ins/time in temporary
+directories, never Azure resources or client state.
 
 ## Latest Verification
 
-Verified on 2026-10-21 using Terraform 1.11.4 and AzureRM 4.81.0 in a
+Verified on 2026-10-22 using Terraform 1.11.4 and AzureRM 4.81.0 in a
 disposable catalog copy, without changing provider constraints or deploying Azure.
 
 | Check | Result |
 | --- | --- |
 | Blueprint | 89 passed |
-| Workload vault | 12 passed |
+| Workload vault | 37 passed |
 | Paired peering / central adapter | 10 / 25 passed |
-| Shared / production / non-production / central workspace | 3 / 3 / 3 / 2 passed |
-| Local helper tests | 104 passed |
+| Legacy shared / production / non-production / central workspace | 3 / 6 / 6 / 2 passed |
+| Local helper tests, including key/metric-alert helpers | 106 passed |
 | Seven actual tfvars variants | 21 passed |
-| Total Terraform tests | 272 passed, 0 failed |
-| Python verifier, private probe and source layout | 37 passed, 0 failed |
-| Normalized HCL comparison with the local Compeer copy | 69 files matched |
+| Four standalone vault tfvars variants | 12 passed |
+| Total Terraform tests | 317 passed, 0 failed |
+| Python verifier, private probe, source layout and migrations | 47 passed, 0 failed |
 
 Complete workspace roots, examples and the isolated live fixture also initialized
 and validated successfully. Formatting, shell syntax and whitespace checks passed.
 This is local/mock evidence, not a completed GitHub Actions run or live acceptance.
+
+Both environment roots initialized using the actual fixed-commit HTTP archive,
+including its child modules. Their six tests each cover inert placeholders,
+shared-service reuse, public/explicit platform contracts and removed-budget
+rejection. The real root `moved.tf` declarations were applied in two local-only
+fixtures: all five nested/map/count resource IDs and timestamps were retained,
+with no resource changes and a no-op follow-up plan. No client state was used.
+The vault endpoint/diagnostic address moves were also tested with retained IDs
+and a no-op follow-up plan. The actual example inputs and parent input schema are
+checked for drift, disabled deployment defaults and preserved RBAC/recovery guards.
+See [ISOLATION.md](ISOLATION.md) for required HCP settings and migration review.
 
 ## Compatibility Regressions
 

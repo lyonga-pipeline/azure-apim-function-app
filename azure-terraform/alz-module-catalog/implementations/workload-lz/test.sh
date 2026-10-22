@@ -16,6 +16,7 @@ print("Testing catalog with Terraform " + version)
 
 blueprint=patterns/terraform-azurerm-compeer-spoke-landing-zone
 python3 -m unittest discover -s "$blueprint/integration-tests" -v
+python3 -m unittest discover -s implementations/workload-lz/tests -v
 
 roots=(
   "$blueprint"
@@ -31,6 +32,8 @@ roots=(
   modules/terraform-azurerm-compeer-storage-account
   modules/terraform-azurerm-compeer-application-insights
   modules/terraform-azurerm-compeer-key-vault
+  modules/terraform-azurerm-compeer-key-vault-key
+  modules/terraform-azurerm-compeer-monitor-metric-alert
   modules/terraform-azurerm-compeer-vnet-peering
   modules/terraform-azurerm-compeer-private-dns-vnet-link
 )
@@ -40,6 +43,13 @@ for root in "${roots[@]}"; do
     implementations/*/workspaces/*) terraform -chdir="$root" validate -no-color ;;
   esac
   terraform -chdir="$root" test -no-color
+done
+
+vault_examples=patterns/terraform-azurerm-compeer-workload-key-vault/examples
+terraform -chdir="$vault_examples" init -backend=false -input=false -no-color
+terraform -chdir="$vault_examples" validate -no-color
+for variant in "$vault_examples"/variants/*.tfvars; do
+  terraform -chdir="$vault_examples" test -no-color -var-file=baseline.tfvars -var-file="variants/$(basename "$variant")"
 done
 
 examples="$blueprint/examples"

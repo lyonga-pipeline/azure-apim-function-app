@@ -6,7 +6,7 @@ endpoints and diagnostics are owned elsewhere.
 ## Contract
 
 - `keys` is a `map(object)` keyed by a caller-stable logical name.
-- Each entry: `name`, `key_type` (RSA / RSA-HSM / EC / EC-HSM), `key_opts`,
+- The map key is the Azure key name. Each entry: `key_type` (RSA / RSA-HSM / EC / EC-HSM), `key_opts`,
   optional `key_size`, `curve`, `not_before_date`, `expiration_date`,
   `rotation_policy`, `tags`.
 - `key_vault_id` is required and injected by the caller.
@@ -23,7 +23,9 @@ endpoints and diagnostics are owned elsewhere.
 ## State exposure
 
 Key material is generated in the HSM/vault and never leaves it; state holds
-metadata and IDs only. Outputs: `ids` (map key -> key resource ID).
+metadata/public key attributes and IDs, not private key material. Outputs:
+`ids` (map key -> versioned key URI) and `versionless_ids` (map key -> versionless
+URI for consumers that support automatic key-version adoption).
 
 ## Migration
 
