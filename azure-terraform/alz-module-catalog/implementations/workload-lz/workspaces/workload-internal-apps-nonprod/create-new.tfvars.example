@@ -1,0 +1,154 @@
+# SYNTHETIC REFERENCE VALUES, not approved Compeer deployment inputs.
+# Complete UAT configuration with production-style resilience and new application services.
+# From this directory: terraform plan -var-file=create-new.tfvars.example
+# Keep disabled until UUIDs, IPAM, names, contacts, costs and service approvals are confirmed.
+# Optional telemetry/storage are explicit opt-in extensions, not Phase 1 authorization.
+subscription_id              = "11111111-1111-1111-1111-111111111111"
+tenant_id                    = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+connectivity_subscription_id = "22222222-2222-2222-2222-222222222222"
+private_dns_subscription_id  = "33333333-3333-3333-3333-333333333333"
+tfe_organization             = "REPLACE_HCP_ORGANIZATION"
+management_workspace_name    = "platform-management"
+connectivity_workspace_name  = "platform-connectivity"
+governance_workspace_name    = "platform-governance"
+use_tfe_outputs              = true
+platform_inputs              = {}
+environment                  = "uat" # This root rejects prod; use the production root for real production.
+
+spoke = {
+  enabled  = false # Never use false as a pause switch for an existing deployment: it can plan destruction.
+  appcode  = "orders"
+  domain   = "internal-apps"
+  location = "centralus"
+
+  # Replace the entire inventory with IPAM-approved values. Hub prefixes come from the contract.
+  address_space                 = ["10.200.0.0/20"]
+  reserved_address_spaces       = ["10.201.0.0/20", "10.40.0.0/16"]
+  inspection_address_prefixes   = ["10.40.0.0/16"]
+  egress_next_hop_ip            = "10.102.0.4" # Approved hub NVA frontend, not a guessed subnet IP.
+  private_endpoint_client_cidrs = ["10.40.10.0/24"]
+  allow_azure_provided_dns      = false
+  manage_hub_attachment         = false # Central attachment owns BOTH peerings and VNet/DNS links.
+  gateway_transit_enabled       = false # Enable intent only after central gateway approval.
+
+  workload_tags = {
+    application           = "orders"
+    owner                 = "Application Operations"
+    source_repo           = "ado://example/workloads/orders"
+    criticality_tier      = "tier-2"
+    data_classification   = "confidential"
+    lifecycle_state       = "active"
+    cost_center           = "CC-0000"
+    gl_category           = "cloud-infrastructure"
+    dr_tier               = "silver"
+    application_component = "landing-zone"
+    additional_tags       = { support_team = "orders-operations" }
+    # created_on is owned by the workspace's time_static resource, not a runtime timestamp.
+  }
+
+  subnets = {
+    application = {
+      address_prefixes              = ["10.200.0.0/24"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {} # Compute-specific delegation requires its own design review.
+      rules = {
+        internal-https = {
+          description                = "Approved internal clients to the application HTTPS endpoint."
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "10.40.10.0/24"
+          destination_address_prefix = "10.200.0.0/24"
+          access                     = "Allow"
+          priority                   = 300
+          direction                  = "Inbound"
+        }
+      }
+      routes = {} # Default and approved remote prefixes are already routed through the NVA.
+    }
+    private_endpoints = {
+      address_prefixes              = ["10.200.1.0/27"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {}
+      rules                         = {}
+      routes                        = {}
+    }
+  }
+
+  # Creates a dedicated RBAC-only private vault; central DNS and LAW are REUSED.
+  # Public access off, purge protection and 90-day soft deletion are enforced by the pattern.
+  key_vault = {
+    enabled  = true                   # false is only for a secretless application, not reuse of a platform vault.
+    name     = "orders-cus-uat-vault" # Replace with an approved globally unique name.
+    sku_name = "standard"             # Premium only for an approved HSM-backed-key requirement.
+    secret_readers = {
+      deployment_agent = {
+        principal_id   = "88888888-8888-8888-8888-888888888888"
+        principal_type = "ServicePrincipal"
+      }
+    }
+    secret_officer_group_ids = { operators = "99999999-9999-9999-9999-999999999999" }
+    # The blueprint-created workload UAMI already receives its scoped Secrets User role.
+  }
+  workload_access_group_ids = {
+    application_readers = {
+      principal_id        = "77777777-7777-7777-7777-777777777777"
+      role                = "Reader"
+      resource_group_keys = ["application"]
+    }
+  }
+
+  # Creates vault audit logs, storage account metrics and Blob service audit logs to central LAW.
+  diagnostics = { enabled = true, existing_settings = {} }
+
+  # ON HOLD until WKL-05 approval. This optional example creates private Blob storage, not compute.
+  storage_accounts = {
+    data = {
+      enabled                    = true
+      name                       = "exordersuatdata01" # Replace with an approved globally unique name.
+      replication_type           = "ZRS"
+      delete_retention_days      = 30
+      grant_workload_blob_access = true # Account-scoped Blob Data Contributor for the workload UAMI.
+    }
+    future_archive = { enabled = false, grant_workload_blob_access = false }
+  }
+
+  # ON HOLD until OBS-09/OBS-04 approval. New component, new failed-request rule, new app contacts.
+  monitoring = {
+    enabled                          = true
+    create_application_insights      = true
+    existing_application_insights    = null
+    manage_existing_telemetry_access = false
+    alerts_enabled                   = true
+    create_failed_requests_alert     = true
+    existing_failed_requests_alert   = null
+    sampling_percentage              = 100
+    failed_request_threshold         = 5 # Illustrative threshold; tune to the approved application SLO.
+    # Entra-only telemetry; public ingestion/query endpoints still need approved access and egress.
+    # For private-only telemetry, set both internet flags false ONLY after AMPLS/DNS are ready,
+    # then set private_link_ready=true. The blueprint does not deploy that platform path.
+    internet_ingestion_enabled = true
+    internet_query_enabled     = true
+    private_link_ready         = false
+  }
+  operations = {
+    create_action_group        = true # Only when the app needs an audience different from the platform's.
+    notification_emails        = ["orders-oncall@example.com"]
+    platform_action_group_keys = []
+    action_group_ids           = []
+    # To reuse platform contacts instead: create_action_group=false, notification_emails=[],
+    # platform_action_group_keys=["primary"]. Keep the new component and alert flags above.
+  }
+
+  backup = null # Compute and existing Recovery Services vault/policy belong to their approved owners.
+  # Optional registration AFTER the VMs exist, using a vault in this workload subscription:
+  # backup = {
+  #   enabled           = true
+  #   recovery_vault_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/backup/providers/Microsoft.RecoveryServices/vaults/orders-uat-rsv"
+  #   backup_policy_id  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/backup/providers/Microsoft.RecoveryServices/vaults/orders-uat-rsv/backupPolicies/approved-vm-policy"
+  #   virtual_machines  = { app01 = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/orders-cus-uat-app-rg/providers/Microsoft.Compute/virtualMachines/orders-app01" }
+  # }
+  # No budgets or management locks: both remain outside this Phase 1 package.
+}

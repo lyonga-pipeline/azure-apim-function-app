@@ -1,4 +1,7 @@
 # Ticket 204114 / NET-24.
+# Complete production-style UAT examples: create-new.tfvars.example and reuse-existing.tfvars.example.
+# Select ONE with -var-file; each replaces the complete spoke object. See README.md.
+# Actual production deployments belong in workload-internal-apps-prod, not this root.
 # Set tenant_id, subscription_id, connectivity_subscription_id and
 # private_dns_subscription_id in HCP Terraform, not as committed credentials.
 # connectivity_subscription_id is only a legacy DNS-subscription fallback; no hub provider is configured.

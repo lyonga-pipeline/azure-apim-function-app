@@ -45,6 +45,11 @@ for root in "${roots[@]}"; do
   terraform -chdir="$root" test -no-color
 done
 
+nonprod_examples=implementations/workload-lz/workspaces/workload-internal-apps-nonprod
+for profile in create-new reuse-existing; do
+  terraform -chdir="$nonprod_examples" test -no-color -test-directory=example-tests -var-file="$profile.tfvars.example"
+done
+
 vault_examples=patterns/terraform-azurerm-compeer-workload-key-vault/examples
 terraform -chdir="$vault_examples" init -backend=false -input=false -no-color
 terraform -chdir="$vault_examples" validate -no-color
