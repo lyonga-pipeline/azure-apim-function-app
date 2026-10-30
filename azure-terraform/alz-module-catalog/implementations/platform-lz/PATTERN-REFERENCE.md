@@ -29,7 +29,7 @@ files (e.g. `platform-management`'s alerts live in `platform_alerts.tf`, not
 12. `directory-services` → workspace `platform-directory-services`
 13. `cloudflare-connectors` → workspace `platform-cloudflare-connectors`
 14. `workload-spoke` (template) → one workspace per workload × environment
-15. `network-peering` -> retained single-pair building block; new `terraform-azapi-compeer-network-attachments` implements environment/hub batches through four disabled roots. See PEERING-STANDARD.md for release/gate/live adoption.
+15. `network-peering` -> retained single-pair building block; new `terraform-azapi-compeer-network-attachments` implements two disabled prod/nonprod batch roots. Nonprod retains and allowlists actual producer environments. See PEERING-STANDARD.md for release/gate/live adoption.
 16. `terraform-cloudflare-compeer-edge-baseline` → workspace `platform-cloudflare-edge`
 
 Not deployed: `subscription-vending` (creates subscriptions; Compeer's CSP
@@ -802,8 +802,8 @@ one state owns each peering resource (never enable `hub_connection` in
 `workload-spoke` for the same spoke).
 
 The [peering standard](PEERING-STANDARD.md) now defaults to a platform-owned
-attachment workspace per environment and hub/network boundary, managing multiple
-approved spokes. Dedicated per-spoke workspaces are exceptions. This pattern and
+production/non-production attachment workspace per hub/network boundary, managing
+multiple approved spokes. Dedicated per-spoke workspaces are exceptions. This pattern and
 the current root still handle one pair; a tested batch composition and explicit
 cross-subscription provider-group bindings are required before environment rollout.
 Do not treat producer outputs as authorization, import VNets into attachment state,

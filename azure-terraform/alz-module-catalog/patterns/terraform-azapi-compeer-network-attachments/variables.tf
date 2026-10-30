@@ -8,11 +8,25 @@ variable "tenant_id" {
 }
 
 variable "environment" {
-  description = "Fixed approved environment/boundary label of this state, including shared platform or custom environments; never a runtime selector."
+  description = "Fixed state boundary, e.g. prod or nonprod; never a runtime environment selector. Defaults to an exact-environment boundary unless allowed_environments is supplied."
   type        = string
   validation {
     condition     = length(var.environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", var.environment))
     error_message = "environment must be an approved lowercase alphanumeric/hyphen label, starting with a letter, at most 32 characters."
+  }
+}
+
+variable "allowed_environments" {
+  description = "Explicit producer-environment allowlist for this state. null preserves the existing exact environment check. Does not relabel producer environments."
+  type        = set(string)
+  default     = null
+  validation {
+    condition = var.allowed_environments == null ? true : (
+      length(var.allowed_environments) > 0 && alltrue([for environment in var.allowed_environments :
+        try(length(environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", environment)), false)
+      ])
+    )
+    error_message = "allowed_environments must be null or a nonempty set of approved lowercase environment slugs of at most 32 characters."
   }
 }
 
@@ -50,6 +64,7 @@ variable "attachments" {
   description = "Network-reviewed inventory keyed by immutable attachment identity. Remove a key only through an approved teardown. Empty creates nothing."
   type = map(object({
     attachment_kind          = optional(string, "workload")
+    environment              = optional(string)
     spoke_virtual_network_id = string
     address_space            = set(string)
     producer = object({
@@ -76,6 +91,7 @@ variable "attachments" {
       can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", attachment.spoke_virtual_network_id)) &&
       length(attachment.address_space) > 0 && alltrue([for cidr in attachment.address_space : can(cidrnetmask(cidr))]) &&
       contains(["workload", "platform"], attachment.attachment_kind) &&
+      (attachment.environment == null ? true : length(attachment.environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", attachment.environment))) &&
       (attachment.producer.contract_version == "2.0.0" ? (
         attachment.attachment_kind == "workload" && attachment.naming_context != null
       ) : attachment.producer.contract_version == "3.0.0" && attachment.naming_context == null) &&

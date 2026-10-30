@@ -29,7 +29,7 @@ selects environment-and-hub/network-boundary attachment states for multiple appr
 spokes, with dedicated-state exceptions. It supersedes a per-application attachment
 workspace default, not the separate per-application workload foundation states.
 The retained peering adapter still handles one pair. The new AzAPI batch pattern
-and four disabled environment roots implement the map-based alternative without
+and two disabled prod/nonprod roots implement the map-based alternative without
 subscription alias growth. [Gate tooling and adoption](../platform-lz/network-attachments/README.md)
 still require external protected checks, scoped OIDC/RBAC, a published/pinned release
 and live pilot evidence. No HCP workspace or grant is created by these code changes.

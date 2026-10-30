@@ -1,4 +1,4 @@
-# NEW: environment/hub attachment state. Existing single-pair roots and VNet owners are unchanged.
+# PHASE 2: production-only attachment state. VNet owners and legacy states are unchanged.
 locals {
   environment = "prod"
 }
@@ -11,8 +11,8 @@ resource "terraform_data" "adoption_contract" {
         var.deployment_controls.shared_hub_gate_configured &&
         length(trimspace(var.deployment_controls.approval_reference)) > 0 &&
         (var.tfc_azure_dynamic_credentials != null || var.allow_local_cli_auth)
-      ) : length(var.attachments) == 0
-      error_message = "Enabling requires an approved hub, ownership handoff, shared-hub gate, approval reference and OIDC (or explicit local auth). Disabled roots must have empty inventories."
+      ) : true
+      error_message = "Enabling requires an approved hub, ownership handoff, shared-hub gate, approval reference and OIDC (or explicit local auth)."
     }
   }
 }
@@ -21,6 +21,7 @@ module "attachments" {
   count                   = var.enabled ? 1 : 0
   tenant_id               = var.tenant_id
   environment             = local.environment
+  allowed_environments    = ["prod"]
   hub                     = var.hub
   attachments             = var.attachments
   reserved_address_spaces = var.reserved_address_spaces

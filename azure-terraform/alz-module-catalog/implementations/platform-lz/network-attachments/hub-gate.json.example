@@ -3,9 +3,7 @@
   "vcs_identifier": "REPLACE_WITH_HCP_INGRESS_REPOSITORY_IDENTIFIER",
   "hub_virtual_network_id": "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet",
   "workspaces": {
-    "platform-network-peering-np1": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-network-peering-np1",
-    "platform-network-peering-np2": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-network-peering-np2",
-    "platform-network-peering-np3": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-network-peering-np3",
+    "platform-network-peering-nonprod": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-network-peering-nonprod",
     "platform-network-peering-prod": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-network-peering-prod",
     "REPLACE_WITH_ACTUAL_CORE_CONNECTIVITY_WORKSPACE": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-connectivity",
     "REPLACE_WITH_ACTUAL_LEGACY_IDENTITY_WORKSPACE": "azure-terraform/alz-module-catalog/implementations/platform-lz/workspaces/platform-directory-services"

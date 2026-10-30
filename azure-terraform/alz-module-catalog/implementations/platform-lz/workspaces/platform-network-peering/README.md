@@ -5,7 +5,7 @@ one attachment workspace per environment and hub/network security boundary as
 the default, with multiple approved spokes and dedicated-workspace exceptions.
 The approved Git inventory authorizes membership; producer outputs are cross-checks.
 This root remains a **single-pair compatibility/example implementation**. It does
-not yet accept an attachments map or implement the four environment batch roots.
+not accept an attachments map; use the two prod/nonprod batch roots for new attachments.
 Do not instantiate a workspace per application as the new default, or move a live
 state merely by changing this root's source/working directory.
 

@@ -32,6 +32,7 @@ variable "attachments" {
   description = "Network-approved Git inventory. Stable keys are resource identities; removal is an approved teardown."
   type = map(object({
     attachment_kind          = optional(string, "workload")
+    environment              = optional(string)
     spoke_virtual_network_id = string
     address_space            = set(string)
     producer = object({

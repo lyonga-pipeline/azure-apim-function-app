@@ -1,4 +1,9 @@
 locals {
+  allowed_environments = var.allowed_environments == null ? toset([var.environment]) : var.allowed_environments
+  # Inventory declares the real environment; producer outputs only cross-check it.
+  attachment_environments = { for key, attachment in var.attachments : key => coalesce(
+    attachment.environment, try(attachment.naming_context.environment, null), var.environment
+  ) }
   active        = length(var.attachments) > 0
   hub_outputs   = try(data.tfe_outputs.hub[0].nonsensitive_values, {})
   spoke_outputs = { for key, producer in data.tfe_outputs.spoke : key => producer.nonsensitive_values }
@@ -46,7 +51,7 @@ locals {
     gateway        = try(local.contracts[key].gateway_transit_enabled == attachment.gateway_transit, false)
     tenant         = try(lower(local.contexts[key].tenant_id) == lower(var.tenant_id), false)
     subscription   = try(lower(local.contexts[key].subscription_id) == lower(split("/", attachment.spoke_virtual_network_id)[2]), false)
-    environment    = try(local.contexts[key].environment == var.environment, false)
+    environment    = try(contains(local.allowed_environments, local.attachment_environments[key]) && local.contexts[key].environment == local.attachment_environments[key], false)
     live_cidrs     = try(toset(data.azapi_resource.spoke[key].output.properties.addressSpace.addressPrefixes) == attachment.address_space, false)
     producer_cidrs = attachment.producer.contract_version != "3.0.0" || try(toset(local.contracts[key].address_space) == attachment.address_space, false)
     central_names  = try(local.contracts[key].peering_names, null) == null

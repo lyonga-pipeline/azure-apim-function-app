@@ -7,7 +7,7 @@ output "attachments" {
   description = "Managed child IDs and observed peering states. A successful apply is not end-to-end network acceptance."
   value = { for key, attachment in var.attachments : key => {
     attachment_kind          = attachment.attachment_kind
-    environment              = var.environment
+    environment              = local.attachment_environments[key]
     hub_virtual_network_id   = var.hub.virtual_network_id
     spoke_virtual_network_id = attachment.spoke_virtual_network_id
     hub_to_spoke_id          = azapi_resource.hub_to_spoke[key].id

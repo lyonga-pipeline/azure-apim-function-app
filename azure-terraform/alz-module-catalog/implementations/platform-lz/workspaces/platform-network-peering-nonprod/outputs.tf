@@ -10,3 +10,7 @@ output "environment" {
   value       = local.environment
   description = "Fixed state boundary."
 }
+output "allowed_environments" {
+  value       = var.allowed_environments
+  description = "Approved real producer environments, not relabelled to the state boundary."
+}

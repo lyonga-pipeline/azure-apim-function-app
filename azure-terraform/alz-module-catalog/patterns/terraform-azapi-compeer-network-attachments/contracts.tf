@@ -5,9 +5,10 @@ resource "terraform_data" "inventory_contract" {
       condition = !local.active || try(
         lower(data.azapi_client_config.current[0].tenant_id) == lower(var.tenant_id) &&
         length(distinct([for attachment in values(var.attachments) : lower(attachment.spoke_virtual_network_id)])) == length(var.attachments) &&
-        alltrue([for attachment in values(var.attachments) :
+        alltrue([for attachment_key, attachment in var.attachments :
           lower(attachment.spoke_virtual_network_id) != lower(var.hub.virtual_network_id) &&
-          (attachment.producer.contract_version == "3.0.0" || try(attachment.naming_context.environment == var.environment, false)) &&
+          contains(local.allowed_environments, local.attachment_environments[attachment_key]) &&
+          (attachment.producer.contract_version == "3.0.0" || try(attachment.naming_context.environment == local.attachment_environments[attachment_key], false)) &&
           (!attachment.gateway_transit || var.hub.gateway_ready)
         ]) &&
         length(distinct([for names in values(local.peering_names) : lower(names.hub_to_spoke)])) == length(var.attachments) &&

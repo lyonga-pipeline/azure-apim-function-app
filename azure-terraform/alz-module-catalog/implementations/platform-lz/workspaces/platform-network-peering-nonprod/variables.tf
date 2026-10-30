@@ -3,6 +3,18 @@ variable "enabled" {
   type        = bool
   default     = false
 }
+variable "allowed_environments" {
+  description = "Network-approved real non-production producer environments sharing this state and approval lifecycle. Never includes prod or the grouping label nonprod."
+  type        = set(string)
+  default     = ["np1", "np2", "np3"]
+  nullable    = false
+  validation {
+    condition = length(var.allowed_environments) > 0 && alltrue([for environment in var.allowed_environments :
+      try(!contains(["prod", "nonprod"], environment) && length(environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", environment)), false)
+    ])
+    error_message = "Use approved real non-production environment slugs; prod and nonprod are not allowed."
+  }
+}
 variable "tenant_id" {
   type        = string
   description = "Approved Entra tenant UUID."
@@ -32,6 +44,7 @@ variable "attachments" {
   description = "Network-approved Git inventory. Stable keys are resource identities; removal is an approved teardown."
   type = map(object({
     attachment_kind          = optional(string, "workload")
+    environment              = optional(string)
     spoke_virtual_network_id = string
     address_space            = set(string)
     producer = object({

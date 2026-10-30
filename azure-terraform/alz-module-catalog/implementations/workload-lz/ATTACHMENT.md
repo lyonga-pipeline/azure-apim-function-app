@@ -33,11 +33,12 @@ write is not a claim that all cross-subscription permissions disappear.
 ## Target Model And Current Single Pair Configuration
 
 The new batch composition accepts a typed attachment map with stable logical
-keys. Four roots named platform-network-peering-np1/np2/np3/prod are illustrative
-when there is one compatible hub/network boundary per environment. Each needs its
-own directory, release pin, state and trigger path, not runtime tfvars selection.
-They are not mandatory: applications may have only one, two or three environments,
-and the batch creates only declared instances. The [generic root template](../platform-lz/templates/network-attachments/README.md)
+keys. The default roots are platform-network-peering-prod (prod only) and
+platform-network-peering-nonprod (an approved allowlist, initially np1/np2/np3).
+Each has its own directory, release pin, state and trigger path; no runtime tfvars
+switching. Non-production entries retain their actual producer environment.
+Applications may have one, two or three environments; only declared instances
+are attached. The [generic root template](../platform-lz/templates/network-attachments/README.md)
 supports other approved labels and platform VNet lifecycle boundaries using the
 generic v3 producer. Existing workload-v2 remains compatible; existing identity
 half-peerings are never silently taken over.
@@ -46,7 +47,7 @@ one deployer per application or a tenant-wide network identity. A shared hub sti
 requires one common deployment gate across all environment roots and exceptions.
 
 **Implemented separately:** the [AzAPI batch pattern](../../patterns/terraform-azapi-compeer-network-attachments/README.md)
-and four new environment roots accept the typed map and use full parent IDs across
+and two prod/nonprod roots accept the typed map and use full parent IDs across
 subscriptions without per-subscription aliases. The adapter/root below remains a
 single-pair compatibility building block. [Gate setup, scoped OIDC/RBAC, publishing
 and live adoption](../platform-lz/network-attachments/README.md) are required before

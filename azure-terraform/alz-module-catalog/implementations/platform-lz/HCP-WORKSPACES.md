@@ -92,20 +92,22 @@ example under Templates below — not a dedicated pattern. See
 
 | Workspace pattern | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-network-peering-<env>[-<hub-boundary>]` | network attachment | New `platform-network-peering-np1`, `np2`, `np3`, `prod` roots; existing `platform-network-peering` remains single-pair compatibility | Disabled AzAPI batches group approved spokes by environment/hub boundary. Both directions + exact DNS links, no VNet/routes. Publish/pin and configure shared hub gate/OIDC/RBAC before rollout. |
+| `platform-network-peering-prod` | production attachments | `platform-network-peering-prod` | Both directions + approved DNS links for prod only. Disabled, complete tfvars example. |
+| `platform-network-peering-nonprod` | non-production attachments | `platform-network-peering-nonprod` | Both directions + approved DNS links for allowlisted actual environments, initially np1/np2/np3. Disabled, complete tfvars example. |
 | Existing legacy workload workspaces | workload-spoke (legacy) | `platform-workload-spoke` | Compatibility implementation for existing states. Superseded for NEW internal-applications deployments by the Step 11 roots below; do not repoint an existing state without a reviewed migration. |
 
 The authoritative [peering standard](PEERING-STANDARD.md), revised 2026-10-30,
-supersedes the earlier per-spoke attachment-workspace default. Initial examples
-are platform-network-peering-np1/np2/np3/prod, subject to real hub/security boundaries.
-These are optional examples, not a mandatory four-workspace or four-environment
-matrix. Copy [the generic root template](templates/network-attachments/README.md)
-for another actual environment or shared platform lifecycle. The batch supports
+supersedes per-spoke and four-stage defaults with two independent prod/nonprod
+attachment roots. Non-production stages share one state, release, approval and
+permission scope; their real producer labels are preserved and allowlisted.
+The unapplied np1/np2/np3 examples were consolidated, not deployed states migrated.
+Copy [the generic root template](templates/network-attachments/README.md) only
+for another justified hub/security/lifecycle boundary. The batch supports
 generic platform/workload v3 and existing workload v2. The gate inventory lists
 only actual hub writers; omit nonexistent examples and include all real writers.
 Each has an independent root/state/trigger path; publish/pin its approved batch
-release before deployment. Do not point four workspaces at the retained single-pair
-root. The new batch uses one AzAPI provider with full resource IDs, not dynamic
+release before deployment. The retained `platform-network-peering` is a single-pair compatibility root;
+do not repoint an applied legacy backend to either new root without a handoff. The new batch uses one AzAPI provider with full resource IDs, not dynamic
 AzureRM aliases. OIDC principals are environment/boundary scoped, preferably
 separate plan/apply, with exact resource grants and federation subjects rather
 than one identity per application. Shared-hub grants and concurrency remain shared

@@ -1,6 +1,6 @@
 # Network Attachment Operations
 
-Implementation of [Option A](../../../patterns/terraform-azapi-compeer-network-attachments/README.md): central ownership of both directions, grouped by approved environment/platform lifecycle and hub boundary. The four supplied roots are examples, not a mandatory deployment matrix or name restriction. Use the [copy-once independent-root template](../templates/network-attachments/README.md) for shared platform or other approved environments; create only needed roots. Existing single-pair and identity states remain untouched until a reviewed handoff.
+Implementation of [Option A](../../../patterns/terraform-azapi-compeer-network-attachments/README.md): central ownership of both directions in two independent roots: **`platform-network-peering-prod`** and **`platform-network-peering-nonprod`**. Production is fixed to prod. Non-production allowlists actual environments (initially np1/np2/np3), retaining each producer label. Its environments share release, approval and permission boundaries. Use the [copy-once independent-root template](../templates/network-attachments/README.md) for shared platform or other approved environments; create only needed roots. Existing single-pair and identity states remain untouched until a reviewed handoff.
 
 ## Adoption Checklist
 
@@ -15,14 +15,14 @@ Implementation of [Option A](../../../patterns/terraform-azapi-compeer-network-a
 The repository includes [an ADO template](../../../../../.azuredevops/templates/network-attachments.yml) and [HCP run controller](run_under_hub_gate.py). These are provided tooling, not a claim that Compeer's external controls are configured.
 
 - Create the exact protected ADO Environment `compeer-shared-hub-network-writes`; its administrator configures **Exclusive Lock**, sequential behavior, network/security approvals, allowed main-branch pipelines and protected template/inventory reviewers. Microsoft configures checks outside YAML; `lockBehavior: sequential` alone does not create the check.
-- Maintain a reviewed copy of [hub-gate.json.example](hub-gate.json.example) with actual organization/repository identifier, HCP workspace names and directories. Include **every existing** writer to that hub: whichever application/platform attachment roots are actually used, core connectivity, legacy identity and exceptions. The controller accepts approved workspace names dynamically from this list; it does not require np1/np2/np3/prod or a workspace for each application. Do not leave nonexistent example workspaces in the live gate list or omit an actual writer.
+- Maintain a reviewed copy of [hub-gate.json.example](hub-gate.json.example) with actual organization/repository identifier, HCP workspace names and directories. Include **every existing** writer to that hub: whichever application/platform attachment roots are actually used, core connectivity, legacy identity and exceptions. The controller accepts approved workspace names dynamically from this list; the active default is prod/nonprod, not a workspace per application or non-production stage. Do not leave nonexistent example workspaces in the live gate list or omit an actual writer.
 - In HCP disable auto-apply for all these writers, require plan review/mandatory policy, and restrict direct non-speculative queue/apply paths to the protected network process. VCS may generate speculative plans, but must not independently create/confirm mutating runs outside the gate. Arrange configuration-version creation without an automatically queued unfinished run; reconcile any pre-existing queued/planned run under change control before invoking the controller. A run trigger is not a mutex. Validate the actual HCP permissions/run-task controls for the organization's tier; YAML and a Terraform boolean cannot prevent a privileged UI/API bypass.
 - Invoke the template from the reviewed main-branch pipeline with `workspace`, `configurationVersion` and `gateInventory`. Store `HCP_NETWORK_GATE_TOKEN` in the protected secret store with only required workspace/output/run permissions. The agent needs Python 3; Azure credentials remain in HCP's environment-specific OIDC context.
 - Inside the protected deployment job, the controller checks every listed writer for unfinished runs, rejects auto-apply, checks the selected working directory/current non-speculative configuration and exact main-branch commit/repository, then queues a fresh non-auto-apply, non-destroy run. Network reviewers inspect and confirm its full plan in HCP while the gate job waits. The controller never overrides policy or applies automatically.
 - AzAPI's common `locks` key serializes all peerings **inside one provider process**. It is not an Azure management lock. The external gate serializes separate workspaces/agents. Core writers must also serialize their own hub networking mutations; a per-pair dependency does not serialize a batch.
 - On timeout/agent loss, an HCP run can remain active. The next gated controller refuses to queue another hub writer until that run is reconciled. Do not force-cancel or release an incident freeze blindly; inspect Azure's in-flight operations/partial state. Complete planned route/Panorama coordination and live acceptance as part of the change. An external permission or queue path that bypasses this process remains a deployment blocker.
 
-`COMPEER_HUB_GATE_HELD=true` is a job assertion, not a security boundary. Only the protected ADO resource, restrictive HCP access and coverage of **all** hub writers establish the cross-workspace gate. If Compeer cannot enforce those controls, do not enable four independent mutating hub pipelines; first establish a single controlled deployment queue or an equivalent enforced HCP run-task coordinator.
+`COMPEER_HUB_GATE_HELD=true` is a job assertion, not a security boundary. Only the protected ADO resource, restrictive HCP access and coverage of **all** hub writers establish the cross-workspace gate. If Compeer cannot enforce those controls, do not enable independent mutating hub pipelines; first establish a single controlled deployment queue or an equivalent enforced HCP run-task coordinator.
 
 ## Permission Review
 
@@ -46,7 +46,7 @@ Hub-scoped lifecycle permissions cover **all child peerings**, not just this env
 bash implementations/platform-lz/network-attachments/test.sh
 ```
 
-This runs batch tests (v2 and v3), four example environment compositions, the generic platform template, name-only/canonical naming parity, retained single-pair regressions and operating-control/ownership unit tests. These test fixtures do not require deployment of every example root. Providers and producer outputs are mocked; no Azure write, HCP queue or live role change occurs.
+This runs batch tests (v2 and v3), the two roots including mock application of their committed tfvars inventories, the generic platform template, name-only/canonical naming parity, retained single-pair regressions and operating-control/ownership unit tests. These test fixtures do not require deployment of every example root. Providers and producer outputs are mocked; no Azure write, HCP queue or live role change occurs.
 
 After an approved pilot apply, use a read-authorized identity:
 
@@ -57,6 +57,12 @@ python3 ../../network-attachments/check_live.py /tmp/approved-attachments.json
 ```
 
 The checker performs GETs only and requires both peerings Connected/Succeeded with correct remote IDs, plus exact spoke DNS links with registration off. Run actual DNS/endpoint/network-security tests from a spoke test host separately; these cannot be proved by the control-plane checker. Re-check on a scheduled basis for stale Initiated/Disconnected or out-of-inventory peerings using the approved estate inventory; this script checks declared members, not discovery of unauthorized ones.
+
+## Consolidated Non-Production Adoption
+
+The unapplied np1/np2/np3 example roots were consolidated into `platform-network-peering-nonprod`. Configure its real environment allowlist and actual VNet inventory in Git, not runtime-selected subsets. Complete examples in both roots specify `peer-<vnet>-to-hub` and `peer-hub-to-<vnet>`; they do not migrate the legacy identity pair. Existing automatic names in the reusable pattern are unchanged for compatibility. Preserve exact live names on any import.
+
+If any old example root was applied externally, do not repoint its backend or enable duplicates. Use the handoff below to transfer only approved children into nonprod, preserve stable keys/names and review source/destination full plans. Update the gate inventory, OIDC subjects, working-directory bindings and triggers through their owners. No automatic state transfer occurs.
 
 ## Existing State Handoff
 

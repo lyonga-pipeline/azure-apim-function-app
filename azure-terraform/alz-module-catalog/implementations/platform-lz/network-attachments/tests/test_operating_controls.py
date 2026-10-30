@@ -175,12 +175,16 @@ class OwnershipTests(unittest.TestCase):
 
     def test_environment_roots_have_fixed_boundaries_and_one_provider(self):
         roots = CATALOG / "implementations/platform-lz/workspaces"
-        for env in ["np1", "np2", "np3", "prod"]:
+        for env in ["nonprod", "prod"]:
             root = roots / ("platform-network-peering-" + env)
             self.assertIn(f'environment = "{env}"', (root / "main.tf").read_text())
             self.assertEqual((root / "providers.tf").read_text().count('provider "azapi"'), 1)
             self.assertNotIn("alias", (root / "providers.tf").read_text())
             self.assertRegex((root / "terraform.tfvars").read_text(), r"enabled\s*= false")
+        self.assertIn('allowed_environments    = ["prod"]', (roots / "platform-network-peering-prod/main.tf").read_text())
+        self.assertIn("allowed_environments    = var.allowed_environments", (roots / "platform-network-peering-nonprod/main.tf").read_text())
+        for env in ["np1", "np2", "np3"]:
+            self.assertFalse((roots / ("platform-network-peering-" + env) / "main.tf").exists())
 
 
 if __name__ == "__main__":

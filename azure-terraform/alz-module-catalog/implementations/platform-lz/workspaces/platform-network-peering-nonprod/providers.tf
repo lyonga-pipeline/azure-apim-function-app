@@ -1,4 +1,5 @@
 provider "azapi" {
+  # One provider addresses all approved non-production VNet subscriptions by ARM ID.
   tenant_id                  = var.tenant_id
   subscription_id            = var.execution_subscription_id
   skip_provider_registration = true

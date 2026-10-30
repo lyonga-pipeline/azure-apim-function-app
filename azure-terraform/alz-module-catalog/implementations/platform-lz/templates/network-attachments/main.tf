@@ -21,6 +21,7 @@ module "attachments" {
   count                   = var.enabled ? 1 : 0
   tenant_id               = var.tenant_id
   environment             = local.environment
+  allowed_environments    = var.allowed_environments
   hub                     = var.hub
   attachments             = var.attachments
   reserved_address_spaces = var.reserved_address_spaces

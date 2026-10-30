@@ -2,6 +2,11 @@ variable "environment" {
   description = "Approved boundary label committed for this copied root; never choose another environment at runtime."
   type        = string
 }
+variable "allowed_environments" {
+  description = "Explicit producer-environment allowlist for an approved grouped boundary; null retains exact environment matching."
+  type        = set(string)
+  default     = null
+}
 
 variable "enabled" {
   description = "Explicit adoption gate. false is inert for an UNAPPLIED root, not a safe way to suspend a deployed attachment state."
@@ -37,6 +42,7 @@ variable "attachments" {
   description = "Network-approved Git inventory. Stable keys are resource identities; removal is an approved teardown."
   type = map(object({
     attachment_kind          = optional(string, "workload")
+    environment              = optional(string)
     spoke_virtual_network_id = string
     address_space            = set(string)
     producer = object({

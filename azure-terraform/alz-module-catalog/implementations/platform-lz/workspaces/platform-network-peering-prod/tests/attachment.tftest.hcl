@@ -4,6 +4,7 @@ mock_provider "azapi" {
 }
 mock_provider "tfe" {}
 variables {
+  reserved_address_spaces   = []
   tenant_id                 = "cccccccc-cccc-cccc-cccc-cccccccccccc"
   execution_subscription_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 }

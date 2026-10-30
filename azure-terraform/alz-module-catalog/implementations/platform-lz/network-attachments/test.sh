@@ -22,7 +22,7 @@ verify "$catalog/implementations/platform-lz/templates/network-attachments"
 for example in "$catalog/patterns/terraform-azapi-compeer-network-attachments/examples/shared-platform.tfvars.example" "$catalog/patterns/terraform-azapi-compeer-network-attachments/examples/application-environments/"*.tfvars.example; do
   terraform -chdir="$catalog/implementations/platform-lz/templates/network-attachments" test -no-color -test-directory=example-tests -var-file="$example"
 done
-for environment in np1 np2 np3 prod; do
+for environment in nonprod prod; do
   verify "$catalog/implementations/platform-lz/workspaces/platform-network-peering-$environment"
 done
 # Backward compatibility: no caller or resource-address changes to these APIs.
