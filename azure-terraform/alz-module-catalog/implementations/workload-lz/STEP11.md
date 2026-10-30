@@ -26,18 +26,24 @@ or implicit deployment-principal secret access is added.
 ## Peering Decision
 
 Selected Compeer model: central attachment, both directions from a separate
-platform-owned workspace. See [ATTACHMENT.md](ATTACHMENT.md) for deployment,
-permissions and the required existing-state handoff.
+platform-owned workspace grouped by environment and hub/network boundary, not
+one workspace per application by default. See the authoritative
+[peering standard](../platform-lz/PEERING-STANDARD.md) and
+[ATTACHMENT.md](ATTACHMENT.md) for deployment, permissions and existing-state handoff.
+The retained adapter remains single-pair. The new
+[AzAPI batch and environment roots](../../patterns/terraform-azapi-compeer-network-attachments/README.md)
+implement the map-based path; publishing, protected gate setup, OIDC/RBAC and live
+pilot/handoff evidence remain required before adoption.
 
 ```text
 Per-application/environment provisioning state and independently pinned root
   -> reads public platform contracts
-  -> versioned spoke blueprint (not live shared/)
+  -> independently pinned spoke blueprint
        -> private Key Vault + endpoint + scoped identity access
        -> publishes versioned attachment_contract
 
-Platform network attachment state, per approved application/environment
-  -> consumes spoke contract and approved hub outputs
+Platform network attachment state, per environment and hub/network boundary
+  -> approved Git inventory cross-checked with versioned producer contracts
   -> hub-spoke-peering reusable pattern: BOTH directions
   -> existing-zone VNet links
 
@@ -51,9 +57,9 @@ See [ISOLATION.md](ISOLATION.md) for promotion, workspace settings and migration
 
 The spoke has no hub provider or peering/link module calls. The deprecated
 manage_hub_attachment input must remain false; true fails with migration
-guidance. The central owner holds the approved pair-scoped permissions, not
+guidance. The central owner holds approved environment-boundary permissions, not
 the spoke pipeline. Both directions and required links have one state owner.
-Central ownership does not require one global state or one all-spoke identity.
+Central ownership does not require one global state or a tenant-wide identity.
 Private endpoint creation still requires the approved central-zone join rights;
 it does not authorize broad management of the hub or DNS subscription.
 

@@ -95,3 +95,9 @@ output "dc_backup_protected_vm_ids" {
   description = "Backup protected-item IDs for enrolled domain controllers."
   value       = { for k, v in azurerm_backup_protected_vm.dc : k => v.id }
 }
+
+# PHASE2 NEW: additive composition output; new owner-local resources reuse the exact existing tag contract.
+output "resource_tags" {
+  description = "Effective enterprise tags for resources composed by this pattern's existing workspace owner."
+  value       = module.tags.tags
+}

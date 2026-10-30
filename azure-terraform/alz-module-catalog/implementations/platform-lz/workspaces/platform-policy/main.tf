@@ -32,3 +32,51 @@ module "policy" {
 
   depends_on = [terraform_data.enterprise_policy_contract, terraform_data.existing_resource_remediation_contract]
 }
+
+# =============================================================================
+# PHASE 2 CHANGES - additive, opt-in; preserve existing resource/state ownership.
+# Adopt this marked section with phase2_*.tf, phase2-tests/ and phase2.tfvars.example.
+# =============================================================================
+
+locals {
+  phase2_policy_requested          = length(var.phase2_audit_initiatives) + length(var.phase2_exemptions) + (var.phase2_sandbox_scope == null ? 0 : 1) > 0
+  phase2_existing_assignment_names = [for key, value in try(var.policy.management_group_policy_assignments, {}) : lower(coalesce(try(value.name, null), key))]
+}
+resource "terraform_data" "phase2_policy_contract" {
+  count = local.phase2_policy_requested ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = local.enabled
+      error_message = "Phase 2 policy extensions must run from the enabled existing policy owner."
+    }
+    precondition {
+      condition     = alltrue([for item in values(var.phase2_audit_initiatives) : !contains(local.phase2_existing_assignment_names, lower(item.name))])
+      error_message = "An existing policy input already owns this assignment name. Extend the existing assignment instead of duplicating it."
+    }
+    precondition {
+      condition     = alltrue([for item in values(var.phase2_exemptions) : !contains([for key in keys(try(var.policy.policy_exemptions, {})) : lower(key)], lower(item.name))])
+      error_message = "An existing exemption already owns this name. Renew that exemption in its original input."
+    }
+    precondition {
+      condition = var.phase2_sandbox_scope == null ? true : !contains(concat(
+        [for key in keys(try(var.policy.custom_policy_definitions, {})) : lower(key)],
+        local.phase2_existing_assignment_names
+      ), lower(var.phase2_sandbox_scope.policy_name))
+      error_message = "Sandbox expiry policy already exists in the legacy policy input; do not create another owner."
+    }
+  }
+}
+module "phase2_policy" {
+  source            = "../../../../patterns/terraform-azurerm-compeer-phase2-governance"
+  count             = local.enabled && local.phase2_policy_requested ? 1 : 0
+  subscription_id   = var.execution_subscription_id
+  location          = var.location
+  audit_initiatives = var.phase2_audit_initiatives
+  exemptions        = var.phase2_exemptions
+  sandbox_scope     = var.phase2_sandbox_scope
+  # FinOps is deliberately not managed here. Existing budget owners remain unchanged.
+  budgets        = {}
+  cost_exports   = {}
+  cost_anomalies = {}
+  depends_on     = [terraform_data.phase2_policy_contract]
+}

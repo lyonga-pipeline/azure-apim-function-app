@@ -1,0 +1,24 @@
+# Add to the ACTUAL platform VNet owner root; this publishes metadata only.
+# Replace module.platform_vnet with that root's existing VNet module output reference.
+module "network_attachment_contract" {
+  # Repository development path only; use the approved versioned package for deployment.
+  source                  = "../../../../patterns/terraform-azapi-compeer-network-attachments/producer"
+  tenant_id               = var.tenant_id
+  environment             = var.environment
+  attachment_kind         = "platform"
+  hub_virtual_network_id  = local.connectivity_outputs.hub_virtual_network_id
+  virtual_network = {
+    id            = module.platform_vnet.id
+    address_space = module.platform_vnet.address_space
+  }
+  gateway_transit = false
+  private_dns_zone_ids = {
+    # Optional: exact existing zones approved for this VNet's DNS resolution design.
+    key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+  }
+}
+output "network_attachment_contract" {
+  value = module.network_attachment_contract.network_attachment_contract
+}
+# Publishing this output DOES NOT relinquish any existing peering or DNS ownership.
+# For existing identity/legacy pairs, complete the reviewed backend handoff first.

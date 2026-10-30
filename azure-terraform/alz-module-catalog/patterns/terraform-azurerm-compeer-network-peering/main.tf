@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 5.3/6.2/10.2 NET-39/NET-49/NET-22: central owner manages both peering directions. Partner gateway transit stays off; no NCUS-CUS hub peering for NET-38.
 data "tfe_outputs" "platform_connectivity" {
   count        = var.use_tfe_outputs ? 1 : 0
   organization = var.tfe_organization

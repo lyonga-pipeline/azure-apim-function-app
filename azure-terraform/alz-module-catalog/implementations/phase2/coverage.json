@@ -1,0 +1,735 @@
+{
+  "source_workbook": "Azure_LZ_MVP_Component_List_v5.xlsx",
+  "sheet": "Phase 2 Deployment Order",
+  "scope_note": "All 49 source activities are accounted for: 45 Phase 2 activities and four explicitly deferred Phase 3 exclusions. Four additional Phase 2 components are mapped from Component List. This is implementation/readiness mapping, not live acceptance.",
+  "activities": [
+    {
+      "sequence": "1.2",
+      "row": 7,
+      "activity": "SolarWinds coexistence",
+      "components": "OBS-10",
+      "delivery": "Manual",
+      "status": "MANUAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "SolarWinds agent, Panorama rules and heartbeat acceptance; no Azure API pretence.",
+      "in_scope": true,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "1.3",
+      "row": 8,
+      "activity": "SCCM reachability",
+      "components": "PLT-09",
+      "delivery": "Manual",
+      "status": "MANUAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "Retain SCCM until patch authority changes; approve network and distribution-point paths.",
+      "in_scope": true,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "1.4",
+      "row": 9,
+      "activity": "State management and workspace RBAC",
+      "components": "IAC-04",
+      "delivery": "Terraform",
+      "status": "EXCLUDED_PHASE3",
+      "path": "implementations/phase2/ON-HOLD.md",
+      "notes": "Explicitly deferred to Phase 3 in the source deployment-order notes; no implementation added in this delivery.",
+      "in_scope": false,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "1.5",
+      "row": 10,
+      "activity": "ExpressRoute Gateway",
+      "components": "NET-18",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-hybrid-connectivity/main.tf",
+      "notes": "Zone-redundant ExpressRoute gateway; retain deployed addresses and SKU unless explicitly reviewed.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-hybrid-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "1.6",
+      "row": 11,
+      "activity": "Circuit connection and routing validation",
+      "components": "NET-19",
+      "delivery": "Terraform + manual",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-platform-hybrid-connectivity/main.tf",
+      "notes": "Existing circuit connections; external BGP/routes and live acceptance required.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-hybrid-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "1.7",
+      "row": 12,
+      "activity": "NCUS-to-CUS cross-environment path",
+      "components": "NET-38",
+      "delivery": "Manual",
+      "status": "MANUAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "Equinix fabric path only; no direct Azure hub peering.",
+      "in_scope": true,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "2.1",
+      "row": 14,
+      "activity": "Baseline alerts and action groups",
+      "components": "OBS-04",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-observability/main.tf",
+      "notes": "Adds routed log-query alerts; reuses management action groups and metric/service-health alerts.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-management/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.2",
+      "row": 15,
+      "activity": "Azure Monitor Agent and data collection rules",
+      "components": "OBS-06",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-observability/main.tf",
+      "notes": "Adds AMA and inventory extension installation; uses existing DCR/DCE contracts. MDE onboarding is separate.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-management/main.tf",
+        "implementations/platform-lz/workspaces/platform-directory-services/main.tf",
+        "implementations/platform-lz/workspaces/platform-cloudflare-connectors/main.tf",
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.3",
+      "row": 16,
+      "activity": "Log archive storage account",
+      "components": "OBS-05",
+      "delivery": "Terraform",
+      "status": "NEW",
+      "path": "patterns/terraform-azurerm-compeer-log-archive/main.tf",
+      "notes": "Approved WORM retention, trusted-service ingress, private read endpoint, LAW export, audit and optional deletion.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-log-archive/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.4",
+      "row": 17,
+      "activity": "Application Insights",
+      "components": "OBS-09",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-spoke-landing-zone/main.tf",
+      "notes": "Workload-owned workspace-based Application Insights create/reuse; stays opt-in pending decision.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/workload-lz/workspaces/workload-external-apps-prod/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.5",
+      "row": 18,
+      "activity": "Palo log pipeline to Sentinel",
+      "components": "SEC-03",
+      "delivery": "Vendor / external",
+      "status": "EXTERNAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "Panorama -> funded/staffed Cribl -> Sentinel; SOC validates parsing and end-to-end delivery.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-sentinel/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.7",
+      "row": 19,
+      "activity": "Defender plans - workload specific",
+      "components": "SEC-06",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-policy/main.tf",
+      "notes": "Per-plan inherited DINE and remediation; do not create a second subscription pricing owner.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-policy/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.8",
+      "row": 20,
+      "activity": "Workbooks and dashboards",
+      "components": "OBS-07",
+      "delivery": "Terraform",
+      "status": "NEW",
+      "path": "patterns/terraform-azurerm-compeer-platform-observability/main.tf",
+      "notes": "Version-controlled Azure Workbooks reusing the central LAW.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-management/main.tf"
+      ]
+    },
+    {
+      "sequence": "2.9",
+      "row": 21,
+      "activity": "ITSM / ticketing integration",
+      "components": "OBS-08",
+      "delivery": "Solution Design",
+      "status": "NEW_PENDING_DESIGN",
+      "path": "modules/terraform-azurerm-compeer-actiongroup/actiongroup.tf",
+      "notes": "Adds Entra-authenticated webhook support; existing ITSM/Logic App receiver interfaces remain. Incident mapping/endpoint belongs to ITSM owner.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-management/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.1",
+      "row": 23,
+      "activity": "Customer-managed keys and rotation",
+      "components": "SEC-08",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "modules/terraform-azurerm-compeer-key-vault-key/main.tf",
+      "notes": "Key rotation and DES/parent CMK interfaces exist; require Security approval and service-specific permissions.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-identity-security/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.2",
+      "row": 24,
+      "activity": "Secrets rotation automation",
+      "components": "SEC-13",
+      "delivery": "Terraform + manual",
+      "status": "NEW_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-security-automation/main.tf",
+      "notes": "Named-secret Event Grid subscriptions, RBAC/retries/dead letters reuse an acceptance-tested handler. Handler must rotate backing credential too.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-security-automation/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.3",
+      "row": 25,
+      "activity": "Just-in-time VM access ",
+      "components": "SEC-11",
+      "delivery": "Manual",
+      "status": "MANUAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "Defender JIT access approval, ports and reachability test; NSG-controlled hosts only.",
+      "in_scope": true,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "3.4",
+      "row": 26,
+      "activity": "Regulatory compliance initiative",
+      "components": "GOV-08",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-phase2-governance/main.tf",
+      "notes": "Caller-verified initiatives and approved scopes, initially DoNotEnforce/Audit parameters, no invented regulatory IDs.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-policy/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.5",
+      "row": 27,
+      "activity": "Compliance evidence and audit reporting",
+      "components": "SEC-14",
+      "delivery": "Terraform + manual",
+      "status": "NEW_MANUAL",
+      "path": "implementations/phase2/RUNBOOKS.md",
+      "notes": "Read-only evidence collector plus workbooks; GRC signs applicability and evidence interpretation.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-policy/main.tf",
+        "implementations/platform-lz/workspaces/platform-management/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.6",
+      "row": 28,
+      "activity": "Policy exemption workflow",
+      "components": "GOV-11",
+      "delivery": "",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-phase2-governance/main.tf",
+      "notes": "Approved narrow-scope expiring exemptions; existing platform-policy ownership remains unchanged.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-policy/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.7",
+      "row": 29,
+      "activity": "NSG flow logs and traffic analytics",
+      "components": "NET-17",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-connectivity/main.tf",
+      "notes": "Use supported VNet flow logs/Traffic Analytics rather than retired creation of NSG flow logs. Security owns settings/cost review.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.8",
+      "row": 30,
+      "activity": "Network Watcher and connection monitors",
+      "components": "NET-30",
+      "delivery": "Terraform",
+      "status": "NEW_PENDING_DESIGN",
+      "path": "patterns/terraform-azurerm-compeer-platform-observability/main.tf",
+      "notes": "Connection Monitor reuses Watcher/LAW; require agent readiness and SolarWinds overlap decision.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "3.9",
+      "row": 31,
+      "activity": "DDoS Network Protection",
+      "components": "NET-32",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-connectivity/main.tf",
+      "notes": "Optional DDoS association already exists; opt-in only after public-ingress and cost review.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "4.1",
+      "row": 33,
+      "activity": "Cloudflare connector subnet",
+      "components": "NET-41",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-connectivity/main.tf",
+      "notes": "Existing subnet map consumes reserved Cloudflare prefix; never allocate another range.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "4.2",
+      "row": 34,
+      "activity": "External-apps spoke VNet template",
+      "components": "NET-25",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "implementations/workload-lz/workspaces/workload-external-apps-prod/main.tf",
+      "notes": "Separate direct-blueprint root, CSP subscription placement under external-apps MG, centrally owned attachment.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/workload-lz/workspaces/workload-external-apps-prod/main.tf"
+      ]
+    },
+    {
+      "sequence": "4.3",
+      "row": 35,
+      "activity": "Cloudflare Tunnel connectors",
+      "components": "NET-33",
+      "delivery": "Terraform + manual",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-cloudflare-connectors/main.tf",
+      "notes": "Shared hub connectors; bootstrap and HA/live health acceptance required.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-cloudflare-connectors/main.tf"
+      ]
+    },
+    {
+      "sequence": "4.4",
+      "row": 36,
+      "activity": "Cloudflare Zero Trust configuration",
+      "components": "NET-34",
+      "delivery": "Vendor / external",
+      "status": "EXISTING_EXTERNAL",
+      "path": "patterns/terraform-cloudflare-compeer-edge-baseline/main.tf",
+      "notes": "Existing provider-based tunnel/Access/DNS configuration awaits tenant/IdP/API approval.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-cloudflare-edge/main.tf"
+      ]
+    },
+    {
+      "sequence": "4.5",
+      "row": 37,
+      "activity": "Application Gateway + WAF (failover path)",
+      "components": "NET-35",
+      "delivery": "Terraform",
+      "status": "EXCLUDED_PHASE3",
+      "path": "implementations/phase2/ON-HOLD.md",
+      "notes": "Explicitly deferred to Phase 3 in the source deployment-order notes; no implementation added in this delivery.",
+      "in_scope": false,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "4.6",
+      "row": 38,
+      "activity": "Ingress failover design and runbook",
+      "components": "NET-40",
+      "delivery": "Terraform + manual",
+      "status": "EXCLUDED_PHASE3",
+      "path": "implementations/phase2/ON-HOLD.md",
+      "notes": "Explicitly deferred to Phase 3 in the source deployment-order notes; no implementation added in this delivery.",
+      "in_scope": false,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "5.1",
+      "row": 40,
+      "activity": "PartnerSubnet",
+      "components": "NET-07",
+      "delivery": "Terraform",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-palo-alto-hub/main.tf",
+      "notes": "Partner subnet/NIC maps exist; Panorama owns SNAT/no-NAT rules.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-palo-alto/main.tf"
+      ]
+    },
+    {
+      "sequence": "5.2",
+      "row": 41,
+      "activity": "Internal Load Balancer - Partner",
+      "components": "NET-14",
+      "delivery": "Terraform",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-palo-alto-hub/main.tf",
+      "notes": "HA-port ILBs exist; preserve deployed topology until a packet-level symmetry review proves design.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-palo-alto/main.tf"
+      ]
+    },
+    {
+      "sequence": "5.3",
+      "row": 42,
+      "activity": "Sunstream partner hub peering",
+      "components": "NET-39",
+      "delivery": "Terraform + manual",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
+      "notes": "Central bidirectional peerings, no gateway transit; on-prem static routes require architecture approval.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-network-peering/main.tf"
+      ]
+    },
+    {
+      "sequence": "6.1",
+      "row": 44,
+      "activity": "External identity subscription, VNet and RG",
+      "components": "IAM-12",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "implementations/platform-lz/workspaces/platform-identity-external/main.tf",
+      "notes": "Dedicated CSP identity-ext subscription/RG/VNet/NSG/UDR; no vending or hub write access in this root.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf",
+        "implementations/platform-lz/workspaces/platform-subscription-onboarding/main.tf"
+      ]
+    },
+    {
+      "sequence": "6.2",
+      "row": 45,
+      "activity": "External identity VNet to hub peering",
+      "components": "NET-49",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
+      "notes": "Separate central attachment workspace owns both directions and validates firewall routing.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-network-peering/main.tf"
+      ]
+    },
+    {
+      "sequence": "6.3",
+      "row": 46,
+      "activity": "External forest domain controllers",
+      "components": "IAM-13",
+      "delivery": "Terraform + manual",
+      "status": "NEW_EXTENDS_EXISTING_MANUAL",
+      "path": "implementations/platform-lz/workspaces/platform-identity-external/main.tf",
+      "notes": "Two zonal DC infrastructure definitions; forest/trust/promotion/DNS configured by approved AD workflow.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf"
+      ]
+    },
+    {
+      "sequence": "6.4",
+      "row": 47,
+      "activity": "External identity backup vault",
+      "components": "PLT-10",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "implementations/platform-lz/workspaces/platform-identity-external/main.tf",
+      "notes": "Dedicated external identity RSV/policy/enrolment example; approval and restore drill required.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf"
+      ]
+    },
+    {
+      "sequence": "7.1",
+      "row": 49,
+      "activity": "ExpressRoute Metro Resiliency (second MSEE)",
+      "components": "NET-44",
+      "delivery": "Terraform + manual",
+      "status": "EXISTING_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-platform-hybrid-connectivity/main.tf",
+      "notes": "Existing circuit/connection maps support separate metro circuits; carrier order/location diversity and failover acceptance external.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-hybrid-connectivity/main.tf"
+      ]
+    },
+    {
+      "sequence": "8.1",
+      "row": 51,
+      "activity": "Compute gallery and golden images",
+      "components": "PLT-03",
+      "delivery": "Terraform + manual",
+      "status": "NEW_MANUAL",
+      "path": "patterns/terraform-azurerm-compeer-platform-services/main.tf",
+      "notes": "Private Compute Gallery/image definitions; approved Packer build/scan/sign/publish pipeline remains external.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-services/main.tf"
+      ]
+    },
+    {
+      "sequence": "8.2",
+      "row": 52,
+      "activity": "Azure Update Manager",
+      "components": "PLT-04",
+      "delivery": "Terraform",
+      "status": "NEW_PENDING_DESIGN",
+      "path": "patterns/terraform-azurerm-compeer-platform-services/main.tf",
+      "notes": "Update Manager schedules and stable-key VM assignments require SCCM exclusivity/change approval/VM readiness.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-services/main.tf"
+      ]
+    },
+    {
+      "sequence": "8.3",
+      "row": 53,
+      "activity": "Change tracking and inventory",
+      "components": "PLT-05",
+      "delivery": "Terraform",
+      "status": "NEW_PENDING_DESIGN",
+      "path": "patterns/terraform-azurerm-compeer-platform-observability/main.tf",
+      "notes": "AMA Change Tracking extension uses explicitly approved inventory DCR; no legacy Automation agent.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-directory-services/main.tf",
+        "implementations/platform-lz/workspaces/platform-cloudflare-connectors/main.tf",
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf"
+      ]
+    },
+    {
+      "sequence": "9.1",
+      "row": 55,
+      "activity": "Subscription vending automation",
+      "components": "GOV-04",
+      "delivery": "Solution Design",
+      "status": "EXISTING_PENDING_APPROVAL",
+      "path": "patterns/terraform-azurerm-compeer-subscription-vending/main.tf",
+      "notes": "Existing vending stays disabled until CSP permits; platform-governance onboarding handles existing subscriptions.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-subscription-onboarding/main.tf",
+        "implementations/platform-lz/workspaces/platform-subscriptions/main.tf"
+      ]
+    },
+    {
+      "sequence": "9.2",
+      "row": 56,
+      "activity": "Budgets and cost alerts",
+      "components": "GOV-13",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-phase2-governance/main.tf",
+      "notes": "Separate FinOps-owned budgets, actual/forecast alerts, anomaly detection and cost exports; never duplicate existing budgets.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-finops/main.tf"
+      ]
+    },
+    {
+      "sequence": "9.3",
+      "row": 57,
+      "activity": "Drift detection",
+      "components": "IAC-06",
+      "delivery": "Terraform",
+      "status": "NEW_PENDING_DESIGN",
+      "path": "patterns/terraform-azurerm-compeer-hcp-governance/main.tf",
+      "notes": "HCP assessments for explicitly owned existing workspaces; preserve agent mode/state consumers and import before adoption.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-hcp-governance/main.tf"
+      ]
+    },
+    {
+      "sequence": "9.4",
+      "row": 58,
+      "activity": "Repo-seed workload onboarding",
+      "components": "IAC-11",
+      "delivery": "Terraform",
+      "status": "EXCLUDED_PHASE3",
+      "path": "implementations/phase2/ON-HOLD.md",
+      "notes": "Explicitly deferred to Phase 3 in the source deployment-order notes; no implementation added in this delivery.",
+      "in_scope": false,
+      "implementation_paths": []
+    },
+    {
+      "sequence": "10.1",
+      "row": 60,
+      "activity": "Sandbox spoke VNet",
+      "components": "WKL-08",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "implementations/workload-lz/workspaces/workload-sandbox/main.tf",
+      "notes": "Separate direct-blueprint sandbox root; additive expiry metadata support preserves existing prod/nonprod behavior.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/workload-lz/workspaces/workload-sandbox/main.tf"
+      ]
+    },
+    {
+      "sequence": "10.2",
+      "row": 61,
+      "activity": "Sandbox peering and routing",
+      "components": "NET-22, NET-15",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
+      "notes": "Central attachment owns both directions; blueprint owns inspected UDRs, no broad hub-write permissions for spoke runs.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-network-peering/main.tf",
+        "implementations/workload-lz/workspaces/workload-sandbox/main.tf"
+      ]
+    },
+    {
+      "sequence": "10.3",
+      "row": 62,
+      "activity": "Sandbox policy scope and guardrails",
+      "components": "GOV-14",
+      "delivery": "Terraform",
+      "status": "NEW_EXTENDS_EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-phase2-governance/main.tf",
+      "notes": "Audit-first expiry presence policy plus hard blueprint date validation and separate FinOps budgets; no Modify tagging drift or automatic deletion.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-policy/main.tf",
+        "implementations/platform-lz/workspaces/platform-finops/main.tf"
+      ]
+    },
+    {
+      "sequence": "10.4",
+      "row": 63,
+      "activity": "Sandbox subscription placement",
+      "components": "GOV-18",
+      "delivery": "Terraform",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-subscription-onboarding/main.tf",
+      "notes": "Example maps four existing CSP subscriptions to sandbox MG; verify inherited policy/permissions before moving.",
+      "in_scope": true,
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-subscription-onboarding/main.tf"
+      ]
+    },
+    {
+      "sequence": "11.1",
+      "row": 65,
+      "activity": "DR Framework, strategy and guidelines",
+      "components": "",
+      "delivery": "Solution Design",
+      "status": "NEW_DESIGN",
+      "path": "implementations/phase2/DR-FRAMEWORK.md",
+      "notes": "Tier/RTO/RPO, ownership and test-evidence template; no unapproved second-region deployment.",
+      "in_scope": true,
+      "implementation_paths": []
+    }
+  ],
+  "supplemental_components": [
+    {
+      "component": "GOV-01",
+      "sheet": "Component List",
+      "row": 2,
+      "activity": "Management group expansion",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-global-governance/main.tf",
+      "notes": "Reusable hierarchy map supports Phase 2 additions; preserve already-deployed dormant branches. Phase 2-only hierarchy regression test.",
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-governance/main.tf"
+      ]
+    },
+    {
+      "component": "IAM-05",
+      "sheet": "Component List",
+      "row": 21,
+      "activity": "OIDC CI/CD federation",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-workload-identity/main.tf",
+      "notes": "Secretless application federation and scoped RBAC; separate plan/apply and environment identities. Validate exact issuer/subject with HCP.",
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-workload-identity/main.tf"
+      ]
+    },
+    {
+      "component": "SEC-04",
+      "sheet": "Component List",
+      "row": 67,
+      "activity": "Sentinel analytics, workbooks and automation",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-sentinel-content/main.tf",
+      "notes": "Existing content composition and input/operational guards; SOC approves actual detections, data sources, playbooks and routing.",
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-sentinel/main.tf"
+      ]
+    },
+    {
+      "component": "SEC-12",
+      "sheet": "Component List",
+      "row": 75,
+      "activity": "Central privileged access (Azure Bastion)",
+      "status": "EXISTING",
+      "path": "patterns/terraform-azurerm-compeer-platform-connectivity/main.tf",
+      "notes": "Central shared Bastion, optional existing Standard/Static PIP, BastionAuditLogs to central LAW. Network approval and narrow public-IP policy exception remain prerequisites.",
+      "implementation_paths": [
+        "implementations/platform-lz/workspaces/platform-connectivity/main.tf"
+      ]
+    }
+  ]
+}

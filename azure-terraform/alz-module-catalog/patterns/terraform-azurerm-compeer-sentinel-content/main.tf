@@ -1,3 +1,5 @@
+# PHASE2 EXISTING: Component List SEC-04. SOC-owned analytics, workbooks and
+# automation reuse central Sentinel and require source/response readiness.
 # Onboarding is opt-in. platform-management normally owns it; two states must
 # never own the same onboarding. Everything below is addressed through
 # local.workspace_id so that, when this state does onboard, rules and

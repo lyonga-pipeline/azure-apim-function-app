@@ -63,3 +63,11 @@ cloudflare_connectors = {
 admin_passwords              = {}
 custom_data_by_key           = {}
 extension_protected_settings = {}
+
+# =============================================================================
+# PHASE 2 ADDITIONS - existing configuration above is intentionally retained.
+# Optional phase2_* inputs default empty. Use phase2.tfvars.example as the
+# engineering reference; merge only its NEW top-level inputs after approval.
+# Do not replace this workspace's existing management/policy/VM object.
+# See implementations/phase2/ENGINEERING-HANDOFF.md for resource ownership.
+# =============================================================================

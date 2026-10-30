@@ -30,14 +30,16 @@ module "management" {
     storage_uniqueness = var.subscription_id
   }
 
-  subscription_id                       = var.subscription_id
-  location                              = var.location
-  environment                           = var.environment
-  platform_tags                         = merge(var.platform_tags, try(var.management.platform_tags, {}), { created_on = local.deployment_created_on })
-  resource_group                        = try(var.management.resource_group, {})
-  log_analytics                         = try(var.management.log_analytics, null)
-  log_analytics_tables                  = try(var.management.log_analytics_tables, {})
-  action_group                          = try(var.management.action_group, null)
+  subscription_id      = var.subscription_id
+  location             = var.location
+  environment          = var.environment
+  platform_tags        = merge(var.platform_tags, try(var.management.platform_tags, {}), { created_on = local.deployment_created_on })
+  resource_group       = try(var.management.resource_group, {})
+  log_analytics        = try(var.management.log_analytics, null)
+  log_analytics_tables = try(var.management.log_analytics_tables, {})
+  action_group         = try(var.management.action_group, null)
+  # PHASE2 NEW: v5 2.1 forwards the existing optional OBS-04 interface; empty default changes no deployed resources.
+  platform_alerts                       = try(var.management.platform_alerts, {})
   platform_storage_accounts             = try(var.management.platform_storage_accounts, {})
   platform_storage_diagnostics          = try(var.management.platform_storage_diagnostics, {})
   data_collection_endpoints             = try(var.management.data_collection_endpoints, {})
@@ -55,4 +57,43 @@ module "management" {
   security_contact                      = try(var.management.security_contact, null)
   security_center_settings              = try(var.management.security_center_settings, {})
   defender_soc_posture                  = try(var.management.defender_soc_posture, { enabled = false })
+}
+
+# =============================================================================
+# PHASE 2 CHANGES - additive, opt-in; preserve existing resource/state ownership.
+# Adopt this marked section with phase2_*.tf, phase2-tests/ and phase2.tfvars.example.
+# =============================================================================
+
+locals {
+  phase2_observability_requested = length(var.phase2_log_alerts) + length(var.phase2_metric_alerts) + length(var.phase2_workbooks) > 0
+  phase2_legacy_metric_names     = [for alert in values(try(var.management.platform_alerts.metric_alerts, {})) : lower(alert.name)]
+}
+resource "terraform_data" "phase2_observability_contract" {
+  count = local.phase2_observability_requested ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = local.enabled
+      error_message = "Enable the existing management owner before adding Phase 2 monitoring; do not create a second LAW or action group."
+    }
+    precondition {
+      condition     = length(setintersection(toset(local.phase2_legacy_metric_names), toset([for alert in values(var.phase2_metric_alerts) : lower(alert.name)]))) == 0
+      error_message = "An existing management metric alert already owns this name. Extend its existing input rather than defining it again in Phase 2."
+    }
+  }
+}
+module "phase2_observability" {
+  source                     = "../../../../patterns/terraform-azurerm-compeer-platform-observability"
+  count                      = local.enabled && local.phase2_observability_requested ? 1 : 0
+  resource_group_name        = module.management[0].resource_group_name
+  location                   = var.location
+  log_analytics_workspace_id = module.management[0].log_analytics_workspace_id
+  action_group_ids           = setunion(toset(values(module.management[0].action_group_ids)), var.phase2_action_group_ids)
+  log_alerts                 = var.phase2_log_alerts
+  metric_alerts              = var.phase2_metric_alerts
+  workbooks                  = var.phase2_workbooks
+  # DCR/DCE definitions remain in management.*; VM extensions/associations stay with VM owners.
+  agents              = {}
+  connection_monitors = {}
+  tags                = module.management[0].resource_tags
+  depends_on          = [terraform_data.phase2_observability_contract]
 }

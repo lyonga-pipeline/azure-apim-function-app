@@ -1,0 +1,13 @@
+# Synthetic reference only. Import/adopt settings after removing overlapping ownership.
+organization = "Compeer-Financial-Services"
+workspace_settings = {
+  policy = {
+    workspace_id        = "ws-1234567890ABCDEF"
+    workspace_name      = "platform-policy"
+    execution_mode      = "agent" # Copy actual mode and pool; do not migrate them in this change.
+    agent_pool_id       = "apool-1234567890ABCDEF"
+    assessments_enabled = true
+    ownership_approved  = true
+    # Omit consumers to preserve current values. Providing them only asserts equality.
+  }
+}

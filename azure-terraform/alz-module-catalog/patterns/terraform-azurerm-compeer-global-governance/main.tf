@@ -1,3 +1,5 @@
+# PHASE2 EXISTING: Component List GOV-01. Extend the hierarchy in its existing
+# state; never recreate deployed management groups under a second owner.
 # Every non-fixed management group name is <domain>-mg - one instance per
 # key rather than the single front-door module, because each management
 # group needs its OWN `domain` (there's no single "this root's identity"

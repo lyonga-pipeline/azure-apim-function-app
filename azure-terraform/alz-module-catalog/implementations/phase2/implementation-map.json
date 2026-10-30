@@ -1,0 +1,102 @@
+{
+  "scope": "Ownership-aligned Phase 2 implementations; no deployment phases as permanent state boundaries.",
+  "existing_roots": [
+    {
+      "path": "implementations/platform-lz/workspaces/platform-management",
+      "components": [
+        "OBS-04",
+        "OBS-06",
+        "OBS-07",
+        "SEC-14"
+      ],
+      "note": "Alerts/workbooks reuse existing management resources; DCR/DCE definitions remain in management.*.",
+      "test_directory": "phase2-tests",
+      "example": "phase2.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-connectivity",
+      "components": [
+        "NET-30",
+        "SEC-12",
+        "NET-17",
+        "NET-32",
+        "NET-41"
+      ],
+      "note": "Network probes and existing central Bastion/Watcher/flow-log capabilities.",
+      "test_directory": "phase2-tests",
+      "example": "phase2.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-directory-services",
+      "components": [
+        "OBS-06",
+        "PLT-05"
+      ],
+      "note": "Windows AMA/inventory and associations only for this owner's DC keys.",
+      "test_directory": "phase2-tests",
+      "example": "phase2.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-cloudflare-connectors",
+      "components": [
+        "NET-33",
+        "OBS-06",
+        "PLT-05"
+      ],
+      "note": "Linux AMA/inventory only for this owner's shared connector keys.",
+      "test_directory": "phase2-tests",
+      "example": "phase2.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-policy",
+      "components": [
+        "GOV-08",
+        "GOV-11",
+        "GOV-14",
+        "SEC-14"
+      ],
+      "note": "Regulatory rollout, approved exemptions and sandbox expiry; no FinOps ownership.",
+      "test_directory": "phase2-tests",
+      "example": "phase2.tfvars.example"
+    }
+  ],
+  "new_roots": [
+    {
+      "path": "implementations/platform-lz/workspaces/platform-hcp-governance",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-log-archive",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-finops",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-services",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-security-automation",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/platform-lz/workspaces/platform-identity-external",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/workload-lz/workspaces/workload-external-apps-prod",
+      "example": "terraform.tfvars.example"
+    },
+    {
+      "path": "implementations/workload-lz/workspaces/workload-sandbox",
+      "example": "terraform.tfvars.example"
+    }
+  ],
+  "retired_phase_roots": {
+    "implementations/phase2/workspaces/platform-observability": "Existing management/connectivity/VM owners",
+    "implementations/phase2/workspaces/phase2-governance": "Existing policy owner + separate subscription FinOps root"
+  },
+  "migration_note": "User confirmed these new Phase 2 roots are unapplied. No state moves/imports are performed. Existing resources remain with current owners."
+}

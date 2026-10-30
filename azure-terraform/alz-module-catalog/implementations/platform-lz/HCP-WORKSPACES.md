@@ -1,13 +1,14 @@
 # HCP Terraform — Platform Landing Zone workspaces
 
-Give the platform deployment **service principal** access to the **project**, not
-each workspace, so new workspaces don't need re-provisioning.
+Align HCP project/workspace roles with infrastructure ownership. Scope each Azure
+OIDC run identity independently to its required resources. Do not grant project-wide
+Write access merely to consume another workspace's public outputs.
 
 | | |
 |---|---|
 | **HCP organization** | `Compeer-Financial-Services` |
 | **HCP project** | `Platform-Landing-Zone` |
-| **SP permission** | Project-level **Write** (plan + apply on every workspace, current and future) |
+| **HCP access** | Owner-scoped plan/apply roles; production approvals and least-privilege output-read access across owners |
 | **VCS repo** | `Compeer-financial-cloud/InfrastructureAutomation/<this repo>` |
 | **Auth** | HCP dynamic credentials / OIDC to Azure; `tenant_id` in a shared **variable set** (category Terraform), `subscription_id` a workspace variable (category Terraform) |
 
@@ -29,7 +30,10 @@ each workspace, so new workspaces don't need re-provisioning.
 environment-specific, so they keep the `prod` / `dev` / `test` prefix
 (`prod-compeer-lz-internalapps-apim`).
 
-**Peering (template):** `platform-compeer-peering-<spoke>`.
+**Peering target:** `platform-network-peering-<env>[-<hub-boundary>]`, grouped by
+environment/hub under [PEERING-STANDARD.md](PEERING-STANDARD.md). Existing
+per-spoke workspace names are compatibility owners until an approved handoff;
+do not rename HCP workspaces or federation subjects implicitly.
 
 ## Platform workspaces
 
@@ -56,13 +60,13 @@ Identity / RBAC IaC boundary (what is codified vs. deliberately manual across al
 | `platform-compeer-management` | management | `platform-management` | Log Analytics, platform diagnostics/artifact storage accounts, action groups, DCR / DCE, activity-log + Entra diagnostics, **Sentinel onboarding + connectors + analytics rules**, **Defender for Cloud plans + security contacts**, **subscription-scope budgets** |
 | `platform-compeer-sentinel` | sentinel-content | `platform-sentinel` | Sentinel **content as code** on the central workspace: data connectors, analytics rules (scheduled, NRT, Microsoft incident creation, template, anomaly), automation rules, watchlists, opt-in baseline detections. Deploy AFTER `platform-management` (which owns onboarding); ships disabled. Subscription = the management subscription. Needs output-read access to `platform-management` (`tfe_outputs`; no remote state sharing needed). |
 | `platform-compeer-identity` | identity | `platform-identity-security` | Platform Key Vault, user-assigned managed identities, identity-scope RBAC, Key Vault diagnostics. Platform Key Vault private endpoint remains on hold and must be connectivity-owned when approved. |
-| `platform-compeer-directory-services` | directory-services | `platform-directory-services` | Domain-controller VMs + NICs + data disks, AD DS role install, DC promotion hook, identity-subscription DC Recovery Services vault + backup protection |
+| `platform-compeer-directory-services` | directory-services | `platform-directory-services` | Domain-controller VMs + NICs + data disks, identity-subscription Recovery Services vault + backup protection. AD DS installation/promotion is a separately approved AD workflow |
 
 ### Phase 3 — Connectivity & edge
 
 | Workspace | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-connectivity` | connectivity | `platform-connectivity` | Hub VNet + all subnets, NSGs, route tables, DDoS plan, Bastion, private-link DNS zones + VNet links, private DNS resolver, route server |
+| `platform-compeer-connectivity` | connectivity | `platform-connectivity` | Hub VNet + subnets, NSGs, route tables, optional DDoS/Bastion/Watcher, private-link DNS zones + VNet links. Existing DC forwarders provide DNS; no new Private Resolver |
 | `platform-compeer-palo-alto` | palo-alto | `platform-palo-alto` | Palo Alto VM-Series firewalls (2+), NICs, trust/untrust/Sunstream internal LBs, public IPs, `azurerm_marketplace_agreement`, bootstrap storage + Key Vault (inline) or bootstrap share layout, connectivity-subscription firewall Recovery Services vault + backup protection |
 | `platform-compeer-cloudflare-connectors` | cloudflare-connectors | `platform-cloudflare-connectors` | Cloudflare Tunnel connector VMs in the hub (Azure side), NICs, `cloudflared` install |
 | `platform-compeer-cloudflare-edge` | cloudflare-edge | `platform-cloudflare-edge` | Cloudflare zones, tunnels, tunnel configs, **public DNS records**, Access applications + policies — `cloudflare` provider, `CLOUDFLARE_API_TOKEN` env var |
@@ -88,8 +92,24 @@ example under Templates below — not a dedicated pattern. See
 
 | Workspace pattern | Component | Working dir | Deploys |
 |---|---|---|---|
-| `platform-compeer-peering-<spoke>` | network-peering | `platform-network-peering` | Required separate platform-owned attachment stage for each enabled new spoke: both peerings + exact DNS links from its versioned public contract. Spoke blueprint creates neither. Keep environments/identities scoped; central ownership does not mean one global state. |
+| `platform-network-peering-<env>[-<hub-boundary>]` | network attachment | New `platform-network-peering-np1`, `np2`, `np3`, `prod` roots; existing `platform-network-peering` remains single-pair compatibility | Disabled AzAPI batches group approved spokes by environment/hub boundary. Both directions + exact DNS links, no VNet/routes. Publish/pin and configure shared hub gate/OIDC/RBAC before rollout. |
 | Existing legacy workload workspaces | workload-spoke (legacy) | `platform-workload-spoke` | Compatibility implementation for existing states. Superseded for NEW internal-applications deployments by the Step 11 roots below; do not repoint an existing state without a reviewed migration. |
+
+The authoritative [peering standard](PEERING-STANDARD.md), revised 2026-10-30,
+supersedes the earlier per-spoke attachment-workspace default. Initial examples
+are platform-network-peering-np1/np2/np3/prod, subject to real hub/security boundaries.
+These are optional examples, not a mandatory four-workspace or four-environment
+matrix. Copy [the generic root template](templates/network-attachments/README.md)
+for another actual environment or shared platform lifecycle. The batch supports
+generic platform/workload v3 and existing workload v2. The gate inventory lists
+only actual hub writers; omit nonexistent examples and include all real writers.
+Each has an independent root/state/trigger path; publish/pin its approved batch
+release before deployment. Do not point four workspaces at the retained single-pair
+root. The new batch uses one AzAPI provider with full resource IDs, not dynamic
+AzureRM aliases. OIDC principals are environment/boundary scoped, preferably
+separate plan/apply, with exact resource grants and federation subjects rather
+than one identity per application. Shared-hub grants and concurrency remain shared
+risks; enforce a hub gate across relevant runs and serialize pairs inside each run.
 
 ### Step 11 workload templates
 
@@ -100,7 +120,8 @@ per approved application and actual environment; the names below are examples.
 For independently promoted applications/environments, also instantiate a distinct
 root directory with its own exact blueprint release pin and VCS trigger path.
 Do not share one working directory and choose the deployment with runtime tfvars.
-Both roots now call the blueprint directly, not the live workload-lz/shared adapter.
+Both roots call independently pinned blueprint releases directly; the unused
+workload shared adapter has been removed.
 See [isolation and same-state migration](../workload-lz/ISOLATION.md) for the
 required main-branch workspace settings and promotion sequence.
 
@@ -113,8 +134,9 @@ Both committed examples are disabled placeholders. Select Terraform **1.11.4**
 in HCP and on the VDI: the new patterns require >=1.11.4 and <2, and catalog CI
 uses exactly 1.11.4. Newer versions need a reviewed test run before adoption.
 AzureRM remains on 4.x; the Application Insights module requires >=4.81.
-Keep workload provisioning permissions scoped to the workload subscription plus
-the approved hub VNet/DNS zones; do not grant workload teams platform-project
+Keep workload provisioning permissions scoped to the workload subscription.
+Only the separate central attachment identity receives approved hub VNet/DNS
+and spoke attachment permissions; do not grant workload teams platform-project
 Write access merely to consume published resource IDs.
 
 For HCP output access, exact producer names must match the actual organization,
@@ -155,11 +177,14 @@ For deployment gates and actual NET-22 evidence, see
 | `platform-compeer-container-registry` | A shared platform ACR is required (vs per-workload ACR) | per-workload |
 | `platform-compeer-tfe-bootstrap` | HCP itself (project, variable sets, VCS, these workspaces) is managed as code (`tfe` provider) | done once by hand |
 
-### Not needed — the design doc capability is already covered
+### Original Baseline Ownership
+
+These baseline owners are retained. The workbook v5 Phase 2 additions below
+extend them and add distinct FinOps/archive/services owners where justified.
 
 | Proposed workspace | Why it's not separate |
 |---|---|
-| `platform-compeer-cost` | Budgets are inputs on `governance` (MG scope) and `management` (subscription scope). No cost-export requirement in the design doc. |
+| `platform-compeer-cost` | Existing budgets remain with governance/management. Phase 2 uses the distinct `platform-finops` root for approved new budgets, exports and anomaly notifications after an ownership inventory; it must not recreate retained budgets. |
 | `platform-compeer-sentinel` | The `management` root has full Sentinel onboarding + connectors + scheduled analytics rules (incl. the Palo CEF forwarding-health rule). Split later only if the SOC team wants an independent apply cadence — an org-process choice, not a design requirement. |
 | `platform-compeer-defender` | Defender for Cloud plans + security contacts are inputs on `management`; the MCSB initiative is assigned by `governance`. |
 | `platform-compeer-dns` | Private DNS is centralized in the hub (`connectivity` — zones, VNet links, resolver, bidirectional hybrid forwarding). Public/external DNS is Cloudflare's authoritative zone (`cloudflare-edge`). No Azure public DNS zone in the design. |
@@ -168,8 +193,12 @@ For deployment gates and actual NET-22 evidence, see
 
 - **Core platform workspaces to create now:** 14 with a built root (+ `platform-subscriptions` exists but is NOT deployed)
 - **Buffer / conditional:** 5 (create only on the trigger above)
-- **Templates:** 2 Step 11 workload environment roots plus the required central attachment stage; all committed examples remain disabled and legacy workload-spoke is compatibility-only
+- **Templates:** 2 Step 11 workload foundation examples, 4 optional attachment examples and a generic platform/custom-environment root template. Instantiate only needed boundaries; all new examples are disabled and legacy roots remain compatibility-only.
 - **Total platform footprint with buffer:** ~19 + templates + N workload LZs
+
+Those are baseline counts, not approval to create one attachment workspace per
+application. The environment/hub attachment count follows PEERING-STANDARD.md;
+the new batch roots are disabled until their publication/adoption gates are completed.
 
 ## Deployment order
 
@@ -191,3 +220,24 @@ workload spoke, if/when one is instantiated — see the retirement note above).
 - `policy` can run after `management` (it reads the Log Analytics workspace ID).
 
 See `WORKSPACES.md` for the dependency detail.
+
+## Workbook v5 Phase 2 Owner Integration
+
+**PHASE 2 CHANGES:** the legacy design-phase headings above are not the workbook's rollout phases. No workbook Phase 3 resources are enabled here. Use the [engineering handoff](../phase2/ENGINEERING-HANDOFF.md) and [implementation map](../phase2/implementation-map.json) as the current adoption index.
+
+Existing HCP workspaces retain their current state and core module addresses. The management, connectivity, directory-services, Cloudflare-connector and policy roots now contain visibly marked optional Phase 2 sections. Their extra inputs default empty; do not create parallel Phase 2 workspaces for those capabilities.
+
+| New workspace example | Canonical working-directory suffix | Ownership |
+| --- | --- | --- |
+| `platform-compeer-log-archive` | `platform-lz/workspaces/platform-log-archive` | Retention/export/audit lifecycle; existing LAW/DNS reused. |
+| `platform-compeer-finops-<subscription>` | `platform-lz/workspaces/platform-finops` | One independently instantiated root/state per subscription; no MG policy. |
+| `platform-compeer-security-automation` | `platform-lz/workspaces/platform-security-automation` | Approved rotation event delivery. |
+| `platform-compeer-hcp-governance` | `platform-lz/workspaces/platform-hcp-governance` | Existing HCP health assessments only. |
+| `platform-compeer-services` | `platform-lz/workspaces/platform-services` | Private Compute Gallery and approved maintenance schedules. |
+| `platform-compeer-identity-external` | `platform-lz/workspaces/platform-identity-external` | Dedicated external-forest infrastructure; explicit legacy-owner check. |
+| `prod-compeer-lz-externalapps-<appcode>` | `workload-lz/workspaces/workload-external-apps-prod` | Independent external-app environment. |
+| `<env>-compeer-lz-sandbox-<appcode>` | `workload-lz/workspaces/workload-sandbox` | Isolated sandbox. |
+
+Prefix working-directory suffixes with `azure-terraform/alz-module-catalog/implementations/`. Clone a distinct root directory and pin for each independently promoted subscription/application/environment; do not point independently promoted workspaces at one runtime-selected root.
+
+The former phase-based roots were confirmed unapplied. No HCP workspace/state migration, resource import or deployment was performed. Before enabling, publish the documented pattern releases, set Terraform >=1.11.4, retain reviewed provider locks, configure root-specific main-branch trigger paths/credentials and review a real-state plan. Older deployed resource owners remain unchanged.

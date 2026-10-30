@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 2.1/2.2/2.7 OBS-04/OBS-06/SEC-06: existing action groups, DCE/DCR maps and Defender pricing. Keep one pricing owner per subscription; do not compete with policy remediation.
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 

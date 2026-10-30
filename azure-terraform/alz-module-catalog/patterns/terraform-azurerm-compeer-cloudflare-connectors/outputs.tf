@@ -54,3 +54,9 @@ output "operational_contracts" {
   description = "Operational-readiness contract object - see module.operational_contracts for what it asserts."
   value       = module.operational_contracts.contracts
 }
+
+# PHASE2 NEW: additive composition output; new owner-local resources reuse the exact existing tag contract.
+output "resource_tags" {
+  description = "Effective enterprise tags for resources composed by this pattern's existing workspace owner."
+  value       = module.tags.tags
+}

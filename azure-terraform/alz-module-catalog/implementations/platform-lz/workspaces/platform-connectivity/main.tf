@@ -110,3 +110,42 @@ module "connectivity" {
   diagnostic_settings             = try(var.connectivity.diagnostic_settings, {})
   additional_scopes               = try(var.connectivity.additional_scopes, {})
 }
+
+# =============================================================================
+# PHASE 2 CHANGES - additive, opt-in; preserve existing resource/state ownership.
+# Adopt this marked section with phase2_*.tf, phase2-tests/ and phase2.tfvars.example.
+# =============================================================================
+
+locals {
+  # New composition consumes public resource contracts, never sensitive output maps.
+  phase2_log_analytics_workspace_id = try(coalesce(
+    var.log_analytics_workspace_id,
+    try(data.tfe_outputs.management[0].nonsensitive_values.log_analytics_workspace_id, null)
+  ), null)
+}
+resource "terraform_data" "phase2_connection_monitor_contract" {
+  count = length(var.phase2_connection_monitors) > 0 ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = local.enabled && local.phase2_log_analytics_workspace_id != null
+      error_message = "Connection Monitor requires the existing connectivity owner and the approved management LAW public output."
+    }
+    precondition {
+      condition = alltrue([for monitor in values(var.phase2_connection_monitors) :
+        try(lower(split("/", monitor.network_watcher_id)[2]) == lower(var.subscription_id), false) &&
+        try(lower(split("/", monitor.source_virtual_machine_id)[2]) == lower(var.subscription_id), false)
+      ])
+      error_message = "The Watcher and source probe VM must be in this connectivity subscription; do not broaden the monitoring identity across arbitrary subscriptions."
+    }
+  }
+}
+module "phase2_connection_monitors" {
+  source                     = "../../../../patterns/terraform-azurerm-compeer-platform-observability"
+  count                      = local.enabled && local.phase2_log_analytics_workspace_id != null && length(var.phase2_connection_monitors) > 0 ? 1 : 0
+  resource_group_name        = module.connectivity[0].resource_group_name
+  location                   = var.location
+  log_analytics_workspace_id = local.phase2_log_analytics_workspace_id
+  connection_monitors        = var.phase2_connection_monitors
+  tags                       = module.connectivity[0].resource_tags
+  depends_on                 = [terraform_data.phase2_connection_monitor_contract]
+}

@@ -1,3 +1,4 @@
+# PHASE2 NEW: v5 2.9 OBS-08 optional secure webhook authentication; existing receiver defaults unchanged.
 resource "azurerm_monitor_action_group" "action_group" {
   name                = var.name
   resource_group_name = var.resource_group_name
@@ -20,6 +21,14 @@ resource "azurerm_monitor_action_group" "action_group" {
       name                    = webhook_receiver.key
       service_uri             = webhook_receiver.value.service_uri
       use_common_alert_schema = try(webhook_receiver.value.use_common_alert_schema, true)
+      dynamic "aad_auth" {
+        for_each = webhook_receiver.value.aad_auth == null ? [] : [webhook_receiver.value.aad_auth]
+        content {
+          object_id      = aad_auth.value.object_id
+          identifier_uri = aad_auth.value.identifier_uri
+          tenant_id      = aad_auth.value.tenant_id
+        }
+      }
     }
   }
 

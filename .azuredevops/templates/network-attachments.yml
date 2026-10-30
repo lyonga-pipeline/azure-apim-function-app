@@ -1,0 +1,35 @@
+# Configure an Exclusive Lock + network approvals on this EXACT ADO Environment in the UI.
+# Checks are not defined by YAML. All other writers to the shared hub must use this gate too.
+parameters:
+  - name: workspace
+    type: string
+  - name: configurationVersion
+    type: string
+  - name: gateInventory
+    type: string
+
+stages:
+  - stage: SharedHubNetworkWrite
+    lockBehavior: sequential
+    jobs:
+      - deployment: NetworkAttachment
+        environment: compeer-shared-hub-network-writes
+        timeoutInMinutes: 240
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  persistCredentials: false
+                - bash: |
+                    set -euo pipefail
+                    python3 azure-terraform/alz-module-catalog/implementations/platform-lz/network-attachments/run_under_hub_gate.py \
+                      --config "$GATE_INVENTORY" --workspace "$ATTACHMENT_WORKSPACE" \
+                      --configuration-version "$CONFIGURATION_VERSION" --commit "$BUILD_SOURCEVERSION"
+                  displayName: Plan under the shared hub gate; wait for HCP network approval and apply
+                  env:
+                    COMPEER_HUB_GATE_HELD: "true"
+                    HCP_TOKEN: $(HCP_NETWORK_GATE_TOKEN)
+                    GATE_INVENTORY: ${{ parameters.gateInventory }}
+                    ATTACHMENT_WORKSPACE: ${{ parameters.workspace }}
+                    CONFIGURATION_VERSION: ${{ parameters.configurationVersion }}

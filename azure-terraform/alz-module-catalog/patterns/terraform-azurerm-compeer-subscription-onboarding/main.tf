@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 9.1/10.4 GOV-04/GOV-18: existing CSP-subscription placement remains governance-owned. Sandbox placement does not create subscriptions.
 resource "terraform_data" "onboarding_contract" {
   input = {
     subscription_keys = sort(keys(var.subscriptions))

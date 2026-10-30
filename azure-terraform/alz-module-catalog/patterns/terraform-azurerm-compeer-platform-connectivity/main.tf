@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 3.7/3.9/4.1/5.1 NET-17/NET-32/NET-41/NET-07: existing VNet flow logs, optional DDoS plan, reserved connector and partner subnet interfaces. Do not reallocate deployed prefixes.
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
@@ -248,6 +249,7 @@ locals {
   bastion_name             = coalesce(try(var.bastion.name, null), local.nm.bastion)
 }
 
+# PHASE2 EXISTING: v5 Component List SEC-12. One centrally owned Bastion; reuse its approved public IP and route audit logs to the central LAW.
 # The bastion-host resource module consumes an externally managed Standard/Static
 # public IP; the pattern owns that composition.
 module "bastion_public_ip" {

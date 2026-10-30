@@ -1,0 +1,81 @@
+# PHASE2 NEW: synthetic reference only, NOT an approval or deployable Compeer allocation.
+# Use in a dedicated workspace after replacing every UUID, address, recipient and approval.
+enabled                         = false
+existing_identity_owner_checked = false
+deployment_approved             = false
+subscription_id                 = "11111111-1111-1111-1111-111111111111" # Existing ent-platform-identity-ext-sub from CSP.
+location                        = "centralus"
+environment                     = "prod"
+resource_group                  = { name = "identity-cus-prod-ext-dc-rg" }
+platform_tags = {
+  application      = "external-identity", appcode = "identity", owner = "Identity Operations"
+  source_repo      = "ado://example/platform/identity-ext", created_on = "2026-10-26"
+  criticality_tier = "tier-1", data_classification = "restricted", lifecycle_state = "active"
+  cost_center      = "REPLACE-FINOPS", gl_category = "cloud-infrastructure", created_by = "Terraform", dr_tier = "gold"
+}
+identity_vnet = {
+  name          = "identity-cus-prod-ext-dc-vnet"
+  address_space = ["10.210.0.0/24"]              # Replace from reserved Phase 1 IPAM.
+  dns_servers   = ["10.210.0.10", "10.210.0.11"] # Final AD DNS only after controlled bootstrap/promotion.
+  subnets       = { external-dc-subnet = { address_prefixes = ["10.210.0.0/26"], nsg_key = "dc", route_table_key = "dc" } }
+}
+# Existing pattern's legacy single-sided peering is deliberately not called; central attachment owns both directions.
+hub_connection              = null
+inspection_address_prefixes = ["10.102.0.0/21", "10.40.0.0/16"] # Replace with the complete approved hub/on-premises inventory.
+inspection_next_hop_ip      = "10.102.0.4"
+network_security_groups = { dc = {
+  name = "identity-cus-prod-ext-dc-nsg"
+  rules = {
+    management         = { protocol = "Tcp", access = "Allow", priority = 200, direction = "Inbound", source_port_range = "*", destination_port_range = "3389", source_address_prefix = "10.102.2.0/27", destination_address_prefix = "10.210.0.0/26" }
+    ad-tcp             = { protocol = "Tcp", access = "Allow", priority = 210, direction = "Inbound", source_port_range = "*", destination_port_ranges = ["53", "88", "135", "389", "445", "464", "636", "3268", "3269", "9389", "49152-65535"], source_address_prefixes = ["10.210.0.0/26", "10.40.0.0/16"], destination_address_prefix = "10.210.0.0/26" }
+    ad-udp             = { protocol = "Udp", access = "Allow", priority = 220, direction = "Inbound", source_port_range = "*", destination_port_ranges = ["53", "88", "123", "389", "464"], source_address_prefixes = ["10.210.0.0/26", "10.40.0.0/16"], destination_address_prefix = "10.210.0.0/26" }
+    deny-other-inbound = { protocol = "*", access = "Deny", priority = 4096, direction = "Inbound", source_port_range = "*", destination_port_range = "*", source_address_prefix = "*", destination_address_prefix = "*" }
+  }
+} }
+# AD team must narrow these synthetic client/peer ranges and approve firewall rules in both directions before promotion.
+route_tables = { dc = {
+  name                          = "identity-cus-prod-ext-dc-rt"
+  bgp_route_propagation_enabled = false
+  routes = {
+    inspected-egress = { address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.0.4" }
+    inspected-hub    = { address_prefix = "10.102.0.0/21", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.0.4" }
+    inspected-onprem = { address_prefix = "10.40.0.0/16", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.0.4" }
+  }
+} }
+domain_controllers = {
+  dc01 = {
+    name                   = "identity-cus-prod-extdc-01", nic_name = "identity-cus-prod-extdc-01-nic", computer_name = "EXTDC01"
+    subnet_key             = "external-dc-subnet", private_ip_address = "10.210.0.10", zone = "1"
+    source_image_reference = { publisher = "MicrosoftWindowsServer", offer = "WindowsServer", sku = "2022-datacenter-azure-edition", version = "20348.0000.000000" } # SYNTHETIC: replace with a verified immutable version or gallery source_image_id.
+    identity               = { type = "SystemAssigned" }
+    os_disk                = { caching = "ReadWrite", storage_account_type = "Premium_LRS", disk_size_gb = 128 }
+    data_disks             = { adds = { name = "extdc01-adds", lun = 0, disk_size_gb = 128, caching = "None" } }
+  }
+  dc02 = {
+    name                   = "identity-cus-prod-extdc-02", nic_name = "identity-cus-prod-extdc-02-nic", computer_name = "EXTDC02"
+    subnet_key             = "external-dc-subnet", private_ip_address = "10.210.0.11", zone = "2"
+    source_image_reference = { publisher = "MicrosoftWindowsServer", offer = "WindowsServer", sku = "2022-datacenter-azure-edition", version = "20348.0000.000000" } # SYNTHETIC: never deploy without image approval.
+    identity               = { type = "SystemAssigned" }
+    os_disk                = { caching = "ReadWrite", storage_account_type = "Premium_LRS", disk_size_gb = 128 }
+    data_disks             = { adds = { name = "extdc02-adds", lun = 0, disk_size_gb = 128, caching = "None" } }
+  }
+}
+# Supply TF_VAR_admin_passwords securely (encrypted state still contains VM passwords); never commit credentials.
+admin_passwords       = {}
+domain_join_passwords = {}
+recovery_services_vaults = { identity = {
+  name                         = "platform-cus-prod-identity-ext-rsv"
+  storage_mode_type            = "GeoRedundant"
+  cross_region_restore_enabled = true
+  immutability                 = "Unlocked" # Do not irreversibly lock without separate approval.
+  backup_policy_vm = { tier0 = {
+    name             = "external-dc-tier0"
+    policy_type      = "V2"
+    timezone         = "Central Standard Time"
+    backup           = { frequency = "Daily", time = "02:00" }
+    retention_daily  = { count = 30 }
+    retention_weekly = { count = 12, weekdays = ["Sunday"] }
+  } }
+} }
+dc_backup        = { backup_policy_key = "tier0", protected_controllers = { dc01 = {}, dc02 = {} } }
+management_locks = {} # Deliberately not introduced.

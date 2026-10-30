@@ -91,6 +91,13 @@ variable "public_network_access_enabled" {
   default     = false
 }
 
+# PHASE2 NEW: OBS-05 Azure Monitor export uses trusted-service ingress, not a private endpoint.
+variable "trusted_service_only_access_approved" {
+  description = "Explicit AzureServices-only ingress exception with Deny firewall rules. Default preserves existing safeguards."
+  type        = bool
+  default     = false
+}
+
 variable "allow_nested_items_to_be_public" {
   description = "Whether nested items can be made public."
   type        = bool

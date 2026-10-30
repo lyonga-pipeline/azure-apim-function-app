@@ -29,7 +29,7 @@ files (e.g. `platform-management`'s alerts live in `platform_alerts.tf`, not
 12. `directory-services` → workspace `platform-directory-services`
 13. `cloudflare-connectors` → workspace `platform-cloudflare-connectors`
 14. `workload-spoke` (template) → one workspace per workload × environment
-15. `network-peering` (template) → one workspace per hub↔spoke pair
+15. `network-peering` -> retained single-pair building block; new `terraform-azapi-compeer-network-attachments` implements environment/hub batches through four disabled roots. See PEERING-STANDARD.md for release/gate/live adoption.
 16. `terraform-cloudflare-compeer-edge-baseline` → workspace `platform-cloudflare-edge`
 
 Not deployed: `subscription-vending` (creates subscriptions; Compeer's CSP
@@ -794,12 +794,22 @@ and locks.
 
 ---
 
-## 15. `network-peering` (template) — one workspace per hub↔spoke pair
+## 15. `network-peering` Single Pair Building Block
 
 **Purpose:** owns the cross-subscription VNet peering + shared private-DNS
 zone links between one hub and one spoke, in a dedicated workspace so exactly
 one state owns each peering resource (never enable `hub_connection` in
 `workload-spoke` for the same spoke).
+
+The [peering standard](PEERING-STANDARD.md) now defaults to a platform-owned
+attachment workspace per environment and hub/network boundary, managing multiple
+approved spokes. Dedicated per-spoke workspaces are exceptions. This pattern and
+the current root still handle one pair; a tested batch composition and explicit
+cross-subscription provider-group bindings are required before environment rollout.
+Do not treat producer outputs as authorization, import VNets into attachment state,
+or add standalone routes to the hub's inline-managed route tables. Gate mutations
+within each run and across every workspace sharing the same hub. Preserve the
+legacy identity split until a reviewed ownership handoff.
 
 | Block | Resource(s) | Why |
 |---|---|---|

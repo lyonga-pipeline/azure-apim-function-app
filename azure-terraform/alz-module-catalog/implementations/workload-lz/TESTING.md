@@ -26,7 +26,7 @@ The script runs:
 
 - Blueprint positive/negative mock integration tests and all capability flags.
 - Workload vault, paired peering core and central attachment adapter tests.
-- Legacy adapter and directly pinned production/non-production workspace tests.
+- Directly pinned production/non-production workspace tests.
 - Environment-source/layout checks and same-state adapter-removal migration fixtures.
 - Central network-peering workspace tests and complete-root validation.
 - Local naming, VNet, storage, telemetry, vault, peering and DNS-link helper tests.
@@ -42,10 +42,22 @@ the billable live-test driver. Native test apply operations use only the suites'
 mock providers. Migration fixtures apply only local built-ins/time in temporary
 directories, never Azure resources or client state.
 
-## Latest Verification
+## Adapter Removal Checks
+
+After removing the unused adapter on 2026-10-22, the focused checks passed:
+48 Python checks (including environment layout and same-state migrations),
+six production and six non-production Terraform mock tests, both complete-root
+validations, regression-script shell syntax and whitespace checks. The workspace
+tests used initialized disposable copies verified against the unchanged source
+roots, leaving the export folders free of caches. No Azure resources were deployed.
+The full catalog regression below was not repeated for this removal.
+
+## Last Full Regression
 
 Verified on 2026-10-22 using Terraform 1.11.4 and AzureRM 4.81.0 in a
 disposable catalog copy, without changing provider constraints or deploying Azure.
+This historical run predates removal of the unused `shared/` adapter: its three
+tests below are no longer included in the regression script.
 
 | Check | Result |
 | --- | --- |

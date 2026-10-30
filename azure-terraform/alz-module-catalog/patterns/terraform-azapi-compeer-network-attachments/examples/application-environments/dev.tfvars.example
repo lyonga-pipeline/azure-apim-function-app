@@ -1,0 +1,46 @@
+# DOCUMENTATION ONLY. Copy the generic root to its OWN directory/state for dev.
+# Only claims, loans exist here; no absent environments are provisioned.
+# Replace UUIDs/CIDRs, publish producer v3 outputs and approve scoped RBAC/gate first.
+enabled = false
+environment = "dev"
+tenant_id = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+execution_subscription_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+hub = {
+ virtual_network_id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet"
+ address_space = ["10.0.0.0/16"]
+ organization = "Compeer-Financial-Services"
+ workspace = "platform-connectivity"
+ contract_version = "0.1.0"
+ gateway_ready = false
+}
+# Supply ALL external estate ranges, excluding this boundary's own reservations.
+reserved_address_spaces = ["10.169.0.0/16", "172.16.0.0/12"]
+deployment_controls = { approval_reference = "REPLACE", exclusive_ownership_verified = false, shared_hub_gate_configured = false }
+attachments = {}
+# After approval, replace the empty map with ONLY these existing instances:
+# attachments = {
+#   claims = {
+#     attachment_kind = "workload"
+#     spoke_virtual_network_id = "/subscriptions/dddddddd-dddd-dddd-dddd-dddddddddddd/resourceGroups/claims-dev/providers/Microsoft.Network/virtualNetworks/claims-dev-vnet"
+#     address_space = ["10.61.0.0/24"]
+#     producer = { organization = "Compeer-Financial-Services", workspace = "workload-claims-dev", contract_version = "3.0.0" }
+#     approval_reference = "NET-APPROVED-DEV"
+#     ipam_reference = "IPAM-CLAIMS-DEV"
+#     gateway_transit = false
+#     allow_forwarded_traffic = true
+#     private_dns_zone_ids = {} # Must exactly match the producer; list approved zones if needed.
+#     tags = { Environment = "dev", Application = "claims", Owner = "PlatformNetworking", CostCenter = "REPLACE" }
+#   }
+#   loans = {
+#     attachment_kind = "workload"
+#     spoke_virtual_network_id = "/subscriptions/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee/resourceGroups/loans-dev/providers/Microsoft.Network/virtualNetworks/loans-dev-vnet"
+#     address_space = ["10.62.0.0/24"]
+#     producer = { organization = "Compeer-Financial-Services", workspace = "workload-loans-dev", contract_version = "3.0.0" }
+#     approval_reference = "NET-APPROVED-DEV"
+#     ipam_reference = "IPAM-LOANS-DEV"
+#     gateway_transit = false
+#     allow_forwarded_traffic = true
+#     private_dns_zone_ids = {} # Must exactly match the producer; list approved zones if needed.
+#     tags = { Environment = "dev", Application = "loans", Owner = "PlatformNetworking", CostCenter = "REPLACE" }
+#   }
+# }

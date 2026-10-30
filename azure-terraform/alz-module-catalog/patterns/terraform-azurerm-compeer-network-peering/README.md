@@ -25,9 +25,16 @@ See `tests/contracts.tftest.hcl`.
 
 This root owns the cross-subscription network attachment between one hub VNet and one workload spoke VNet. It creates both Azure peering resources and links shared Private DNS zones to the spoke VNet.
 
-Use this adapter in a dedicated platform-owned HCP workspace per approved
-application/environment attachment. This is Compeer's selected model; central
-does not mean one global state or all-spoke identity. Set
+The [peering standard](../../implementations/platform-lz/PEERING-STANDARD.md)
+selects environment-and-hub/network-boundary workspaces for multiple approved
+spokes, with per-spoke workspaces reserved for justified exceptions. This adapter
+still handles **one pair**, not an attachments map. The new
+[AzAPI batch pattern](../terraform-azapi-compeer-network-attachments/README.md)
+and independent environment roots implement that grouping using full parent IDs;
+dynamic AzureRM provider-alias selection in for_each is not supported.
+Existing single-pair callers remain compatible. Do not describe this interface
+as the completed environment rollout or change deployed state ownership implicitly.
+Central does not mean one global state or a tenant-wide identity. Set
 use_spoke_attachment_contract=true to consume the spoke's public versioned
 contract and required DNS links. For version 2, this adapter calls the pinned
 naming module centrally; the spoke supplies context, not attachment names.
@@ -85,7 +92,11 @@ The `workload-spoke` workspace must publish:
 - `spoke_virtual_network_name`
 - `spoke_virtual_network_id`
 
-This pattern is preferred over duplicating IDs manually in every consumer workspace. It keeps the platform and workload states isolated while exposing only declared outputs through the HCP Terraform API.
+Published IDs avoid uncontrolled duplication, but outputs are not authorization.
+Cross-check them against the network-approved Git inventory before permitting
+attachment. Hub/spoke VNets remain exclusively in their foundation states;
+only peerings and approved links belong to the attachment owner. Required hub
+route changes, spoke UDRs and Panorama policies stay with their current owners.
 
 ## Why `TFE_TOKEN` is used
 
@@ -154,3 +165,10 @@ required DNS-link operations. Write-only is insufficient; subscription-wide
 Owner/Network Contributor is not required merely for attachment.
 
 The Azure dynamic credential or federated credential must cover this workspace for both plan and apply phases.
+
+For the target grouped model, security reviews the union of approved VNet/zone
+grants for each environment/hub principal; shared-hub grants are not isolated to
+one peering child. Prefer separate plan/apply principals and verify every alias.
+Serialize peering mutations both within a batch and across workspaces sharing
+the hub; pair dependencies and state locks alone are insufficient. See the
+standard for pipeline gates, route ownership, identity exceptions and migration.

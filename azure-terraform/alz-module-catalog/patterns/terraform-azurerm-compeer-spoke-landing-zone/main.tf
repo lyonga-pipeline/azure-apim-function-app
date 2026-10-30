@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 2.4/4.2/10.1 OBS-09/NET-25/WKL-08: existing application-level create/reuse telemetry, private audited vault/storage and inspection baseline. Central attachment owns peering; compute stays separate.
 module "naming" {
   source                      = "../../modules/terraform-azurerm-compeer-naming"
   scope                       = "workload"
@@ -30,7 +31,10 @@ module "tags" {
   dr_tier               = var.workload_tags.dr_tier
   application_component = var.workload_tags.application_component
   modified_on           = var.workload_tags.modified_on
-  additional_tags       = var.workload_tags.additional_tags
+  # PHASE2 NEW: v5 10.1/10.3; no tag mutation policy or new resource addresses.
+  expiration_date      = var.workload_tags.expiration_date
+  time_bound_exception = var.workload_tags.time_bound_exception
+  additional_tags      = var.workload_tags.additional_tags
 }
 
 module "resource_groups" {

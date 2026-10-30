@@ -1,0 +1,88 @@
+# =============================================================================
+# PHASE 2 EXAMPLE - merge only these NEW top-level inputs into this workspace.
+# Keep existing terraform.tfvars unchanged. Do not replace its management/policy/VM object.
+# Synthetic reference values: replace IDs, queries, approvals and thresholds first.
+# No credentials belong in this file. Nothing here is auto-loaded.
+# =============================================================================
+phase2_log_alerts = {
+  connector_vm_missing = {
+    name        = "cloudflare-vm-heartbeat-missing-30m"
+    description = "VM heartbeat is absent for >30 minutes. Service/tunnel health requires a separate cloudflared probe."
+    query       = <<-KQL
+      let Expected = datatable(Computer:string)["REPLACE-CONNECTOR-01","REPLACE-CONNECTOR-02"];
+      Expected | join kind=leftouter (Heartbeat | where TimeGenerated > ago(30m) | summarize LastSeen=max(TimeGenerated) by Computer) on Computer
+      | where isnull(LastSeen)
+    KQL
+    severity    = 1
+    operator    = "GreaterThan"
+    threshold   = 0
+  }
+  playbook_failure = {
+    name        = "sentinel-playbook-failed"
+    description = "Failed Logic App runs; first enable workflow diagnostics and verify status_s in the target workspace."
+    query       = "AzureDiagnostics | where ResourceProvider == 'MICROSOFT.LOGIC' and status_s == 'Failed'"
+    severity    = 1
+  }
+  ingestion_deviation = {
+    name            = "law-ingestion-deviation-25-percent"
+    description     = "Pilot threshold; tune hourly baseline against expected seasonality and data latency."
+    query           = <<-KQL
+      let baseline = toscalar(Usage | where TimeGenerated between (ago(24h) .. ago(1h)) | summarize sum(Quantity)) / 23.0;
+      Usage | where TimeGenerated > ago(1h) | summarize CurrentMB=sum(Quantity)
+      | extend BaselineMB=baseline | where BaselineMB > 0 and abs(CurrentMB-BaselineMB)/BaselineMB > 0.25
+    KQL
+    severity        = 2
+    window_duration = "P1D"
+  }
+}
+
+phase2_metric_alerts = {
+  expressroute_bgp = {
+    name             = "expressroute-private-bgp-unavailable"
+    scopes           = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/platform-cus-prod-network-rg/providers/Microsoft.Network/expressRouteCircuits/REPLACE-CIRCUIT"]
+    metric_namespace = "Microsoft.Network/expressRouteCircuits"
+    metric_name      = "BgpAvailability"
+    aggregation      = "Average"
+    operator         = "LessThan"
+    threshold        = 100
+    severity         = 1
+    dimensions = {
+      peering = { name = "PeeringType", values = ["AzurePrivatePeering"] }
+      peer    = { name = "Peer", values = ["*"] }
+    }
+  }
+  firewall_backend = {
+    name             = "palo-ilb-backend-probe-failed"
+    scopes           = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/platform-cus-prod-network-rg/providers/Microsoft.Network/loadBalancers/REPLACE-PALO-ILB"]
+    metric_namespace = "Microsoft.Network/loadBalancers"
+    metric_name      = "DipAvailability"
+    aggregation      = "Average"
+    operator         = "LessThan"
+    threshold        = 1
+    severity         = 1
+    dimensions       = { backend = { name = "BackendIPAddress", values = ["*"] } }
+    # This tests ILB probe availability, not Panorama HA state or policy correctness.
+  }
+  export_failed = {
+    name             = "law-export-failed"
+    scopes           = ["/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/platform-cus-prod-monitor-rg/providers/Microsoft.OperationalInsights/workspaces/platform-law"]
+    metric_namespace = "Microsoft.OperationalInsights/workspaces"
+    metric_name      = "ExportFailed"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 0
+    severity         = 1
+  }
+}
+
+phase2_workbooks = {
+  operations = {
+    name         = "22222222-2222-2222-2222-222222222222"
+    display_name = "Platform health and telemetry"
+    data_json    = <<-JSON
+      {"version":"Notebook/1.0","items":[{"type":3,"content":{"version":"KqlItem/1.0","query":"Heartbeat | summarize LastSeen=max(TimeGenerated) by Computer","size":0,"title":"Agent heartbeat","queryType":0,"resourceType":"microsoft.operationalinsights/workspaces"}}],"isLocked":false}
+    JSON
+  }
+}
+# Put Connection Monitor in the connectivity subscription/root context, not management by accident.
+phase2_action_group_ids = [] # Reuse management's primary action group automatically.

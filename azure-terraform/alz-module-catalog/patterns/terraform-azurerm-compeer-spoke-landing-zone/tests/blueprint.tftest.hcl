@@ -318,6 +318,27 @@ variables {
   }
 }
 
+# PHASE2 NEW: sandbox is additive; the default fixture remains unchanged production.
+run "sandbox_preserves_security_and_publishes_expiry" {
+  command = plan
+  variables {
+    environment = "sandbox"
+    workload_tags = {
+      application      = "orders", owner = "Applications", source_repo = "ado://example/sandbox", created_on = "2026-10-13",
+      criticality_tier = "tier-2", data_classification = "confidential", lifecycle_state = "active", cost_center = "CC-0000",
+      gl_category      = "cloud-infrastructure", dr_tier = "silver", expiration_date = "2027-01-13"
+    }
+  }
+  assert {
+    condition     = module.tags.tags.expiration_date == "2027-01-13" && length(module.key_vault) == 1 && length(module.network_security_groups) == 2
+    error_message = "Sandbox must reuse the inspected, audited baseline and carry caller-owned expiry."
+  }
+}
+run "sandbox_without_expiry_is_rejected" {
+  command = plan
+  variables { environment = "sandbox" }
+  expect_failures = [var.workload_tags]
+}
 run "legacy_naming_interface_preserves_appendix_f_names" {
   command = plan
   assert {

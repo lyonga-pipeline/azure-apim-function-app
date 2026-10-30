@@ -1,0 +1,20 @@
+# =============================================================================
+# PHASE 2 EXAMPLE - merge only these NEW top-level inputs into this workspace.
+# Keep existing terraform.tfvars unchanged. Do not replace its management/policy/VM object.
+# Synthetic reference values: replace IDs, queries, approvals and thresholds first.
+# No credentials belong in this file. Nothing here is auto-loaded.
+# =============================================================================
+
+# LAW normally resolves from platform-management's public output. Explicit override only if approved.
+log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.OperationalInsights/workspaces/central-law"
+phase2_connection_monitors = { identity_dns = {
+  name                       = "hub-to-identity-dns"
+  network_watcher_id         = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/NetworkWatcherRG/providers/Microsoft.Network/networkWatchers/NetworkWatcher_centralus"
+  source_virtual_machine_id  = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/probe-rg/providers/Microsoft.Compute/virtualMachines/network-probe"
+  destination_address        = "10.103.0.4"
+  destination_port           = 53
+  source_agent_ready         = true # Confirm Network Watcher agent, NSGs and firewall path first.
+  frequency_seconds          = 60
+  maximum_round_trip_time_ms = 100
+  maximum_failed_percent     = 10
+} }

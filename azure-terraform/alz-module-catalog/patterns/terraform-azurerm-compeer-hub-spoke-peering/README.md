@@ -13,7 +13,15 @@ Compeer's selected model is a separately privileged central attachment state
 owning BOTH peering directions and the required DNS links. Spoke provisioning
 publishes intent only and has no hub provider or peering/link modules.
 The central state consumes the versioned contract after the spoke apply.
-Central means platform-owned, not necessarily one shared state for every spoke.
+The current [peering standard](../../implementations/platform-lz/PEERING-STANDARD.md)
+defaults to environment-and-hub/network-boundary states holding multiple approved
+attachments; dedicated per-spoke states are exceptions. This pure pattern remains
+a single-pair building block with fixed providers. The new
+[AzAPI batch pattern](../terraform-azapi-compeer-network-attachments/README.md)
+implements the multi-subscription map API without changing this interface.
+The wrapper must cross-check producer outputs against approved Git inventory and
+serialize separate pairs as well as coordinate all runs sharing the same hub.
+Central does not mean one state or identity across all environments/subscriptions.
 Moving an existing attachment between states requires a reviewed non-destructive
 handoff, not toggling a flag. See
 [ATTACHMENT.md](../../implementations/workload-lz/ATTACHMENT.md).

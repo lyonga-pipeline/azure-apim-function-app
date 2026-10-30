@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 9.1 GOV-04: vending is an existing separate capability, disabled until CSP/billing and governance approval. Never enable it from a spoke blueprint.
 # =============================================================================
 # ⛔ NOT DEPLOYED — reference only.
 #

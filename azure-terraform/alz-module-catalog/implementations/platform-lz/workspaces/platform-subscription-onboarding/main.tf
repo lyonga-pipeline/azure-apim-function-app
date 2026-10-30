@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - GOV-18 / GOV-04
+# Place existing CSP subscriptions using the current owner; subscription vending remains disabled.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 # Places CSP-provisioned subscriptions into their target management group and
 # applies baseline + app-specific RBAC at subscription scope. Subscriptions are
 # NOT created here (see platform-subscriptions / subscription-vending — retired).

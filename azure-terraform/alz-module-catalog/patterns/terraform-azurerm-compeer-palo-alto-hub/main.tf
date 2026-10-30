@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 5.1/5.2 NET-07/NET-14: existing partner NICs and HA-port ILB composition. Multiple ILBs/shared backends require a proved symmetric-return design; no automatic topology rewrite.
 locals {
   enabled_public_ips = var.enabled ? var.public_ips : {}
 

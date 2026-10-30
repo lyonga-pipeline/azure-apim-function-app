@@ -47,6 +47,15 @@ variable "workload_identities" {
     ])
     error_message = "An app registration supports at most 20 federated credentials; split repeating workspaces across more identities or use flexible FICs."
   }
+  # PHASE2 EXISTING: this resource uses exact subject matching, not flexible/wildcard federation.
+  validation {
+    condition = alltrue(flatten([for identity in values(var.workload_identities) : [
+      for credential in values(identity.federated_credentials) :
+      can(regex("^https://[^/]+", credential.issuer)) && length(trimspace(credential.subject)) > 0 &&
+      !strcontains(credential.subject, "*") && length(credential.audiences) > 0
+    ]]))
+    error_message = "Federation requires an HTTPS issuer, a non-empty exact subject (no wildcard) and at least one explicit audience."
+  }
 }
 
 variable "operational_contracts" {

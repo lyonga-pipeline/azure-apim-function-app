@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 2.7/3.4/3.7 SEC-06/GOV-08/NET-17: existing Defender and VNet flow-log assignments/remediation. Audit compliance does not itself enable plans on existing subscriptions.
 # Initiative naming is opt-in through `domain`; explicit names remain supported.
 module "naming_initiative" {
   source      = "../../modules/terraform-azurerm-compeer-naming"

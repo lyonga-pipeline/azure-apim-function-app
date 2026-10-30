@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 4.3 NET-33: shared cloudflared VM infrastructure stays in the connectivity hub, not each application spoke. Bootstrap/health and tenant approval remain operator responsibilities.
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 

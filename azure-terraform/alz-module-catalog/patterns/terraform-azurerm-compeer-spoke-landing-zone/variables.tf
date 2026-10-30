@@ -18,8 +18,8 @@ variable "environment" {
   description = "Production or approved non-production environment; the same security baseline applies to both."
   type        = string
   validation {
-    condition     = contains(["prod", "dev", "test", "uat", "np1", "np2", "np3"], var.environment)
-    error_message = "Use prod, dev, test, uat, np1, np2 or np3; nonprod is a workspace label, not an approved environment token."
+    condition     = contains(["prod", "dev", "test", "uat", "np1", "np2", "np3", "sandbox"], var.environment)
+    error_message = "Use prod, dev, test, uat, np1, np2, np3 or sandbox; nonprod is a workspace label, not an approved environment token."
   }
 }
 
@@ -49,8 +49,20 @@ variable "workload_tags" {
     dr_tier               = string
     application_component = optional(string)
     modified_on           = optional(string)
-    additional_tags       = optional(map(string), {})
+    # PHASE2 NEW: v5 10.1/10.3 (WKL-08/GOV-14). Existing callers retain null/false defaults.
+    expiration_date      = optional(string)
+    time_bound_exception = optional(bool, false)
+    additional_tags      = optional(map(string), {})
   })
+  validation {
+    condition = var.environment != "sandbox" || try(
+      var.workload_tags.expiration_date != null &&
+      formatdate("YYYY-MM-DD", "${var.workload_tags.expiration_date}T00:00:00Z") == var.workload_tags.expiration_date &&
+      timecmp("${var.workload_tags.expiration_date}T00:00:00Z", "${var.workload_tags.created_on}T00:00:00Z") > 0,
+      false
+    )
+    error_message = "Sandbox workloads require a real expiration_date (YYYY-MM-DD) after their stable created_on date."
+  }
 }
 
 variable "platform" {

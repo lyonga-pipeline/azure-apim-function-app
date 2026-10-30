@@ -296,9 +296,10 @@ resource "azurerm_storage_account" "account" {
           length(try(var.network_rules.ip_rules, [])) > 0 ||
           length(try(var.network_rules.virtual_network_subnet_ids, [])) > 0 ||
           length(try(var.network_rules.private_link_access, {})) > 0
+          || (var.trusted_service_only_access_approved && contains(try(var.network_rules.bypass, []), "AzureServices"))
         )
       )
-      error_message = "public_network_access_enabled = true requires network_rules with default_action = \"Deny\" and at least one ip_rules / virtual_network_subnet_ids / private_link_access entry."
+      error_message = "Public network access requires Deny firewall rules and explicit IP/subnet/private-link allow rules, or the separately approved trusted AzureServices-only exception."
     }
   }
 

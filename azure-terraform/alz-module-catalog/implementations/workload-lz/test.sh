@@ -23,7 +23,6 @@ roots=(
   patterns/terraform-azurerm-compeer-workload-key-vault
   patterns/terraform-azurerm-compeer-hub-spoke-peering
   patterns/terraform-azurerm-compeer-network-peering
-  implementations/workload-lz/shared
   implementations/workload-lz/workspaces/workload-internal-apps-prod
   implementations/workload-lz/workspaces/workload-internal-apps-nonprod
   implementations/platform-lz/workspaces/platform-network-peering

@@ -231,3 +231,9 @@ output "defender_plan_configuration" {
   description = "Explicit directly managed Defender configuration for security review; DINE excludes this subscription."
   value       = var.defender_plans
 }
+
+# PHASE2 NEW: additive composition output; new owner-local resources reuse the exact existing tag contract.
+output "resource_tags" {
+  description = "Effective enterprise tags for resources composed by this pattern's existing workspace owner."
+  value       = module.tags.tags
+}

@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - NET-07 / NET-14
+# Existing partner NIC/HA-port ILB composition; Panorama SNAT and path symmetry require Network approval.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 data "tfe_outputs" "connectivity" {
   count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
   organization = var.tfe_organization

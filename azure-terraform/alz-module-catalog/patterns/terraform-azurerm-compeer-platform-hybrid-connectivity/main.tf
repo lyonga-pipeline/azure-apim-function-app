@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 1.5/1.6/7.1 NET-18/NET-19/NET-44: existing zone-redundant gateway, circuit and connection maps. Carrier provisioning/BGP/failover acceptance stays external.
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 

@@ -53,12 +53,20 @@ workspace only for a genuine exception.
 12. `platform-directory-services` -> HCP workspace `platform-directory-services`
 13. `platform-cloudflare-connectors` -> HCP workspace `platform-cloudflare-connectors`
 14. `platform-workload-spoke` -> template root for one workspace per workload/environment, such as `workload-spoke-internal-apps-prod`
-15. `platform-network-peering` -> template root for one workspace per peering set, after the hub and spoke workspaces have applied
+15. `platform-network-peering-<actual-boundary>` -> disabled AzAPI batches for platform/workload VNets. np1/np2/np3/prod are optional examples, not mandatory names/counts. Copy `templates/network-attachments` for another approved real boundary; apps need only their actual environments. Retained `platform-network-peering` stays single-pair compatibility. See PEERING-STANDARD.md and network-attachments/README.md.
 16. `platform-cloudflare-edge` -> optional Cloudflare-owned edge workspace
 
 `platform-policy` step 6 can also run late (after step 7) — its DeployIfNotExists
 remediation reads `log_analytics_workspace_id` from `platform-management`.
 Steps 8 through 13 can run in parallel where their upstream outputs are already available and the operational approvals are complete.
+
+Shared-hub VNet/peering mutations are an exception to that parallelism: gate
+conflicting connectivity and attachment changes by hub VNet ID. Environment
+attachment states may contain many spokes but never import/manage the VNets
+themselves. Their typed attachment map, full-ID AzAPI composition,
+exact plan/apply OIDC subjects and single-owner routes are specified
+in [PEERING-STANDARD.md](PEERING-STANDARD.md). Current roots retain their deployed
+addresses; the identity half-peerings remain a documented legacy exception.
 
 **Retired:** `platform-shared-services` (was step 14) — its whole premise
 (a dedicated VNet spoke, peered to the hub, for domain-controller-adjacent

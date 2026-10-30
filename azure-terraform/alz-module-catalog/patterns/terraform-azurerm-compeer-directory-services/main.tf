@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 6.1/6.3/6.4 IAM-12/IAM-13/PLT-10: reuse dedicated identity VNet/DC/vault maps. New external-identity root leaves legacy hub_connection null and delegates both peering halves centrally.
 # =============================================================================
 # AD DS role install + domain promotion: NOT Terraform-owned (resolved)
 #

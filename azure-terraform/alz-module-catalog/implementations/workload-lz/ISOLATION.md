@@ -19,7 +19,10 @@ They own only provider configuration, public platform-output reads, contract
 guards, stable `created_on` metadata and output assembly. Azure resource logic
 remains in the reusable blueprint; no per-environment copy of it is introduced.
 The `spoke` variable, optional service/reuse flags and public outputs are unchanged.
-`shared/` remains a deprecated compatibility adapter, not an active dependency.
+The unused `shared/` adapter and its tests have been removed. External consumers
+still sourcing that former directory must migrate to a direct, pinned blueprint
+call before adopting this checkout. Retained root `moved` declarations support
+the same-state transition; removing the directory does not itself migrate state.
 
 ## Release Selection
 
@@ -83,7 +86,7 @@ workspace and apply it against resources the first already owns.
 | Apply | Auto-apply off; production approval/policy gates | Approved non-production policy; no implicit production promotion |
 
 Keep speculative plans enabled and retain PR reviews/required CI. Do not add
-`shared/`, live blueprint/module directories or a sibling environment root as
+live blueprint/module directories or a sibling environment root as
 deployment trigger paths: the deployed code is the root's pinned package.
 Broad catalog CI is verification, not a deployment trigger. A changed/oversized
 VCS file list can still cause HCP to queue extra plans; the fixed source pin and

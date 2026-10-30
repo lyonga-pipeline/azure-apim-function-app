@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - NET-39 / NET-49 / NET-22
+# Retain central ownership of both directions; add only approved partner/external-identity/sandbox contracts.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 locals {
   enabled = try(var.network_peering.enabled, false)
 }

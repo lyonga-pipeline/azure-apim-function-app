@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - NET-18 / NET-19 / NET-44
+# Existing circuit/gateway/connection maps support Phase 2; carrier/BGP work remains externally approved.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 data "tfe_outputs" "connectivity" {
   count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
   organization = var.tfe_organization

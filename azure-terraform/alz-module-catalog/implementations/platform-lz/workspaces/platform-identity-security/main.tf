@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - SEC-08
+# Reuse existing protected vault/key/CMK interfaces; enable only the security-approved key lifecycle.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 data "tfe_outputs" "management" {
   count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
   organization = var.tfe_organization

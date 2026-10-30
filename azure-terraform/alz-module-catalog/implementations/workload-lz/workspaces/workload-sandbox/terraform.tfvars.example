@@ -1,0 +1,93 @@
+# SYNTHETIC REFERENCE VALUES ONLY, not approved Compeer production inputs.
+# Complete isolated-root example. Terraform does not deep-merge objects.
+# For real use replace ALL UUIDs, addresses, names, principals, contacts, tags and approval dates.
+enabled                     = false
+deployment_approved         = false
+subscription_id             = "11111111-1111-1111-1111-111111111111"
+tenant_id                   = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+private_dns_subscription_id = "33333333-3333-3333-3333-333333333333"
+
+# Copy only approved PUBLIC output values; do not read or copy complete platform state.
+platform = {
+  management_contract_version      = "0.1.0"
+  connectivity_contract_version    = "0.1.0"
+  log_analytics_workspace_id       = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+  hub_virtual_network_id           = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
+  hub_address_space                = ["10.102.0.0/21"]
+  key_vault_private_dns_zone_id    = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+  storage_blob_private_dns_zone_id = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+  dns_server_ips                   = ["10.102.0.10", "10.102.0.11"]
+  # Reuse a real platform DDoS plan only when provisioned/approved; null creates no plan.
+  ddos_protection_plan_id = null
+  mandatory_tag_keys      = ["environment", "application", "appcode", "owner", "source_repo", "created_on", "criticality_tier", "data_classification", "lifecycle_state", "cost_center", "gl_category", "created_by"]
+  action_group_ids = {
+    primary = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.Insights/actionGroups/platform"
+  }
+}
+spoke = {
+  location = "centralus"
+  appcode  = "orders" # Replace with the approved short application code.
+  domain   = "sandbox"
+  # Replace with actual IPAM allocations. Full hub/on-prem/other-spoke inventory is required.
+  address_space                 = ["10.200.0.0/20"]
+  reserved_address_spaces       = ["10.201.0.0/20", "10.40.0.0/16"]
+  inspection_address_prefixes   = ["10.40.0.0/16"]
+  egress_next_hop_ip            = "10.102.0.4"      # Must be the approved NVA frontend, not Route Server.
+  private_endpoint_client_cidrs = ["10.40.10.0/24"] # Private deployment agents/operators.
+  workload_tags = {
+    application           = "orders"
+    owner                 = "Application Operations"
+    source_repo           = "ado://example/workloads/orders"
+    created_on            = "2026-10-20" # Stable lifecycle-owned date; never timestamp().
+    criticality_tier      = "tier-2"
+    data_classification   = "confidential"
+    lifecycle_state       = "active"
+    cost_center           = "CC-0000" # Replace with approved finance metadata.
+    gl_category           = "cloud-infrastructure"
+    dr_tier               = "silver"
+    application_component = "landing-zone"
+    expiration_date       = "2027-01-20"
+    additional_tags       = { support_team = "application-operations" }
+  }
+  subnets = {
+    application = {
+      address_prefixes              = ["10.200.0.0/24"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {} # Compute-specific delegation belongs in a reviewed variant.
+      # Deny-by-default baseline, DNS and private HTTPS rules are automatic.
+      rules = {
+        internal-https = {
+          protocol              = "Tcp", source_port_range = "*", destination_port_range = "443"
+          source_address_prefix = "10.40.10.0/24", destination_address_prefix = "10.200.0.0/24"
+          access                = "Allow", priority = 300, direction = "Inbound"
+        }
+      }
+      routes = {} # Never add Internet/direct-gateway routes bypassing inspection.
+    }
+    private_endpoints = {
+      address_prefixes              = ["10.200.1.0/27"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {}
+      rules                         = {}
+      routes                        = {}
+    }
+  }
+  # Optional Entra GROUP grants. Do not use individual users or subscription Owner.
+  workload_access_group_ids = {
+    application_readers = {
+      principal_id        = "77777777-7777-7777-7777-777777777777"
+      role                = "Reader"
+      resource_group_keys = ["application"]
+    }
+  }
+}
+
+environment      = "sandbox"
+key_vault        = { enabled = true }
+diagnostics      = { enabled = true }
+monitoring       = { enabled = false, alerts_enabled = false }
+operations       = { create_action_group = false }
+storage_accounts = {}
+backup           = null

@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 4.4 NET-34: existing Cloudflare tunnel/Access/DNS configuration. Enable only after tenant ownership, API scopes and IdP approvals.
 resource "cloudflare_zone" "zone" {
   for_each = var.enabled ? var.zones : {}
 

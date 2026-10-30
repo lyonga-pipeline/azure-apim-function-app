@@ -17,7 +17,8 @@ and existing-deployment migration cautions.
 Each workspace root calls an independently pinned release of the same typed
 blueprint directly. Public-contract reads and stable deployment metadata live
 in the root; network/security implementation stays in the reusable pattern.
-The live `shared/` adapter is deprecated and no longer consumed by these roots.
+The unused `shared/` adapter has been removed. Existing-state address moves remain
+in each root so removing the wrapper does not require recreating resources.
 See [ISOLATION.md](ISOLATION.md) for trunk-based release promotion, exact HCP
 working-directory/trigger settings and existing-state migration. The unrelated
 legacy platform-workload-spoke root/pattern remains unchanged.
@@ -218,3 +219,12 @@ The isolated fixture validates route configuration without deploying a real
 firewall/SD-WAN appliance. Actual inspected egress, hybrid routing, policy
 convergence and client acceptance remain staging/client tests, not claims made
 by a successful Terraform mock suite.
+
+
+## PHASE 2 Owner-Aligned Roots
+
+External applications and sandbox now have canonical roots in `workspaces/workload-external-apps-prod` and `workspaces/workload-sandbox`, rather than a separate Phase 2 deployment tree. Both call the same spoke blueprint directly. Existing internal-app roots, their state migration declarations and selected releases are unchanged.
+
+The new roots are disabled examples using local catalog sources for composition tests. Publish/pin the reviewed registry blueprint separately in each actual deployment root before production; instantiate a distinct directory, state, identity and trigger path for each application/environment. Both peering directions remain with the central attachment owner. FinOps budgets and subscription onboarding stay outside the spoke.
+
+See [Phase 2 engineering handoff](../phase2/ENGINEERING-HANDOFF.md). This is an ownership integration, not authorization to create public ingress or Phase 3 resources.

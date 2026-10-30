@@ -1,0 +1,36 @@
+# For an INDEPENDENT copied generic root with the shared platform lifecycle boundary.
+# These are documentation UUIDs/CIDRs, not approved Compeer deployment values.
+enabled = false
+environment = "shared"
+tenant_id = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+execution_subscription_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+hub = {
+  virtual_network_id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet"
+  address_space = ["10.0.0.0/16"]
+  organization = "Compeer-Financial-Services"
+  workspace = "platform-connectivity"
+  contract_version = "0.1.0"
+  gateway_ready = false
+}
+reserved_address_spaces = ["10.169.0.0/16", "172.16.0.0/12"]
+deployment_controls = { approval_reference = "REPLACE", exclusive_ownership_verified = false, shared_hub_gate_configured = false }
+attachments = {}
+# Replace the empty map and enable ONLY after approval; neither VNet is created here.
+# attachments = {
+#   platform_services = {
+#     attachment_kind = "platform"
+#     spoke_virtual_network_id = "/subscriptions/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee/resourceGroups/platform-services/providers/Microsoft.Network/virtualNetworks/platform-services-shared-vnet"
+#     address_space = ["10.40.0.0/24"]
+#     producer = { organization = "Compeer-Financial-Services", workspace = "platform-services-owner", contract_version = "3.0.0" }
+#     approval_reference = "NET-PLATFORM-CHANGE"
+#     ipam_reference = "IPAM-PLATFORM-RESERVATION"
+#     gateway_transit = false
+#     allow_forwarded_traffic = true
+#     private_dns_zone_ids = { key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" }
+#     tags = { Environment = "shared", Owner = "PlatformNetworking", CostCenter = "REPLACE" }
+#   }
+# }
+# No appcode, domain or workload naming_context is required for generic v3.
+# To use the same pattern for a custom workload environment, copy a root for that
+# boundary, set its environment to the actual approved label (e.g. perf), and set
+# attachment_kind=workload plus contract_version=3.0.0 in its reviewed inventory.

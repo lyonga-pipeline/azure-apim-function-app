@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 3.1 SEC-08: existing DES auto-rotation/versionless-key contract. Consumers and Key Vault Crypto Service Encryption User grants remain explicitly owned.
 locals {
   uses_user_assigned_identity = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.identity_type)
   key_source_id               = var.key_vault_key_id != null ? var.key_vault_key_id : var.managed_hsm_key_id

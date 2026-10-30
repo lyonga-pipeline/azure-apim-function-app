@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - NET-34
+# Retain existing Cloudflare tunnel/Access/DNS owner; do not create a parallel Phase 2 edge state.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 module "cloudflare_edge" {
   source = "../../../../patterns/terraform-cloudflare-compeer-edge-baseline"
 

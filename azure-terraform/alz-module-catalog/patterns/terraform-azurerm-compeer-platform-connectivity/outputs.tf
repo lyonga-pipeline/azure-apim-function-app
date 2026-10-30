@@ -173,3 +173,9 @@ output "dns_resolution_contract" {
   description = "DNS resolution decision-record contract object - see the dns_resolution_contract terraform_data resource for what it asserts."
   value       = terraform_data.dns_resolution_contract.output
 }
+
+# PHASE2 NEW: additive composition output; new owner-local resources reuse the exact existing tag contract.
+output "resource_tags" {
+  description = "Effective enterprise tags for resources composed by this pattern's existing workspace owner."
+  value       = module.tags.tags
+}

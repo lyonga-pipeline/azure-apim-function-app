@@ -1,0 +1,7 @@
+# PHASE 2: one FinOps workspace/state per target subscription.
+subscription_id       = "11111111-1111-1111-1111-111111111111"
+ownership_confirmed   = false
+existing_budget_names = []
+budgets               = {}
+cost_exports          = {}
+cost_anomalies        = {}

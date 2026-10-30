@@ -1,0 +1,24 @@
+# =============================================================================
+# PHASE 2 EXAMPLE - merge only these NEW top-level inputs into this workspace.
+# Keep existing terraform.tfvars unchanged. Do not replace its management/policy/VM object.
+# Synthetic reference values: replace IDs, queries, approvals and thresholds first.
+# No credentials belong in this file. Nothing here is auto-loaded.
+# =============================================================================
+
+# First assign this UAMI through the EXISTING VM's identity.identity_ids config.
+# Preserve other IDs; use SystemAssigned, UserAssigned if it already has SystemAssigned.
+# Agent keys below MUST match this workspace's VM keys. VM IDs are resolved automatically.
+phase2_agent_ownership_confirmed  = false # Change only after checking management/VM state ownership.
+phase2_log_analytics_workspace_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.OperationalInsights/workspaces/central-law"
+phase2_agents = { dc01 = {
+  os_type                     = "Windows"
+  managed_identity_id         = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/identity-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ama-mi"
+  identity_and_network_ready  = true
+  install_agent               = true # false + existing_agent_confirmed=true if the existing extension owner retains AMA.
+  data_collection_rules       = { baseline = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.Insights/dataCollectionRules/windows-events" }
+  private_ingestion_enabled   = true
+  data_collection_endpoint_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.Insights/dataCollectionEndpoints/private-dce"
+  private_link_scope_ready    = true  # Confirm same-region DCE, AMPLS membership and private DNS.
+  manage_endpoint_association = true  # Or false + external_endpoint_association_confirmed=true.
+  change_tracking_enabled     = false # Enable only with an associated inventory-specific DCR key/readiness.
+} }

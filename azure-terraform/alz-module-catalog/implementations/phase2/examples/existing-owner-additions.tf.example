@@ -1,0 +1,59 @@
+# PHASE2 EXISTING + NEW: merge these into the CURRENT owning configuration.
+# Reference snippets only: do not pass a partial management/connectivity object
+# as a second tfvars file; Terraform replaces whole objects and may plan deletes.
+
+# OBS-06: existing platform-management.data_collection_rules interface.
+# Supply the existing/approved DCE ID explicitly and the central LAW contract.
+# windows_events = {
+#   name = "platform-cus-prod-windows-events-dcr"
+#   kind = "Windows"
+#   data_collection_endpoint_id = "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Insights/dataCollectionEndpoints/<name>"
+#   destinations = { log_analytics = { central = { name = "central", workspace_resource_id = "<approved-law-arm-id>" } } }
+#   data_flows = { events = { streams = ["Microsoft-Event"], destinations = ["central"] } }
+#   data_sources = { windows_event_log = { baseline = {
+#     name = "windows-baseline", streams = ["Microsoft-Event"]
+#     x_path_queries = ["System!*[System[(Level=1 or Level=2 or Level=3)]]", "Application!*[System[(Level=1 or Level=2)]]"]
+#   } } }
+# }
+# SecurityEvent collection/Defender for Endpoint remains the SOC's approved
+# connector/onboarding flow; AMA alone does not enable MDE. Avoid duplicate DCRs.
+# linux_syslog = {
+#   name = "platform-cus-prod-linux-syslog-dcr", kind = "Linux"
+#   data_collection_endpoint_id = "<approved-dce-arm-id>"
+#   destinations = { log_analytics = { central = { name = "central", workspace_resource_id = "<approved-law-arm-id>" } } }
+#   data_flows = { syslog = { streams = ["Microsoft-Syslog"], destinations = ["central"] } }
+#   data_sources = { syslog = { baseline = {
+#     name = "linux-baseline", streams = ["Microsoft-Syslog"]
+#     facility_names = ["auth", "authpriv", "daemon", "kern", "syslog"]
+#     log_levels = ["Warning", "Error", "Critical", "Alert", "Emergency"]
+#   } } }
+# }
+
+# OBS-08: existing management.action_group.receivers.webhook, NEW optional aad_auth.
+# itsm = {
+#   service_uri = "https://itsm.example.invalid/api/azure-alerts"
+#   use_common_alert_schema = true
+#   aad_auth = { object_id = "<registered-api-app-object-uuid>", identifier_uri = "api://<audience>", tenant_id = "<tenant-uuid>" }
+# }
+# Endpoint app role/admin consent, incident schema and public reachability
+# require ITSM/Security approval. Never embed a password in service_uri.
+
+# GOV-18: append four actual existing CSP subscriptions in the current
+# subscription-onboarding subscriptions map. Existing MG catalog key must resolve.
+# sandbox_01 = { subscription_id = "<csp-uuid-1>", target_management_group_key = "sandbox", workload = "DevTest" }
+# sandbox_02 = { subscription_id = "<csp-uuid-2>", target_management_group_key = "sandbox", workload = "DevTest" }
+# sandbox_03 = { subscription_id = "<csp-uuid-3>", target_management_group_key = "sandbox", workload = "DevTest" }
+# sandbox_04 = { subscription_id = "<csp-uuid-4>", target_management_group_key = "sandbox", workload = "DevTest" }
+# Assess inherited policy/RBAC before association. Never create replacement subscriptions.
+
+# SEC-08: merge into the existing key owner's keys map. Illustrative timings,
+# not a universal compliance recommendation; consumers must support key rotation.
+# cmk = {
+#   key_type = "RSA", key_size = 4096, key_opts = ["wrapKey", "unwrapKey"]
+#   rotation_policy = {
+#     expire_after = "P180D", notify_before_expiry = "P30D"
+#     automatic = { time_after_creation = "P90D" }
+#   }
+# }
+# Reuse the existing DES's versionless key URI with auto_key_rotation_enabled.
+# Do not rotate application passwords using the cryptographic-key interface.

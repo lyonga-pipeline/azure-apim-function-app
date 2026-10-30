@@ -1,0 +1,58 @@
+# Apply to the production implementation root, NOT to a spoke foundation.
+# Documentation UUIDs/CIDRs/names only: replace through a network-reviewed IPAM/inventory PR.
+# Deliberately disabled; replace placeholders and complete adoption controls before enabling.
+enabled = false
+tenant_id = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+execution_subscription_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+hub = {
+ virtual_network_id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet"
+ address_space = ["10.0.0.0/16"]
+ organization = "Compeer-Financial-Services"
+ workspace = "platform-connectivity"
+ contract_version = "0.1.0"
+ gateway_ready = false # Set only after an approved, tested gateway/inspection decision.
+}
+# External estate only: include all real on-prem, partner and OTHER environment ranges.
+reserved_address_spaces = ["10.169.0.0/16", "172.16.0.0/12"]
+deployment_controls = {
+ approval_reference = "REPLACE_WITH_APPROVED_CHANGE"
+ exclusive_ownership_verified = false # Confirm no other state owns these child IDs.
+ shared_hub_gate_configured = false   # Protected common-hub pipeline plus HCP bypass controls.
+}
+# To enable: set enabled=true AND replace this empty map with the approved entries below.
+attachments = {}
+# attachments = {
+#   orders = {
+#     spoke_virtual_network_id = "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders/providers/Microsoft.Network/virtualNetworks/orders-prod-vnet"
+#     address_space = ["10.20.0.0/24"]
+#     producer = { organization = "Compeer-Financial-Services", workspace = "workload-orders-prod", contract_version = "2.0.0" }
+#     naming_context = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "orders" }
+#     approval_reference = "NET-CHANGE-123"
+#     ipam_reference = "IPAM-RESERVATION-123"
+#     gateway_transit = false
+#     allow_forwarded_traffic = true
+#     private_dns_zone_ids = {
+#       key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+#       storage_blob = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+#     }
+#     # Optional only to preserve APPROVED existing names during migration:
+#     # peering_names = { hub_to_spoke = "existing-hub-orders", spoke_to_hub = "existing-orders-hub" }
+#     # private_dns_link_names = { key_vault = "existing-orders-link", storage_blob = "existing-orders-link" }
+#     tags = { Environment = "prod", Application = "orders", Owner = "PlatformNetworking", CostCenter = "REPLACE" }
+#   }
+#   claims = {
+#     # A DIFFERENT subscription, using the SAME provider and attachment state.
+#     spoke_virtual_network_id = "/subscriptions/dddddddd-dddd-dddd-dddd-dddddddddddd/resourceGroups/claims/providers/Microsoft.Network/virtualNetworks/claims-prod-vnet"
+#     address_space = ["10.21.0.0/24"]
+#     producer = { organization = "Compeer-Financial-Services", workspace = "workload-claims-prod", contract_version = "2.0.0" }
+#     naming_context = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "claims" }
+#     approval_reference = "NET-CHANGE-124"
+#     ipam_reference = "IPAM-RESERVATION-124"
+#     gateway_transit = false
+#     allow_forwarded_traffic = true
+#     # No DNS links ONLY if the producer also requests none (e.g. no vault/blob).
+#     private_dns_zone_ids = {}
+#     tags = { Environment = "prod", Application = "claims", Owner = "PlatformNetworking", CostCenter = "REPLACE" }
+#   }
+# }
+# HCP injects tfc_azure_dynamic_credentials; never paste token/credential content here.

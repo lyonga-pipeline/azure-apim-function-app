@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - GOV-01
+# Reuse the existing hierarchy map; no Phase 3 branches are added by this delivery.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 locals {
   enabled = try(var.governance.enabled, false)
 }

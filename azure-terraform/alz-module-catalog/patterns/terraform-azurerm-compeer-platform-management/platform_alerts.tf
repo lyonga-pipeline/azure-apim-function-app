@@ -24,10 +24,11 @@ module "platform_metric_alerts" {
   auto_mitigate            = try(each.value.auto_mitigate, true)
   target_resource_type     = try(each.value.target_resource_type, null)
   target_resource_location = try(each.value.target_resource_location, null)
-  criteria                 = try(each.value.criteria, [])
-  dynamic_criteria         = try(each.value.dynamic_criteria, [])
-  actions                  = [for id in local.pa_action_ids : { action_group_id = id }]
-  tags                     = module.tags.tags
+  # PHASE2 NEW: adapt legacy list criteria and keyed maps to the existing base module.
+  criteria         = try({ for key, criterion in each.value.criteria : key => criterion }, {})
+  dynamic_criteria = try(each.value.dynamic_criteria.metric_name, null) != null ? each.value.dynamic_criteria : try(each.value.dynamic_criteria[0], null)
+  actions          = { for index, id in local.pa_action_ids : "recipient-${index}" => { action_group_id = id } }
+  tags             = module.tags.tags
 }
 
 # Azure Service Health (incident / maintenance / health advisory) for the

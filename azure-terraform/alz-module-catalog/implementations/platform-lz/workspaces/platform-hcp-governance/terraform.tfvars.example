@@ -1,0 +1,3 @@
+organization = "Compeer-Financial-Services"
+# No adoption until current settings, identity and ownership/import have been reviewed.
+workspace_settings = {}

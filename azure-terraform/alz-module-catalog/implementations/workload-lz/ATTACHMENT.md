@@ -1,7 +1,11 @@
 # Central Network Attachment
 
-Decision: 2026-10-19. Compeer uses a **platform-owned attachment workspace**
-for both peering directions and the required private-DNS VNet links. The
+Decision revised: 2026-10-28. Compeer's default is one **platform-owned attachment
+workspace per environment and hub/network security boundary**, managing multiple
+approved spokes. Dedicated per-spoke states are approved exceptions, not the default.
+The authoritative [peering standard](../platform-lz/PEERING-STANDARD.md) defines
+the inventory, OIDC/RBAC, routes, shared-hub gate and migration requirements.
+Both peering directions and approved private-DNS VNet links share one owner. The
 spoke blueprint creates neither peering nor zone-to-VNet link. The reusable
 hub-spoke-peering pattern remains the central owner's Azure implementation,
 and still composes the existing base peering module twice.
@@ -10,8 +14,8 @@ and still composes the existing base peering module twice.
 
 | Stage | Owner and resources |
 | --- | --- |
-| 1. Provision foundation | Spoke state: workload RGs, VNet/subnets/NSGs/UDRs, dedicated identity/vault, workload private endpoints and their DNS zone groups; publish attachment_contract. |
-| 2. Attach | Platform network state: consume the approved public contract, create hub-to-spoke and spoke-to-hub, link the exact existing vault/optional Blob DNS zones. |
+| 1. Provision foundation | Spoke state: workload RGs, VNet/subnets/NSGs/UDRs, dedicated identity/vault, workload private endpoints and their DNS zone groups; publish attachment_contract. Network approves IPAM and the Git attachment inventory. |
+| 2. Attach | Environment/hub platform network state: cross-check producer contracts against approved inventory; serialize changes, create both directions and approved DNS links. Hub/spoke route and Panorama changes stay with their existing owners. |
 | 3. Accept | Verify both Connected, DNS, private access, routing/NVA symmetry, policy/log ingestion and stakeholder approval. |
 | Subscription onboarding | Governance/CSP, unchanged. No vending or subscription creation is introduced. |
 
@@ -26,7 +30,27 @@ need explicitly approved zone join/read permissions. Optional shared DDoS and
 LAW integrations may also need approved reference permissions. Removing peering
 write is not a claim that all cross-subscription permissions disappear.
 
-## New Deployment Configuration
+## Target Model And Current Single Pair Configuration
+
+The new batch composition accepts a typed attachment map with stable logical
+keys. Four roots named platform-network-peering-np1/np2/np3/prod are illustrative
+when there is one compatible hub/network boundary per environment. Each needs its
+own directory, release pin, state and trigger path, not runtime tfvars selection.
+They are not mandatory: applications may have only one, two or three environments,
+and the batch creates only declared instances. The [generic root template](../platform-lz/templates/network-attachments/README.md)
+supports other approved labels and platform VNet lifecycle boundaries using the
+generic v3 producer. Existing workload-v2 remains compatible; existing identity
+half-peerings are never silently taken over.
+Environment identities hold only approved resource-scoped grants; they are not
+one deployer per application or a tenant-wide network identity. A shared hub still
+requires one common deployment gate across all environment roots and exceptions.
+
+**Implemented separately:** the [AzAPI batch pattern](../../patterns/terraform-azapi-compeer-network-attachments/README.md)
+and four new environment roots accept the typed map and use full parent IDs across
+subscriptions without per-subscription aliases. The adapter/root below remains a
+single-pair compatibility building block. [Gate setup, scoped OIDC/RBAC, publishing
+and live adoption](../platform-lz/network-attachments/README.md) are required before
+enabling the new roots. No deployed resources or backend bindings are moved here.
 
 Both workload templates remain disabled and explicitly set:
 
@@ -41,13 +65,14 @@ spoke = {
 The old flag is retained only as a compatibility guard: true now fails the plan.
 No peering/link resource blocks remain behind it.
 
-Use implementations/platform-lz/workspaces/platform-network-peering for the
-second stage. Instantiate a platform-owned HCP workspace per approved
-application/environment attachment, with separate production/non-production
-identities as appropriate. Central ownership does **not** require one global
-state, or one identity authorized across every spoke.
+The existing implementations/platform-lz/workspaces/platform-network-peering
+root remains the single-pair compatibility/example implementation for the second
+stage. Do not duplicate it per application as the new default or repoint live
+states to an environment root without the reviewed handoff. See the standard's
+release/adoption gates for the multi-attachment target.
 
-Inside that workspace's network_peering input:
+Inside that existing single-pair workspace's network_peering input (not the
+new environment attachment-map interface):
 
 ```hcl
 {
@@ -128,6 +153,12 @@ Zone-link permissions are separately scoped to the actual approved zones.
 Have security validate the complete operation set; do not grant subscription-wide
 Owner or broad Network Contributor merely for attachment.
 
+An environment principal's hub-VNet-scoped role can still affect other peerings
+under that hub, even in other environments. Explicitly review that residual scope;
+separate state or OIDC principals do not make it per-peering isolation. Prefer
+distinct read-only plan and bounded apply identities with exact workspace/phase
+federation subjects. Verify all hub/spoke/DNS aliases with actual dynamic credentials.
+
 Keep platform credentials out of application pipelines. Protect PRs, constrain
 apply permissions, separate environments and retain audit evidence. Interactive
 PIM/JIT elevation is not assumed to work automatically for an unattended HCP
@@ -137,6 +168,24 @@ Serialize attachment changes against the same hub across workspaces. HCP's
 per-workspace state lock does not coordinate independent states. The module
 orders its own pair only; shared-hub orchestration is an operational gate,
 not a feature silently implemented by a Terraform dependency.
+
+The batch implementation must also serialize operations within its own graph;
+per-pair dependencies do not order different pairs. Gate relevant connectivity
+changes and manual/HCP apply paths as well; a run trigger or approval is not a mutex.
+
+## Routing And Legacy Platform Exception
+
+Hub route tables and their currently inline routes stay in connectivity; spoke
+UDRs stay in the spoke owner, and Palo Alto rules/NAT stay with Panorama owners.
+Do not add standalone routes from attachment state to those inline-managed tables.
+Onboarding may require a connectivity plan and coordinated firewall change; a
+default route alone does not prove inspection of more-specific prefixes.
+
+The current identity connection is a legacy split-owner platform exception:
+connectivity owns additional_vnet_peerings.identity and directory-services owns
+the reciprocal hub_connection. Preserve both until a reviewed handoff transfers
+them; this standards update does not change or duplicate them. The VNet resources
+themselves always remain exclusively in their foundation states.
 
 ## Existing Attachment Migration
 

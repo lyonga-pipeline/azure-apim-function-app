@@ -151,6 +151,12 @@ variable "action_group" {
       webhook = optional(map(object({
         service_uri             = string
         use_common_alert_schema = optional(bool, true)
+        # PHASE2 NEW: OBS-08 secure ITSM endpoint authentication; legacy receivers unchanged.
+        aad_auth = optional(object({
+          object_id      = string
+          identifier_uri = optional(string)
+          tenant_id      = optional(string)
+        }))
       })), {})
       sms = optional(map(object({
         country_code = string

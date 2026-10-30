@@ -5,11 +5,13 @@ on:
     paths:
       - "azure-terraform/alz-module-catalog/**"
       - ".github/workflows/alz-catalog-ci.yml"
+      - ".azuredevops/templates/network-attachments.yml"
   push:
     branches: [main]
     paths:
       - "azure-terraform/alz-module-catalog/**"
       - ".github/workflows/alz-catalog-ci.yml"
+      - ".azuredevops/templates/network-attachments.yml"
 
 permissions:
   contents: read
@@ -154,6 +156,38 @@ jobs:
       - name: Spoke, attachment, workspace, helper and seven tfvars variant suites
         working-directory: azure-terraform/alz-module-catalog
         run: bash implementations/workload-lz/test.sh
+
+  network-attachment-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generic batch, platform/custom roots, examples, naming parity and compatibility
+        working-directory: azure-terraform/alz-module-catalog
+        run: bash implementations/platform-lz/network-attachments/test.sh
+
+  phase2-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Phase 2 composition, regressions and enabled pilot examples (mock only)
+        working-directory: azure-terraform/alz-module-catalog
+        # The source workbook stays outside this repository. The local source
+        # comparison uses PHASE2_WORKBOOK; CI validates the checked-in manifest.
+        run: bash implementations/phase2/test.sh
 
   tflint:
     runs-on: ubuntu-latest

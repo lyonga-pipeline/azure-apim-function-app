@@ -1,0 +1,27 @@
+# =============================================================================
+# PHASE 2 EXAMPLE - merge only these NEW top-level inputs into this workspace.
+# Keep existing terraform.tfvars unchanged. Do not replace its management/policy/VM object.
+# Synthetic reference values: replace IDs, queries, approvals and thresholds first.
+# No credentials belong in this file. Nothing here is auto-loaded.
+# =============================================================================
+
+phase2_audit_initiatives = {} # GRC supplies VERIFIED initiative IDs; do not guess regulatory GUIDs.
+# phase2_audit_initiatives = { approved = {
+#   name = "regulatory-audit"
+#   management_group_id = "/providers/Microsoft.Management/managementGroups/compeer-enterprise-mg"
+#   policy_set_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/REPLACE-VERIFIED-UUID"
+#   approval_reference = "REPLACE-GRC-APPROVAL"
+# } }
+phase2_exemptions = {} # Renew existing policy.policy_exemptions in place; do not duplicate them.
+# phase2_exemptions = { service = {
+#   name = "approved-service-exception", scope_type = "resource_group"
+#   scope_id = "/subscriptions/REPLACE-UUID/resourceGroups/REPLACE-RG"
+#   policy_assignment_id = "/providers/Microsoft.Management/managementGroups/REPLACE-MG/providers/Microsoft.Authorization/policyAssignments/REPLACE-ASSIGNMENT"
+#   justification = "REPLACE-APPROVED-JUSTIFICATION", approved_by = "REPLACE-APPROVER"
+#   ticket = "REPLACE-TICKET", expires_on = "2027-01-31T00:00:00Z"
+# } }
+phase2_sandbox_scope = {
+  management_group_id = "/providers/Microsoft.Management/managementGroups/sandbox-mg"
+  effect              = "Audit" # No Modify tagging; approve Deny only after impact review.
+  approval_reference  = "REPLACE-SANDBOX-GOVERNANCE-APPROVAL"
+}

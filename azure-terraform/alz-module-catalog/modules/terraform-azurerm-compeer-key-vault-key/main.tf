@@ -1,3 +1,4 @@
+# PHASE2 EXISTING: v5 3.1 SEC-08: existing key rotation policies rotate cryptographic keys, NOT secrets. Choose CMK only when justified by the approved control.
 resource "azurerm_key_vault_key" "key" {
   for_each        = var.keys
   name            = each.key

@@ -1,3 +1,8 @@
+# =============================================================================
+# PHASE 2 EXISTING CAPABILITY - SEC-03 / SEC-04
+# SOC content stays with this owner; management retains workspace onboarding. Cribl delivery is externally validated.
+# Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# =============================================================================
 data "tfe_outputs" "management" {
   count        = local.enabled && var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0
   organization = var.tfe_organization

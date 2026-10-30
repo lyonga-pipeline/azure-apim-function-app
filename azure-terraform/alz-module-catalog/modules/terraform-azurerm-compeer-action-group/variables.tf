@@ -29,6 +29,12 @@ variable "receivers" {
     webhook = optional(map(object({
       service_uri             = string
       use_common_alert_schema = optional(bool, true)
+      # PHASE2 NEW: same optional OBS-08 contract as the legacy actiongroup helper.
+      aad_auth = optional(object({
+        object_id      = string
+        identifier_uri = optional(string)
+        tenant_id      = optional(string)
+      }))
     })), {})
     sms = optional(map(object({
       country_code = string

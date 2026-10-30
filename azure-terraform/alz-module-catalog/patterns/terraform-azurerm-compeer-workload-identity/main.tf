@@ -1,3 +1,5 @@
+# PHASE2 EXISTING: Component List IAM-05. Exact-subject OIDC and scoped RBAC;
+# separate identities for environment and plan/apply privilege boundaries.
 locals {
   federated_credentials = merge([
     for identity_key, identity in var.workload_identities : {

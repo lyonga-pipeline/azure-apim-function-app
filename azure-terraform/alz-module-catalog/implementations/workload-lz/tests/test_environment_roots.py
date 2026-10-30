@@ -13,6 +13,15 @@ ROOTS = [WORKLOAD / "workspaces" / f"workload-internal-apps-{env}" for env in ("
 
 
 class EnvironmentRootTests(unittest.TestCase):
+    def test_shared_adapter_is_removed_and_regression_roots_exist(self):
+        self.assertFalse((WORKLOAD / "shared").exists())
+        script = (WORKLOAD / "test.sh").read_text()
+        roots = re.findall(r"^  (implementations/\S+)$", script, re.MULTILINE)
+        self.assertTrue(roots)
+        for root in roots:
+            with self.subTest(root=root):
+                self.assertTrue((WORKLOAD.parents[1] / root).is_dir())
+
     def test_each_root_calls_one_immutable_blueprint_directly(self):
         for root in ROOTS:
             with self.subTest(root=root.name):
