@@ -4,15 +4,15 @@ variable "enabled" {
   default     = false
 }
 variable "allowed_environments" {
-  description = "Network-approved real non-production producer environments sharing this state and approval lifecycle. Never includes prod or the grouping label nonprod."
+  description = "Approved new-LZ non-production producer environments sharing this state. Prefer dev/test/uat/sandbox; sbx is an explicit alternative only when producers use it. Legacy np1/np2/np3, prod and nonprod are rejected."
   type        = set(string)
-  default     = ["np1", "np2", "np3"]
+  default     = ["dev", "test", "uat", "sandbox"]
   nullable    = false
   validation {
     condition = length(var.allowed_environments) > 0 && alltrue([for environment in var.allowed_environments :
-      try(!contains(["prod", "nonprod"], environment) && length(environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", environment)), false)
+      try(!contains(["prod", "nonprod", "np1", "np2", "np3"], environment) && length(environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", environment)), false)
     ])
-    error_message = "Use approved real non-production environment slugs; prod and nonprod are not allowed."
+    error_message = "Use approved new-LZ non-production slugs, normally dev/test/uat/sandbox or an explicit sbx alternative; prod, nonprod and legacy np1/np2/np3 are not allowed."
   }
 }
 variable "tenant_id" {

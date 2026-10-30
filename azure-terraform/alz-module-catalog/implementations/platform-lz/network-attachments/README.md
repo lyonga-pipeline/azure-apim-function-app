@@ -1,6 +1,6 @@
 # Network Attachment Operations
 
-Implementation of [Option A](../../../patterns/terraform-azapi-compeer-network-attachments/README.md): central ownership of both directions in two independent roots: **`platform-network-peering-prod`** and **`platform-network-peering-nonprod`**. Production is fixed to prod. Non-production allowlists actual environments (initially np1/np2/np3), retaining each producer label. Its environments share release, approval and permission boundaries. Use the [copy-once independent-root template](../templates/network-attachments/README.md) for shared platform or other approved environments; create only needed roots. Existing single-pair and identity states remain untouched until a reviewed handoff.
+Implementation of [Option A](../../../patterns/terraform-azapi-compeer-network-attachments/README.md): central ownership of both directions in two independent roots: **`platform-network-peering-prod`** and **`platform-network-peering-nonprod`**. Production is fixed to prod. Non-production allowlists actual environments (initially dev/test/uat/sandbox; sbx is an explicitly approved alternative), retaining each producer label. Its environments share release, approval and permission boundaries. Use the [copy-once independent-root template](../templates/network-attachments/README.md) for shared platform or other approved environments; create only needed roots. Existing single-pair and identity states remain untouched until a reviewed handoff.
 
 ## Adoption Checklist
 
@@ -60,7 +60,7 @@ The checker performs GETs only and requires both peerings Connected/Succeeded wi
 
 ## Consolidated Non-Production Adoption
 
-The unapplied np1/np2/np3 example roots were consolidated into `platform-network-peering-nonprod`. Configure its real environment allowlist and actual VNet inventory in Git, not runtime-selected subsets. Complete examples in both roots specify `peer-<vnet>-to-hub` and `peer-hub-to-<vnet>`; they do not migrate the legacy identity pair. Existing automatic names in the reusable pattern are unchanged for compatibility. Preserve exact live names on any import.
+The unapplied np1/np2/np3 example roots were consolidated into `platform-network-peering-nonprod`. Its new-LZ default allowlist is dev/test/uat/sandbox, not the old np labels. sbx requires exact producer support and explicit approval; it is never normalized to sandbox. Configure actual VNet inventory in Git, not runtime-selected subsets. Complete examples in both roots specify `peer-<vnet>-to-hub` and `peer-hub-to-<vnet>`; they do not migrate the legacy identity pair. Existing automatic names in the reusable pattern are unchanged for compatibility. Preserve exact live names on any import.
 
 If any old example root was applied externally, do not repoint its backend or enable duplicates. Use the handoff below to transfer only approved children into nonprod, preserve stable keys/names and review source/destination full plans. Update the gate inventory, OIDC subjects, working-directory bindings and triggers through their owners. No automatic state transfer occurs.
 

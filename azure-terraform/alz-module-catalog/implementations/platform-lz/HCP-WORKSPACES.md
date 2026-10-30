@@ -93,7 +93,7 @@ example under Templates below — not a dedicated pattern. See
 | Workspace pattern | Component | Working dir | Deploys |
 |---|---|---|---|
 | `platform-network-peering-prod` | production attachments | `platform-network-peering-prod` | Both directions + approved DNS links for prod only. Disabled, complete tfvars example. |
-| `platform-network-peering-nonprod` | non-production attachments | `platform-network-peering-nonprod` | Both directions + approved DNS links for allowlisted actual environments, initially np1/np2/np3. Disabled, complete tfvars example. |
+| `platform-network-peering-nonprod` | non-production attachments | `platform-network-peering-nonprod` | Both directions + approved DNS links for allowlisted actual environments, initially dev/test/uat/sandbox; sbx only with explicit matching producer support. Disabled, complete tfvars example. |
 | Existing legacy workload workspaces | workload-spoke (legacy) | `platform-workload-spoke` | Compatibility implementation for existing states. Superseded for NEW internal-applications deployments by the Step 11 roots below; do not repoint an existing state without a reviewed migration. |
 
 The authoritative [peering standard](PEERING-STANDARD.md), revised 2026-10-30,

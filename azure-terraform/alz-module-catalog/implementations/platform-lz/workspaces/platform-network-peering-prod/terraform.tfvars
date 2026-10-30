@@ -17,7 +17,7 @@ hub = {
 }
 
 # Replace with COMPLETE on-prem/partner/other-boundary IPAM ranges. Exclude this batch/hub.
-reserved_address_spaces = ["172.16.0.0/12", "10.169.0.0/16", "10.21.0.0/24", "10.22.0.0/24", "10.23.0.0/24"]
+reserved_address_spaces = ["172.16.0.0/12", "10.169.0.0/16", "10.21.0.0/24", "10.22.0.0/24", "10.23.0.0/24", "10.24.0.0/24"]
 deployment_controls = {
   approval_reference           = "REPLACE_WITH_APPROVED_PRODUCTION_CHANGE"
   exclusive_ownership_verified = false

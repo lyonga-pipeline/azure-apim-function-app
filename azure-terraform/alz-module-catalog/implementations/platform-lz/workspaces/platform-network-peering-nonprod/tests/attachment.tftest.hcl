@@ -11,13 +11,36 @@ variables {
 run "new_root_is_inert" {
   command = plan
   assert {
-    condition     = output.attachments == {} && output.environment == "nonprod"
-    error_message = "The new state must be inert and bound to its own environment."
+    condition     = output.attachments == {} && output.environment == "nonprod" && output.allowed_environments == toset(["dev", "test", "uat", "sandbox"])
+    error_message = "The new state must be inert with the canonical new-LZ non-production labels."
+  }
+}
+run "new_lz_rejects_legacy_np1_label" {
+  command = plan
+  variables { allowed_environments = ["np1"] }
+  expect_failures = [var.allowed_environments]
+}
+run "new_lz_rejects_legacy_np2_label" {
+  command = plan
+  variables { allowed_environments = ["np2"] }
+  expect_failures = [var.allowed_environments]
+}
+run "new_lz_rejects_legacy_np3_label" {
+  command = plan
+  variables { allowed_environments = ["np3"] }
+  expect_failures = [var.allowed_environments]
+}
+run "sbx_is_an_explicit_alternative_not_a_sandbox_rewrite" {
+  command = plan
+  variables { allowed_environments = ["dev", "test", "uat", "sbx"] }
+  assert {
+    condition     = output.allowed_environments == toset(["dev", "test", "uat", "sbx"])
+    error_message = "An approved sbx label must be preserved exactly, not rewritten as sandbox."
   }
 }
 run "nonprod_allowlist_cannot_include_prod" {
   command = plan
-  variables { allowed_environments = ["np1", "prod"] }
+  variables { allowed_environments = ["dev", "prod"] }
   expect_failures = [var.allowed_environments]
 }
 run "nonprod_allowlist_cannot_use_the_grouping_label" {
@@ -65,10 +88,10 @@ run "root_wires_approved_cross_subscription_attachment" {
     }
     attachments = {
       orders = {
-        spoke_virtual_network_id = "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders/providers/Microsoft.Network/virtualNetworks/orders-np1-vnet"
+        spoke_virtual_network_id = "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders/providers/Microsoft.Network/virtualNetworks/orders-dev-vnet"
         address_space            = ["10.20.0.0/24"]
-        producer                 = { organization = "Compeer-Financial-Services", workspace = "workload-orders-np1" }
-        naming_context           = { region = "centralus", environment = "np1", domain = "internal-apps", appcode = "orders" }
+        producer                 = { organization = "Compeer-Financial-Services", workspace = "workload-orders-dev" }
+        naming_context           = { region = "centralus", environment = "dev", domain = "internal-apps", appcode = "orders" }
         approval_reference       = "NET-123"
         ipam_reference           = "IPAM-123"
         private_dns_zone_ids     = { key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" }
@@ -81,7 +104,7 @@ run "root_wires_approved_cross_subscription_attachment" {
   }
   override_data {
     target = module.attachments[0].data.tfe_outputs.spoke["orders"]
-    values = { nonsensitive_values = { "attachment_contract" : { "contract_version" : "2.0.0", "owner" : "central-attachment-workspace", "hub_virtual_network_id" : "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet", "spoke_virtual_network_id" : "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders/providers/Microsoft.Network/virtualNetworks/orders-np1-vnet", "spoke_virtual_network_name" : "orders-np1-vnet", "spoke_resource_group_name" : "orders", "gateway_transit_enabled" : false, "naming_context" : { "region" : "centralus", "environment" : "np1", "domain" : "internal-apps", "appcode" : "orders" }, "key_vault_private_dns_zone_id" : "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net", "private_dns_zones" : { "key_vault" : { "name" : "privatelink.vaultcore.azure.net", "resource_group_name" : "dns", "registration_enabled" : false, "link_to_spoke_enabled" : true } } }, "spoke" : { "context" : { "tenant_id" : "cccccccc-cccc-cccc-cccc-cccccccccccc", "subscription_id" : "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "environment" : "np1" } } } }
+    values = { nonsensitive_values = { "attachment_contract" : { "contract_version" : "2.0.0", "owner" : "central-attachment-workspace", "hub_virtual_network_id" : "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet", "spoke_virtual_network_id" : "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders/providers/Microsoft.Network/virtualNetworks/orders-dev-vnet", "spoke_virtual_network_name" : "orders-dev-vnet", "spoke_resource_group_name" : "orders", "gateway_transit_enabled" : false, "naming_context" : { "region" : "centralus", "environment" : "dev", "domain" : "internal-apps", "appcode" : "orders" }, "key_vault_private_dns_zone_id" : "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net", "private_dns_zones" : { "key_vault" : { "name" : "privatelink.vaultcore.azure.net", "resource_group_name" : "dns", "registration_enabled" : false, "link_to_spoke_enabled" : true } } }, "spoke" : { "context" : { "tenant_id" : "cccccccc-cccc-cccc-cccc-cccccccccccc", "subscription_id" : "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "environment" : "dev" } } } }
   }
   override_data {
     target = module.attachments[0].data.azapi_resource.hub[0]

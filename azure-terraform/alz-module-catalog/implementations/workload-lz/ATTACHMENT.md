@@ -34,7 +34,7 @@ write is not a claim that all cross-subscription permissions disappear.
 
 The new batch composition accepts a typed attachment map with stable logical
 keys. The default roots are platform-network-peering-prod (prod only) and
-platform-network-peering-nonprod (an approved allowlist, initially np1/np2/np3).
+platform-network-peering-nonprod (an approved allowlist, initially dev/test/uat/sandbox; sbx is an explicit alternative).
 Each has its own directory, release pin, state and trigger path; no runtime tfvars
 switching. Non-production entries retain their actual producer environment.
 Applications may have one, two or three environments; only declared instances
