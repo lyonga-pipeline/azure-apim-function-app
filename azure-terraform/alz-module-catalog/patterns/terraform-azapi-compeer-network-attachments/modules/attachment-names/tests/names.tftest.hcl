@@ -4,7 +4,8 @@ variables {
 }
 run "parent_naming_reference" {
   command = plan
-  module { source = "../.." }
+  # Monorepo-only reference: parity with the published naming module's formulas.
+  module { source = "../../../../modules/terraform-azurerm-compeer-naming" }
   variables {
     region      = "centralus"
     environment = "prod"

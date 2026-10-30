@@ -31,7 +31,7 @@ data "azapi_resource" "spoke" {
 }
 
 module "naming" {
-  source                 = "../../modules/terraform-azurerm-compeer-naming/modules/network-attachments"
+  source                 = "./modules/attachment-names"
   for_each               = var.attachments
   private_dns_link_vnets = [local.spoke_names[each.key]]
   vnet_peerings = each.value.peering_names == null ? {

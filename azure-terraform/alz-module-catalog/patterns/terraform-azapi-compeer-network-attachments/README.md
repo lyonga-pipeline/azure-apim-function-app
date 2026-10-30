@@ -87,7 +87,7 @@ The two roots allow a populated pre-adoption inventory while `enabled=false`; no
 
 Repository roots use local sources for development/testing. This new pattern has **not** been published to Compeer's private registry. Before production deployment, package/publish the verified pattern and naming dependency, then replace each root's source with its actual HCP source and independently approved exact release version. Do not invent a registry version or use a mutable feature branch for deployment. Provider roots pin AzAPI `2.4.0`, TFE `0.82.0`, Terraform `>=1.11.4,<2.0.0`; retain/review the generated dependency lock files.
 
-The new name-only helper is `modules/terraform-azurerm-compeer-naming/modules/network-attachments`; older published naming versions do not contain it. Publish an approved naming release with this helper and wire its verified registry submodule source/version before publishing the standalone batch package. Include the `producer` submodule in that package. Exporting only the pattern folder while leaving external relative naming paths unresolved will not initialize.
+The name-only helper is the pattern's own submodule, `modules/attachment-names`, so publishing the pattern needs no change or release of the Compeer naming module and no relative path outside the pattern folder for names. Its formulas match the naming module's `vnet_peering_names` and `private_dns_link_names`; a monorepo-only parity test in that submodule compares them. Include the `modules/` and `producer` submodules in the published package.
 
 ## OIDC And Least Privilege
 

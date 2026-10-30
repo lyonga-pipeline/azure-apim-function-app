@@ -17,7 +17,7 @@ verify() {
   terraform -chdir="$directory" test -no-color
 }
 verify "$catalog/patterns/terraform-azapi-compeer-network-attachments"
-verify "$catalog/modules/terraform-azurerm-compeer-naming/modules/network-attachments"
+verify "$catalog/patterns/terraform-azapi-compeer-network-attachments/modules/attachment-names"
 verify "$catalog/implementations/platform-lz/templates/network-attachments"
 for example in "$catalog/patterns/terraform-azapi-compeer-network-attachments/examples/shared-platform.tfvars.example" "$catalog/patterns/terraform-azapi-compeer-network-attachments/examples/application-environments/"*.tfvars.example; do
   terraform -chdir="$catalog/implementations/platform-lz/templates/network-attachments" test -no-color -test-directory=example-tests -var-file="$example"
