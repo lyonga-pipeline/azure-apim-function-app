@@ -168,5 +168,19 @@ class CoverageTests(unittest.TestCase):
             self.assertIn(".nonsensitive_values.log_analytics_workspace_id", extension)
             self.assertNotIn(".values", extension)
 
+    def test_phase2_peering_maps_to_batch_owners(self):
+        activities = {item["sequence"]: item for item in MANIFEST["activities"]}
+        batch = "patterns/terraform-azapi-compeer-network-attachments/main.tf"
+        for sequence, boundary in {"5.3": "prod", "6.2": "prod", "10.2": "nonprod"}.items():
+            with self.subTest(sequence=sequence):
+                activity = activities[sequence]
+                self.assertEqual(activity["path"], batch)
+                self.assertIn(f"implementations/platform-lz/workspaces/platform-network-peering-{boundary}/main.tf", activity["implementation_paths"])
+                self.assertNotIn("implementations/platform-lz/workspaces/platform-network-peering/main.tf", activity["implementation_paths"])
+        owner = CATALOG / "implementations/platform-lz/workspaces/platform-identity-external"
+        self.assertIn('output "network_attachment_contract"', (owner / "main.tf").read_text())
+        self.assertIn('source                 = "../../../../patterns/terraform-azapi-compeer-network-attachments/producer"', (owner / "main.tf").read_text())
+        self.assertTrue((owner / "tests/attachment.tftest.hcl").is_file())
+
 if __name__ == "__main__":
     unittest.main()

@@ -41,6 +41,21 @@ Network-approved Git inventory authorizes attachment; public producer contracts
 must match it. Review aggregate environment permissions, shared-hub residual access,
 exact plan/apply federation and serialization within and across runs before enabling.
 
+Phase 2 peering activities 5.3/6.2 use `platform-network-peering-prod`; sandbox
+activity 10.2 uses `platform-network-peering-nonprod`. Retain the single-pair root
+only for existing legacy states, not as the default for new Phase 2 attachments.
+Partner tenant/topology approval remains mandatory; cross-tenant partners are not
+supported by this single-tenant batch and need a separately approved design.
+
+`platform-identity-external` now accepts optional `central_attachment` metadata and
+publishes `network_attachment_contract` v3.0.0 using its actual VNet outputs.
+Set the approved tenant/hub/DNS intent in its example, then merge the matching
+platform-v3 entry into the complete production attachment inventory. The metadata
+creates no peerings/DNS links and retains the older `central_attachment_inputs`
+output. `central_attachment=null` preserves existing callers; disabled roots do
+not read provider context for this handoff. See the identity root's README for
+the complete inventory entry and explicit no-zone/optional-zone behavior.
+
 ### Separate Canonical Roots
 
 | Root | Location | Reason for distinct state |
@@ -62,7 +77,7 @@ Instantiate a separate FinOps/app root for each independently managed subscripti
 
 All older and additional reusable patterns are retained. The existing `phase2-governance` pattern remains a compatibility composition: platform-policy calls only its policy capabilities; platform-finops calls only financial capabilities. A shared pattern does not imply shared state or shared credentials.
 
-The management, connectivity, directory-services and Cloudflare-connector patterns now expose the additive `resource_tags` output. **Publish reviewed patch releases of those patterns before using the new root sections with HCP registry sources.** Older published releases lacking that output cannot be used with the new composition unchanged. This repository validates the actual local pattern interfaces; it does not assume an unpublished HCP release exists.
+The management, connectivity, directory-services and Cloudflare-connector patterns now expose the additive `resource_tags` output. Directory-services also exposes `identity_vnet_address_space` for the external identity v3 contract. **Publish reviewed patch releases of those patterns before using the new root sections with HCP registry sources.** Older published releases lacking these outputs cannot be used with the new composition unchanged. Publish/pin the attachment package including its output-only `producer` submodule. This repository validates the actual local pattern interfaces; it does not assume an unpublished HCP release exists.
 
 The five extended existing roots explicitly require Terraform >=1.11.4, <2 to match the capability modules. Set their HCP/VDI toolchain accordingly. Do not silently upgrade providers: retain existing provider lockfiles unless a provider upgrade is separately reviewed. New roots also require reviewed registry pins and committed provider lockfiles before deployment.
 

@@ -9,12 +9,13 @@ mkdir -p "$TF_PLUGIN_CACHE_DIR"
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$catalog/implementations/platform-lz/network-attachments/tests" -v
 verify() {
   local directory="$1"
+  shift
   export TF_DATA_DIR="$scratch/$(basename "$directory")"
   terraform -chdir="$directory" init -backend=false -input=false -no-color
   if ! grep -q 'configuration_aliases' "$directory"/*.tf; then
     terraform -chdir="$directory" validate -no-color
   fi
-  terraform -chdir="$directory" test -no-color
+  terraform -chdir="$directory" test -no-color "$@"
 }
 verify "$catalog/patterns/terraform-azapi-compeer-network-attachments"
 verify "$catalog/patterns/terraform-azapi-compeer-network-attachments/modules/attachment-names"
@@ -25,6 +26,8 @@ done
 for environment in nonprod prod; do
   verify "$catalog/implementations/platform-lz/workspaces/platform-network-peering-$environment"
 done
+# Real Phase 2 VNet owner -> public contract -> production batch root handoff.
+verify "$catalog/implementations/platform-lz/workspaces/platform-identity-external" -filter=tests/attachment.tftest.hcl -var-file=terraform.tfvars.example
 # Backward compatibility: no caller or resource-address changes to these APIs.
 verify "$catalog/patterns/terraform-azurerm-compeer-hub-spoke-peering"
 verify "$catalog/patterns/terraform-azurerm-compeer-network-peering"

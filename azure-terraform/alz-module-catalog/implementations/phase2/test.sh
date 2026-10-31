@@ -54,6 +54,9 @@ while IFS= read -r relative; do
   if [[ -f "$root/tests/pilot.tftest.hcl" ]]; then
     terraform -chdir="$root" test -no-color -filter=tests/pilot.tftest.hcl -var-file=approved-pilot.tfvars.example
   fi
+  if [[ -f "$root/tests/attachment.tftest.hcl" ]]; then
+    terraform -chdir="$root" test -no-color -filter=tests/attachment.tftest.hcl -var-file=terraform.tfvars.example
+  fi
 done < <(python3 -c 'import json,sys; print("\n".join(item["path"] for item in json.load(open(sys.argv[1]))["new_roots"]))' "$catalog/implementations/phase2/implementation-map.json")
 while IFS= read -r relative; do
   root="$catalog/$relative"

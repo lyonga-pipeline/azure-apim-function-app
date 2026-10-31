@@ -1,5 +1,6 @@
 # PHASE2 NEW: mirror the unchanged directory pattern's inline/explicit association resolution.
 locals {
+  publish_attachment = var.enabled && var.central_attachment != null
   nsg_associations = merge(var.identity_vnet == null ? {} : {
     for key, subnet in var.identity_vnet.subnets : key => { subnet_key = key, nsg_key = subnet.nsg_key } if subnet.nsg_key != null
   }, var.subnet_nsg_associations)

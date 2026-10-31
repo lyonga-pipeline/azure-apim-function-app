@@ -21,6 +21,13 @@ identity_vnet = {
 }
 # Existing pattern's legacy single-sided peering is deliberately not called; central attachment owns both directions.
 hub_connection              = null
+# Output-only metadata. Copy the same approved hub/DNS intent into the prod attachment inventory.
+# Keep null only for an existing caller not yet adopting the v3 contract; it does not establish connectivity.
+central_attachment = {
+  tenant_id              = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+  hub_virtual_network_id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet"
+  private_dns_zone_ids   = {} # AD DNS forwarding is separate; add only approved existing private-link zones.
+}
 inspection_address_prefixes = ["10.102.0.0/21", "10.40.0.0/16"] # Replace with the complete approved hub/on-premises inventory.
 inspection_next_hop_ip      = "10.102.0.4"
 network_security_groups = { dc = {

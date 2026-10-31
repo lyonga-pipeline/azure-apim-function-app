@@ -1,6 +1,6 @@
 # Phase 2 Completion Review
 
-Reviewed 2026-10-27 against the v5 **Phase 2 Deployment Order** and **Component List**. The workbook is unchanged. [coverage.json](coverage.json) preserves source row numbers and distinguishes implemented, manual, external, decision-gated and excluded work.
+Reviewed 2026-10-31 against the v5 **Phase 2 Deployment Order** and **Component List**. The workbook is unchanged. [coverage.json](coverage.json) preserves source row numbers and distinguishes implemented, manual, external, decision-gated and excluded work.
 
 ## Scope Reconciliation
 
@@ -31,6 +31,29 @@ Reuse central LAW/DNS, existing notification routes, DCR/DCE, VM identities, Wat
 Both directions of new attachments are centrally owned. The split-owned existing platform identity peering remains a documented legacy exception until an approved handoff. Application and external-identity roots do not obtain hub-write permissions. CSP subscription onboarding remains governance-owned; vending stays disabled pending CSP approval. FinOps budgets are separate Phase 2 resources, not part of the spoke blueprint. The 2026-10-30 [peering standard](../platform-lz/PEERING-STANDARD.md) selects two prod/nonprod attachment states per compatible hub boundary, preserving and allowlisting actual producer environments. The new AzAPI batch and two disabled roots implement that API; the retained adapter stays single-pair. Protected gate setup, OIDC/RBAC, registry pinning and live acceptance remain external adoption gates.
 
 ## Production Release Gates
+
+### Peering Integration Follow-Up (2026-10-31)
+
+External identity now publishes an optional public v3 platform contract through the
+attachment package's output-only producer. Its tenant/subscription context is
+checked against the authenticated provider, and its VNet ID/CIDRs come from the
+existing directory-services module outputs. The older output and null-input
+behavior remain supported. No VNet, peering or DNS-link ownership is moved.
+
+The cross-root mock test exercises the actual identity and production attachment
+roots and checks the HCP payload against the real producer output. Both the Phase 2
+and peering runners include it. Coverage activities 5.3/6.2 now identify the
+production batch owner; 10.2 identifies the non-production owner. The retained
+single-pair root remains for existing legacy states, not new Phase 2 onboarding.
+Partner tenant/topology approval is still required; cross-tenant attachment is not
+implemented by this single-tenant batch.
+
+Publish/pin the directory-services release containing `identity_vnet_address_space`
+and the attachment package's `producer` submodule before enabling the new input.
+Registry publication, actual inventories/permissions, protected gates and live
+acceptance remain release activities, not changes performed by this code update.
+
+### Release Checklist
 
 The implementation is locally verified; **the estate is not declared production-accepted**. Before enabling each component:
 

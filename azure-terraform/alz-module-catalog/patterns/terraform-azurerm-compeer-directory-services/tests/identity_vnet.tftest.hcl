@@ -76,6 +76,10 @@ run "identity_vnet_and_subnets_created" {
     condition     = length(module.identity_vnet[0].subnet_ids) == 2
     error_message = "both identity-VNet subnets should be created"
   }
+  assert {
+    condition     = toset(output.identity_vnet_address_space) == toset(var.identity_vnet.address_space)
+    error_message = "The additive address-space output must expose the actual VNet module values for attachment consumers."
+  }
 }
 
 run "hub_peering_created" {

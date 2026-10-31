@@ -434,11 +434,11 @@
       "components": "NET-39",
       "delivery": "Terraform + manual",
       "status": "EXISTING_MANUAL",
-      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
-      "notes": "Central bidirectional peerings, no gateway transit; on-prem static routes require architecture approval.",
+      "path": "patterns/terraform-azapi-compeer-network-attachments/main.tf",
+      "notes": "Approved same-tenant partner VNet joins the production batch through a v3 producer contract, with no gateway transit. Architecture, partner tenant/ownership and on-prem static routes require approval; cross-tenant attachment needs a separate design. Existing legacy states are not migrated automatically.",
       "in_scope": true,
       "implementation_paths": [
-        "implementations/platform-lz/workspaces/platform-network-peering/main.tf"
+        "implementations/platform-lz/workspaces/platform-network-peering-prod/main.tf"
       ]
     },
     {
@@ -463,11 +463,12 @@
       "components": "NET-49",
       "delivery": "Terraform",
       "status": "EXISTING",
-      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
-      "notes": "Separate central attachment workspace owns both directions and validates firewall routing.",
+      "path": "patterns/terraform-azapi-compeer-network-attachments/main.tf",
+      "notes": "External identity publishes its optional v3 platform contract from actual VNet outputs. The approved production batch owns both directions; identity owns inspected UDRs. Real producer/consumer roots are mock-tested; live routing remains acceptance work.",
       "in_scope": true,
       "implementation_paths": [
-        "implementations/platform-lz/workspaces/platform-network-peering/main.tf"
+        "implementations/platform-lz/workspaces/platform-network-peering-prod/main.tf",
+        "implementations/platform-lz/workspaces/platform-identity-external/main.tf"
       ]
     },
     {
@@ -632,11 +633,11 @@
       "components": "NET-22, NET-15",
       "delivery": "Terraform",
       "status": "EXISTING",
-      "path": "patterns/terraform-azurerm-compeer-network-peering/main.tf",
-      "notes": "Central attachment owns both directions; blueprint owns inspected UDRs, no broad hub-write permissions for spoke runs.",
+      "path": "patterns/terraform-azapi-compeer-network-attachments/main.tf",
+      "notes": "Non-production batch owns both directions for the actual sandbox producer environment. The blueprint owns inspected UDRs, and sandbox runs receive no hub-write permissions. Preserve existing legacy owners until an approved handoff.",
       "in_scope": true,
       "implementation_paths": [
-        "implementations/platform-lz/workspaces/platform-network-peering/main.tf",
+        "implementations/platform-lz/workspaces/platform-network-peering-nonprod/main.tf",
         "implementations/workload-lz/workspaces/workload-sandbox/main.tf"
       ]
     },

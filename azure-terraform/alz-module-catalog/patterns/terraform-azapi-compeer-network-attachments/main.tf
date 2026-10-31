@@ -1,4 +1,4 @@
-# NEW: environment/hub batch composition. The existing AzureRM single-pair APIs remain unchanged.
+# PHASE2 NEW: environment/hub batch composition. Existing AzureRM single-pair APIs remain unchanged.
 data "tfe_outputs" "hub" {
   count        = local.active ? 1 : 0
   organization = var.hub.organization

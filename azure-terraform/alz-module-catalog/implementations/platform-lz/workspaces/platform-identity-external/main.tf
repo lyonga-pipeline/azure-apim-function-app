@@ -72,12 +72,49 @@ module "external_identity" {
   depends_on                      = [terraform_data.approval]
 }
 output "central_attachment_inputs" {
+  description = "Compatibility metadata for existing callers. New batch attachments consume network_attachment_contract instead."
   value = var.enabled ? {
     spoke_virtual_network_id   = module.external_identity[0].identity_vnet_id
     spoke_virtual_network_name = var.identity_vnet.name
     spoke_resource_group_name  = module.external_identity[0].resource_group_name
     gateway_transit_enabled    = false
   } : null
+}
+
+# PHASE2 NEW: publish metadata only; both peering directions remain centrally owned.
+data "azurerm_client_config" "attachment" {
+  count = local.publish_attachment ? 1 : 0
+}
+resource "terraform_data" "attachment_context" {
+  count = local.publish_attachment ? 1 : 0
+  lifecycle {
+    precondition {
+      condition = (
+        lower(data.azurerm_client_config.attachment[0].tenant_id) == lower(var.central_attachment.tenant_id) &&
+        lower(data.azurerm_client_config.attachment[0].subscription_id) == lower(var.subscription_id)
+      )
+      error_message = "Attachment metadata must match the authenticated identity tenant and this VNet owner's subscription."
+    }
+  }
+}
+module "attachment_contract" {
+  source                 = "../../../../patterns/terraform-azapi-compeer-network-attachments/producer"
+  count                  = local.publish_attachment ? 1 : 0
+  tenant_id              = var.central_attachment.tenant_id
+  environment            = var.environment
+  attachment_kind        = "platform"
+  hub_virtual_network_id = var.central_attachment.hub_virtual_network_id
+  virtual_network = {
+    id            = module.external_identity[0].identity_vnet_id
+    address_space = module.external_identity[0].identity_vnet_address_space
+  }
+  gateway_transit      = false
+  private_dns_zone_ids = var.central_attachment.private_dns_zone_ids
+  depends_on           = [terraform_data.attachment_context]
+}
+output "network_attachment_contract" {
+  description = "Public v3 platform producer contract for the central batch attachment owner; null when disabled or not opted in."
+  value       = try(module.attachment_contract[0].network_attachment_contract, null)
 }
 
 # =============================================================================

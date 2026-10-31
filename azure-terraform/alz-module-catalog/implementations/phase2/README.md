@@ -81,9 +81,9 @@ See [TESTING.md](TESTING.md), [REVIEW.md](REVIEW.md) and [RUNBOOKS.md](RUNBOOKS.
 | 4.6 | Ingress failover design and runbook | [EXCLUDED_PHASE3](ON-HOLD.md) |
 | 5.1 | PartnerSubnet | [EXISTING_MANUAL](../../patterns/terraform-azurerm-compeer-palo-alto-hub/main.tf) |
 | 5.2 | Internal Load Balancer - Partner | [EXISTING_MANUAL](../../patterns/terraform-azurerm-compeer-palo-alto-hub/main.tf) |
-| 5.3 | Sunstream partner hub peering | [EXISTING_MANUAL](../../patterns/terraform-azurerm-compeer-network-peering/main.tf) |
+| 5.3 | Sunstream partner hub peering | [EXISTING_MANUAL](../platform-lz/workspaces/platform-network-peering-prod/README.md); approved same-tenant v3 producer required |
 | 6.1 | External identity subscription, VNet and RG | [NEW_EXTENDS_EXISTING](../../implementations/platform-lz/workspaces/platform-identity-external/main.tf) |
-| 6.2 | External identity VNet to hub peering | [EXISTING](../../patterns/terraform-azurerm-compeer-network-peering/main.tf) |
+| 6.2 | External identity VNet to hub peering | [EXISTING](../platform-lz/workspaces/platform-network-peering-prod/README.md); [identity v3 producer](../platform-lz/workspaces/platform-identity-external/README.md) |
 | 6.3 | External forest domain controllers | [NEW_EXTENDS_EXISTING_MANUAL](../../implementations/platform-lz/workspaces/platform-identity-external/main.tf) |
 | 6.4 | External identity backup vault | [NEW_EXTENDS_EXISTING](../../implementations/platform-lz/workspaces/platform-identity-external/main.tf) |
 | 7.1 | ExpressRoute Metro Resiliency (second MSEE) | [EXISTING_MANUAL](../../patterns/terraform-azurerm-compeer-platform-hybrid-connectivity/main.tf) |
@@ -95,7 +95,7 @@ See [TESTING.md](TESTING.md), [REVIEW.md](REVIEW.md) and [RUNBOOKS.md](RUNBOOKS.
 | 9.3 | Drift detection | [NEW_PENDING_DESIGN](../../patterns/terraform-azurerm-compeer-hcp-governance/main.tf) |
 | 9.4 | Repo-seed workload onboarding | [EXCLUDED_PHASE3](ON-HOLD.md) |
 | 10.1 | Sandbox spoke VNet | [NEW_EXTENDS_EXISTING](../../implementations/workload-lz/workspaces/workload-sandbox/main.tf) |
-| 10.2 | Sandbox peering and routing | [EXISTING](../../patterns/terraform-azurerm-compeer-network-peering/main.tf) |
+| 10.2 | Sandbox peering and routing | [EXISTING](../platform-lz/workspaces/platform-network-peering-nonprod/README.md); blueprint retains UDR ownership |
 | 10.3 | Sandbox policy scope and guardrails | [NEW_EXTENDS_EXISTING](../../patterns/terraform-azurerm-compeer-phase2-governance/main.tf) |
 | 10.4 | Sandbox subscription placement | [EXISTING](../../patterns/terraform-azurerm-compeer-subscription-onboarding/main.tf) |
 | 11.1 | DR Framework, strategy and guidelines | [NEW_DESIGN](../../implementations/phase2/DR-FRAMEWORK.md) |

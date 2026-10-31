@@ -8,6 +8,12 @@ output "identity_vnet_id" {
   value       = try(module.identity_vnet[0].id, null)
 }
 
+# PHASE2 NEW: additive producer metadata; attachment state never owns this VNet.
+output "identity_vnet_address_space" {
+  description = "Actual dedicated identity VNet address spaces for versioned attachment contracts."
+  value       = try(module.identity_vnet[0].address_space, [])
+}
+
 output "identity_vnet_subnet_ids" {
   description = "Subnet IDs of the identity VNet, keyed the same as identity_vnet.subnets."
   value       = try(module.identity_vnet[0].subnet_ids, {})

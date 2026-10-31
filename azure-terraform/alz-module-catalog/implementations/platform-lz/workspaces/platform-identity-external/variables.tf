@@ -11,6 +11,24 @@ variable "deployment_approved" {
   type    = bool
   default = false
 }
+# PHASE2 NEW: optional output-only handoff to the platform-owned batch attachment root.
+variable "central_attachment" {
+  description = "Approved tenant, hub and exact DNS intent for the public v3 contract. null preserves existing callers; this input never creates peering or DNS resources."
+  type = object({
+    tenant_id              = string
+    hub_virtual_network_id = string
+    private_dns_zone_ids   = optional(map(string), {})
+  })
+  default = null
+  validation {
+    condition = var.central_attachment == null ? true : (
+      can(regex("^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$", var.central_attachment.tenant_id)) &&
+      can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", var.central_attachment.hub_virtual_network_id)) &&
+      alltrue([for id in values(var.central_attachment.private_dns_zone_ids) : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/privateDnsZones/[^/]+$", id))])
+    )
+    error_message = "Central attachment metadata requires a tenant UUID, full hub VNet ID and full existing private DNS zone IDs."
+  }
+}
 # PHASE2 NEW: explicit IPAM/routing contract for the separate external identity plane.
 variable "inspection_address_prefixes" {
   description = "Approved hub/on-premises CIDRs that need explicit firewall UDRs; a default route alone cannot override more-specific system/BGP routes."
@@ -99,7 +117,7 @@ variable "identity_vnet" {
 # Mirrors workload-spoke's hub_connection shape exactly - the identity VNet is
 # architecturally a peered spoke of the hub, even though it is platform-tier.
 variable "hub_connection" {
-  description = "Peers identity_vnet to the hub. null = no peering (leaves identity_vnet isolated - only useful for a smoke test)."
+  description = "Retained compatibility input. This root requires null: the central attachment root owns both peering directions. Use central_attachment to publish its v3 producer contract."
   type = object({
     hub_virtual_network_id  = string
     allow_forwarded_traffic = optional(bool, true)
