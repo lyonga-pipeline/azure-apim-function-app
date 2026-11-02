@@ -48,6 +48,7 @@ nonprod_examples=implementations/workload-lz/workspaces/workload-internal-apps-n
 for profile in create-new reuse-existing; do
   terraform -chdir="$nonprod_examples" test -no-color -test-directory=example-tests -var-file="$profile.tfvars.example"
 done
+terraform -chdir="$nonprod_examples" test -no-color -test-directory=pilot-tests -var-file=pilot-two-subnets.tfvars.example
 
 vault_examples=patterns/terraform-azurerm-compeer-workload-key-vault/examples
 terraform -chdir="$vault_examples" init -backend=false -input=false -no-color

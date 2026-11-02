@@ -30,6 +30,64 @@ Telemetry, workload alerts and workload storage remain opt-in extensions subject
 to their component/phase approvals. An example is not authorization to activate
 deferred services. Budgets, management locks and compute are not added.
 
+## Two-Subnet Dev Pilot
+
+[pilot-two-subnets.tfvars.example](pilot-two-subnets.tfvars.example) corrects the
+supplied pilot configuration while leaving the default `terraform.tfvars` unchanged.
+It is disabled until the missing values and approvals are resolved.
+
+| Item | Pilot configuration |
+| --- | --- |
+| VNet | Supplied `10.102.64.0/27`, subject to IPAM confirmation |
+| Application subnet | `10.102.64.0/28` |
+| Private-endpoint subnet | `10.102.64.16/28`; a non-empty prefix is mandatory |
+| Data subnet | Not created. These two `/28`s consume the entire `/27`; storage uses a private endpoint, not a data subnet |
+| HTTPS rule | Destination corrected to the application subnet instead of unrelated `10.200.0.0/24` |
+| Alert routing | Reuses the management output's enabled `primary` action group; an explicit empty selection does not trigger fallback |
+
+The file preserves the supplied vault, ZRS Blob storage, Application Insights and
+failed-request alert selections. It is **not network-only**. For a new network-only
+deployment, set vault/storage `enabled=false`, monitoring `enabled=false` and
+`alerts_enabled=false`, and leave the operations routing empty before the first
+apply. Do not disable previously managed resources to pause them.
+
+Required before enabling this profile:
+
+1. Supply real `tenant_id` and workload `subscription_id` using the existing HCP
+   inputs or `TF_VAR_tenant_id` / `TF_VAR_subscription_id` locally. They are omitted
+   from this file; blank or redacted IDs cannot authenticate Azure.
+2. Replace `private_dns_subscription_id` with the subscription owning the central
+   vault/blob zones. This input configures the DNS provider; readable producer
+   outputs do not automatically configure its subscription. An explicit value
+   removes the need for the legacy `connectivity_subscription_id` fallback.
+3. Replace `spoke.egress_next_hop_ip` with the confirmed hub NVA/frontend IPv4
+   **string**. It is mandatory even for network-only deployment because the
+   blueprint supplies inspected UDRs. The repository's current `10.102.4.42`
+   reference is not proof of actual deployment or network approval.
+4. Confirm the supplied client `10.40.10.0/24`, complete the IPAM/inspection
+   inventory, verify hybrid DNS/LAW/vault/blob-zone outputs and confirm that the
+   existing `primary` action group is the approved pilot audience.
+5. Authenticate the actual identity to both workload and DNS subscriptions, and
+   grant the scoped HCP output-read access. A subscription reported as unknown
+   by Azure CLI is an authentication/access/context problem, not a subnet error.
+
+Use exactly this profile, not the create/reuse UAT profiles at the same time:
+
+```bash
+terraform plan -var-file=pilot-two-subnets.tfvars.example
+```
+
+The file's `spoke.enabled=false` leaves it inert. After supplying the required
+values, approving the optional services and enabling it, review the full plan.
+The central attachment workspace still owns both peerings and DNS VNet links;
+the spoke does not establish live hub connectivity by itself.
+
+Mock verification substitutes only the missing identity/DNS/NVA fixture values:
+
+```bash
+terraform test -test-directory=pilot-tests -var-file=pilot-two-subnets.tfvars.example
+```
+
 ## Create And Reuse Boundaries
 
 | Resource | Ownership and selection |

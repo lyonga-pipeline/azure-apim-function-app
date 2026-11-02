@@ -1,0 +1,126 @@
+# Pilot profile based on the supplied dev configuration. Select this file alone.
+# Replace/confirm every marked value, then set spoke.enabled=true after plan review.
+# Supply actual tenant_id and subscription_id through HCP or TF_VAR_* locally.
+# Do not use blank, masked or example UUIDs for a real Azure plan.
+tfe_organization            = "Compeer-Financial-Services"
+management_workspace_name   = "platform-compeer-management"
+connectivity_workspace_name = "platform-compeer-connectivity"
+governance_workspace_name   = "platform-compeer-governance"
+use_tfe_outputs             = true
+environment                 = "dev"
+
+# REQUIRED: UUID of the subscription owning the existing private DNS zones.
+# This is not necessarily the workload or provider execution subscription.
+# No connectivity_subscription_id is needed when this is set explicitly.
+private_dns_subscription_id = "REPLACE_EXISTING_PRIVATE_DNS_SUBSCRIPTION_UUID"
+
+spoke = {
+  enabled       = false
+  appcode       = "pltinapp"
+  domain        = "internal-apps"
+  location      = "centralus"
+  address_space = ["10.102.64.0/27"] # Confirm the supplied allocation with IPAM.
+
+  # Retain the supplied client range; complete with ALL approved IPAM/on-prem/
+  # other-spoke ranges before enabling. Hub ranges are checked automatically.
+  reserved_address_spaces     = ["10.40.10.0/24"]
+  inspection_address_prefixes = ["10.40.10.0/24"]
+  # REQUIRED even for a network-only pilot: every subnet gets an inspected UDR.
+  # The repo currently references 10.102.4.42 as the trust LB frontend, but that
+  # is not live deployment/approval evidence. Obtain the confirmed network value.
+  # This must be one IPv4 STRING, not [], null, a subnet CIDR or a Route Server IP.
+  egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IPV4"
+  allow_azure_provided_dns      = false
+  manage_hub_attachment         = false
+  gateway_transit_enabled       = false
+  private_endpoint_client_cidrs = ["10.40.10.0/24"] # Confirm this supplied client range.
+
+  workload_tags = {
+    application         = "pilot-int-app"
+    owner               = "Compeer-DTICloudEnablementTeam@compeer.com"
+    source_repo         = "https://dev.azure.com/Compeer-financial-cloud/Terraform/_git/compeer-terraform-aa-reports-center-network"
+    criticality_tier    = "tier-3"
+    data_classification = "confidential"
+    lifecycle_state     = "active"
+    cost_center         = "0000011"
+    gl_category         = "cloud-infrastructure"
+    dr_tier             = "none"
+  }
+
+  subnets = {
+    application = {
+      address_prefixes              = ["10.102.64.0/28"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {}
+      rules = {
+        internal-https = {
+          description                = "Approved pilot clients to the application HTTPS endpoint."
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "10.40.10.0/24" # Confirm the supplied source.
+          destination_address_prefix = "10.102.64.0/28"
+          access                     = "Allow"
+          priority                   = 300
+          direction                  = "Inbound"
+        }
+      }
+      routes = {} # The blueprint supplies inspected default/remote routes.
+    }
+    private_endpoints = {
+      address_prefixes              = ["10.102.64.16/28"]
+      service_endpoints             = []
+      bgp_route_propagation_enabled = false
+      delegations                   = {}
+      rules                         = {}
+      routes                        = {}
+    }
+    # No data subnet: these two /28s exhaust the /27. A third subnet needs an
+    # approved address-plan change, not reuse of 10.102.64.16/28.
+    # The Blob account below uses a private endpoint, not a separate data subnet.
+  }
+
+  # Preserve the optional services selected in the supplied configuration.
+  # For a NEW network-only pilot, disable the vault, monitoring/alerts and storage
+  # before the first apply. Never use these switches to pause existing resources.
+  key_vault = {
+    enabled                  = true
+    sku_name                 = "standard"
+    secret_readers           = {}
+    secret_officer_group_ids = {}
+  }
+  workload_access_group_ids = {}
+  diagnostics               = { enabled = true, existing_settings = {} }
+  monitoring = {
+    enabled                          = true
+    create_application_insights      = true
+    existing_application_insights    = null
+    manage_existing_telemetry_access = false
+    alerts_enabled                   = true
+    create_failed_requests_alert     = true
+    existing_failed_requests_alert   = null
+    sampling_percentage              = 100
+    failed_request_threshold         = 5
+    internet_ingestion_enabled       = true
+    internet_query_enabled           = true
+    private_link_ready               = false
+  }
+  operations = {
+    create_action_group        = false
+    platform_action_group_keys = ["primary"] # Verify this enabled management output.
+    action_group_ids           = []
+    notification_emails        = []
+  }
+  storage_accounts = {
+    data = {
+      enabled                    = true
+      name                       = null
+      replication_type           = "ZRS"
+      delete_retention_days      = 30
+      grant_workload_blob_access = true
+    }
+    future_archive = { enabled = false, grant_workload_blob_access = false }
+  }
+  backup = null
+}
