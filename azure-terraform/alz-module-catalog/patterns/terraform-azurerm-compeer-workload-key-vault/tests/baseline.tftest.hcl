@@ -59,6 +59,22 @@ variables {
   }
 }
 
+run "policy_dns_requires_no_zone_and_preserves_private_security" {
+  command = apply
+  variables {
+    private_endpoint_dns_mode        = "policy"
+    policy_dns_registration_approved = true
+    private_dns_zone_id              = null
+    private_endpoints = {
+      default = { subnet_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/network/providers/Microsoft.Network/virtualNetworks/spoke/subnets/private-endpoints" }
+    }
+  }
+  assert {
+    condition     = length(module.private_endpoint) == 0 && length(module.policy_private_endpoint) == 1 && output.private_endpoint_id != null && output.private_endpoint_configuration.dns_registration_mode == "policy" && !output.security_configuration.public_network_access_enabled && output.security_configuration.rbac_authorization_enabled && output.diagnostic_setting_id != null
+    error_message = "A private, RBAC-only audited vault must deploy without a zone input when platform Policy owns registration."
+  }
+}
+
 run "secure_baseline_and_private_dns_are_wired" {
   command = plan
   assert {

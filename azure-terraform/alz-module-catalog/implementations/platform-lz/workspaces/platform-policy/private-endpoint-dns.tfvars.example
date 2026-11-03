@@ -1,0 +1,17 @@
+# PHASE 2 NEW: provide ACTUAL IDs/approval, then load explicitly with -var-file.
+# Existing policy/remediation inputs remain in terraform.tfvars; never replace them with this extension.
+# Use disjoint scopes. Exclude deployed Terraform-owned subscriptions/RGs during rollout.
+private_endpoint_dns_policies = {
+  apps = {
+    management_group_key = "REPLACE_WORKLOAD_MG_CATALOG_KEY"
+    approval_reference = "REPLACE_APPROVED_CHANGE_REFERENCE"
+    not_scopes = ["/subscriptions/REPLACE_NOT_YET_MIGRATED_TERRAFORM_OWNED_SUBSCRIPTION_UUID"]
+    zone_ids = {
+      key_vault = "/subscriptions/REPLACE_EXISTING_DNS_SUBSCRIPTION_UUID/resourceGroups/REPLACE_DNS_RG/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+      storage_blob = "/subscriptions/REPLACE_EXISTING_DNS_SUBSCRIPTION_UUID/resourceGroups/REPLACE_DNS_RG/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    }
+    manage_zone_role_assignments = true
+    # false: export assignment principal IDs and have the existing zone owner grant permissions.
+    # The policies are not operational until those grants exist and live registration succeeds.
+  }
+}

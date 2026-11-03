@@ -13,6 +13,17 @@ ROOTS = [WORKLOAD / "workspaces" / f"workload-internal-apps-{env}" for env in ("
 
 
 class EnvironmentRootTests(unittest.TestCase):
+    def test_policy_dns_ignores_only_externally_owned_group(self):
+        catalog = WORKLOAD.parents[1]
+        parent = catalog / "modules/terraform-azurerm-compeer-private-endpoint"
+        managed = (parent / "private-endpoint.tf").read_text()
+        delegated = (parent / "modules/policy-owned/main.tf").read_text()
+        self.assertNotIn("ignore_changes", managed)
+        self.assertIn('dynamic "private_dns_zone_group"', managed)
+        self.assertRegex(delegated, r"ignore_changes\s*=\s*\[private_dns_zone_group\]")
+        self.assertNotIn('dynamic "private_dns_zone_group"', delegated)
+        self.assertNotIn('variable "private_dns_zone_group"', (parent / "modules/policy-owned/variables.tf").read_text())
+
     def test_shared_adapter_is_removed_and_regression_roots_exist(self):
         self.assertFalse((WORKLOAD / "shared").exists())
         script = (WORKLOAD / "test.sh").read_text()

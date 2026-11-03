@@ -33,7 +33,7 @@ class VaultLayoutTests(unittest.TestCase):
 
     def test_variants_are_complete_alternatives_not_automatic_deployments(self):
         variants = list((VAULT / "examples/variants").glob("*.tfvars"))
-        self.assertEqual(len(variants), 4)
+        self.assertEqual(len(variants), 5)
         for variant in variants:
             with self.subTest(variant=variant.name):
                 self.assertNotRegex(variant.read_text(), r"(?m)^(?:enabled|deployment_approved)\s*=\s*true")

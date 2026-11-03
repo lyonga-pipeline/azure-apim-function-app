@@ -15,16 +15,17 @@ output "uri" {
 
 output "private_endpoint_id" {
   description = "Private endpoint resource ID."
-  value       = try(module.private_endpoint["default"].id, null)
+  value       = try(local.private_endpoint_instances["default"].id, null)
 }
 
 output "private_endpoint_configuration" {
   description = "Non-secret observed parent-owned endpoint wiring; does not prove live DNS or endpoint approval."
   value = try({
-    subnet_id            = module.private_endpoint["default"].subnet_id
-    target_resource_id   = module.private_endpoint["default"].private_service_connection[0].private_connection_resource_id
-    subresource_names    = module.private_endpoint["default"].private_service_connection[0].subresource_names
-    private_dns_zone_ids = [for config in module.private_endpoint["default"].private_dns_zone_configs : config.private_dns_zone_id]
+    dns_registration_mode = var.private_endpoint_dns_mode
+    subnet_id             = local.private_endpoint_instances["default"].subnet_id
+    target_resource_id    = local.private_endpoint_instances["default"].private_service_connection[0].private_connection_resource_id
+    subresource_names     = local.private_endpoint_instances["default"].private_service_connection[0].subresource_names
+    private_dns_zone_ids  = [for config in local.private_endpoint_instances["default"].private_dns_zone_configs : config.private_dns_zone_id]
   }, null)
 }
 
@@ -60,7 +61,8 @@ output "role_assignments" {
 
 output "private_endpoints" {
   description = "Observed endpoint configuration keyed by the caller's stable keys; does not assert approval or live DNS."
-  value = { for key, endpoint in module.private_endpoint : key => {
+  value = { for key, endpoint in local.private_endpoint_instances : key => {
+    dns_registration_mode = var.private_endpoint_dns_mode
     id                    = endpoint.id
     subnet_id             = endpoint.subnet_id
     target_resource_id    = endpoint.private_service_connection[0].private_connection_resource_id

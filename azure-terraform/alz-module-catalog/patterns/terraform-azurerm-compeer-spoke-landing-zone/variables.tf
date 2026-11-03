@@ -65,6 +65,22 @@ variable "workload_tags" {
   }
 }
 
+variable "private_endpoint_dns_mode" {
+  description = "terraform preserves existing endpoint DNS ownership; policy delegates zone groups to deployed central DINE policies. Policy mode needs no zone IDs in this spoke."
+  type        = string
+  default     = "terraform"
+  validation {
+    condition     = contains(["terraform", "policy"], var.private_endpoint_dns_mode)
+    error_message = "private_endpoint_dns_mode must be terraform or policy."
+  }
+}
+
+variable "policy_dns_registration_approved" {
+  description = "Set true only after platform DNS policies, scoped permissions and the resolution path are deployed and verified. Approval is not live readiness evidence."
+  type        = bool
+  default     = false
+}
+
 variable "platform" {
   description = "Public output contracts from management and connectivity, or explicitly approved equivalent inputs. Secrets/full state are not inputs."
   type = object({

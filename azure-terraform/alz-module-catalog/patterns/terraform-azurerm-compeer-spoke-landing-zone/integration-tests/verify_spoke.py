@@ -28,7 +28,7 @@ def az_json(*arguments):
     return json.loads(result.stdout)
 
 
-def verify_control_plane(contract, command=az_json):
+def verify_control_plane(contract, command=az_json, dns_zone_ids=None):
     require(contract.get("contract_version") == "1.0.0", "Unsupported spoke contract version")
 
     def get(resource_id, version="2024-05-01"):
@@ -78,7 +78,7 @@ def verify_control_plane(contract, command=az_json):
         ), "A reciprocal, connected peering with forwarded traffic is missing")
 
     if contract.get("key_vault") is None:
-        verify_application_services(contract, get)
+        verify_application_services(contract, get, dns_zone_ids)
         return private_prefixes
 
     vault_id = contract["key_vault"]["id"]
@@ -100,18 +100,7 @@ def verify_control_plane(contract, command=az_json):
         and connection["properties"].get("privateLinkServiceConnectionState", {}).get("status") == "Approved"
         for connection in connections
     ), "Vault private endpoint connection is not approved")
-    zone_id = attachment["key_vault_private_dns_zone_id"]
-    group = get(endpoint_id + "/privateDnsZoneGroups/default")["properties"]
-    require(any(
-        item["properties"].get("privateDnsZoneId", "").lower() == zone_id.lower()
-        for item in group.get("privateDnsZoneConfigs", [])
-    ), "Private endpoint is not registered in the approved DNS zone")
-    links = get(zone_id + "/virtualNetworkLinks", "2020-06-01").get("value", [])
-    require(any(
-        link["properties"].get("virtualNetwork", {}).get("id", "").lower() == spoke_id.lower()
-        and link["properties"].get("registrationEnabled") is False
-        for link in links
-    ), "Spoke is not linked to the approved private zone")
+    verify_endpoint_dns(contract, get, endpoint_id, "key_vault", dns_zone_ids)
 
     verify_diagnostics(contract, get, vault_id, {"AuditEvent"}, {"AllMetrics"}, "Vault AuditEvent")
     roles = command("role", "assignment", "list", "--scope", vault_id)
@@ -121,7 +110,7 @@ def verify_control_plane(contract, command=az_json):
         and role.get("roleDefinitionName") == "Key Vault Secrets User"
         for role in roles
     ), "Workload identity does not have vault-scoped Secrets User access")
-    verify_application_services(contract, get)
+    verify_application_services(contract, get, dns_zone_ids)
     return private_prefixes
 
 
@@ -142,7 +131,7 @@ def verify_diagnostics(contract, get, target_id, logs, metrics, label):
             require(matching[0].get("id", "").lower() == setting_id.lower(), f"{label} reused setting does not match its declared ARM ID")
 
 
-def verify_application_services(contract, get):
+def verify_application_services(contract, get, dns_zone_ids=None):
     services = contract["application_services"]
     profile = contract["environment_profile"]
     workspace_id = contract["diagnostic_ownership"]["workspace_id"]
@@ -192,14 +181,54 @@ def verify_application_services(contract, get):
                     and connection["properties"].get("groupIds") == ["blob"]
                     and connection["properties"].get("privateLinkServiceConnectionState", {}).get("status") == "Approved"
                     for connection in endpoint.get("privateLinkServiceConnections", [])), f"Storage {key} private endpoint is not approved")
-        zone_id = contract["attachment_contract"]["storage_blob_private_dns_zone_id"]
-        group = get(account["private_endpoint_id"] + "/privateDnsZoneGroups/default")["properties"]
-        require(any(item["properties"].get("privateDnsZoneId", "").lower() == zone_id.lower() for item in group.get("privateDnsZoneConfigs", [])), f"Storage {key} uses the wrong private DNS zone")
-        links = get(zone_id + "/virtualNetworkLinks", "2020-06-01").get("value", [])
-        require(any(link["properties"].get("virtualNetwork", {}).get("id", "").lower() == contract["spoke_virtual_network_id"].lower()
-                    and link["properties"].get("registrationEnabled") is False for link in links), f"Storage {key} zone is not linked to the spoke")
+        verify_endpoint_dns(contract, get, account["private_endpoint_id"], "storage_blob", dns_zone_ids)
         verify_diagnostics(contract, get, account["id"], set(), {"AllMetrics"}, f"Storage {key} account metrics")
         verify_diagnostics(contract, get, account["id"] + "/blobServices/default", {"StorageRead", "StorageWrite", "StorageDelete"}, {"Transaction"}, f"Storage {key} Blob logs")
+
+
+def verify_endpoint_dns(contract, get, endpoint_id, service, dns_zone_ids=None):
+    policy_owned = contract["security_baseline"].get("private_endpoint_dns_mode", "terraform") == "policy"
+    zone_id = (dns_zone_ids or {}).get(service) if policy_owned else contract["attachment_contract"].get(service + "_private_dns_zone_id")
+    require(isinstance(zone_id, str) and zone_id.startswith("/subscriptions/"),
+            "Policy DNS acceptance requires an independently approved zone catalog")
+    expected_name = {"key_vault": "privatelink.vaultcore.azure.net", "storage_blob": "privatelink.blob.core.windows.net"}[service]
+    require(zone_id.lower().endswith("/providers/microsoft.network/privatednszones/" + expected_name), "Wrong service in approved DNS catalog")
+    if policy_owned:
+        groups = get(endpoint_id + "/privateDnsZoneGroups").get("value", [])
+        require(len(groups) == 1, "Policy DNS zone group has not converged")
+    else:
+        groups = [get(endpoint_id + "/privateDnsZoneGroups/default")]
+    require(any(item["properties"].get("privateDnsZoneId", "").lower() == zone_id.lower()
+                for group in groups for item in group["properties"].get("privateDnsZoneConfigs", [])),
+            "Private endpoint is not registered in the approved DNS zone")
+    if not policy_owned:
+        links = get(zone_id + "/virtualNetworkLinks", "2020-06-01").get("value", [])
+        require(any(link["properties"].get("virtualNetwork", {}).get("id", "").lower() == contract["spoke_virtual_network_id"].lower()
+                    and link["properties"].get("registrationEnabled") is False for link in links),
+                "Spoke is not linked to the approved private zone")
+
+
+def verify_policy_dns_readiness(contract, command=az_json, resolve=socket.getaddrinfo, connect=socket.create_connection):
+    targets = []
+    if contract.get("key_vault"):
+        targets.append((contract["key_vault"]["private_endpoint_id"], contract["key_vault"]["uri"], ".vault.azure.net"))
+    targets.extend((account["private_endpoint_id"], account["blob_endpoint"], ".blob.core.windows.net")
+                   for account in contract["application_services"].get("storage", {}).values())
+    for endpoint_id, uri, suffix in targets:
+        hostname = urlparse(uri).hostname
+        require(hostname and hostname.endswith(suffix), "Unexpected private-service hostname")
+        endpoint = command("rest", "--method", "get", "--url",
+                           f"https://management.azure.com{endpoint_id}?api-version=2024-05-01")["properties"]
+        expected = set()
+        for nic in endpoint.get("networkInterfaces", []):
+            observed = command("rest", "--method", "get", "--url",
+                               f"https://management.azure.com{nic['id']}?api-version=2024-05-01")["properties"]
+            expected.update(ipaddress.ip_address(item["properties"]["privateIPAddress"])
+                            for item in observed.get("ipConfigurations", []))
+        addresses = {ipaddress.ip_address(answer[4][0]) for answer in resolve(hostname, 443, socket.AF_INET, socket.SOCK_STREAM)}
+        require(expected and addresses and addresses.issubset(expected), "DNS does not resolve exclusively to this endpoint's actual private IPs")
+        with connect((hostname, 443), timeout=10):
+            pass
 
 
 def verify_private_dns(vault_uri, prefixes, resolve=socket.getaddrinfo):
@@ -239,13 +268,24 @@ def main():
     parser.add_argument("--private-dns", action="store_true", help="Require a network-connected runner and private vault DNS resolution")
     parser.add_argument("--secret-probe", action="store_true", help="Opt-in ephemeral secret round trip using separate operator and workload credentials")
     parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--dns-zone-catalog", help="Approved JSON key_vault/storage_blob zone-ID map, required for policy-owned acceptance")
     args = parser.parse_args()
     with (sys.stdin if args.contract == "-" else open(args.contract, encoding="utf-8")) as source:
         contract = json.load(source)
     require(not (args.private_dns or args.secret_probe) or contract.get("key_vault") is not None,
             "Vault DNS/secret probes require an enabled vault; omit these flags for a secretless spoke")
+    policy_owned = contract["security_baseline"].get("private_endpoint_dns_mode", "terraform") == "policy"
+    dns_zone_ids = None
+    if args.dns_zone_catalog:
+        with open(args.dns_zone_catalog, encoding="utf-8") as source:
+            dns_zone_ids = json.load(source)
+        require(isinstance(dns_zone_ids, dict), "DNS catalog must be a JSON object")
+    require(not policy_owned or dns_zone_ids is not None, "Policy DNS acceptance requires --dns-zone-catalog from the platform owner")
+    require(args.timeout > 0, "Timeout must be positive")
     deadline = time.monotonic() + args.timeout
-    prefixes = retry_until(lambda: verify_control_plane(contract), deadline)
+    prefixes = retry_until(lambda: verify_control_plane(contract, dns_zone_ids=dns_zone_ids), deadline)
+    if policy_owned:
+        retry_until(lambda: verify_policy_dns_readiness(contract), deadline)
     if args.private_dns or args.secret_probe:
         retry_until(lambda: verify_private_dns(contract["key_vault"]["uri"], prefixes), deadline)
     if args.secret_probe:
@@ -256,7 +296,7 @@ def main():
         with AzureCliCredential() as operator, ManagedIdentityCredential(client_id=contract["workload_identity"]["client_id"]) as workload:
             with SecretClient(uri, operator) as writer, SecretClient(uri, workload) as reader:
                 secret_roundtrip(writer, reader, lambda operation: retry_until(operation, deadline))
-    print(json.dumps({"control_plane": "passed", "private_dns": "passed" if args.private_dns or args.secret_probe else "not_run", "managed_identity_secret_access": "passed" if args.secret_probe else "not_run"}))
+    print(json.dumps({"control_plane": "passed", "private_dns": "passed" if policy_owned or args.private_dns or args.secret_probe else "not_run", "managed_identity_secret_access": "passed" if args.secret_probe else "not_run"}))
 
 
 if __name__ == "__main__":

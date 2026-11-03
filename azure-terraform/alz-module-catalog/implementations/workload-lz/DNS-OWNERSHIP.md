@@ -1,5 +1,11 @@
 # Spoke DNS Ownership
 
+## Select An Owner
+
+The default described below remains Terraform-owned registration. The opt-in
+[Policy-owned mode](POLICY-DNS.md) removes spoke zone inputs and documents platform
+rollout, permissions, state handoff and the required live readiness gate.
+
 ## Deployment Boundary
 
 Spokes use one workload AzureRM provider. They create private vault/Blob endpoints
@@ -75,9 +81,9 @@ records, then resolve the service hostname from the actual spoke client and test
 private connectivity. Central forwarding must be configured and reachable.
 Mock tests verify configuration, not Azure permission or DNS behavior.
 
-A separate platform-owned DNS-registration process is possible, but it needs an
-explicit ownership/drift-safe mode and tested automation. This release does not
-add an unverified external-registration bypass or transfer existing zone groups.
+Policy registration is an explicit alternate mode, never a fallback when zone
+IDs are missing. It requires an approved platform rollout and does not
+automatically transfer existing groups.
 
 ## Microsoft Guidance
 

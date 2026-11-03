@@ -27,15 +27,19 @@ run "examples_are_inert_before_approval" {
 
 run "enabling_requires_explicit_acknowledgement" {
   command = plan
-  variables { enabled = true }
+  variables {
+    enabled                          = true
+    policy_dns_registration_approved = true # Mock-only platform readiness; real examples remain unapproved.
+  }
   expect_failures = [terraform_data.approval]
 }
 
 run "approved_variant_composes_real_modules_with_mock_azure" {
   command = apply
   variables {
-    enabled             = true
-    deployment_approved = true
+    enabled                          = true
+    deployment_approved              = true
+    policy_dns_registration_approved = true # Mock-only platform readiness; real examples remain unapproved.
   }
   assert {
     condition = (

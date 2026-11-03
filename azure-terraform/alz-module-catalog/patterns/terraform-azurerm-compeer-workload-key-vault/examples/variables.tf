@@ -69,6 +69,22 @@ variable "private_dns_zone_id" {
   }
 }
 
+variable "private_endpoint_dns_mode" {
+  description = "terraform manages endpoint zone groups; policy delegates them to central DINE. Existing callers remain Terraform-owned."
+  type        = string
+  default     = "terraform"
+  validation {
+    condition     = contains(["terraform", "policy"], var.private_endpoint_dns_mode)
+    error_message = "private_endpoint_dns_mode must be terraform or policy."
+  }
+}
+
+variable "policy_dns_registration_approved" {
+  description = "Explicit platform approval of deployed DNS policies, zone permissions and resolution. Not evidence of live DNS readiness."
+  type        = bool
+  default     = false
+}
+
 variable "log_analytics_workspace_id" {
   description = "Central platform LAW resource ID, not the workspace GUID."
   type        = string
@@ -158,7 +174,7 @@ variable "private_endpoints" {
   description = "Optional endpoint map. null preserves the original default endpoint inputs; {} is permitted only with approved restricted-public access. Existing zones/VNet links remain platform-owned."
   type = map(object({
     subnet_id                     = string
-    private_dns_zone_id           = string
+    private_dns_zone_id           = optional(string)
     name                          = optional(string)
     resource_group_name           = optional(string)
     location                      = optional(string)
@@ -172,7 +188,7 @@ variable "private_endpoints" {
     condition = var.private_endpoints == null ? true : alltrue([for key, endpoint in var.private_endpoints :
       can(regex("^[a-z][a-z0-9-]{0,30}$", key)) &&
       can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+/subnets/[^/]+$", endpoint.subnet_id)) &&
-      can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.vaultcore\\.azure\\.net$", endpoint.private_dns_zone_id)) &&
+      (endpoint.private_dns_zone_id == null ? true : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.vaultcore\\.azure\\.net$", endpoint.private_dns_zone_id))) &&
       (endpoint.private_ip_address == null ? true : can(cidrnetmask("${endpoint.private_ip_address}/32"))) &&
       (endpoint.request_message == null || endpoint.manual_connection)
     ])

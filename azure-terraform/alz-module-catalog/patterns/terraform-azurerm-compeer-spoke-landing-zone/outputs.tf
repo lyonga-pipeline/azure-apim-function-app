@@ -56,13 +56,14 @@ output "attachment_contract" {
   description = "Versioned intent for a separately authorized central attachment state. Resource IDs do not prove completed attachment or connectivity."
   value = {
     contract_version                 = "2.0.0"
+    private_endpoint_dns_mode        = var.private_endpoint_dns_mode
     owner                            = "central-attachment-workspace"
     hub_virtual_network_id           = var.platform.hub_virtual_network_id
     spoke_virtual_network_id         = module.network.id
     spoke_virtual_network_name       = module.network.name
     spoke_resource_group_name        = module.resource_groups.group_names["network"]
-    key_vault_private_dns_zone_id    = var.key_vault.enabled ? var.platform.key_vault_private_dns_zone_id : null
-    storage_blob_private_dns_zone_id = length(local.enabled_storage_accounts) > 0 ? var.platform.storage_blob_private_dns_zone_id : null
+    key_vault_private_dns_zone_id    = var.key_vault.enabled && local.terraform_dns_registration ? var.platform.key_vault_private_dns_zone_id : null
+    storage_blob_private_dns_zone_id = length(local.enabled_storage_accounts) > 0 && local.terraform_dns_registration ? var.platform.storage_blob_private_dns_zone_id : null
     gateway_transit_enabled          = var.gateway_transit_enabled
     tags                             = module.tags.tags
     naming_context = {
@@ -76,13 +77,13 @@ output "attachment_contract" {
       resource_group_name   = try(split("/", var.platform.key_vault_private_dns_zone_id)[4], "")
       registration_enabled  = false
       link_to_spoke_enabled = true
-      } if var.key_vault.enabled
+      } if var.key_vault.enabled && local.terraform_dns_registration
       }, { for key in ["storage_blob"] : key => {
         name                  = "privatelink.blob.core.windows.net"
         resource_group_name   = try(split("/", var.platform.storage_blob_private_dns_zone_id)[4], "")
         registration_enabled  = false
         link_to_spoke_enabled = true
-      } if length(local.enabled_storage_accounts) > 0 }
+      } if length(local.enabled_storage_accounts) > 0 && local.terraform_dns_registration }
     )
   }
 }
@@ -115,6 +116,7 @@ output "security_baseline" {
     key_vault_purge_protection      = try(module.key_vault[0].security_configuration.purge_protection_enabled, null)
     flow_log_owner                  = "platform-policy"
     defender_owner                  = "platform-policy"
+    private_endpoint_dns_mode       = var.private_endpoint_dns_mode
     inspection_address_prefixes     = local.inspection_address_prefixes
     gateway_bgp_propagation_enabled = false
     nsg_ids                         = { for key, nsg in module.network_security_groups : key => nsg.id }
@@ -143,7 +145,7 @@ output "application_services" {
     failed_requests_alert_owner                = !var.monitoring.alerts_enabled ? null : local.create_failed_requests_alert ? "this-workload-state" : "existing-resource-owner"
     storage = { for key, account in module.storage : key => {
       id                        = account.id, name = account.name, blob_endpoint = account.primary_blob_endpoint,
-      private_endpoint_id       = module.storage_endpoints[key].id,
+      private_endpoint_id       = local.storage_private_endpoints[key].id,
       replication_type          = local.storage_replication[key], delete_retention_days = local.storage_retention[key]
       diagnostic_resource_ids   = [account.id, "${account.id}/blobServices/default"]
       diagnostic_log_categories = ["StorageRead", "StorageWrite", "StorageDelete"]

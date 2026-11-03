@@ -122,8 +122,8 @@ The workload deployment identity creates the endpoints/zone groups and needs
 approved linked-zone read/join authorization. Removing a provider alias neither
 grants that authorization nor removes the need for correct DNS records. Central
 forwarding can avoid per-spoke zone links, but endpoint records still need an
-owner. This release retains Terraform-owned zone groups; it does not silently
-delegate registration to unconfigured Policy or portal operations.
+owner. The default retains Terraform-owned groups. The explicit policy mode
+described below delegates registration only after platform readiness approval.
 
 Upgrade callers and this module together: remove the old `azurerm.dns` mapping
 only after selecting a release without that alias requirement. Workload resource
@@ -133,6 +133,11 @@ this blueprint. Legacy peering patterns that actually manage DNS links keep
 their own provider requirements; this cleanup does not modify those states.
 
 ## Inputs
+
+**DNS ownership:** `private_endpoint_dns_mode="terraform"` is the compatible
+default. Opt-in `"policy"` plus `policy_dns_registration_approved=true` creates
+private endpoints without zone IDs or spoke DNS-link intent. Existing endpoint
+adoption needs a state handoff. See [rollout and acceptance](../../implementations/workload-lz/POLICY-DNS.md).
 
 [variables.tf](variables.tf) is the authoritative nested schema. `object` and
 `map(object)` below are schema summaries, not untyped inputs.

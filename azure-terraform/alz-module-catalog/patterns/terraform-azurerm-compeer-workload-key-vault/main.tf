@@ -7,8 +7,12 @@ resource "terraform_data" "tag_contract" {
       error_message = "The vault tenant must match the authenticated provider tenant."
     }
     precondition {
-      condition     = (var.network_access.mode != "private" || length(local.private_endpoints) > 0) && alltrue([for endpoint in values(local.private_endpoints) : endpoint.subnet_id != null && endpoint.private_dns_zone_id != null])
-      error_message = "Private mode requires at least one endpoint with an existing subnet and central Key Vault DNS zone."
+      condition     = (var.network_access.mode != "private" || length(local.private_endpoints) > 0) && alltrue([for endpoint in values(local.private_endpoints) : endpoint.subnet_id != null && (!local.terraform_dns_registration || endpoint.private_dns_zone_id != null)])
+      error_message = "Private mode requires an endpoint subnet and, for Terraform DNS ownership, the existing central Key Vault DNS zone."
+    }
+    precondition {
+      condition     = local.terraform_dns_registration || (var.policy_dns_registration_approved && length(var.keys) == 0 && alltrue([for endpoint in values(local.private_endpoints) : !endpoint.manual_connection]))
+      error_message = "Policy mode requires approved central DNS registration, automatic endpoint connections and no initial key operations. Create keys only after live DNS/network/RBAC readiness in a separate deployment."
     }
     precondition {
       condition     = alltrue([for endpoint in values(local.private_endpoints) : try(lower(split("/", endpoint.subnet_id)[2]) == lower(data.azurerm_client_config.current.subscription_id), false)])
@@ -81,7 +85,7 @@ module "vault" {
 }
 
 module "private_endpoint" {
-  for_each                      = local.private_endpoints
+  for_each                      = { for key, endpoint in local.private_endpoints : key => endpoint if local.terraform_dns_registration }
   source                        = "../../modules/terraform-azurerm-compeer-private-endpoint"
   name                          = coalesce(each.value.name, module.naming.private_endpoint_names[each.key == "default" ? "vault" : "vault-${each.key}"])
   resource_group_name           = coalesce(each.value.resource_group_name, var.resource_group_name)
@@ -103,6 +107,31 @@ module "private_endpoint" {
     member_name        = "default"
   }]
   tags = var.tags
+}
+
+module "policy_private_endpoint" {
+  for_each                      = { for key, endpoint in local.private_endpoints : key => endpoint if !local.terraform_dns_registration }
+  source                        = "../../modules/terraform-azurerm-compeer-private-endpoint/modules/policy-owned"
+  name                          = coalesce(each.value.name, module.naming.private_endpoint_names[each.key == "default" ? "vault" : "vault-${each.key}"])
+  resource_group_name           = coalesce(each.value.resource_group_name, var.resource_group_name)
+  location                      = coalesce(each.value.location, var.location)
+  subnet_id                     = each.value.subnet_id
+  custom_network_interface_name = each.value.custom_network_interface_name
+  policy_registration_approved  = var.policy_dns_registration_approved
+  private_service_connections = [{
+    name                           = coalesce(each.value.name, module.naming.private_endpoint_names[each.key == "default" ? "vault" : "vault-${each.key}"])
+    is_manual_connection           = false
+    private_connection_resource_id = module.vault.id
+    subresource_names              = ["vault"]
+  }]
+  ip_configurations = each.value.private_ip_address == null ? [] : [{
+    name               = "vault"
+    private_ip_address = each.value.private_ip_address
+    subresource_name   = "vault"
+    member_name        = "default"
+  }]
+  tags       = var.tags
+  depends_on = [terraform_data.tag_contract]
 }
 
 module "roles" {
@@ -140,7 +169,7 @@ module "keys" {
   key_vault_id = module.vault.id
   keys         = local.keys
   tags         = var.tags
-  depends_on   = [module.roles, module.private_endpoint]
+  depends_on   = [module.roles, module.private_endpoint, module.policy_private_endpoint]
 }
 
 module "metric_alerts" {

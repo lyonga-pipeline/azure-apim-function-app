@@ -94,7 +94,11 @@ resource "terraform_data" "contracts" {
 resource "terraform_data" "capability_contract" {
   lifecycle {
     precondition {
-      condition     = !var.key_vault.enabled || can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.vaultcore\\.azure\\.net$", var.platform.key_vault_private_dns_zone_id))
+      condition     = local.terraform_dns_registration || var.policy_dns_registration_approved
+      error_message = "Policy DNS mode requires explicit platform readiness approval; deploy DINE assignments and zone RBAC first. Applications must still pass live DNS acceptance."
+    }
+    precondition {
+      condition     = !var.key_vault.enabled || !local.terraform_dns_registration || can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.vaultcore\\.azure\\.net$", var.platform.key_vault_private_dns_zone_id))
       error_message = "Private Key Vault endpoints require the existing privatelink.vaultcore.azure.net zone ARM ID. Supply an approved zone reference or a readable platform output; no legacy workspace/state access or separate DNS provider is required."
     }
     precondition {
@@ -120,7 +124,7 @@ resource "terraform_data" "capability_contract" {
       error_message = "Selected platform action-group keys must exist and contain valid ARM IDs in the approved management contract. Supply an existing ID or explicitly create an application group; missing shared services never trigger fallback creation."
     }
     precondition {
-      condition = length(local.enabled_storage_accounts) == 0 || (
+      condition = length(local.enabled_storage_accounts) == 0 || !local.terraform_dns_registration || (
         can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.platform.storage_blob_private_dns_zone_id))
       )
       error_message = "Private Blob endpoints require the existing privatelink.blob.core.windows.net zone ARM ID. Supply an approved zone reference or a readable platform output; the workload identity needs linked-zone authorization."

@@ -44,6 +44,57 @@ run "disabled_vault_needs_no_vault_dns_reference" {
   }
 }
 
+run "policy_owned_dns_creates_private_resources_without_zone_inputs" {
+  command = apply
+  variables {
+    private_endpoint_dns_mode        = "policy"
+    policy_dns_registration_approved = true
+    monitoring                       = { enabled = false }
+    operations                       = {}
+    storage_accounts                 = { data = { replication_type = "ZRS", delete_retention_days = 30 } }
+    platform = {
+      management_contract_version   = "0.1.0"
+      connectivity_contract_version = "0.1.0"
+      log_analytics_workspace_id    = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      hub_virtual_network_id        = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
+      hub_address_space             = ["10.102.0.0/21"]
+      dns_server_ips                = ["10.102.0.10"]
+    }
+  }
+  assert {
+    condition = (
+      length(module.storage_endpoints) == 0 && length(module.storage_policy_endpoints) == 1 &&
+      length(module.key_vault[0].private_endpoints) == 1 && output.key_vault.private_endpoint_id != null &&
+      output.application_services.storage.data.private_endpoint_id != null &&
+      output.attachment_contract.key_vault_private_dns_zone_id == null &&
+      output.attachment_contract.storage_blob_private_dns_zone_id == null &&
+      length(output.attachment_contract.private_dns_zones) == 0 &&
+      output.security_baseline.private_endpoint_dns_mode == "policy" &&
+      !output.security_baseline.key_vault_public_access &&
+      !local.storage_settings.data.public_network_access_enabled &&
+      toset(keys(output.diagnostic_ownership.targets)) == toset(["key_vault", "storage.data.account", "storage.data.blob"])
+    )
+    error_message = "Policy-owned DNS must need no zone references, retain private audited resources and emit no automatic spoke zone-link intent."
+  }
+}
+
+run "policy_owned_dns_requires_explicit_platform_approval" {
+  command = plan
+  variables {
+    private_endpoint_dns_mode = "policy"
+    key_vault                 = { enabled = false }
+    monitoring                = { enabled = false }
+    operations                = {}
+  }
+  expect_failures = [terraform_data.capability_contract]
+}
+
+run "invalid_dns_owner_is_rejected" {
+  command = plan
+  variables { private_endpoint_dns_mode = "automatic" }
+  expect_failures = [var.private_endpoint_dns_mode]
+}
+
 run "mixed_storage_flags_filter_every_dependent_module" {
   command = apply
   variables {

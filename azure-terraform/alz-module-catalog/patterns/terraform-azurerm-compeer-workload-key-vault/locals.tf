@@ -1,4 +1,6 @@
 locals {
+  terraform_dns_registration = var.private_endpoint_dns_mode == "terraform"
+  private_endpoint_instances = merge(module.private_endpoint, module.policy_private_endpoint)
   role_assignments = merge(
     { for key, reader in var.secret_readers : "reader-${key}" => {
       scope                            = module.vault.id

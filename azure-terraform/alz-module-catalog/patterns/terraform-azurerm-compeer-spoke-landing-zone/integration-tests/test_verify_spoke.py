@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 
-from verify_spoke import secret_roundtrip, verify_control_plane, verify_private_dns
+from verify_spoke import secret_roundtrip, verify_control_plane, verify_private_dns, verify_policy_dns_readiness
 
 
 class DeploymentGuardTests(unittest.TestCase):
@@ -82,6 +82,39 @@ class ControlPlaneTests(unittest.TestCase):
 
     def test_complete_observed_baseline_passes(self):
         self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
+
+    def test_policy_group_uses_approved_catalog_and_needs_no_spoke_zone_link(self):
+        self.contract["security_baseline"]["private_endpoint_dns_mode"] = "policy"
+        self.contract["attachment_contract"]["key_vault_private_dns_zone_id"] = None
+        group = self.resources.pop(self.endpoint + "/privateDnsZoneGroups/default")
+        self.resources[self.endpoint + "/privateDnsZoneGroups"] = {"value": [group]}
+        del self.resources[self.zone + "/virtualNetworkLinks"]
+        self.assertEqual(verify_control_plane(self.contract, self.azure, {"key_vault": self.zone}), ["10.251.1.0/27"])
+        with self.assertRaisesRegex(AssertionError, "approved zone catalog"):
+            verify_control_plane(self.contract, self.azure)
+        self.resources[self.endpoint + "/privateDnsZoneGroups"]["value"] = []
+        with self.assertRaisesRegex(AssertionError, "not converged"):
+            verify_control_plane(self.contract, self.azure, {"key_vault": self.zone})
+
+    def test_policy_group_in_another_zone_is_not_accepted(self):
+        self.contract["security_baseline"]["private_endpoint_dns_mode"] = "policy"
+        self.resources[self.endpoint + "/privateDnsZoneGroups"] = {"value": [self.resources[self.endpoint + "/privateDnsZoneGroups/default"]]}
+        with self.assertRaisesRegex(AssertionError, "approved DNS zone"):
+            verify_control_plane(self.contract, self.azure, {"key_vault": self.zone.replace("/test/", "/wrong/")})
+
+    def test_policy_dns_resolves_to_actual_endpoint_ip_before_tcp_probe(self):
+        from contextlib import nullcontext
+        self.contract["key_vault"]["uri"] = "https://test.vault.azure.net/"
+        nic = self.endpoint + "-nic"
+        self.resources[self.endpoint]["properties"]["networkInterfaces"] = [{"id": nic}]
+        self.resources[nic] = {"properties": {"ipConfigurations": [{"properties": {"privateIPAddress": "10.251.1.4"}}]}}
+        calls = []
+        resolve = lambda *args: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.251.1.4", 443))]
+        connect = lambda address, timeout: (calls.append(address), nullcontext())[1]
+        verify_policy_dns_readiness(self.contract, self.azure, resolve, connect)
+        self.assertEqual(calls, [("test.vault.azure.net", 443)])
+        with self.assertRaisesRegex(AssertionError, "actual private IPs"):
+            verify_policy_dns_readiness(self.contract, self.azure, lambda *args: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.251.1.5", 443))], connect)
 
     def test_implicit_subnet_outbound_access_fails(self):
         for value in (True, None):

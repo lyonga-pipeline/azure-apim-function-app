@@ -1,4 +1,6 @@
 locals {
+  terraform_dns_registration = var.private_endpoint_dns_mode == "terraform"
+  storage_private_endpoints  = merge(module.storage_endpoints, module.storage_policy_endpoints)
   # The module input is also the composition-test contract; HCP subnet outputs may expose fewer fields.
   network_subnets = { for key, subnet in var.subnets : module.naming.subnet_names[key] => {
     address_prefixes                              = subnet.address_prefixes

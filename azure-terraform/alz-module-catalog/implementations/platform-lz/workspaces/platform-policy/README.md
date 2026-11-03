@@ -158,6 +158,17 @@ This strategy follows [Microsoft's DINE evaluation/existence-condition guidance]
 
 ## Controlled Rollout
 
+### Phase 2 Private Endpoint DNS
+
+`private_endpoint_dns_policies` is an additive opt-in map; empty preserves current
+ownership. The [example](private-endpoint-dns.tfvars.example) assigns verified
+Key Vault/Blob built-in DINE policies and grants their identities access at the
+exact existing zones. Legacy/manual zones are referenced, not adopted. External
+zone RBAC can stay with their owner. It starts no backfill automatically.
+Read the [rollout/state-handoff/readiness guide](../../../workload-lz/POLICY-DNS.md)
+before enabling spokes in Policy mode. Do not overlap existing DNS owners or
+treat policy assignment creation as successful DNS registration.
+
 1. Review the management plan: the audit account is pinned to the known deployed `cfaudit6e1ecusprdsa` name. No account replacement is intended. Apply blob diagnostics and publish public contracts.
 2. Inventory existing Policy/Terraform diagnostic settings. Exclusions stop future writes but do not delete prior duplicates. Confirm one intended ingestion path per resource and retain evidence before any cleanup.
 3. Verify all MG keys, ancestry, workspace names, existing assignments, and resource providers in the client environment. This code cannot detect other assignments already inherited in Azure. Check licensing and intentional differences between management and fleet Defender baselines.

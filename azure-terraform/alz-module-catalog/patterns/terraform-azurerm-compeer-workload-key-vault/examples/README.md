@@ -1,8 +1,8 @@
 # Standalone Workload Key Vault Examples
 
-One example root, with a common baseline and four reviewed configurations.
+One example root, with a common baseline and five reviewed configurations.
 Use a distinct root/state per real application/environment; these variants are
-alternative configurations, not four vaults to deploy into the same state.
+alternative configurations, not five vaults to deploy into the same state.
 The parent [module README](../README.md) documents security, ownership and upgrade
 contracts. All supplied values are synthetic; neither enable flag is set.
 
@@ -11,6 +11,7 @@ contracts. All supplied values are synthetic; neither enable flag is set.
 | Variant | Intended use |
 | --- | --- |
 | [minimal-private](variants/minimal-private.tfvars) | Standard vault, one private endpoint, central audit, application Secrets User. No keys/alerts or extra platform resources. |
+| [policy-owned-dns](variants/policy-owned-dns.tfvars) | Private vault/endpoint without a zone-ID input. Requires separately deployed platform DNS policies, permissions, explicit approval and live DNS acceptance. |
 | [advanced-private](variants/advanced-private.tfvars) | Premium HSM keys with rotation, two endpoint paths, static-IP/manual-approval examples, scoped crypto/secret groups, three alerts with existing routes, extra audit sinks. |
 | [reuse-diagnostics](variants/reuse-diagnostics.tfvars) | Private vault referencing an externally owned exact AuditEvent/AllMetrics setting instead of creating a duplicate. |
 | [restricted-public-exception](variants/restricted-public-exception.tfvars) | Non-baseline exception: no endpoint, narrow approved public egress/service-endpoint firewall rules, required RBAC/audit/recovery retained. Azure Policy can still deny it. |
@@ -35,7 +36,7 @@ terraform test -var-file=baseline.tfvars -var-file=variants/restricted-public-ex
 
 These tests use real module composition with mocked Azure. They check inert
 defaults, the approval gate and enabled configuration. They never deploy Azure.
-The repository regression runs all four variants automatically.
+The repository regression runs all five variants automatically.
 
 ## Prepare A Deployment
 

@@ -20,6 +20,8 @@ python3 -m unittest discover -s implementations/workload-lz/tests -v
 
 roots=(
   "$blueprint"
+  modules/terraform-azurerm-compeer-private-endpoint/modules/policy-owned
+  implementations/platform-lz/workspaces/platform-policy
   patterns/terraform-azurerm-compeer-workload-key-vault
   patterns/terraform-azurerm-compeer-hub-spoke-peering
   patterns/terraform-azurerm-compeer-network-peering

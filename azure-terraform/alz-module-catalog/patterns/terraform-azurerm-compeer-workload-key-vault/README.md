@@ -64,7 +64,7 @@ module "workload_vault" {
 ```
 
 The [runnable example root](examples) supplies typed variables, guarded provider
-configuration and four actual tfvars variants. Its values are synthetic and
+configuration and five actual tfvars variants. Its values are synthetic and
 deployment is disabled. Advanced configuration includes keyed endpoints,
 static private IPs/manual approval, existing audit sinks, rotating HSM-backed
 keys and alerts using existing notification groups.
@@ -90,6 +90,13 @@ ownership handoff before this state can manage them.
 
 ## Inputs
 
+DNS ownership is explicit: `private_endpoint_dns_mode="terraform"` preserves the
+default. `"policy"` plus `policy_dns_registration_approved=true` omits local zone
+groups and zone-ID requirements while retaining private endpoints and auditing.
+It requires deployed central policies/permissions, an existing-state handoff
+where applicable, and live readiness checks. Initial key creation is not supported
+in this mode. See [Policy DNS rollout](../../implementations/workload-lz/POLICY-DNS.md).
+
 Terraform **>=1.11.4, <2** and AzureRM **>=4.42, <5**; use the tested 4.81 provider
 selection in the examples. This pattern consumes the caller's azurerm provider.
 It checks tenant identity and confines endpoint subnets to that provider's workload
@@ -104,7 +111,7 @@ subscription. No extra hub/DNS write provider or full-state access is required.
 | domain | string, internal-apps | Workload naming domain. |
 | name | string, null | Approved globally unique name; null uses naming. A name change replaces the vault. |
 | sku_name | standard / premium, standard | Premium supports HSM-backed keys; it is not dedicated Managed HSM. |
-| private_endpoint_subnet_id, private_dns_zone_id | strings, null | Compatibility inputs for the default endpoint; both required unless private_endpoints is supplied. |
+| private_endpoint_subnet_id, private_dns_zone_id | strings, null | Default endpoint inputs. Subnet required; zone required only for Terraform DNS ownership. Explicit private_endpoints overrides these. |
 | private_endpoints | map(object), null | Explicit endpoint keys with subnet/zone IDs, optional name/RG/region/NIC/static IP/manual approval. Keep default when migrating the existing endpoint. |
 | network_access | object, private mode | Optional restricted_public allowlists and separately explicit trusted-service exception. No Allow-all mode. |
 | log_analytics_workspace_id | ARM ID, required | Approved central LAW, not its workspace GUID. |

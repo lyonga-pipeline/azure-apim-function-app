@@ -3,6 +3,14 @@ variable "enabled" {
   type        = bool
   default     = false
 }
+variable "private_endpoint_dns_mode" {
+  type    = string
+  default = "terraform"
+}
+variable "policy_dns_registration_approved" {
+  type    = bool
+  default = false
+}
 variable "deployment_approved" {
   description = "Explicit approval gate, not a substitute for reviewing the Terraform plan."
   type        = bool

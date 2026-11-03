@@ -104,19 +104,21 @@ module "workload_identity" {
 }
 
 module "key_vault" {
-  count                      = var.key_vault.enabled ? 1 : 0
-  source                     = "../terraform-azurerm-compeer-workload-key-vault"
-  resource_group_name        = module.resource_groups.group_names["security"]
-  location                   = var.location
-  tenant_id                  = var.tenant_id
-  environment                = var.environment
-  appcode                    = var.appcode
-  domain                     = var.domain
-  name                       = var.key_vault.name
-  sku_name                   = var.key_vault.sku_name
-  private_endpoint_subnet_id = local.subnet_ids["private_endpoints"]
-  private_dns_zone_id        = var.platform.key_vault_private_dns_zone_id
-  log_analytics_workspace_id = var.platform.log_analytics_workspace_id
+  count                            = var.key_vault.enabled ? 1 : 0
+  source                           = "../terraform-azurerm-compeer-workload-key-vault"
+  resource_group_name              = module.resource_groups.group_names["security"]
+  location                         = var.location
+  tenant_id                        = var.tenant_id
+  environment                      = var.environment
+  appcode                          = var.appcode
+  domain                           = var.domain
+  name                             = var.key_vault.name
+  sku_name                         = var.key_vault.sku_name
+  private_endpoint_subnet_id       = local.subnet_ids["private_endpoints"]
+  private_dns_zone_id              = local.terraform_dns_registration ? var.platform.key_vault_private_dns_zone_id : null
+  private_endpoint_dns_mode        = var.private_endpoint_dns_mode
+  policy_dns_registration_approved = var.policy_dns_registration_approved
+  log_analytics_workspace_id       = var.platform.log_analytics_workspace_id
   diagnostics = {
     enabled          = var.diagnostics.enabled
     existing_setting = lookup(var.diagnostics.existing_settings, "key_vault", null)
@@ -157,7 +159,7 @@ module "storage" {
 
 module "storage_endpoints" {
   source              = "../../modules/terraform-azurerm-compeer-private-endpoint"
-  for_each            = local.enabled_storage_accounts
+  for_each            = { for key, account in local.enabled_storage_accounts : key => account if local.terraform_dns_registration }
   name                = "${local.workload_stem}-${each.key}-blob-pe"
   resource_group_name = module.resource_groups.group_names["data"]
   location            = var.location
@@ -171,6 +173,24 @@ module "storage_endpoints" {
   private_dns_zone_group = [{ name = "default", private_dns_zone_ids = [var.platform.storage_blob_private_dns_zone_id] }]
   tags                   = module.tags.tags
   depends_on             = [module.nsg_associations, module.route_associations]
+}
+
+module "storage_policy_endpoints" {
+  source                       = "../../modules/terraform-azurerm-compeer-private-endpoint/modules/policy-owned"
+  for_each                     = { for key, account in local.enabled_storage_accounts : key => account if !local.terraform_dns_registration }
+  name                         = "${local.workload_stem}-${each.key}-blob-pe"
+  resource_group_name          = module.resource_groups.group_names["data"]
+  location                     = var.location
+  subnet_id                    = local.subnet_ids["private_endpoints"]
+  policy_registration_approved = var.policy_dns_registration_approved
+  private_service_connections = [{
+    name                           = "${each.key}-blob"
+    is_manual_connection           = false
+    private_connection_resource_id = module.storage[each.key].id
+    subresource_names              = ["blob"]
+  }]
+  tags       = module.tags.tags
+  depends_on = [module.nsg_associations, module.route_associations, terraform_data.capability_contract]
 }
 
 module "storage_access" {

@@ -189,6 +189,7 @@ locals {
       enabled = (
         try(var.policy.remediation.enabled, false) ||
         try(local.defender_policy.enabled, false) ||
+        length(local.private_endpoint_dns_dine_assignments) > 0 || # PHASE 2 NEW: central endpoint DNS ownership, opt-in.
         try(local.network_flow_logging_policy.enabled, false)
       )
       management_group_key = coalesce(
@@ -212,6 +213,7 @@ locals {
         local.diagnostic_profile_dine_assignments,
         local.defender_for_cloud_dine_assignments,
         local.network_flow_logging_dine_assignments,
+        local.private_endpoint_dns_dine_assignments, # PHASE 2 NEW: no changes when the approved target map is empty.
       )
     },
     local.log_analytics_workspace_id == "unset" ? {} : { log_analytics_workspace_id = local.log_analytics_workspace_id },

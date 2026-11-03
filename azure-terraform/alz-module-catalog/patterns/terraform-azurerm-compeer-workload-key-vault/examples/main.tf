@@ -29,30 +29,32 @@ resource "terraform_data" "approval" {
 }
 
 module "vault" {
-  source                     = "../"
-  count                      = var.enabled ? 1 : 0
-  resource_group_name        = var.resource_group_name
-  location                   = var.location
-  tenant_id                  = var.tenant_id
-  environment                = var.environment
-  appcode                    = var.appcode
-  domain                     = var.domain
-  name                       = var.name
-  sku_name                   = var.sku_name
-  private_endpoint_subnet_id = var.private_endpoint_subnet_id
-  private_dns_zone_id        = var.private_dns_zone_id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-  diagnostics                = var.diagnostics
-  secret_readers             = var.secret_readers
-  secret_officer_group_ids   = var.secret_officer_group_ids
-  tags                       = var.tags
-  private_endpoints          = var.private_endpoints
-  network_access             = var.network_access
-  data_access                = var.data_access
-  keys                       = var.keys
-  monitoring                 = var.monitoring
-  timeouts                   = var.timeouts
-  depends_on                 = [terraform_data.approval]
+  source                           = "../"
+  count                            = var.enabled ? 1 : 0
+  resource_group_name              = var.resource_group_name
+  location                         = var.location
+  tenant_id                        = var.tenant_id
+  environment                      = var.environment
+  appcode                          = var.appcode
+  domain                           = var.domain
+  name                             = var.name
+  sku_name                         = var.sku_name
+  private_endpoint_subnet_id       = var.private_endpoint_subnet_id
+  private_dns_zone_id              = var.private_dns_zone_id
+  private_endpoint_dns_mode        = var.private_endpoint_dns_mode
+  policy_dns_registration_approved = var.policy_dns_registration_approved
+  log_analytics_workspace_id       = var.log_analytics_workspace_id
+  diagnostics                      = var.diagnostics
+  secret_readers                   = var.secret_readers
+  secret_officer_group_ids         = var.secret_officer_group_ids
+  tags                             = var.tags
+  private_endpoints                = var.private_endpoints
+  network_access                   = var.network_access
+  data_access                      = var.data_access
+  keys                             = var.keys
+  monitoring                       = var.monitoring
+  timeouts                         = var.timeouts
+  depends_on                       = [terraform_data.approval]
 }
 
 output "vault" {
