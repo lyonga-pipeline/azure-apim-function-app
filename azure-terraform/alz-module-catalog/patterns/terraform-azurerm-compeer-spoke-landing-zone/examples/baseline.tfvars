@@ -1,11 +1,10 @@
 # SYNTHETIC REFERENCE VALUES ONLY, not approved Compeer production inputs.
 # Use this file PLUS exactly one variants/*.tfvars file. Terraform does not deep-merge objects.
 # For real use replace ALL UUIDs, addresses, names, principals, contacts, tags and approval dates.
-enabled                     = false
-deployment_approved         = false
-subscription_id             = "11111111-1111-1111-1111-111111111111"
-tenant_id                   = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-private_dns_subscription_id = "33333333-3333-3333-3333-333333333333"
+enabled             = false
+deployment_approved = false
+subscription_id     = "11111111-1111-1111-1111-111111111111"
+tenant_id           = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
 # Copy only approved PUBLIC output values; do not read or copy complete platform state.
 platform = {

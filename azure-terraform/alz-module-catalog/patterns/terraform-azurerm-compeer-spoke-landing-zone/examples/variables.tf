@@ -10,7 +10,11 @@ variable "deployment_approved" {
 }
 variable "subscription_id" { type = string }
 variable "tenant_id" { type = string }
-variable "private_dns_subscription_id" { type = string }
+variable "private_dns_subscription_id" {
+  description = "Deprecated compatibility input; ignored. Full existing-zone IDs are consumed by the workload provider."
+  type        = string
+  default     = null
+}
 variable "environment" {
   type    = string
   default = "prod"

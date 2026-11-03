@@ -16,10 +16,3 @@ provider "azurerm" {
   resource_provider_registrations = "none"
   resource_providers_to_register  = ["Microsoft.Network", "Microsoft.KeyVault", "Microsoft.ManagedIdentity", "Microsoft.Insights", "Microsoft.Storage", "Microsoft.RecoveryServices"]
 }
-provider "azurerm" {
-  alias = "dns"
-  features {}
-  subscription_id                 = var.private_dns_subscription_id
-  tenant_id                       = var.tenant_id
-  resource_provider_registrations = "none"
-}

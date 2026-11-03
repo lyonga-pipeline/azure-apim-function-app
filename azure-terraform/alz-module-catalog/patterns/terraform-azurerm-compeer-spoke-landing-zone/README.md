@@ -18,7 +18,7 @@ outside this repository; do not replace one edition's sources with the other.
 | --- | --- |
 | Terraform | Stable `>= 1.11.4, < 2.0.0`; Terraform 1.7 is unsupported. |
 | AzureRM | `>= 4.81.0, < 5.0.0`; select and commit approved provider locks in the caller. |
-| Providers | `azurerm` for the workload; `azurerm.dns` for the actual private-zone subscription, in the same tenant. No spoke-side hub provider. |
+| Providers | One `azurerm` workload provider. No DNS/hub alias. Full approved zone IDs can reference existing zones in other subscriptions; the workload identity needs the linked-resource permissions. |
 | Platform prerequisites | Existing subscription/MG placement, hub/NVA, central LAW, hybrid DNS and required private zones; management/connectivity public contracts `0.1.0`. |
 | Deployment identity | Approved workload resource-write and separately scoped role-assignment permissions, plus existing-zone read/join permissions. No hub peering write access is needed by this state. |
 | Operations | Approved IPAM inventory, tags, application rules and separate backend/state/run identities for production and non-production. Register required resource providers before deployment. |
@@ -76,8 +76,7 @@ provide their own enable/approval gates.
 module "spoke" {
   source = "./patterns/terraform-azurerm-compeer-spoke-landing-zone"
   providers = {
-    azurerm     = azurerm
-    azurerm.dns = azurerm.dns
+    azurerm = azurerm
   }
 
   subscription_id             = var.subscription_id
@@ -105,6 +104,33 @@ automatically visible to another HCP workspace. Each environment deployment root
 reads declared platform outputs with `tfe_outputs`, not full remote state.
 It additionally requires readable governance `mandatory_tag_keys`. Output-read
 authorization is separate from Azure authentication; do not enable broad state sharing.
+
+### Existing DNS Without Legacy Workspace Coupling
+
+The blueprint does not create, import or own Azure Private DNS zones. The vault
+and Blob **private endpoints** each include a `privateDnsZoneGroup` association
+to the supplied existing zone IDs. That endpoint child manages its records; it
+is not a new DNS zone or a VNet-to-zone link. See [DNS ownership](../../implementations/workload-lz/DNS-OWNERSHIP.md).
+
+Application roots can use an approved `private_dns_zone_ids` HCP Terraform/HCL
+variable set or root input. Zones may be manually created or owned by legacy
+code that Compeer cannot change. No legacy output, remote-state read or import
+is required. Existing connectivity outputs and `platform_inputs` remain supported
+fallbacks. The blueprint itself receives the resolved IDs through `platform`.
+
+The workload deployment identity creates the endpoints/zone groups and needs
+approved linked-zone read/join authorization. Removing a provider alias neither
+grants that authorization nor removes the need for correct DNS records. Central
+forwarding can avoid per-spoke zone links, but endpoint records still need an
+owner. This release retains Terraform-owned zone groups; it does not silently
+delegate registration to unconfigured Policy or portal operations.
+
+Upgrade callers and this module together: remove the old `azurerm.dns` mapping
+only after selecting a release without that alias requirement. Workload resource
+addresses and endpoint zone-group names are unchanged. The removed alias was
+used only by a client-context data source, never by managed DNS resources in
+this blueprint. Legacy peering patterns that actually manage DNS links keep
+their own provider requirements; this cleanup does not modify those states.
 
 ## Inputs
 

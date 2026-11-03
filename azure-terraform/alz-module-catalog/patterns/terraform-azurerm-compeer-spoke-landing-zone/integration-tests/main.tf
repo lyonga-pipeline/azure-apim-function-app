@@ -63,8 +63,7 @@ resource "azurerm_private_dns_zone" "blob" {
 module "spoke" {
   source = "./.."
   providers = {
-    azurerm     = azurerm
-    azurerm.dns = azurerm
+    azurerm = azurerm
   }
   subscription_id = var.test_subscription_id
   tenant_id       = data.azurerm_client_config.current.tenant_id

@@ -276,12 +276,6 @@ mock_provider "azurerm" {
     defaults = { subscription_id = "22222222-2222-2222-2222-222222222222", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = { subscription_id = "33333333-3333-3333-3333-333333333333", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
-  }
-}
 
 variables {
   subscription_id = "11111111-1111-1111-1111-111111111111"

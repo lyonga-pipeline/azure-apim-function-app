@@ -1,7 +1,4 @@
 data "azurerm_client_config" "workload" {}
-data "azurerm_client_config" "dns" {
-  provider = azurerm.dns
-}
 
 
 resource "terraform_data" "contracts" {
@@ -48,11 +45,9 @@ resource "terraform_data" "contracts" {
     precondition {
       condition = (
         data.azurerm_client_config.workload.subscription_id == var.subscription_id &&
-        data.azurerm_client_config.workload.tenant_id == var.tenant_id &&
-        data.azurerm_client_config.dns.tenant_id == var.tenant_id &&
-        (!var.key_vault.enabled || try(split("/", var.platform.key_vault_private_dns_zone_id)[2] == data.azurerm_client_config.dns.subscription_id, false))
+        data.azurerm_client_config.workload.tenant_id == var.tenant_id
       )
-      error_message = "Providers must target the workload and existing private-DNS subscriptions in the same tenant. The central attachment workspace independently validates its hub provider."
+      error_message = "The workload provider must target the configured workload subscription and tenant. Cross-subscription DNS zone-group authorization is checked by Azure using this same deployment identity."
     }
     precondition {
       condition = (
@@ -99,6 +94,10 @@ resource "terraform_data" "contracts" {
 resource "terraform_data" "capability_contract" {
   lifecycle {
     precondition {
+      condition     = !var.key_vault.enabled || can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.vaultcore\\.azure\\.net$", var.platform.key_vault_private_dns_zone_id))
+      error_message = "Private Key Vault endpoints require the existing privatelink.vaultcore.azure.net zone ARM ID. Supply an approved zone reference or a readable platform output; no legacy workspace/state access or separate DNS provider is required."
+    }
+    precondition {
       condition     = !local.create_failed_requests_alert || var.operations.create_action_group || length(var.operations.action_group_ids) + length(var.operations.platform_action_group_keys) > 0
       error_message = "Enabled alerts require approved action-group keys/IDs or explicit create_action_group with real recipients."
     }
@@ -122,10 +121,9 @@ resource "terraform_data" "capability_contract" {
     }
     precondition {
       condition = length(local.enabled_storage_accounts) == 0 || (
-        can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.platform.storage_blob_private_dns_zone_id)) &&
-        try(lower(split("/", var.platform.storage_blob_private_dns_zone_id)[2]) == lower(data.azurerm_client_config.dns.subscription_id), false)
+        can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.platform.storage_blob_private_dns_zone_id))
       )
-      error_message = "Private Blob storage requires the actual existing central Blob DNS-zone ID and its correct DNS provider subscription."
+      error_message = "Private Blob endpoints require the existing privatelink.blob.core.windows.net zone ARM ID. Supply an approved zone reference or a readable platform output; the workload identity needs linked-zone authorization."
     }
     precondition {
       condition = !local.is_production || alltrue([for key in keys(local.enabled_storage_accounts) :

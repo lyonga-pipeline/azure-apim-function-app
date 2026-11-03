@@ -11,7 +11,7 @@ resource "terraform_data" "approval" {
 module "blueprint" {
   source                        = "../"
   count                         = var.enabled ? 1 : 0
-  providers                     = { azurerm = azurerm, azurerm.dns = azurerm.dns }
+  providers                     = { azurerm = azurerm }
   subscription_id               = var.subscription_id
   tenant_id                     = var.tenant_id
   environment                   = var.environment

@@ -33,12 +33,6 @@ mock_provider "azurerm" {
     defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/operations/providers/Microsoft.Insights/components/orders-appi" }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = { subscription_id = "33333333-3333-3333-3333-333333333333", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
-  }
-}
 
 # The regression script supplies baseline.tfvars + EACH real variant, not test-only copies.
 run "example_is_disabled_until_approved" {
