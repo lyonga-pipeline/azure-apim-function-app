@@ -37,15 +37,6 @@ mock_provider "azurerm" {
     defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/orders-cus-uat-operations-rg/providers/Microsoft.Insights/actionGroups/orders-operations" }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = {
-      subscription_id = "33333333-3333-3333-3333-333333333333"
-      tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    }
-  }
-}
 mock_provider "time" {
   mock_resource "time_static" { defaults = { rfc3339 = "2026-10-26T12:00:00Z" } }
 }

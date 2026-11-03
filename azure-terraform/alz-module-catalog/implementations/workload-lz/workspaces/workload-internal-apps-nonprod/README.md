@@ -56,10 +56,11 @@ Required before enabling this profile:
 1. Supply real `tenant_id` and workload `subscription_id` using the existing HCP
    inputs or `TF_VAR_tenant_id` / `TF_VAR_subscription_id` locally. They are omitted
    from this file; blank or redacted IDs cannot authenticate Azure.
-2. Replace `private_dns_subscription_id` with the subscription owning the central
-   vault/blob zones. This input configures the DNS provider; readable producer
-   outputs do not automatically configure its subscription. An explicit value
-   removes the need for the legacy `connectivity_subscription_id` fallback.
+2. Supply the existing vault/blob zone ARM IDs through a scoped
+   `private_dns_zone_ids` HCP Terraform/HCL variable set or root tfvars input
+   when the connectivity outputs do not publish them. Manually created and
+   legacy-owned zones are supported without changing their old code or outputs.
+   There is no separate DNS provider; old DNS subscription inputs are ignored.
 3. Replace `spoke.egress_next_hop_ip` with the confirmed hub NVA/frontend IPv4
    **string**. It is mandatory even for network-only deployment because the
    blueprint supplies inspected UDRs. The repository's current `10.102.4.42`
@@ -67,8 +68,9 @@ Required before enabling this profile:
 4. Confirm the supplied client `10.40.10.0/24`, complete the IPAM/inspection
    inventory, verify hybrid DNS/LAW/vault/blob-zone outputs and confirm that the
    existing `primary` action group is the approved pilot audience.
-5. Authenticate the actual identity to both workload and DNS subscriptions, and
-   grant the scoped HCP output-read access. A subscription reported as unknown
+5. Authenticate the workload identity and approve scoped zone read/join access
+   for its endpoint DNS groups. Grant the scoped HCP output-read access for the
+   retained platform metadata. A subscription reported as unknown
    by Azure CLI is an authentication/access/context problem, not a subnet error.
 
 Use exactly this profile, not the create/reuse UAT profiles at the same time:
@@ -87,6 +89,9 @@ Mock verification substitutes only the missing identity/DNS/NVA fixture values:
 ```bash
 terraform test -test-directory=pilot-tests -var-file=pilot-two-subnets.tfvars.example
 ```
+
+See [DNS ownership](../../DNS-OWNERSHIP.md) for the variable-set value, source
+precedence, endpoint zone groups versus VNet links, and upgrade/permission checks.
 
 ## Create And Reuse Boundaries
 

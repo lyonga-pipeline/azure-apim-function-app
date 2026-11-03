@@ -21,11 +21,10 @@ resource "time_static" "deployment_created" {
 
 module "blueprint" {
   # Promote this exact release independently of every other environment.
-  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/99aa3e60e07b7e7fa91ac7a6f4bbbc0ea05f28df//azure-apim-function-app-99aa3e60e07b7e7fa91ac7a6f4bbbc0ea05f28df/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
+  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/79c82c14730b0593a2c2373b2f57c00b71d58f3c//azure-apim-function-app-79c82c14730b0593a2c2373b2f57c00b71d58f3c/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
   count  = local.enabled ? 1 : 0
   providers = {
-    azurerm     = azurerm
-    azurerm.dns = azurerm.dns
+    azurerm = azurerm
   }
   subscription_id = var.subscription_id
   tenant_id       = var.tenant_id

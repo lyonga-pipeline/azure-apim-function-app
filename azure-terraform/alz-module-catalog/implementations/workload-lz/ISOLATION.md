@@ -26,8 +26,8 @@ the same-state transition; removing the directory does not itself migrate state.
 
 ## Release Selection
 
-The repository roots independently pin the existing tested catalog snapshot
-`99aa3e60e07b7e7fa91ac7a6f4bbbc0ea05f28df` in their own `main.tf`.
+The repository roots independently pin the tested DNS-decoupled catalog snapshot
+`79c82c14730b0593a2c2373b2f57c00b71d58f3c` in their own `main.tf`.
 They initially select the same release; changing one root's pin does not update
 the other. The HTTPS archive includes the catalog's relative child dependencies,
 so those dependencies come from the same commit, not the live checkout.
@@ -92,8 +92,11 @@ Broad catalog CI is verification, not a deployment trigger. A changed/oversized
 VCS file list can still cause HCP to queue extra plans; the fixed source pin and
 manual production apply remain protections even then.
 
-Supply `subscription_id`, `tenant_id`, the DNS subscription, authentication and
-approved output-read access in each HCP workspace. Use separate production access
+Supply `subscription_id`, `tenant_id`, approved existing zone references,
+authentication and approved output-read access in each HCP workspace. The
+`private_dns_zone_ids` catalog can come from a scoped HCP variable set without
+changing the legacy DNS workspace; no separate DNS provider is used. See
+[DNS ownership](DNS-OWNERSHIP.md). Use separate production access
 policies/variable sets; do not give all environment identities cross-subscription
 write permissions. Shared non-secret platform IDs are not shared deployment
 credentials. Keep one state owner per Azure resource, including central attachment.
@@ -115,8 +118,10 @@ copying full platform state or granting broad state access.
 ## Existing-State Migration
 
 Do not change subscriptions, backend/workspace, resource names, inputs or the
-blueprint release at the same time as the wrapper removal. The initial pin is the
-existing code snapshot. Each root includes these same-state address moves:
+blueprint release at the same time as the wrapper removal. For a deployment
+still using the wrapper, first migrate at its existing blueprint release, then
+promote the DNS-decoupled release and caller changes. Each root retains these
+same-state address moves:
 
 | Previous address | New address |
 | --- | --- |

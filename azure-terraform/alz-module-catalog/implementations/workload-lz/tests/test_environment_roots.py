@@ -59,6 +59,24 @@ class EnvironmentRootTests(unittest.TestCase):
                 self.assertNotIn("azurerm.connectivity", source)
                 self.assertIn('data "tfe_outputs" "governance"', source)
 
+    def test_dns_references_do_not_require_a_dns_provider_or_legacy_state(self):
+        catalog = WORKLOAD.parents[1]
+        pattern = catalog / "patterns/terraform-azurerm-compeer-spoke-landing-zone"
+        contract = (pattern / "contracts.tf").read_text()
+        self.assertNotIn("azurerm.dns", contract)
+        self.assertNotIn("configuration_aliases", (pattern / "terraform.tf").read_text())
+        self.assertIn("var.platform.key_vault_private_dns_zone_id", contract)
+        self.assertIn("var.platform.storage_blob_private_dns_zone_id", contract)
+        for root in ROOTS:
+            with self.subTest(root=root.name):
+                self.assertNotIn('alias = "dns"', (root / "providers.tf").read_text())
+                self.assertNotIn("azurerm.dns", (root / "main.tf").read_text())
+                self.assertIn('variable "private_dns_zone_ids"', (root / "variables.tf").read_text())
+                source = (root / "locals.tf").read_text()
+                self.assertIn('lookup(var.private_dns_zone_ids, "key_vault", null)', source)
+                self.assertIn('lookup(var.private_dns_zone_ids, "storage_blob", null)', source)
+                self.assertNotIn("terraform_remote_state", source)
+
 
 class AdapterMigrationTests(unittest.TestCase):
     """Apply only local built-ins/time, then test the real roots' move declarations."""

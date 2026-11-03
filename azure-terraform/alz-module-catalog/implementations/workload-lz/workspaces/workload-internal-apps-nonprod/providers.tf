@@ -16,12 +16,5 @@ provider "azurerm" {
   resource_provider_registrations = "none"
   resource_providers_to_register  = ["Microsoft.Network", "Microsoft.KeyVault", "Microsoft.ManagedIdentity", "Microsoft.Insights", "Microsoft.Storage", "Microsoft.RecoveryServices"]
 }
-provider "azurerm" {
-  alias = "dns"
-  features {}
-  subscription_id                 = coalesce(var.private_dns_subscription_id, var.connectivity_subscription_id, "00000000-0000-0000-0000-000000000000")
-  tenant_id                       = var.tenant_id
-  resource_provider_registrations = "none"
-}
 provider "tfe" {}
 provider "time" {}

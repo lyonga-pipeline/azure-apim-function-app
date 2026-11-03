@@ -1,10 +1,9 @@
 # Ticket 204114 / NET-24.
+# Supply tenant_id/subscription_id through HCP inputs or local TF_VAR values.
+# Existing zone references can use a scoped private_dns_zone_ids HCP variable set.
 # Complete production-style UAT examples: create-new.tfvars.example and reuse-existing.tfvars.example.
 # Select ONE with -var-file; each replaces the complete spoke object. See README.md.
 # Actual production deployments belong in workload-internal-apps-prod, not this root.
-# Set tenant_id, subscription_id, connectivity_subscription_id and
-# private_dns_subscription_id in HCP Terraform, not as committed credentials.
-# connectivity_subscription_id is only a legacy DNS-subscription fallback; no hub provider is configured.
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"

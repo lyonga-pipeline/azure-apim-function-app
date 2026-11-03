@@ -9,10 +9,15 @@ governance_workspace_name   = "platform-compeer-governance"
 use_tfe_outputs             = true
 environment                 = "dev"
 
-# REQUIRED: UUID of the subscription owning the existing private DNS zones.
-# This is not necessarily the workload or provider execution subscription.
-# No connectivity_subscription_id is needed when this is set explicitly.
-private_dns_subscription_id = "REPLACE_EXISTING_PRIVATE_DNS_SUBSCRIPTION_UUID"
+# Existing/manually created zones can be referenced without legacy workspace access.
+# Prefer an approved HCP variable set supplying Terraform/HCL private_dns_zone_ids.
+# Or uncomment the following ROOT input after replacing both full resource IDs.
+# Omit it when the approved connectivity outputs already publish the correct zones.
+# private_dns_zone_ids = {
+#   key_vault    = "/subscriptions/REPLACE-DNS-SUB-UUID/resourceGroups/REPLACE-KV-ZONE-RG/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+#   storage_blob = "/subscriptions/REPLACE-DNS-SUB-UUID/resourceGroups/REPLACE-BLOB-ZONE-RG/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+# }
+# No private_dns_subscription_id or separate DNS provider is required.
 
 spoke = {
   enabled       = false

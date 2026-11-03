@@ -1,7 +1,6 @@
 # Ticket 204094 / NET-23.
-# Set tenant_id, subscription_id, connectivity_subscription_id and
-# private_dns_subscription_id in HCP Terraform, not as committed credentials.
-# connectivity_subscription_id is only a legacy DNS-subscription fallback; no hub provider is configured.
+# Supply tenant_id/subscription_id through HCP inputs or local TF_VAR values.
+# Existing zone references can use a scoped private_dns_zone_ids HCP variable set.
 tfe_organization            = "REPLACE_HCP_ORGANIZATION"
 management_workspace_name   = "REPLACE_MANAGEMENT_WORKSPACE"
 connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"

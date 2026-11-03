@@ -60,8 +60,10 @@ The committed terraform.tfvars files intentionally have enabled=false. Replace:
    off by default; R3.4 production coverage still requires security sign-off.
 
 Set these as Terraform-category HCP variables, not secret values in tfvars:
-tenant_id, subscription_id, connectivity_subscription_id and (if different)
-private_dns_subscription_id. Configure dynamic credentials/approved run identity
+tenant_id and subscription_id. Existing-zone references can be supplied once
+through a scoped private_dns_zone_ids HCP Terraform/HCL variable set; no DNS
+provider/subscription variable or legacy workspace outputs are required. See
+[DNS ownership](DNS-OWNERSHIP.md). Configure dynamic credentials/approved run identity
 and tightly scoped read access to the producers' non-sensitive outputs.
 Do not grant full-state access just to obtain resource IDs. Setting
 use_tfe_outputs=false requires complete approved platform_inputs instead.
@@ -116,9 +118,10 @@ manage_hub_attachment=false; the separately approved platform attachment state
 owns both directions and required links from the versioned public contract.
 Apply foundation first, attachment second, then validate application connectivity.
 Do not also deploy local half-peerings or duplicate private DNS zones.
-An existing zone may be in the old connectivity
-subscription; private_dns_subscription_id must point there, not automatically
-to the new hub subscription.
+Existing zones may remain in the old connectivity subscription or be manually
+created. Reference their actual full IDs; do not recreate/import them or modify
+their old workspace to make a spoke deploy. The existing DNS subscription inputs
+are deprecated compatibility fields and no longer configure a provider.
 
 The vault is created in this workload subscription's security RG. It is not
 the shared platform vault. Supply secret_officer_group_ids explicitly; the

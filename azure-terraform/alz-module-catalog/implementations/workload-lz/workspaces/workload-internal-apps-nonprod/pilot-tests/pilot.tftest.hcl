@@ -31,15 +31,6 @@ mock_provider "azurerm" {
     defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/operations/providers/Microsoft.Insights/components/pilot" }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = {
-      subscription_id = "33333333-3333-3333-3333-333333333333"
-      tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    }
-  }
-}
 mock_provider "time" {
   mock_resource "time_static" { defaults = { rfc3339 = "2026-11-02T12:00:00Z" } }
 }
@@ -84,10 +75,9 @@ run "pilot_is_disabled_and_uses_two_complete_subnets" {
 run "enabled_pilot_preserves_services_and_central_attachment_ownership" {
   command = apply
   variables {
-    subscription_id             = "11111111-1111-1111-1111-111111111111"
-    tenant_id                   = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    private_dns_subscription_id = "33333333-3333-3333-3333-333333333333"
-    spoke                       = merge(var.spoke, { enabled = true, egress_next_hop_ip = "10.102.4.42" })
+    subscription_id = "11111111-1111-1111-1111-111111111111"
+    tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    spoke           = merge(var.spoke, { enabled = true, egress_next_hop_ip = "10.102.4.42" })
   }
   assert {
     condition = (

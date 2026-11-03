@@ -1,4 +1,7 @@
 mock_provider "azurerm" {
+  mock_resource "azurerm_storage_account" {
+    defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/data/providers/Microsoft.Storage/storageAccounts/catalogfixture" }
+  }
   mock_data "azurerm_client_config" {
     defaults = { subscription_id = "11111111-1111-1111-1111-111111111111", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
   }
@@ -33,12 +36,6 @@ mock_provider "azurerm" {
     defaults = { subscription_id = "22222222-2222-2222-2222-222222222222", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = { subscription_id = "33333333-3333-3333-3333-333333333333", tenant_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
-  }
-}
 mock_provider "time" {
   mock_resource "time_static" { defaults = { rfc3339 = "2026-10-13T12:00:00Z" } }
 }
@@ -62,6 +59,70 @@ mock_provider "tfe" {
       values = { contract_version = "DO_NOT_READ_SENSITIVE_OUTPUTS" }
     }
   }
+}
+
+run "existing_zone_catalog_needs_no_dns_provider_or_legacy_outputs" {
+  command = apply
+  variables {
+    subscription_id              = "11111111-1111-1111-1111-111111111111"
+    tenant_id                    = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    private_dns_subscription_id  = "DEPRECATED-IGNORED"
+    connectivity_subscription_id = "DEPRECATED-IGNORED"
+    tfe_organization             = "integration-fixture"
+    private_dns_zone_ids = {
+      key_vault    = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/legacy-dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+      storage_blob = "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/manual-dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    }
+    # The typed catalog wins over legacy overrides and absent producer DNS outputs.
+    platform_inputs = { key_vault_private_dns_zone_id = "unset", storage_blob_private_dns_zone_id = "unset" }
+    spoke = {
+      enabled            = true
+      appcode            = "orders"
+      address_space      = ["10.200.0.0/20"]
+      egress_next_hop_ip = "10.102.0.4"
+      subnets = {
+        application       = { address_prefixes = ["10.200.0.0/24"] }
+        private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+      }
+      workload_tags = {
+        application         = "orders", owner = "Applications", source_repo = "ado://Compeer/workloads", criticality_tier = "tier-2",
+        data_classification = "confidential", lifecycle_state = "active", cost_center = "CC-0000", gl_category = "cloud-infrastructure", dr_tier = "silver"
+      }
+      storage_accounts = { data = { replication_type = "ZRS", delete_retention_days = 30 } }
+    }
+  }
+  override_data {
+    target = data.tfe_outputs.connectivity[0]
+    values = { nonsensitive_values = {
+      contract_version                  = "0.1.0"
+      hub_virtual_network_id            = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
+      hub_virtual_network_address_space = ["10.102.0.0/21"]
+      dns_server_ips                    = ["10.102.0.10", "10.102.0.11"]
+    } }
+  }
+  assert {
+    condition = (
+      output.attachment_contract.key_vault_private_dns_zone_id == var.private_dns_zone_ids.key_vault &&
+      output.attachment_contract.storage_blob_private_dns_zone_id == var.private_dns_zone_ids.storage_blob &&
+      output.spoke.key_vault.private_endpoint_id != null &&
+      output.spoke.application_services.storage.data.private_endpoint_id != null &&
+      !output.spoke.security_baseline.key_vault_public_access &&
+      toset(keys(output.spoke.diagnostic_ownership.targets)) == toset(["key_vault", "storage.data.account", "storage.data.blob"])
+    )
+    error_message = "Existing zone references must work across approved subscriptions without a DNS provider or DNS producer outputs, retaining private endpoints and audit coverage."
+  }
+}
+
+run "unknown_dns_catalog_key_is_rejected" {
+  command = plan
+  variables { private_dns_zone_ids = { typo = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" } }
+  expect_failures = [var.private_dns_zone_ids]
+}
+
+run "wrong_dns_service_zone_is_rejected" {
+  command = plan
+  variables { private_dns_zone_ids = { key_vault = "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net" } }
+  expect_failures = [var.private_dns_zone_ids]
 }
 
 run "committed_placeholders_are_inert" {

@@ -6,15 +6,6 @@ mock_provider "azurerm" {
     }
   }
 }
-mock_provider "azurerm" {
-  alias = "dns"
-  mock_data "azurerm_client_config" {
-    defaults = {
-      subscription_id = "33333333-3333-3333-3333-333333333333"
-      tenant_id       = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    }
-  }
-}
 run "synthetic_example_is_disabled" {
   command = plan
   assert {

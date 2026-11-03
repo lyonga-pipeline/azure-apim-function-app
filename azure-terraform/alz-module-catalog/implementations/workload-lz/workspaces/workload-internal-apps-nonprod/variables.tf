@@ -9,12 +9,12 @@ variable "tenant_id" {
   default     = null
 }
 variable "connectivity_subscription_id" {
-  description = "Compatibility fallback for private_dns_subscription_id only. No hub provider or peering write permission is used by the spoke."
+  description = "Deprecated compatibility input; ignored. The spoke uses only the workload provider and full existing-zone ARM IDs."
   type        = string
   default     = null
 }
 variable "private_dns_subscription_id" {
-  description = "Actual existing private-DNS subscription UUID; null uses connectivity_subscription_id."
+  description = "Deprecated compatibility input; ignored. A separate DNS provider/subscription context is no longer required."
   type        = string
   default     = null
 }
@@ -47,6 +47,18 @@ variable "platform_inputs" {
   description = "Explicit approved public-contract values, useful for an isolated integration environment."
   type        = any
   default     = {}
+}
+
+variable "private_dns_zone_ids" {
+  description = "Approved existing Azure Private DNS zone references, including manually created or legacy-owned zones. Supply through an HCP Terraform/HCL variable set or this root; no producer-workspace changes, zone creation or state adoption. Takes precedence over platform_inputs and connectivity outputs."
+  type        = map(string)
+  default     = {}
+  validation {
+    condition = length(setsubtract(toset(keys(var.private_dns_zone_ids)), toset(["key_vault", "storage_blob"]))) == 0 && alltrue([
+      for key, id in var.private_dns_zone_ids : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/privateDnsZones/${key == "key_vault" ? "privatelink\\.vaultcore\\.azure\\.net" : "privatelink\\.blob\\.core\\.windows\\.net"}$", id))
+    ])
+    error_message = "Use only key_vault/storage_blob keys with full ARM IDs for their approved existing service zones."
+  }
 }
 variable "spoke" {
   description = "Deployment configuration. Keep enabled=false until all placeholders and IPAM approvals are resolved."
