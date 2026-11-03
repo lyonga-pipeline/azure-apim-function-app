@@ -61,6 +61,38 @@ mock_provider "tfe" {
   }
 }
 
+run "policy_owned_root_needs_no_zone_catalog" {
+  command = apply
+  variables {
+    subscription_id      = "11111111-1111-1111-1111-111111111111"
+    tenant_id            = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    tfe_organization     = "integration-fixture"
+    private_dns_zone_ids = {}
+    platform_inputs      = { key_vault_private_dns_zone_id = "unset", storage_blob_private_dns_zone_id = "unset" }
+    spoke = {
+      enabled                          = true
+      appcode                          = "orders"
+      private_endpoint_dns_mode        = "policy"
+      policy_dns_registration_approved = true
+      address_space                    = ["10.200.0.0/20"]
+      egress_next_hop_ip               = "10.102.0.4"
+      subnets = {
+        application       = { address_prefixes = ["10.200.0.0/24"] }
+        private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+      }
+      workload_tags = {
+        application         = "orders", owner = "Applications", source_repo = "ado://Compeer/workloads", criticality_tier = "tier-2",
+        data_classification = "confidential", lifecycle_state = "active", cost_center = "CC-0000", gl_category = "cloud-infrastructure", dr_tier = "silver"
+      }
+      storage_accounts = { data = { replication_type = "ZRS", delete_retention_days = 30 } }
+    }
+  }
+  assert {
+    condition     = output.spoke.security_baseline.private_endpoint_dns_mode == "policy" && output.spoke.key_vault.private_endpoint_id != null && output.spoke.application_services.storage.data.private_endpoint_id != null && length(output.attachment_contract.private_dns_zones) == 0 && output.attachment_contract.key_vault_private_dns_zone_id == null
+    error_message = "The root must propagate policy ownership without any DNS zone inputs or zone-link intent."
+  }
+}
+
 run "existing_zone_catalog_needs_no_dns_provider_or_legacy_outputs" {
   command = apply
   variables {

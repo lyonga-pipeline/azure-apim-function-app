@@ -26,8 +26,8 @@ the same-state transition; removing the directory does not itself migrate state.
 
 ## Release Selection
 
-The repository roots independently pin the tested DNS-decoupled catalog snapshot
-`79c82c14730b0593a2c2373b2f57c00b71d58f3c` in their own `main.tf`.
+The repository roots independently pin the tested policy-DNS-capable catalog snapshot
+`a3125242ac4b1b4e55657b0275ad5bf3d1f9a816` in their own `main.tf`.
 They initially select the same release; changing one root's pin does not update
 the other. The HTTPS archive includes the catalog's relative child dependencies,
 so those dependencies come from the same commit, not the live checkout.

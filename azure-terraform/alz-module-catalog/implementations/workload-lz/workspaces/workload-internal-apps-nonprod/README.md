@@ -95,6 +95,12 @@ precedence, endpoint zone groups versus VNet links, and upgrade/permission check
 
 ## Create And Reuse Boundaries
 
+For approved platform-owned DNS registration, add
+`private_endpoint_dns_mode="policy"` and `policy_dns_registration_approved=true`
+inside `spoke`. Zone IDs are then configured only in `platform-policy`, not
+this root. Keep the default Terraform ownership for existing deployments until
+the [state handoff and live acceptance](../../POLICY-DNS.md) are complete.
+
 | Resource | Ownership and selection |
 | --- | --- |
 | Spoke RGs, VNet, subnets, NSGs, routes and workload UAMI | Created/owned by this workload state; neither example adopts existing networking |

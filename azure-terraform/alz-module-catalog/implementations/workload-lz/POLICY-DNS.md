@@ -73,6 +73,11 @@ Key Vault still requires a private endpoint subnet. Initial data-plane key creat
 is blocked in Policy mode: perform it separately after DNS, routing and RBAC
 readiness. The vault and storage remain private and audited.
 
+The reference spoke providers use `features.storage.data_plane_available=false`
+with AzureRM 4.81 so foundation creation uses ARM rather than needing private
+storage data-plane access before DNS exists. Preserve that setting in standalone
+callers. Secret/key/blob operations belong after the readiness gate.
+
 Both blueprint and vault examples include `variants/policy-owned-dns.tfvars`,
 used with their baseline. They remain disabled/unapproved; mock tests substitute
 approval only for test runs. Enable only after the platform rollout is verified.
@@ -85,6 +90,8 @@ inherit zone links or make routing transitive.
 ## Existing-State Handoff
 
 1. Back up state; record existing endpoint/group IDs, names and approved zone IDs.
+   Upgrade older wrappers in Terraform-owned mode first and review any automatic
+   move to a keyed default endpoint before changing its DNS owner.
 2. Deploy Policy and zone permissions, retaining rollout exclusions until ready.
 3. Change the caller mode and move endpoint module state to the policy helper.
    Do not apply an intermediate destroy/create plan.

@@ -20,8 +20,10 @@ resource "time_static" "deployment_created" {
 }
 
 module "blueprint" {
+  private_endpoint_dns_mode        = try(var.spoke.private_endpoint_dns_mode, "terraform")
+  policy_dns_registration_approved = try(var.spoke.policy_dns_registration_approved, false)
   # Promote this exact release independently of every other environment.
-  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/79c82c14730b0593a2c2373b2f57c00b71d58f3c//azure-apim-function-app-79c82c14730b0593a2c2373b2f57c00b71d58f3c/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
+  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/a3125242ac4b1b4e55657b0275ad5bf3d1f9a816//azure-apim-function-app-a3125242ac4b1b4e55657b0275ad5bf3d1f9a816/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
   count  = local.enabled ? 1 : 0
   providers = {
     azurerm = azurerm

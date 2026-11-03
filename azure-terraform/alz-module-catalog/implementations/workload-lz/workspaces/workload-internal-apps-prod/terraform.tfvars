@@ -7,6 +7,9 @@ connectivity_workspace_name = "REPLACE_CONNECTIVITY_WORKSPACE"
 governance_workspace_name   = "REPLACE_GOVERNANCE_WORKSPACE"
 
 spoke = {
+  # PHASE 2 NEW, opt-in after the platform DNS rollout and any existing-state handoff.
+  # private_endpoint_dns_mode        = "policy"
+  # policy_dns_registration_approved = true
   enabled                 = false
   appcode                 = "REPLACE_APPROVED_APPCODE"
   domain                  = "internal-apps"
