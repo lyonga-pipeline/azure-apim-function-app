@@ -3,7 +3,7 @@ mock_provider "azurerm" {}
 variables {
   resource_groups = {
     main = {
-      name     = "rg-platform-connectivity-prod"
+      name     = "platform-cus-prod-connectivity-rg"
       location = "eastus2"
       tags     = {}
     }
@@ -13,7 +13,7 @@ variables {
 run "create" {
   command = apply
   assert {
-    condition     = azurerm_resource_group.groups["main"].name == "rg-platform-connectivity-prod"
+    condition     = azurerm_resource_group.groups["main"].name == "platform-cus-prod-connectivity-rg"
     error_message = "name not wired"
   }
 }
@@ -23,7 +23,7 @@ run "rejects_trailing_period" {
   variables {
     resource_groups = {
       main = {
-        name     = "rg-bad."
+        name     = "orders-cus-prod-network-rg."
         location = "eastus2"
       }
     }
@@ -36,7 +36,7 @@ run "rejects_name_over_90_chars" {
   variables {
     resource_groups = {
       main = {
-        name     = join("", [for i in range(91) : "a"])
+        name     = "orders-cus-prod-${join("", [for i in range(91) : "a"])}"
         location = "eastus2"
       }
     }
@@ -49,7 +49,7 @@ run "rejects_name_with_disallowed_character" {
   variables {
     resource_groups = {
       main = {
-        name     = "rg-bad*name"
+        name     = "orders-cus-prod-network*rg"
         location = "eastus2"
       }
     }
@@ -70,7 +70,7 @@ run "rejects_unstable_key" {
   variables {
     resource_groups = {
       "-bad" = {
-        name     = "rg-platform-connectivity-prod"
+        name     = "platform-cus-prod-connectivity-rg"
         location = "eastus2"
       }
     }
@@ -83,11 +83,11 @@ run "rejects_duplicate_names" {
   variables {
     resource_groups = {
       main = {
-        name     = "rg-platform-connectivity-prod"
+        name     = "platform-cus-prod-connectivity-rg"
         location = "eastus2"
       }
       duplicate = {
-        name     = "RG-PLATFORM-CONNECTIVITY-PROD"
+        name     = "PLATFORM-CUS-PROD-CONNECTIVITY-RG"
         location = "eastus2"
       }
     }
@@ -100,7 +100,7 @@ run "rejects_blank_location" {
   variables {
     resource_groups = {
       main = {
-        name     = "rg-platform-connectivity-prod"
+        name     = "platform-cus-prod-connectivity-rg"
         location = " "
       }
     }
@@ -113,11 +113,11 @@ run "creates_multiple_groups" {
   variables {
     resource_groups = {
       network = {
-        name     = "rg-platform-network-prod"
+        name     = "platform-cus-prod-network-rg"
         location = "centralus"
       }
       backup = {
-        name     = "rg-platform-backup-prod"
+        name     = "platform-cus-prod-backup-rg"
         location = "centralus"
         tags     = { purpose = "backup" }
       }
@@ -125,7 +125,7 @@ run "creates_multiple_groups" {
   }
   assert {
     condition = (
-      azurerm_resource_group.groups["network"].name == "rg-platform-network-prod" &&
+      azurerm_resource_group.groups["network"].name == "platform-cus-prod-network-rg" &&
       azurerm_resource_group.groups["backup"].tags.purpose == "backup"
     )
     error_message = "multiple resource groups should be keyed and wired"
