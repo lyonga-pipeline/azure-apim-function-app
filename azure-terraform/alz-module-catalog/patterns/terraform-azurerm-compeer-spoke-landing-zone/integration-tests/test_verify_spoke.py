@@ -83,6 +83,19 @@ class ControlPlaneTests(unittest.TestCase):
     def test_complete_observed_baseline_passes(self):
         self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
 
+    def test_custom_endpoint_subnet_key_is_verified_without_legacy_key(self):
+        self.contract["security_baseline"]["private_endpoint_subnet_key"] = "endpoints"
+        self.contract["subnet_ids"] = {"endpoints": self.subnet}
+        self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
+        self.resources[self.subnet]["properties"]["delegations"] = [{"name": "invalid"}]
+        with self.assertRaisesRegex(AssertionError, "delegated"):
+            verify_control_plane(self.contract, self.azure)
+
+    def test_missing_selected_endpoint_subnet_is_not_silently_accepted(self):
+        self.contract["security_baseline"]["private_endpoint_subnet_key"] = "missing"
+        with self.assertRaisesRegex(AssertionError, "Configured private endpoint subnet"):
+            verify_control_plane(self.contract, self.azure)
+
     def test_policy_group_uses_approved_catalog_and_needs_no_spoke_zone_link(self):
         self.contract["security_baseline"]["private_endpoint_dns_mode"] = "policy"
         self.contract["attachment_contract"]["key_vault_private_dns_zone_id"] = None
@@ -251,6 +264,15 @@ class ControlPlaneTests(unittest.TestCase):
     def test_observed_private_storage_passes(self):
         self.add_storage()
         verify_control_plane(self.contract, self.azure)
+
+    def test_storage_uses_the_selected_endpoint_subnet(self):
+        self.add_storage()
+        self.contract["security_baseline"]["private_endpoint_subnet_key"] = "endpoints"
+        self.contract["subnet_ids"] = {"endpoints": self.subnet}
+        verify_control_plane(self.contract, self.azure)
+        self.resources[self.endpoint + "-blob"]["properties"]["subnet"]["id"] = self.subnet + "-wrong"
+        with self.assertRaisesRegex(AssertionError, "Storage data endpoint uses the wrong subnet"):
+            verify_control_plane(self.contract, self.azure)
 
     def test_public_storage_fails(self):
         account = self.add_storage()

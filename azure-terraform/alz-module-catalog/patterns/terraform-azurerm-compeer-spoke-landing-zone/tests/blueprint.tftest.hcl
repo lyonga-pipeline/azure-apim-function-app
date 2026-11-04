@@ -21,6 +21,159 @@ run "rejects_external_blob_diagnostics_on_another_account" {
   expect_failures = [terraform_data.reuse_contract]
 }
 
+run "flexible_subnet_keys_keep_the_full_security_baseline" {
+  command = apply
+  variables {
+    subnets = {
+      app               = { address_prefixes = ["10.200.0.0/24"] }
+      data              = { address_prefixes = ["10.200.1.0/24"] }
+      presentation      = { address_prefixes = ["10.200.2.0/24"] }
+      private_endpoints = { address_prefixes = ["10.200.3.0/27"] }
+    }
+  }
+  assert {
+    condition = (
+      toset(keys(output.subnet_ids)) == toset(["app", "data", "presentation", "private_endpoints"]) &&
+      toset(keys(local.network_subnets)) == toset(["prod-app-subnet", "prod-data-subnet", "prod-presentation-subnet", "prod-private-endpoints-subnet"]) &&
+      length(module.network_security_groups) == 4 && length(module.route_tables) == 4 &&
+      length(module.nsg_associations) == 4 && length(module.route_associations) == 4 &&
+      alltrue([for key in keys(var.subnets) :
+        local.nsg_rules[key].baseline-deny-inbound.priority == 4096 &&
+        local.routes[key].default-egress.next_hop_in_ip_address == var.egress_next_hop_ip
+      ]) &&
+      local.nsg_rules.presentation.baseline-private-https.destination_address_prefixes == toset(["10.200.3.0/27"])
+    )
+    error_message = "Arbitrary subnet purposes must use approved names and receive every NSG, UDR and association."
+  }
+}
+
+run "custom_endpoint_subnet_key_works_for_terraform_dns" {
+  command = apply
+  variables {
+    private_endpoint_subnet_key = "service_endpoints"
+    subnets = {
+      app               = { address_prefixes = ["10.200.0.0/24"] }
+      data              = { address_prefixes = ["10.200.1.0/24"] }
+      service_endpoints = { address_prefixes = ["10.200.2.0/27"] }
+    }
+    storage_accounts = { data = {} }
+  }
+  assert {
+    condition = (
+      output.security_baseline.private_endpoint_subnet_key == "service_endpoints" &&
+      !contains(keys(output.subnet_ids), "private_endpoints") &&
+      module.key_vault[0].private_endpoint_configuration.subnet_id == output.subnet_ids.service_endpoints &&
+      output.application_services.storage.data.private_endpoint_id != null &&
+      local.nsg_rules.service_endpoints.baseline-private-https.direction == "Inbound" &&
+      local.nsg_rules.app.baseline-private-https.destination_address_prefixes == toset(["10.200.2.0/27"])
+    )
+    error_message = "Both vault and Blob endpoints and their NSG rules must use the selected logical subnet key."
+  }
+}
+
+run "custom_endpoint_subnet_key_works_for_policy_dns" {
+  command = apply
+  variables {
+    private_endpoint_dns_mode        = "policy"
+    policy_dns_registration_approved = true
+    private_endpoint_subnet_key      = "endpoints"
+    subnets = {
+      api       = { address_prefixes = ["10.200.0.0/24"] }
+      endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+    storage_accounts = { data = {} }
+  }
+  assert {
+    condition = (
+      length(module.storage_policy_endpoints) == 1 && length(module.storage_endpoints) == 0 &&
+      module.key_vault[0].private_endpoint_configuration.subnet_id == output.subnet_ids.endpoints &&
+      output.security_baseline.private_endpoint_subnet_key == "endpoints" &&
+      length(output.attachment_contract.private_dns_zones) == 0
+    )
+    error_message = "Policy-owned DNS must preserve the same configurable endpoint subnet without restoring DNS coupling."
+  }
+}
+
+run "custom_endpoint_key_must_exist" {
+  command = plan
+  variables { private_endpoint_subnet_key = "missing" }
+  expect_failures = [var.subnets]
+}
+
+run "custom_endpoint_subnet_must_not_be_delegated" {
+  command = plan
+  variables {
+    private_endpoint_subnet_key = "endpoints"
+    subnets = {
+      web       = { address_prefixes = ["10.200.0.0/24"] }
+      endpoints = { address_prefixes = ["10.200.1.0/27"], delegations = { web = { name = "Microsoft.Web/serverFarms" } } }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "custom_endpoint_subnet_must_not_have_service_endpoints" {
+  command = plan
+  variables {
+    private_endpoint_subnet_key = "endpoints"
+    subnets = {
+      web       = { address_prefixes = ["10.200.0.0/24"] }
+      endpoints = { address_prefixes = ["10.200.1.0/27"], service_endpoints = ["Microsoft.Storage"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "invalid_subnet_key_is_rejected" {
+  command = plan
+  variables {
+    subnets = {
+      "bad name"        = { address_prefixes = ["10.200.0.0/24"] }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "normalized_subnet_name_collisions_are_rejected" {
+  command = plan
+  variables {
+    subnets = {
+      private-endpoints = { address_prefixes = ["10.200.0.0/27"] }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "sbx_alias_keeps_sandbox_naming_tags_and_security" {
+  command = apply
+  variables {
+    environment = "sbx"
+    workload_tags = {
+      application      = "orders", owner = "Applications", source_repo = "ado://example/sandbox", created_on = "2026-10-13",
+      criticality_tier = "tier-2", data_classification = "confidential", lifecycle_state = "active", cost_center = "CC-0000",
+      gl_category      = "cloud-infrastructure", dr_tier = "silver", expiration_date = "2027-01-13"
+    }
+  }
+  assert {
+    condition = (
+      module.tags.tags.environment == "sandbox" && module.tags.tags.expiration_date == "2027-01-13" &&
+      module.naming.subnet_names.app == "sandbox-app-subnet" &&
+      output.attachment_contract.naming_context.environment == "sandbox" && output.context.environment == "sandbox" &&
+      output.environment_profile.tier == "non-production" &&
+      output.security_baseline.key_vault_rbac && !output.security_baseline.key_vault_public_access
+    )
+    error_message = "sbx must use the established sandbox naming/tag token, expiry and the unchanged private RBAC baseline."
+  }
+}
+
+run "sbx_cannot_bypass_sandbox_expiry" {
+  command = plan
+  variables { environment = "sbx" }
+  expect_failures = [var.workload_tags]
+}
+
 run "rejects_alert_reuse_without_an_existing_rule" {
   command = plan
   variables {

@@ -68,7 +68,7 @@ output "attachment_contract" {
     tags                             = module.tags.tags
     naming_context = {
       region      = var.location
-      environment = var.environment
+      environment = local.naming_environment
       domain      = var.domain
       appcode     = var.appcode
     }
@@ -110,6 +110,7 @@ output "security_baseline" {
   description = "Configuration evidence, not proof of runtime connectivity or policy compliance."
   value = {
     default_outbound_access_enabled = false
+    private_endpoint_subnet_key     = var.private_endpoint_subnet_key
     egress_next_hop_ip              = var.egress_next_hop_ip
     key_vault_public_access         = try(module.key_vault[0].security_configuration.public_network_access_enabled, null)
     key_vault_rbac                  = try(module.key_vault[0].security_configuration.rbac_authorization_enabled, null)
@@ -159,7 +160,7 @@ output "context" {
   value = {
     subscription_id = var.subscription_id
     tenant_id       = var.tenant_id
-    environment     = var.environment
+    environment     = local.naming_environment
     location        = var.location
     appcode         = var.appcode
     domain          = var.domain

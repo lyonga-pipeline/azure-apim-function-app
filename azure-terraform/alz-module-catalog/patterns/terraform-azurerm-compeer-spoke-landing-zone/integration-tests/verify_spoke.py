@@ -35,6 +35,8 @@ def verify_control_plane(contract, command=az_json, dns_zone_ids=None):
         url = f"https://management.azure.com{resource_id}?api-version={version}"
         return command("rest", "--method", "get", "--url", url)
 
+    endpoint_subnet_key = contract["security_baseline"].get("private_endpoint_subnet_key", "private_endpoints")
+    require(endpoint_subnet_key in contract["subnet_ids"], "Configured private endpoint subnet is missing")
     private_prefixes = []
     for key, subnet_id in contract["subnet_ids"].items():
         subnet = get(subnet_id)["properties"]
@@ -61,7 +63,7 @@ def verify_control_plane(contract, command=az_json, dns_zone_ids=None):
                 and route["properties"].get("nextHopIpAddress") == contract["security_baseline"]["egress_next_hop_ip"]
                 for route in routes
             ), f"Missing approved inspected route {prefix} on {key}")
-        if key == "private_endpoints":
+        if key == endpoint_subnet_key:
             private_prefixes = subnet.get("addressPrefixes", []) or [subnet["addressPrefix"]]
             require(not subnet.get("delegations"), "Private endpoint subnet is delegated")
 
@@ -92,7 +94,7 @@ def verify_control_plane(contract, command=az_json, dns_zone_ids=None):
 
     endpoint_id = contract["key_vault"]["private_endpoint_id"]
     endpoint = get(endpoint_id)["properties"]
-    require(endpoint.get("subnet", {}).get("id", "").lower() == contract["subnet_ids"]["private_endpoints"].lower(), "Vault endpoint uses the wrong subnet")
+    require(endpoint.get("subnet", {}).get("id", "").lower() == contract["subnet_ids"][endpoint_subnet_key].lower(), "Vault endpoint uses the wrong subnet")
     connections = endpoint.get("privateLinkServiceConnections", [])
     require(any(
         connection["properties"].get("privateLinkServiceId", "").lower() == vault_id.lower()
@@ -176,7 +178,8 @@ def verify_application_services(contract, get, dns_zone_ids=None):
                 and blob.get("containerDeleteRetentionPolicy", {}).get("enabled") is True
                 and blob.get("containerDeleteRetentionPolicy", {}).get("days") == account["delete_retention_days"], f"Storage {key} recovery controls are missing")
         endpoint = get(account["private_endpoint_id"])["properties"]
-        require(endpoint.get("subnet", {}).get("id", "").lower() == contract["subnet_ids"]["private_endpoints"].lower(), f"Storage {key} endpoint uses the wrong subnet")
+        endpoint_subnet_key = contract["security_baseline"].get("private_endpoint_subnet_key", "private_endpoints")
+        require(endpoint.get("subnet", {}).get("id", "").lower() == contract["subnet_ids"][endpoint_subnet_key].lower(), f"Storage {key} endpoint uses the wrong subnet")
         require(any(connection["properties"].get("privateLinkServiceId", "").lower() == account["id"].lower()
                     and connection["properties"].get("groupIds") == ["blob"]
                     and connection["properties"].get("privateLinkServiceConnectionState", {}).get("status") == "Approved"

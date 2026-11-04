@@ -1,4 +1,6 @@
 locals {
+  # sbx is an input alias; use the established sandbox token with existing naming/tag releases.
+  naming_environment         = var.environment == "sbx" ? "sandbox" : var.environment
   terraform_dns_registration = var.private_endpoint_dns_mode == "terraform"
   storage_private_endpoints  = merge(module.storage_endpoints, module.storage_policy_endpoints)
   # The module input is also the composition-test contract; HCP subnet outputs may expose fewer fields.
@@ -105,7 +107,7 @@ locals {
         source_address_prefixes = distinct(concat(var.address_space, var.private_endpoint_client_cidrs)), destination_address_prefix = "*",
         access                  = "Allow", priority = 110, direction = "Inbound"
       }
-      } : rule_name => rule if key == "private_endpoints"
+      } : rule_name => rule if key == var.private_endpoint_subnet_key
     },
     { for rule_name, rule in {
       baseline-health-probe = {
@@ -126,14 +128,14 @@ locals {
       }
       baseline-private-https = {
         protocol                     = "Tcp", source_port_range = "*", destination_port_range = "443", source_address_prefix = "*",
-        destination_address_prefixes = toset(try(var.subnets.private_endpoints.address_prefixes, [])),
+        destination_address_prefixes = toset(try(var.subnets[var.private_endpoint_subnet_key].address_prefixes, [])),
         access                       = "Allow", priority = 120, direction = "Outbound"
       }
       baseline-egress-https = {
         protocol = "Tcp", source_port_range = "*", destination_port_range = "443", source_address_prefix = "*", destination_address_prefix = "Internet",
         access   = "Allow", priority = 200, direction = "Outbound"
       }
-      } : rule_name => rule if key != "private_endpoints"
+      } : rule_name => rule if key != var.private_endpoint_subnet_key
     }
   ) }
   nsg_rules = { for key, subnet in var.subnets : key => {

@@ -11,6 +11,7 @@ Use `baseline.tfvars` plus **exactly one** variant. Objects are replaced, not de
 | Variant | Resources And Ownership |
 | --- | --- |
 | phase-one | Private audited vault, UAMI and network foundation; optional services off |
+| sandbox-flexible-subnets | Sandbox (`sbx` alias), required expiry, app/data/presentation/private-endpoint subnets, private audited vault and ZRS Blob storage |
 | policy-owned-dns | Private audited vault and ZRS Blob endpoints without zone-ID inputs; platform DINE owns registration. Requires separate platform readiness approval. |
 | all-optional-off | Approved secretless application: no vault/storage/telemetry/alerts/backup |
 | production-create | Private ZRS Blob storage, dedicated vault, new application telemetry, new failed-request rule and separate on-call group |

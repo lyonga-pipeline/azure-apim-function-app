@@ -139,6 +139,43 @@ default. Opt-in `"policy"` plus `policy_dns_registration_approved=true` creates
 private endpoints without zone IDs or spoke DNS-link intent. Existing endpoint
 adoption needs a state handoff. See [rollout and acceptance](../../implementations/workload-lz/POLICY-DNS.md).
 
+### Flexible Subnets And Sandbox
+
+`application` is not a required subnet key. Use `app`, `data`, `presentation`
+or other approved purposes; there is no fixed subnet-purpose list or maximum of two.
+The blueprint retains a minimum of two subnets including its selected endpoint subnet.
+It does not require an unused data subnet just because this example shows one.
+
+```hcl
+# Inside spoke in implementation-root tfvars; direct module callers pass these inputs directly.
+private_endpoint_subnet_key = "private_endpoints"
+subnets = {
+  app               = { address_prefixes = ["10.200.0.0/24"] }
+  data              = { address_prefixes = ["10.200.1.0/24"] }
+  presentation      = { address_prefixes = ["10.200.2.0/24"] }
+  private_endpoints = { address_prefixes = ["10.200.3.0/27"] }
+}
+```
+
+Names still come from the naming module, e.g. `dev-app-subnet` and
+`dev-private-endpoints-subnet`. Keys use alphanumeric segments with single hyphens
+or underscores; underscores become hyphens. Normalized name collisions fail validation.
+Every subnet gets an NSG, inspected route table and associations. To use a different
+endpoint purpose, change both the selector and its map key, e.g. `endpoints`.
+Keep existing deployed keys: renaming keys changes Terraform addresses and may replace
+subnets; this update does not migrate or rename existing resources automatically.
+
+Both `sandbox` and `sbx` are supported. `sbx` deliberately canonicalizes to
+`sandbox` in child naming/tag modules and published context, so existing pinned
+modules need no new environment token. Both require an approved
+`workload_tags.expiration_date` after `created_on` and retain the same private,
+RBAC and audit baseline. Expiry metadata does not itself schedule deletion.
+Use a separate state/workspace for sandbox; never change a deployed dev/prod state's
+environment to repurpose it. See the complete
+[sandbox/subnet variant](examples/variants/sandbox-flexible-subnets.tfvars).
+
+### Input Reference
+
 [variables.tf](variables.tf) is the authoritative nested schema. `object` and
 `map(object)` below are schema summaries, not untyped inputs.
 
@@ -146,12 +183,13 @@ adoption needs a state handoff. See [rollout and acceptance](../../implementatio
 | --- | --- | --- | --- |
 | `subscription_id` | `string` | Required | Existing workload subscription UUID; must match the provider. |
 | `tenant_id` | `string` | Required | Common Entra tenant UUID. |
-| `environment` | `string` | Required | `prod`, `dev`, `test`, `uat`, `np1`, `np2`, `np3`; `nonprod` is not a valid token. |
+| `environment` | `string` | Required | `prod`, `dev`, `test`, `uat`, `sandbox`, or `sbx` (alias of `sandbox` for names/tags). Legacy `np1`/`np2`/`np3` remain compatible; `nonprod` is only a workspace label. |
 | `appcode` | `string` | Required | Approved application naming/tag token. |
 | `workload_tags` | `object` | Required | Stable, approved business/governance metadata; fields below. |
 | `platform` | `object` | Required | Existing public platform contracts and resource IDs; fields below. |
 | `address_space` | `list(string)` | Required | IPAM-approved IPv4 VNet ranges. |
-| `subnets` | `map(object)` | Required | At least two subnets, including non-delegated `private_endpoints`; prefixes /29 or larger. |
+| `subnets` | `map(object)` | Required | At least two freely chosen logical keys; prefixes /29 or larger. Naming, uniqueness, containment and security rules still apply. |
+| `private_endpoint_subnet_key` | `string` | `"private_endpoints"` | Selects an existing subnet key for vault/Blob endpoints and their baseline rules; no delegation or service endpoints on this subnet. |
 | `egress_next_hop_ip` | `string` | Required | Approved NVA/firewall IPv4 frontend within the hub range. |
 | `location` | `string` | `"centralus"` | Supported Azure region; naming derives its abbreviation. |
 | `domain` | `string` | `"internal-apps"` | Workload naming domain. |
@@ -172,7 +210,8 @@ adoption needs a state handoff. See [rollout and acceptance](../../implementatio
 **Tag fields:** `application`, `owner`, `source_repo`, `created_on`,
 `criticality_tier`, `data_classification`, `lifecycle_state`, `cost_center`,
 `gl_category`, `dr_tier`. Optional: `application_component`, `modified_on`,
-`additional_tags`. Keep `created_on` lifecycle-owned and stable, never `timestamp()`;
+`additional_tags`, `time_bound_exception`, and `expiration_date` (required for sandbox/sbx).
+Keep `created_on` lifecycle-owned and stable, never `timestamp()`;
 the environment root persists it with `time_static`. Approved mandatory keys must exist.
 
 **Platform fields:** `management_contract_version` and
@@ -289,6 +328,7 @@ not client deployment approval. Combine the baseline with exactly one variant:
 | Variant | Use case |
 | --- | --- |
 | [phase-one](examples/variants/phase-one.tfvars) | Dedicated audited vault and foundation; optional services off. |
+| [sandbox-flexible-subnets](examples/variants/sandbox-flexible-subnets.tfvars) | Sandbox/sbx expiry, app/data/presentation/endpoint subnets and audited private data services. |
 | [all-optional-off](examples/variants/all-optional-off.tfvars) | Approved secretless workload; network and identity remain. |
 | [production-create](examples/variants/production-create.tfvars) | ZRS Blob storage, telemetry, alert and dedicated contacts. |
 | [new-telemetry-shared-alert-routing](examples/variants/new-telemetry-shared-alert-routing.tfvars) | New telemetry/rule with platform action-group reuse. |
@@ -319,8 +359,8 @@ is not reduced by choosing a non-production profile.
   overwritten. Use one address/prefix-set/ASG form per side and one destination-port
   form; omitted source ports mean `*`. Internet-wide inbound allows are rejected.
   ASGs must be in the workload subscription; application owners verify NIC/VNet membership.
-- **Private access:** the `private_endpoints` subnet is always required, even
-  when optional services are off; no delegation or service endpoints there.
+- **Private access:** the subnet selected by `private_endpoint_subnet_key` is
+  always required, even when optional services are off; no delegation or service endpoints there.
   Private-zone links do not configure DNS forwarders. Gateway transit is intent
   only, requiring separate network approval and paired central attachment flags.
 - **Vault/storage:** RBAC-only private vault, ACL Deny, purge protection and

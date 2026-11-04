@@ -3,7 +3,7 @@ module "naming" {
   source                      = "../../modules/terraform-azurerm-compeer-naming"
   scope                       = "workload"
   region                      = var.location
-  environment                 = var.environment
+  environment                 = local.naming_environment
   domain                      = var.domain
   appcode                     = var.appcode
   resource_group_keys         = values(local.resource_group_purposes)
@@ -17,7 +17,7 @@ module "naming" {
 
 module "tags" {
   source                = "../../modules/terraform-azurerm-compeer-platform-tags"
-  environment           = var.environment
+  environment           = local.naming_environment
   appcode               = var.appcode
   application           = var.workload_tags.application
   owner                 = var.workload_tags.owner
@@ -109,12 +109,12 @@ module "key_vault" {
   resource_group_name              = module.resource_groups.group_names["security"]
   location                         = var.location
   tenant_id                        = var.tenant_id
-  environment                      = var.environment
+  environment                      = local.naming_environment
   appcode                          = var.appcode
   domain                           = var.domain
   name                             = var.key_vault.name
   sku_name                         = var.key_vault.sku_name
-  private_endpoint_subnet_id       = local.subnet_ids["private_endpoints"]
+  private_endpoint_subnet_id       = local.subnet_ids[var.private_endpoint_subnet_key]
   private_dns_zone_id              = local.terraform_dns_registration ? var.platform.key_vault_private_dns_zone_id : null
   private_endpoint_dns_mode        = var.private_endpoint_dns_mode
   policy_dns_registration_approved = var.policy_dns_registration_approved
@@ -163,7 +163,7 @@ module "storage_endpoints" {
   name                = "${local.workload_stem}-${each.key}-blob-pe"
   resource_group_name = module.resource_groups.group_names["data"]
   location            = var.location
-  subnet_id           = local.subnet_ids["private_endpoints"]
+  subnet_id           = local.subnet_ids[var.private_endpoint_subnet_key]
   private_service_connections = [{
     name                           = "${each.key}-blob"
     is_manual_connection           = false
@@ -181,7 +181,7 @@ module "storage_policy_endpoints" {
   name                         = "${local.workload_stem}-${each.key}-blob-pe"
   resource_group_name          = module.resource_groups.group_names["data"]
   location                     = var.location
-  subnet_id                    = local.subnet_ids["private_endpoints"]
+  subnet_id                    = local.subnet_ids[var.private_endpoint_subnet_key]
   policy_registration_approved = var.policy_dns_registration_approved
   private_service_connections = [{
     name                           = "${each.key}-blob"
@@ -233,7 +233,7 @@ module "alert_contacts" {
   source              = "../../modules/terraform-azurerm-compeer-actiongroup"
   count               = local.create_action_group ? 1 : 0
   name                = "${local.workload_stem}-operations-ag"
-  short_name          = substr("${var.appcode}-${var.environment}", 0, 12)
+  short_name          = substr("${var.appcode}-${local.naming_environment}", 0, 12)
   resource_group_name = module.resource_groups.group_names["operations"]
   receivers = { email = { for email in var.operations.notification_emails : email => {
     email_address = email, use_common_alert_schema = true
