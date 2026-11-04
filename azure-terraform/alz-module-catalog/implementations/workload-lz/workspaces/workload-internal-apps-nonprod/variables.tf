@@ -75,7 +75,7 @@ variable "environment" {
   type        = string
   default     = "dev"
   validation {
-    condition     = contains(["dev", "test", "uat", "np1", "np2", "np3"], var.environment)
-    error_message = "The non-production workspace only accepts dev, test, uat, np1, np2 or np3."
+    condition     = contains(["dev", "test", "uat", "sandbox", "sbx", "np1", "np2", "np3"], var.environment)
+    error_message = "Use dev, test, uat, sandbox or sbx. Legacy np1/np2/np3 remain supported; production must use its own workspace."
   }
 }

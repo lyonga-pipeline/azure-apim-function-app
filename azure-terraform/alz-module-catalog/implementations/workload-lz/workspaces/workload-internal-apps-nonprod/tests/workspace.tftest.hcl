@@ -61,6 +61,86 @@ mock_provider "tfe" {
   }
 }
 
+run "sandbox_root_supports_flexible_subnets" {
+  command = apply
+  variables {
+    environment      = "sandbox"
+    subscription_id  = "11111111-1111-1111-1111-111111111111"
+    tenant_id        = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    tfe_organization = "integration-fixture"
+    spoke = {
+      enabled                          = true
+      appcode                          = "orders"
+      address_space                    = ["10.200.0.0/20"]
+      egress_next_hop_ip               = "10.102.0.4"
+      private_endpoint_subnet_key      = "endpoints"
+      private_endpoint_dns_mode        = "policy"
+      policy_dns_registration_approved = true
+      subnets = {
+        app          = { address_prefixes = ["10.200.0.0/24"] }
+        data         = { address_prefixes = ["10.200.1.0/24"] }
+        presentation = { address_prefixes = ["10.200.2.0/24"] }
+        endpoints    = { address_prefixes = ["10.200.3.0/27"] }
+      }
+      workload_tags = {
+        application         = "orders", owner = "Applications", source_repo = "ado://Compeer/sandbox", criticality_tier = "tier-3",
+        data_classification = "confidential", lifecycle_state = "temporary", cost_center = "CC-0000",
+        gl_category         = "cloud-infrastructure", dr_tier = "none", expiration_date = "2027-01-13"
+      }
+      storage_accounts = { data = { replication_type = "ZRS" } }
+    }
+  }
+  assert {
+    condition = (
+      output.spoke.context.environment == "sandbox" && output.spoke.context.tags.expiration_date == "2027-01-13" &&
+      output.spoke.security_baseline.private_endpoint_subnet_key == "endpoints" &&
+      toset(keys(output.subnet_ids)) == toset(["app", "data", "presentation", "endpoints"]) &&
+      output.spoke.key_vault.private_endpoint_id != null && output.spoke.application_services.storage.data.private_endpoint_id != null
+    )
+    error_message = "Both sandbox inputs must reach the actual blueprint, preserve expiry and pass through a configurable endpoint subnet."
+  }
+}
+
+run "sbx_root_supports_flexible_subnets" {
+  command = apply
+  variables {
+    environment      = "sbx"
+    subscription_id  = "11111111-1111-1111-1111-111111111111"
+    tenant_id        = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    tfe_organization = "integration-fixture"
+    spoke = {
+      enabled                          = true
+      appcode                          = "orders"
+      address_space                    = ["10.200.0.0/20"]
+      egress_next_hop_ip               = "10.102.0.4"
+      private_endpoint_subnet_key      = "endpoints"
+      private_endpoint_dns_mode        = "policy"
+      policy_dns_registration_approved = true
+      subnets = {
+        app          = { address_prefixes = ["10.200.0.0/24"] }
+        data         = { address_prefixes = ["10.200.1.0/24"] }
+        presentation = { address_prefixes = ["10.200.2.0/24"] }
+        endpoints    = { address_prefixes = ["10.200.3.0/27"] }
+      }
+      workload_tags = {
+        application         = "orders", owner = "Applications", source_repo = "ado://Compeer/sandbox", criticality_tier = "tier-3",
+        data_classification = "confidential", lifecycle_state = "temporary", cost_center = "CC-0000",
+        gl_category         = "cloud-infrastructure", dr_tier = "none", expiration_date = "2027-01-13"
+      }
+      storage_accounts = { data = { replication_type = "ZRS" } }
+    }
+  }
+  assert {
+    condition = (
+      output.spoke.context.environment == "sandbox" && output.spoke.context.tags.expiration_date == "2027-01-13" &&
+      output.spoke.security_baseline.private_endpoint_subnet_key == "endpoints" &&
+      toset(keys(output.subnet_ids)) == toset(["app", "data", "presentation", "endpoints"]) &&
+      output.spoke.key_vault.private_endpoint_id != null && output.spoke.application_services.storage.data.private_endpoint_id != null
+    )
+    error_message = "Both sandbox inputs must reach the actual blueprint, preserve expiry and pass through a configurable endpoint subnet."
+  }
+}
+
 run "policy_owned_root_needs_no_zone_catalog" {
   command = apply
   variables {

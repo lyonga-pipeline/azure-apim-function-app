@@ -29,3 +29,16 @@ run "enabled_root_requires_explicit_approval" {
   variables { enabled = true }
   expect_failures = [terraform_data.approval]
 }
+
+run "sbx_alias_passes_the_sandbox_approval_boundary" {
+  command = plan
+  variables {
+    enabled             = true
+    deployment_approved = true
+    environment         = "sbx"
+  }
+  assert {
+    condition     = module.blueprint[0].context.environment == "sandbox" && module.blueprint[0].context.tags.expiration_date != null
+    error_message = "sbx must retain sandbox names, expiry metadata and a dedicated approval boundary."
+  }
+}

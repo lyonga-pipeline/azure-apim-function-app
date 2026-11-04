@@ -84,7 +84,8 @@ grant just to obtain these values. The standalone blueprint defaults to the
 shared tag module's standard when no governance list is supplied.
 
 Production is fixed to prod. Non-production defaults to dev and accepts test,
-uat and approved np1/np2/np3 aliases. Use a SEPARATE workspace/state per actual
+uat, sandbox/sbx and approved legacy np1/np2/np3 aliases. Sandbox requires an
+expiration_date; sbx uses sandbox for resource names/tags. Use a SEPARATE workspace/state per actual
 application and environment, not one shared state for unrelated applications.
 The ticket-root directories are templates for that per-application instantiation.
 For independent promotion, give every app/environment its own directory and

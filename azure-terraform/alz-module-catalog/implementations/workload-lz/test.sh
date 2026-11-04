@@ -52,6 +52,13 @@ for profile in create-new reuse-existing; do
 done
 terraform -chdir="$nonprod_examples" test -no-color -test-directory=pilot-tests -var-file=pilot-two-subnets.tfvars.example
 
+# PHASE2: dedicated workload roots use explicit disabled example inputs.
+for root in implementations/workload-lz/workspaces/workload-external-apps-prod implementations/workload-lz/workspaces/workload-sandbox; do
+  terraform -chdir="$root" init -backend=false -input=false -no-color
+  terraform -chdir="$root" validate -no-color
+  terraform -chdir="$root" test -no-color -var-file=terraform.tfvars.example
+done
+
 vault_examples=patterns/terraform-azurerm-compeer-workload-key-vault/examples
 terraform -chdir="$vault_examples" init -backend=false -input=false -no-color
 terraform -chdir="$vault_examples" validate -no-color

@@ -32,6 +32,18 @@ deferred services. Budgets, management locks and compute are not added.
 
 ## Two-Subnet Dev Pilot
 
+The pilot is not a two-subnet limit. In `spoke.subnets`, freely add `app`,
+`data`, `presentation` or other approved purpose keys. Set
+`spoke.private_endpoint_subnet_key` only when using a key other than the default
+`private_endpoints`. All entries receive generated names, an NSG and an inspected
+route table. Keep existing deployed keys unchanged to avoid resource replacement.
+
+This root also accepts `environment = "sandbox"` or `"sbx"` in a separate
+sandbox workspace/state. Both use the `sandbox` naming/tag token and require
+`spoke.workload_tags.expiration_date`. See the blueprint's complete
+[sandbox/subnet example](../../../../patterns/terraform-azurerm-compeer-spoke-landing-zone/examples/variants/sandbox-flexible-subnets.tfvars);
+its example-runner capability objects must be placed inside `spoke` for this root.
+
 [pilot-two-subnets.tfvars.example](pilot-two-subnets.tfvars.example) corrects the
 supplied pilot configuration while leaving the default `terraform.tfvars` unchanged.
 It is disabled until the missing values and approvals are resolved.

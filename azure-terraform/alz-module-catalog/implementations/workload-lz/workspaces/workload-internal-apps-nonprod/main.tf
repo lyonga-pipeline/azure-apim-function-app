@@ -23,7 +23,7 @@ module "blueprint" {
   private_endpoint_dns_mode        = try(var.spoke.private_endpoint_dns_mode, "terraform")
   policy_dns_registration_approved = try(var.spoke.policy_dns_registration_approved, false)
   # Promote this exact release independently of every other environment.
-  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/a3125242ac4b1b4e55657b0275ad5bf3d1f9a816//azure-apim-function-app-a3125242ac4b1b4e55657b0275ad5bf3d1f9a816/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
+  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/9f270a0bc94ddcf79eaee0d0ef544ad8928085a1//azure-apim-function-app-9f270a0bc94ddcf79eaee0d0ef544ad8928085a1/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
   count  = local.enabled ? 1 : 0
   providers = {
     azurerm = azurerm
@@ -42,6 +42,7 @@ module "blueprint" {
   reserved_address_spaces       = try(var.spoke.reserved_address_spaces, [])
   inspection_address_prefixes   = try(var.spoke.inspection_address_prefixes, [])
   subnets                       = try(var.spoke.subnets, {})
+  private_endpoint_subnet_key   = try(var.spoke.private_endpoint_subnet_key, "private_endpoints")
   egress_next_hop_ip            = try(var.spoke.egress_next_hop_ip, "unset")
   allow_azure_provided_dns      = try(var.spoke.allow_azure_provided_dns, false)
   manage_hub_attachment         = try(var.spoke.manage_hub_attachment, false)

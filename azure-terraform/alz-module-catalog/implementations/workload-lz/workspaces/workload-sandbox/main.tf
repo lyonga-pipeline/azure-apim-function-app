@@ -3,7 +3,7 @@ resource "terraform_data" "approval" {
   count = var.enabled ? 1 : 0
   lifecycle {
     precondition {
-      condition     = var.deployment_approved && var.environment == "sandbox" && var.spoke.domain == "sandbox"
+      condition     = var.deployment_approved && contains(["sandbox", "sbx"], var.environment) && var.spoke.domain == "sandbox"
       error_message = "Examples contain synthetic values. Replace them, obtain IPAM/security/operations approval, review the plan, then explicitly set deployment_approved=true."
     }
   }
@@ -27,6 +27,7 @@ module "blueprint" {
   reserved_address_spaces          = var.spoke.reserved_address_spaces
   inspection_address_prefixes      = var.spoke.inspection_address_prefixes
   subnets                          = var.spoke.subnets
+  private_endpoint_subnet_key      = try(var.spoke.private_endpoint_subnet_key, "private_endpoints")
   egress_next_hop_ip               = var.spoke.egress_next_hop_ip
   allow_azure_provided_dns         = false
   manage_hub_attachment            = false

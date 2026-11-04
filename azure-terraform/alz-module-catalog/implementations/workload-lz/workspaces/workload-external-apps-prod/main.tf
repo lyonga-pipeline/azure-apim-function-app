@@ -27,6 +27,7 @@ module "blueprint" {
   reserved_address_spaces          = var.spoke.reserved_address_spaces
   inspection_address_prefixes      = var.spoke.inspection_address_prefixes
   subnets                          = var.spoke.subnets
+  private_endpoint_subnet_key      = try(var.spoke.private_endpoint_subnet_key, "private_endpoints")
   egress_next_hop_ip               = var.spoke.egress_next_hop_ip
   allow_azure_provided_dns         = false
   manage_hub_attachment            = false
