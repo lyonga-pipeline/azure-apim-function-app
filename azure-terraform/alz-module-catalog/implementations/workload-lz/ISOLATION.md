@@ -26,11 +26,17 @@ the same-state transition; removing the directory does not itself migrate state.
 
 ## Release Selection
 
-The repository roots independently pin the tested policy-DNS-capable catalog snapshot
-`9f270a0bc94ddcf79eaee0d0ef544ad8928085a1` in their own `main.tf`.
+The repository roots independently pin the tested explicit-NSG-policy catalog snapshot
+`23c2dc7ec0a02388e46d3d45196bf980ed837fa4` in their own `main.tf`.
 They initially select the same release; changing one root's pin does not update
 the other. The HTTPS archive includes the catalog's relative child dependencies,
 so those dependencies come from the same commit, not the live checkout.
+
+This release removes automatic custom NSG rules, including priority-4096 denies.
+Review existing traffic policy before upgrading: explicitly retain required rules
+in project tfvars, or approve their removal. The catalog NSG helper also clears
+all custom rules when the configured collection is empty. See the blueprint's
+[network upgrade checklist](../../patterns/terraform-azurerm-compeer-spoke-landing-zone/NETWORK-BASELINE.md).
 
 The archive source deliberately avoids this repository's pre-existing incomplete
 Git submodule declarations, which make Terraform's recursive Git fetch fail.

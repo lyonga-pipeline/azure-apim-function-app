@@ -22,8 +22,9 @@ resource "time_static" "deployment_created" {
 module "blueprint" {
   private_endpoint_dns_mode        = try(var.spoke.private_endpoint_dns_mode, "terraform")
   policy_dns_registration_approved = try(var.spoke.policy_dns_registration_approved, false)
+  # Traffic-affecting release: custom NSG allows/denies must be explicit in project tfvars.
   # Promote this exact release independently of every other environment.
-  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/9f270a0bc94ddcf79eaee0d0ef544ad8928085a1//azure-apim-function-app-9f270a0bc94ddcf79eaee0d0ef544ad8928085a1/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
+  source = "https://codeload.github.com/lyonga-pipeline/azure-apim-function-app/zip/23c2dc7ec0a02388e46d3d45196bf980ed837fa4//azure-apim-function-app-23c2dc7ec0a02388e46d3d45196bf980ed837fa4/azure-terraform/alz-module-catalog/patterns/terraform-azurerm-compeer-spoke-landing-zone?archive=zip"
   count  = local.enabled ? 1 : 0
   providers = {
     azurerm = azurerm
