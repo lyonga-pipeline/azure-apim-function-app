@@ -11,6 +11,7 @@ Use `baseline.tfvars` plus **exactly one** variant. Objects are replaced, not de
 | Variant | Resources And Ownership |
 | --- | --- |
 | phase-one | Private audited vault, UAMI and network foundation; optional services off |
+| explicit-subnet-deny | Optional team-owned priority-4096 subnet denies plus explicit DNS/private HTTPS access; no automatic blueprint deny rules |
 | sandbox-flexible-subnets | Sandbox (`sbx` alias), required expiry, app/data/presentation/private-endpoint subnets, private audited vault and ZRS Blob storage |
 | policy-owned-dns | Private audited vault and ZRS Blob endpoints without zone-ID inputs; platform DINE owns registration. Requires separate platform readiness approval. |
 | all-optional-off | Approved secretless application: no vault/storage/telemetry/alerts/backup |
@@ -61,6 +62,16 @@ For the existing HCP workload roots, put these capability objects **inside `spok
 `key_vault`, `diagnostics`, `monitoring`, `operations`, `storage_accounts`, `backup`.
 The example runner exposes them as separate root variables only to compose baseline
 and variant files without relying on nonexistent deep-merge semantics.
+
+## Explicit Network Access
+
+Only inspected routing is generated; custom NSG rules are entirely project-owned. The
+`baseline.tfvars` rules explicitly approve custom DNS and private-endpoint HTTPS;
+no DNS, HTTPS, health-probe or Internet access is inferred from enabled services.
+Variants replacing the entire `spoke` object must include their own required rules.
+An empty rules map leaves Azure's built-in NSG rules in effect. It is not a
+subnet default-deny policy; approved hub firewall controls remain essential.
+See [network defaults and existing-spoke upgrade](../NETWORK-BASELINE.md).
 
 ## Reuse And Lifecycle Safety
 

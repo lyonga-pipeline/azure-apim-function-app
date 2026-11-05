@@ -20,13 +20,12 @@ resource "terraform_data" "contracts" {
     precondition {
       condition = alltrue([for subnet in values(var.subnets) :
         length(distinct([for rule in values(subnet.rules) : "${rule.direction}:${rule.priority}"])) == length(subnet.rules) &&
-        alltrue([for name in keys(subnet.rules) : !startswith(name, "baseline-")]) &&
         alltrue([for name in keys(subnet.routes) : name != "default-egress" && !startswith(name, "baseline-")]) &&
         alltrue([for route in values(subnet.routes) : route.address_prefix != "0.0.0.0/0" && !contains(local.inspection_address_prefixes, route.address_prefix) && can(cidrnetmask(route.address_prefix)) && (
           route.next_hop_type == "None" || (route.next_hop_type == "VirtualAppliance" && route.next_hop_in_ip_address == var.egress_next_hop_ip)
         )])
       ])
-      error_message = "Rule priorities must be unique per direction; baseline- names are reserved. Custom IPv4 routes may blackhole or use the approved NVA, never bypass inspection."
+      error_message = "Rule priorities must be unique per direction. Route names default-egress and baseline- are reserved. Custom IPv4 routes may blackhole or use the approved NVA, never bypass inspection."
     }
     precondition {
       condition = alltrue([for assignment in values(var.workload_access_group_ids) : assignment.resource_group_keys == null ? true : (

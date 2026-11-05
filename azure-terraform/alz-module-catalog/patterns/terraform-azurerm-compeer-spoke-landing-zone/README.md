@@ -195,7 +195,7 @@ environment to repurpose it. See the complete
 | `domain` | `string` | `"internal-apps"` | Workload naming domain. |
 | `reserved_address_spaces` | `list(string)` | `[]` | Complete relevant on-prem/other-spoke IPAM inventory; hub overlap is checked automatically. |
 | `inspection_address_prefixes` | `list(string)` | `[]` | Exact approved remote prefixes forced through the NVA, distinct from IPAM inventory. |
-| `private_endpoint_client_cidrs` | `list(string)` | `[]` | Additional approved HTTPS clients, such as private deployment agents; spoke CIDRs are included. |
+| `private_endpoint_client_cidrs` | `list(string)` | `[]` | Deprecated compatibility input; creates no access rules. Put approved sources in `subnets[*].rules`. |
 | `allow_azure_provided_dns` | `bool` | `false` | Explicit exception when central DNS server IPs are not supplied. |
 | `gateway_transit_enabled` | `bool` | `false` | Requested intent only; central attachment must approve/apply matching flags. |
 | `manage_hub_attachment` | `bool` | `false` | Compatibility guard: must remain false; true fails validation. |
@@ -328,6 +328,7 @@ not client deployment approval. Combine the baseline with exactly one variant:
 | Variant | Use case |
 | --- | --- |
 | [phase-one](examples/variants/phase-one.tfvars) | Dedicated audited vault and foundation; optional services off. |
+| [explicit-subnet-deny](examples/variants/explicit-subnet-deny.tfvars) | Optional team-owned subnet default-deny profile with explicit access rules. |
 | [sandbox-flexible-subnets](examples/variants/sandbox-flexible-subnets.tfvars) | Sandbox/sbx expiry, app/data/presentation/endpoint subnets and audited private data services. |
 | [all-optional-off](examples/variants/all-optional-off.tfvars) | Approved secretless workload; network and identity remain. |
 | [production-create](examples/variants/production-create.tfvars) | ZRS Blob storage, telemetry, alert and dedicated contacts. |
@@ -352,13 +353,21 @@ is not reduced by choosing a non-production profile.
 
 - **Network:** every subnet has an NSG/UDR, default outbound access off and
   gateway BGP propagation disabled. Default plus hub/approved remote-prefix routes
-  use the NVA. Sunstream `10.169.0.0/16` is explicitly blocked at priority 100.
+  use the NVA. No custom NSG allow or deny rules are injected. The hub firewall
+  enforces the design's default-deny policy; Azure's built-in NSG rules remain.
   Supply complete reserved ranges and exact inspection prefixes; overlap/
   containment checks do not allocate IPAM or prove NVA readiness/return-path symmetry.
-- **Application rules:** priorities 300-4000; reserved baseline names cannot be
-  overwritten. Use one address/prefix-set/ASG form per side and one destination-port
+- **Application rules:** priorities 100-4096, with unique priorities per direction.
+  Teams may explicitly retain priority-4096 denies and their existing names.
+  Use one address/prefix-set/ASG form per side and one destination-port
   form; omitted source ports mean `*`. Internet-wide inbound allows are rejected.
   ASGs must be in the workload subscription; application owners verify NIC/VNet membership.
+  Define DNS resolver access and both sides of private-endpoint HTTPS access explicitly
+  when needed. An empty rules map adds no custom rules; it does not override Azure's
+  built-in VNet/load-balancer/outbound allows or establish subnet default-deny.
+  See [network defaults and upgrade checklist](NETWORK-BASELINE.md) and the
+  [explicit tfvars example](examples/baseline.tfvars). This is a traffic-affecting
+  upgrade: replace any required former automatic allows before applying.
 - **Private access:** the subnet selected by `private_endpoint_subnet_key` is
   always required, even when optional services are off; no delegation or service endpoints there.
   Private-zone links do not configure DNS forwarders. Gateway transit is intent

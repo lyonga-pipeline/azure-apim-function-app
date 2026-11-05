@@ -45,14 +45,8 @@ def verify_control_plane(contract, command=az_json, dns_zone_ids=None):
         nsg_id = subnet.get("networkSecurityGroup", {}).get("id")
         route_id = subnet.get("routeTable", {}).get("id")
         require(nsg_id and route_id, f"Missing NSG/route association on {key}")
-        rules = get(nsg_id)["properties"].get("securityRules", [])
-        for direction in ("Inbound", "Outbound"):
-            require(any(
-                rule["properties"].get("direction") == direction
-                and rule["properties"].get("access") == "Deny"
-                and rule["properties"].get("priority") == 4096
-                for rule in rules
-            ), f"Missing default deny {direction} on {key}")
+        # Verify the NSG exists; project-specific rule content is not a blueprint-wide contract.
+        get(nsg_id)
         route_properties = get(route_id)["properties"]
         require(route_properties.get("disableBgpRoutePropagation") is True, f"Gateway BGP bypass enabled on {key}")
         routes = route_properties.get("routes", [])

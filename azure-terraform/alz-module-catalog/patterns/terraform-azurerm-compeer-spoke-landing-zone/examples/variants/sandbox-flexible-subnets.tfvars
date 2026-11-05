@@ -2,14 +2,14 @@
 # sbx is an alias: resources and environment tags use the established sandbox token.
 environment = "sbx"
 spoke = {
-  location                      = "centralus"
-  appcode                       = "orders"
-  domain                        = "internal-apps"
-  address_space                 = ["10.200.0.0/20"]
-  reserved_address_spaces       = ["10.201.0.0/20", "10.40.0.0/16"]
-  inspection_address_prefixes   = ["10.40.0.0/16"]
-  egress_next_hop_ip            = "10.102.0.4" # Replace with the approved hub NVA frontend.
-  private_endpoint_client_cidrs = ["10.40.10.0/24"]
+  location                    = "centralus"
+  appcode                     = "orders"
+  domain                      = "internal-apps"
+  address_space               = ["10.200.0.0/20"]
+  reserved_address_spaces     = ["10.201.0.0/20", "10.40.0.0/16"]
+  inspection_address_prefixes = ["10.40.0.0/16"]
+  egress_next_hop_ip          = "10.102.0.4" # Replace with the approved hub NVA frontend.
+  # Add approved private-endpoint/DNS access explicitly in each subnet's rules.
   # Keep this default, or select another existing map key (for example endpoints).
   private_endpoint_subnet_key = "private_endpoints"
   workload_tags = {

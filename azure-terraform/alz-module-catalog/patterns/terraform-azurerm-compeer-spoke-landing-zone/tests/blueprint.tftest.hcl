@@ -1,3 +1,143 @@
+run "azure_dns_mode_adds_no_implicit_access" {
+  command = plan
+  variables {
+    allow_azure_provided_dns      = true
+    private_endpoint_client_cidrs = ["10.40.10.0/24"]
+    platform = {
+      management_contract_version   = "0.1.0"
+      connectivity_contract_version = "0.1.0"
+      log_analytics_workspace_id    = "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/monitoring/providers/Microsoft.OperationalInsights/workspaces/central-law"
+      hub_virtual_network_id        = "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/hub"
+      hub_address_space             = ["10.102.0.0/21"]
+      dns_server_ips                = []
+    }
+    key_vault = { enabled = false }
+  }
+  assert {
+    condition = alltrue([for rules in values(local.nsg_rules) :
+      length(rules) == 0
+    ])
+    error_message = "Azure DNS and legacy client CIDRs must not create platform-DNS, HTTPS, health-probe or partner rules."
+  }
+}
+
+run "custom_dns_configuration_does_not_authorize_nsg_access" {
+  command = plan
+  assert {
+    condition = (
+      length(var.platform.dns_server_ips) > 0 &&
+      alltrue([for rules in values(local.nsg_rules) : length(rules) == 0])
+    )
+    error_message = "Configuring DNS resolver IPs must not silently create DNS allow rules."
+  }
+}
+
+run "application_rules_and_routes_are_explicit_and_preserved" {
+  command = apply
+  variables {
+    subnets = {
+      app = {
+        address_prefixes = ["10.200.0.0/24"]
+        rules = {
+          approved-dns = {
+            protocol                     = "*", destination_port_range = "53", source_address_prefix = "10.200.0.0/24",
+            destination_address_prefixes = ["10.102.0.10", "10.102.0.11"],
+            access                       = "Allow", priority = 300, direction = "Outbound"
+          }
+          approved-private-https = {
+            protocol                   = "Tcp", destination_port_range = "443", source_address_prefix = "10.200.0.0/24",
+            destination_address_prefix = "10.200.1.0/27",
+            access                     = "Allow", priority = 310, direction = "Outbound"
+          }
+        }
+        routes = {
+          approved-remote = { address_prefix = "172.20.0.0/16", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.0.4" }
+        }
+      }
+      private_endpoints = {
+        address_prefixes = ["10.200.1.0/27"]
+        rules = {
+          approved-private-https = {
+            protocol                   = "Tcp", destination_port_range = "443", source_address_prefix = "10.200.0.0/24",
+            destination_address_prefix = "10.200.1.0/27",
+            access                     = "Allow", priority = 300, direction = "Inbound"
+          }
+        }
+      }
+    }
+  }
+  assert {
+    condition = (
+      toset(keys(local.nsg_rules.app)) == toset(["approved-dns", "approved-private-https"]) &&
+      local.nsg_rules.app.approved-dns.destination_address_prefixes == toset(["10.102.0.10", "10.102.0.11"]) &&
+      local.nsg_rules.private_endpoints.approved-private-https.access == "Allow" &&
+      local.routes.app.approved-remote.address_prefix == "172.20.0.0/16" &&
+      local.routes.app.default-egress.next_hop_type == "VirtualAppliance"
+    )
+    error_message = "Explicit application rules/routes must reach the composition unchanged alongside the design guardrails."
+  }
+}
+
+run "rejects_unsupported_platform_dns_allow" {
+  command = plan
+  variables {
+    subnets = {
+      app = {
+        address_prefixes = ["10.200.0.0/24"]
+        rules = { invalid-dns = {
+          protocol                   = "Udp", destination_port_range = "53", source_address_prefix = "*",
+          destination_address_prefix = "AzurePlatformDNS", access = "Allow", priority = 300, direction = "Outbound"
+        } }
+      }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "rejects_unsupported_platform_dns_allow_in_prefix_set" {
+  command = plan
+  variables {
+    subnets = {
+      app = {
+        address_prefixes = ["10.200.0.0/24"]
+        rules = { invalid-dns = {
+          protocol                     = "Tcp", destination_port_range = "53", source_address_prefix = "*",
+          destination_address_prefixes = ["AzurePlatformDNS"], access = "Allow", priority = 300, direction = "Outbound"
+        } }
+      }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "rejects_rule_priority_below_azure_range" {
+  command = plan
+  variables {
+    subnets = {
+      app = { address_prefixes = ["10.200.0.0/24"], rules = {
+        deny = { protocol = "*", destination_port_range = "*", source_address_prefix = "*", destination_address_prefix = "*", access = "Deny", priority = 99, direction = "Inbound" }
+      } }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
+run "rejects_rule_priority_above_azure_range" {
+  command = plan
+  variables {
+    subnets = {
+      app = { address_prefixes = ["10.200.0.0/24"], rules = {
+        deny = { protocol = "*", destination_port_range = "*", source_address_prefix = "*", destination_address_prefix = "*", access = "Deny", priority = 4097, direction = "Inbound" }
+      } }
+      private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
+    }
+  }
+  expect_failures = [var.subnets]
+}
+
 run "rejects_external_blob_diagnostics_on_another_account" {
   command = plan
   override_module {
@@ -38,10 +178,10 @@ run "flexible_subnet_keys_keep_the_full_security_baseline" {
       length(module.network_security_groups) == 4 && length(module.route_tables) == 4 &&
       length(module.nsg_associations) == 4 && length(module.route_associations) == 4 &&
       alltrue([for key in keys(var.subnets) :
-        local.nsg_rules[key].baseline-deny-inbound.priority == 4096 &&
+        length(local.nsg_rules[key]) == 0 &&
         local.routes[key].default-egress.next_hop_in_ip_address == var.egress_next_hop_ip
       ]) &&
-      local.nsg_rules.presentation.baseline-private-https.destination_address_prefixes == toset(["10.200.3.0/27"])
+      alltrue([for rules in values(local.nsg_rules) : length(rules) == 0])
     )
     error_message = "Arbitrary subnet purposes must use approved names and receive every NSG, UDR and association."
   }
@@ -64,10 +204,9 @@ run "custom_endpoint_subnet_key_works_for_terraform_dns" {
       !contains(keys(output.subnet_ids), "private_endpoints") &&
       module.key_vault[0].private_endpoint_configuration.subnet_id == output.subnet_ids.service_endpoints &&
       output.application_services.storage.data.private_endpoint_id != null &&
-      local.nsg_rules.service_endpoints.baseline-private-https.direction == "Inbound" &&
-      local.nsg_rules.app.baseline-private-https.destination_address_prefixes == toset(["10.200.2.0/27"])
+      alltrue([for rules in values(local.nsg_rules) : length(rules) == 0])
     )
-    error_message = "Both vault and Blob endpoints and their NSG rules must use the selected logical subnet key."
+    error_message = "Both vault and Blob endpoints must use the selected logical subnet key without inventing application access rules."
   }
 }
 
@@ -728,7 +867,7 @@ run "rejects_reuse_against_a_different_workspace" {
   expect_failures = [terraform_data.capability_contract]
 }
 
-run "legacy_augmented_rules_reuse_catalog_nsg_without_weakening_baseline" {
+run "legacy_augmented_rules_reuse_catalog_nsg_without_injected_rules" {
   command = apply
   variables {
     subnets = {
@@ -757,9 +896,9 @@ run "legacy_augmented_rules_reuse_catalog_nsg_without_weakening_baseline" {
       local.nsg_rules.app.app-to-data.source_address_prefix == null &&
       toset(local.nsg_rules.app.app-to-data.destination_port_ranges) == toset(["1433", "5432"]) &&
       anytrue([for rule in module.network_security_groups.app.network_security_group_rules : rule.name == "app-to-data" && rule.source_application_security_group_ids == var.subnets.app.rules.app-to-data.source_application_security_group_ids && rule.destination_application_security_group_ids == var.subnets.app.rules.app-to-data.destination_application_security_group_ids && rule.source_port_ranges == toset(["1024-65535"])]) &&
-      local.nsg_rules.app.baseline-deny-inbound.priority == 4096 && local.nsg_rules.app.baseline-deny-outbound.priority == 4096
+      toset(keys(local.nsg_rules.app)) == toset(["private-web", "app-to-data"]) && length(local.nsg_rules.private_endpoints) == 0
     )
-    error_message = "Augmented ports/ASGs must reach the real NSG module, keep the old wildcard-source default, and preserve baseline denies."
+    error_message = "Augmented ports/ASGs must reach the real NSG module, keep the old wildcard-source default, and inject no extra rules."
   }
 }
 
@@ -995,9 +1134,9 @@ run "production_spoke_composes_real_modules_with_mocked_azure" {
     condition = (
       length(module.network_security_groups) == 2 && length(module.nsg_associations) == 2 && length(module.route_tables) == 2 && length(module.route_associations) == 2 &&
       alltrue([for routes in values(local.routes) : routes.default-egress.next_hop_in_ip_address == var.egress_next_hop_ip && routes.default-egress.next_hop_type == "VirtualAppliance"]) &&
-      local.nsg_rules.app.baseline-deny-inbound.access == "Deny" && local.nsg_rules.app.baseline-deny-outbound.access == "Deny"
+      alltrue([for rules in values(local.nsg_rules) : length(rules) == 0])
     )
-    error_message = "Every subnet requires enforced NSG/route associations, default-deny NSGs and explicit inspected egress."
+    error_message = "Every subnet requires NSG/route associations and inspected egress; empty project rule maps must remain empty."
   }
   assert {
     condition = (
@@ -1158,22 +1297,30 @@ run "approved_application_rules_are_preserved" {
     }
   }
   assert {
-    condition     = local.nsg_rules.app.approved-https.priority == 300 && local.nsg_rules.app.baseline-deny-inbound.priority == 4096
-    error_message = "Approved application access must coexist with, not replace, the default-deny baseline."
+    condition     = local.nsg_rules.app.approved-https.priority == 300 && length(local.nsg_rules.app) == 1
+    error_message = "Approved application access must be preserved without injecting additional allow or deny rules."
   }
 }
 
-run "rejects_baseline_rule_name_override" {
+run "explicit_project_denies_can_reuse_old_rule_names_and_priorities" {
   command = plan
   variables {
     subnets = {
       app = { address_prefixes = ["10.200.0.0/24"], rules = {
-        baseline-deny-inbound = { protocol = "Tcp", destination_port_range = "443", source_address_prefix = "10.102.0.0/21", destination_address_prefix = "*", access = "Allow", priority = 300, direction = "Inbound" }
+        baseline-deny-inbound  = { protocol = "*", destination_port_range = "*", source_address_prefix = "*", destination_address_prefix = "*", access = "Deny", priority = 4096, direction = "Inbound" }
+        baseline-deny-outbound = { protocol = "*", destination_port_range = "*", source_address_prefix = "*", destination_address_prefix = "*", access = "Deny", priority = 4096, direction = "Outbound" }
       } }
       private_endpoints = { address_prefixes = ["10.200.1.0/27"] }
     }
   }
-  expect_failures = [terraform_data.contracts]
+  assert {
+    condition = (
+      length(local.nsg_rules.app) == 2 && length(local.nsg_rules.private_endpoints) == 0 &&
+      local.nsg_rules.app.baseline-deny-inbound.priority == 4096 &&
+      local.nsg_rules.app.baseline-deny-outbound.access == "Deny"
+    )
+    error_message = "Teams may explicitly retain priority-4096 denies, including their old Azure names, without affecting other subnets."
+  }
 }
 
 run "rejects_delegated_private_endpoint_subnet" {
@@ -1311,12 +1458,12 @@ run "hub_and_approved_remote_routes_require_inspection" {
   assert {
     condition = (
       alltrue([for subnet in values(var.subnets) : !subnet.bgp_route_propagation_enabled]) &&
-      alltrue([for table in values(local.routes) : alltrue([for prefix in concat(var.platform.hub_address_space, ["10.169.0.0/16"], var.inspection_address_prefixes) :
+      alltrue([for table in values(local.routes) : alltrue([for prefix in concat(var.platform.hub_address_space, var.inspection_address_prefixes) :
         anytrue([for route in values(table) : route.address_prefix == prefix && route.next_hop_type == "VirtualAppliance" && route.next_hop_in_ip_address == var.egress_next_hop_ip])
       ])]) &&
-      alltrue([for rules in values(local.nsg_rules) : rules.baseline-deny-sunstream-inbound.priority == 100 && rules.baseline-deny-sunstream-outbound.priority == 100])
+      alltrue([for table in values(local.routes) : !anytrue([for route in values(table) : route.address_prefix == "10.169.0.0/16"])])
     )
-    error_message = "Hub, identity, on-prem and other approved spoke routes must use the NVA; partner traffic stays denied and learned routes cannot bypass inspection."
+    error_message = "Hub and approved remote prefixes must use the NVA without adding a hardcoded partner route; learned routes cannot bypass inspection."
   }
 }
 

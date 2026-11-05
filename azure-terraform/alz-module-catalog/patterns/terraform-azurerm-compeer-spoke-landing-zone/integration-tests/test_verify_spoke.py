@@ -60,7 +60,7 @@ class ControlPlaneTests(unittest.TestCase):
         self.resources = {
             self.vault: {"properties": {"enableRbacAuthorization": True, "publicNetworkAccess": "Disabled", "enablePurgeProtection": True, "softDeleteRetentionInDays": 90, "networkAcls": {"defaultAction": "Deny", "bypass": "None"}}},
             self.subnet: {"properties": {"defaultOutboundAccess": False, "privateEndpointNetworkPolicies": "Enabled", "networkSecurityGroup": {"id": self.nsg}, "routeTable": {"id": self.route}, "addressPrefixes": ["10.251.1.0/27"]}},
-            self.nsg: {"properties": {"securityRules": [{"properties": {"direction": direction, "access": "Deny", "priority": 4096}} for direction in ["Inbound", "Outbound"]]}},
+            self.nsg: {"properties": {"securityRules": []}},
             self.route: {"properties": {"disableBgpRoutePropagation": True, "routes": [{"properties": {"addressPrefix": "0.0.0.0/0", "nextHopType": "VirtualAppliance", "nextHopIpAddress": "10.250.0.4"}}]}},
             self.endpoint: {"properties": {"subnet": {"id": self.subnet}, "privateLinkServiceConnections": [{"properties": {"privateLinkServiceId": self.vault, "groupIds": ["vault"], "privateLinkServiceConnectionState": {"status": "Approved"}}}]}},
             self.endpoint + "/privateDnsZoneGroups/default": {"properties": {"privateDnsZoneConfigs": [{"properties": {"privateDnsZoneId": self.zone}}]}},
@@ -81,6 +81,13 @@ class ControlPlaneTests(unittest.TestCase):
         return deepcopy(self.resources[urlsplit(arguments[arguments.index("--url") + 1]).path])
 
     def test_complete_observed_baseline_passes(self):
+        self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
+
+    def test_project_owned_denies_are_not_a_blueprint_requirement(self):
+        self.resources[self.nsg]["properties"]["securityRules"] = [
+            {"properties": {"direction": direction, "access": "Deny", "priority": 4096}}
+            for direction in ["Inbound", "Outbound"]
+        ]
         self.assertEqual(verify_control_plane(self.contract, self.azure), ["10.251.1.0/27"])
 
     def test_custom_endpoint_subnet_key_is_verified_without_legacy_key(self):

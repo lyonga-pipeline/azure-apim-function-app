@@ -53,7 +53,7 @@ spoke = {
       service_endpoints             = []
       bgp_route_propagation_enabled = false
       delegations                   = {} # Compute-specific delegation belongs in a reviewed variant.
-      # Deny-by-default baseline, DNS and private HTTPS rules are automatic.
+      # All custom NSG rules are project-owned; only inspected routes are automatic.
       rules = {
         internal-https = {
           protocol              = "Tcp", source_port_range = "*", destination_port_range = "443"

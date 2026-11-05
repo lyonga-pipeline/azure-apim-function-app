@@ -118,7 +118,7 @@ variable "reserved_address_spaces" {
 }
 
 variable "inspection_address_prefixes" {
-  description = "Approved on-prem/other-spoke/identity prefixes routed through the hub NVA. Hub and Sunstream ranges are automatic; Sunstream remains NSG-denied. Supply exact remote prefixes, not the encompassing regional allocation."
+  description = "Approved on-prem/other-spoke/identity prefixes routed through the hub NVA. Only hub prefixes are automatic. Supply exact remote prefixes, not the encompassing regional allocation."
   type        = list(string)
   default     = []
   validation {
@@ -187,7 +187,7 @@ variable "subnets" {
   }
   validation {
     condition = alltrue(flatten([for subnet in values(var.subnets) : [for rule in values(subnet.rules) :
-      rule.priority >= 300 && rule.priority <= 4000 && floor(rule.priority) == rule.priority &&
+      rule.priority >= 100 && rule.priority <= 4096 && floor(rule.priority) == rule.priority &&
       contains(["Allow", "Deny"], rule.access) && contains(["Inbound", "Outbound"], rule.direction) &&
       !(rule.source_port_range != null && rule.source_port_ranges != null) &&
       (rule.destination_port_range != null) != (rule.destination_port_ranges != null) &&
@@ -198,7 +198,16 @@ variable "subnets" {
       !(rule.direction == "Inbound" && rule.access == "Allow" &&
       anytrue([for prefix in concat(rule.source_address_prefix == null ? [] : [rule.source_address_prefix], rule.source_address_prefixes == null ? [] : tolist(rule.source_address_prefixes)) : contains(["*", "internet", "0.0.0.0/0", "::/0"], lower(trimspace(prefix)))]))
     ]]))
-    error_message = "Custom rules use priorities 300-4000, valid directions/actions, one non-empty address/ASG form per side, at most one source-port form and exactly one destination-port form. Internet-wide inbound access is not allowed."
+    error_message = "Custom rules use Azure priorities 100-4096, valid directions/actions, one non-empty address/ASG form per side, at most one source-port form and exactly one destination-port form. Internet-wide inbound access is not allowed."
+  }
+  validation {
+    condition = alltrue(flatten([for subnet in values(var.subnets) : [for rule in values(subnet.rules) :
+      rule.access != "Allow" || !anytrue([for prefix in concat(
+        rule.destination_address_prefix == null ? [] : [rule.destination_address_prefix],
+        rule.destination_address_prefixes == null ? [] : tolist(rule.destination_address_prefixes)
+      ) : lower(trimspace(prefix)) == "azureplatformdns"])
+    ]]))
+    error_message = "Do not create Allow rules targeting AzurePlatformDNS. Azure-provided DNS needs no explicit NSG allow; custom DNS allows must target approved resolver IPs."
   }
   validation {
     condition = alltrue(flatten([for subnet in values(var.subnets) : [for rule in values(subnet.rules) : [for id in concat(
@@ -242,12 +251,12 @@ variable "gateway_transit_enabled" {
 }
 
 variable "private_endpoint_client_cidrs" {
-  description = "Additional approved source CIDRs needing HTTPS to private endpoints, e.g. a private deployment-agent subnet. Spoke CIDRs are included."
+  description = "Deprecated compatibility input; no longer creates NSG rules. Declare approved HTTPS client CIDRs explicitly in subnets[*].rules instead."
   type        = list(string)
   default     = []
   validation {
     condition     = alltrue([for cidr in var.private_endpoint_client_cidrs : can(cidrnetmask(cidr)) && cidr != "0.0.0.0/0"])
-    error_message = "Private endpoint clients must be specific approved IPv4 CIDRs, not the entire Internet."
+    error_message = "Legacy private endpoint client CIDRs must remain specific approved IPv4 CIDRs, not the entire Internet; access now requires explicit subnet rules."
   }
 }
 

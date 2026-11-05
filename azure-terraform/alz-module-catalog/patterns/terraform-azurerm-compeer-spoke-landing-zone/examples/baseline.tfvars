@@ -28,11 +28,11 @@ spoke = {
   appcode  = "orders" # Replace with the approved short application code.
   domain   = "internal-apps"
   # Replace with actual IPAM allocations. Full hub/on-prem/other-spoke inventory is required.
-  address_space                 = ["10.200.0.0/20"]
-  reserved_address_spaces       = ["10.201.0.0/20", "10.40.0.0/16"]
-  inspection_address_prefixes   = ["10.40.0.0/16"]
-  egress_next_hop_ip            = "10.102.0.4"      # Must be the approved NVA frontend, not Route Server.
-  private_endpoint_client_cidrs = ["10.40.10.0/24"] # Private deployment agents/operators.
+  address_space               = ["10.200.0.0/20"]
+  reserved_address_spaces     = ["10.201.0.0/20", "10.40.0.0/16"]
+  inspection_address_prefixes = ["10.40.0.0/16"]
+  egress_next_hop_ip          = "10.102.0.4" # Must be the approved NVA frontend, not Route Server.
+  # Private deployment-agent sources are explicit in the endpoint rule below.
   workload_tags = {
     application           = "orders"
     owner                 = "Application Operations"
@@ -53,12 +53,27 @@ spoke = {
       service_endpoints             = []
       bgp_route_propagation_enabled = false
       delegations                   = {} # Compute-specific delegation belongs in a reviewed variant.
-      # Deny-by-default baseline, DNS and private HTTPS rules are automatic.
+      # No custom NSG rules are automatic. These are application-owned approvals.
       rules = {
         internal-https = {
           protocol              = "Tcp", source_port_range = "*", destination_port_range = "443"
           source_address_prefix = "10.40.10.0/24", destination_address_prefix = "10.200.0.0/24"
           access                = "Allow", priority = 300, direction = "Inbound"
+        }
+        approved-dns-udp = {
+          protocol              = "Udp", source_port_range = "*", destination_port_range = "53"
+          source_address_prefix = "10.200.0.0/24", destination_address_prefixes = ["10.102.0.10", "10.102.0.11"]
+          access                = "Allow", priority = 300, direction = "Outbound"
+        }
+        approved-dns-tcp = {
+          protocol              = "Tcp", source_port_range = "*", destination_port_range = "53"
+          source_address_prefix = "10.200.0.0/24", destination_address_prefixes = ["10.102.0.10", "10.102.0.11"]
+          access                = "Allow", priority = 310, direction = "Outbound"
+        }
+        approved-private-https = {
+          protocol              = "Tcp", source_port_range = "*", destination_port_range = "443"
+          source_address_prefix = "10.200.0.0/24", destination_address_prefix = "10.200.1.0/27"
+          access                = "Allow", priority = 320, direction = "Outbound"
         }
       }
       routes = {} # Never add Internet/direct-gateway routes bypassing inspection.
@@ -68,8 +83,15 @@ spoke = {
       service_endpoints             = []
       bgp_route_propagation_enabled = false
       delegations                   = {}
-      rules                         = {}
-      routes                        = {}
+      # Source-side NSGs/firewall permissions for external clients are owned separately.
+      rules = {
+        approved-private-https = {
+          protocol                = "Tcp", source_port_range = "*", destination_port_range = "443"
+          source_address_prefixes = ["10.200.0.0/24", "10.40.10.0/24"], destination_address_prefix = "10.200.1.0/27"
+          access                  = "Allow", priority = 300, direction = "Inbound"
+        }
+      }
+      routes = {}
     }
   }
   # Optional Entra GROUP grants. Do not use individual users or subscription Owner.

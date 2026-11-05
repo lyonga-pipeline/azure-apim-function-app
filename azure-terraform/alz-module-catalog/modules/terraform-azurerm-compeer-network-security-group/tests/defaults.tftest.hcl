@@ -38,3 +38,27 @@ run "rejects_bad_priority" {
   }
   expect_failures = [var.security_rules]
 }
+
+run "remove_all_inline_rules_is_explicit" {
+  command = apply
+  variables { security_rules = {} }
+  assert {
+    condition     = length(azurerm_network_security_group.network_security_group.security_rule) == 0 && output.id == run.create.id
+    error_message = "Removing the last configured rule must explicitly clear inline rules without replacing the NSG."
+  }
+}
+
+run "legacy_list_still_owns_its_rules" {
+  command = apply
+  variables {
+    security_rules = {}
+    security_rule = [{
+      name                  = "legacy-deny", protocol = "*", source_port_range = "*", destination_port_range = "*",
+      source_address_prefix = "*", destination_address_prefix = "*", access = "Deny", priority = 4096, direction = "Inbound"
+    }]
+  }
+  assert {
+    condition     = length(azurerm_network_security_group.network_security_group.security_rule) == 1
+    error_message = "The legacy rule-list interface must still work with explicit collection ownership."
+  }
+}

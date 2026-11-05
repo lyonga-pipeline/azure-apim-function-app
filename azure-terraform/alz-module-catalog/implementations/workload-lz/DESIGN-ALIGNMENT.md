@@ -47,7 +47,7 @@ an existing state that still owns peerings or zone links.
 | Refined Placement row 40; design 10.6 | <app>-cus-<env>-app-rg reserved for the internal pilot | Logical output/access key application remains stable; Azure purpose is app; compute stays application-owned |
 | Deployment Order row 100; NET-22 | Both peering directions, forwarded traffic and correct ownership | Separate platform-owned attachment state composes the reusable hub-spoke-peering pattern from the spoke's versioned contract; no hub provider or attachment resources in blueprint |
 | Deployment Order rows 101-103; NET-29/IAM-06 | Parent-owned endpoints, existing central DNS, scoped identity | Vault owns endpoint/zone group; optional Blob parent uses its own group; no duplicate DNS zone or unrestricted identity roles |
-| Design 8.2/8.5; Deployment Order rows 66-67; detailed network document | Spoke inspection via Palo Alto NVA, not direct gateway bypass; Sunstream isolation | Default plus exact hub/approved remote-prefix UDRs; BGP propagation disabled; reserved baseline routes; Sunstream priority-100 denies |
+| Design 8.2/8.5/12.3; detailed network document routing notes | Spoke inspection via Palo Alto NVA, not direct gateway bypass; hub firewall default-deny policy | Default plus exact hub/approved remote-prefix UDRs; BGP propagation disabled. All custom NSG allow/deny rules are explicit project tfvars inputs. Hub-specific Sunstream rules are not copied into spokes. |
 | OBS-01/02, GOV-07; design 13 | Reuse centralized logging and policy owners | Existing approved LAW ID; direct vault/optional Blob diagnostics; platform-policy owns compatible DINE, Defender and VNet flow logs |
 
 The two platform endpoint rows 24-25 are explicitly **On Hold** in the refined
@@ -112,7 +112,8 @@ resources. See [REUSE.md](REUSE.md) for configuration and state-handoff cautions
    that VM's subscription, or a separately designed supported backup solution.
 4. **Routing is end to end.** Supply the exact identity/on-prem/other-spoke
    inspection_address_prefixes and complete reserved_address_spaces from IPAM.
-   Hub and Sunstream route prefixes are automatic; Sunstream stays NSG-denied.
+   Only hub route prefixes and the NVA default route are automatic. Partner
+   prefixes/controls require explicit approved project inputs.
    A regional supernet is not an inspection list. The network owner must also
    add the spoke's return routes to relevant hub tables, approve Palo Alto
    policies/SNAT and prove symmetry. The spoke cannot mutate independently
@@ -126,6 +127,20 @@ resources. See [REUSE.md](REUSE.md) for configuration and state-handoff cautions
    with the same blueprint behavior and tests. See README.md and TESTING.md.
 
 ## Existing-State Caution
+
+The 2026-11-05 networking cleanup removes all automatic custom NSG rules,
+including priority-4096 denies, plus the hardcoded Sunstream UDR. Architecture
+v13 sections 8.5/12.3 supply the default-deny principle enforced at the hub;
+they do not prescribe two priority-4096 rules in every spoke NSG.
+Sections 8.2/8.5 retain mandatory inspected routing. The detailed deployment
+document's priority-100 Sunstream rule is scoped to Hub Subnet NSGs, not workload
+spokes. Add required approved workload flows explicitly before upgrading an
+existing spoke, including any subnet deny rules that must remain. This is a
+traffic-affecting release; no hub code or resource addresses are changed.
+Azure's built-in NSG allows remain when custom rules are empty; intra-VNet
+segmentation is not provided by the hub firewall. Registry consumers also need
+the corrected base NSG release for authoritative last-rule removal.
+See the blueprint's NETWORK-BASELINE.md for the handoff.
 
 These are new-deployment templates. Correcting domain-prefixed RGs to the
 refined sheet's workload-prefixed names (and application-rg to app-rg) may

@@ -31,7 +31,6 @@ module "blueprint" {
   allow_azure_provided_dns         = false
   manage_hub_attachment            = false
   gateway_transit_enabled          = false
-  private_endpoint_client_cidrs    = var.spoke.private_endpoint_client_cidrs
   workload_access_group_ids        = var.spoke.workload_access_group_ids
   key_vault                        = var.key_vault
   diagnostics                      = var.diagnostics

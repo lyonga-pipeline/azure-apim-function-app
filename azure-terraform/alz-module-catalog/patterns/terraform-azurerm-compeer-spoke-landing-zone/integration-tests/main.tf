@@ -72,14 +72,30 @@ module "spoke" {
   appcode         = local.appcode
   address_space   = ["10.251.0.0/20"]
   subnets = {
-    application       = { address_prefixes = ["10.251.0.0/24"] }
-    private_endpoints = { address_prefixes = ["10.251.1.0/27"] }
+    application = {
+      address_prefixes = ["10.251.0.0/24"]
+      rules = {
+        test-private-https = {
+          protocol                   = "Tcp", destination_port_range = "443", source_address_prefix = "10.251.0.0/24",
+          destination_address_prefix = "10.251.1.0/27", access = "Allow", priority = 300, direction = "Outbound"
+        }
+      }
+    }
+    private_endpoints = {
+      address_prefixes = ["10.251.1.0/27"]
+      rules = {
+        test-private-https = {
+          protocol                   = "Tcp", destination_port_range = "443",
+          source_address_prefixes    = concat(["10.251.0.0/24"], var.private_endpoint_client_cidrs),
+          destination_address_prefix = "10.251.1.0/27", access = "Allow", priority = 300, direction = "Inbound"
+        }
+      }
+    }
   }
   # The fixture validates route configuration, not a working firewall. No NVA is created.
-  egress_next_hop_ip            = "10.250.0.4"
-  allow_azure_provided_dns      = true
-  private_endpoint_client_cidrs = var.private_endpoint_client_cidrs
-  key_vault                     = { enabled = var.enable_vault_test }
+  egress_next_hop_ip       = "10.250.0.4"
+  allow_azure_provided_dns = true
+  key_vault                = { enabled = var.enable_vault_test }
   monitoring = {
     enabled                     = var.enable_optional_operations_test
     create_application_insights = var.enable_optional_operations_test

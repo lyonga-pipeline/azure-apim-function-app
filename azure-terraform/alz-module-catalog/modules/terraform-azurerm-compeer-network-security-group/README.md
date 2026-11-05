@@ -27,6 +27,16 @@ accepted and merged. Subnet association is `nsg-subnet-association`.
 All rule add/edit/remove and `tags` → **update in place** (inline rules).
 `name` / `resource_group_name` / `location` → **replace**.
 
+An empty combined rule collection explicitly sets `security_rule=[]`, removing
+all custom inline rules while preserving Azure's built-in defaults. This fixes
+the previous dynamic-block behavior, which could retain old rules when the last
+configured rule was removed. It also removes manually added custom rules: this
+module is the sole inline-rule owner, not an NSG shell for external rule owners.
+Review existing-state plans before upgrading, especially when both inputs are empty.
+Publish a new registry release before selecting this behavior in HCP consumers;
+do not overwrite an existing tag. The resource address and input/output interfaces
+are unchanged.
+
 State exposure: none.
 
 ## Migration
@@ -37,4 +47,5 @@ source.
 
 ## Tests
 
-`terraform test` (offline): create, additive rule add, bad-priority rejection.
+`terraform test` (mocked): create, additive rule add, bad-priority rejection,
+explicit last-rule removal preserving the NSG ID, and the legacy rule-list input.
