@@ -6,6 +6,11 @@ output "contract_version" {
   description = "Consumer output contract version."
   value       = "1.0.0"
 }
+# PHASE 2: publish existing blueprint metadata for central peering, without moving Azure resources.
+output "context" {
+  description = "Non-secret blueprint context required by the central peering producer checks; null while disabled."
+  value       = try(module.blueprint[0].context, null)
+}
 output "spoke_virtual_network_id" {
   description = "Compatibility accessor for the central network attachment owner."
   value       = try(local.spoke_contract.spoke_virtual_network_id, null)

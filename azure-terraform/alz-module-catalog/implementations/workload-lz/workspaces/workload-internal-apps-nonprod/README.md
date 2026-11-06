@@ -3,6 +3,14 @@
 This root calls the pinned spoke blueprint directly and owns a separate state.
 `terraform.tfvars` remains the disabled Phase 1 starting configuration.
 
+## Publish Context Before Central Peering
+
+This VNet-owning root publishes `context` directly from `module.blueprint[0].context`, alongside `attachment_contract` v2. The central attachment workspace reads the saved HCP outputs, not un-applied code. Existing `spoke.context` consumers remain supported; the explicit output also supports thin deployment roots that publish only the individual VNet accessors.
+
+If peering fails the `tenant`, `subscription` and `environment` producer checks while the VNet ID resolves correctly, verify this producer has a non-null public `context`. Add the `context` block from [outputs.tf](outputs.tf) to an older producer root, then review/apply that producer's output change in its existing workspace. Do not upgrade the blueprint, rename resources or manufacture context values in the peering root just to bypass the checks.
+
+Match the peering root's `naming_context` exactly to the producer's saved `attachment_contract.naming_context` (`region`, `environment`, `domain`, `appcode`). A mismatch such as `ptinapp` versus `pltinapp` must be corrected in the reviewed consumer inputs; the immutable attachment map key need not change. Then restore the peering `producer_contract` precondition and re-plan. The attachment module needs no change or registry release for this root-output addition. Stop if the producer plan includes unrelated Azure changes; publishing an output is not approval for those changes.
+
 ## Complete Configuration Examples
 
 | File | Application services | Audit settings |

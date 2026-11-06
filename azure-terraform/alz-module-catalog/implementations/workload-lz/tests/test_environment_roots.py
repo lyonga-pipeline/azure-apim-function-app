@@ -70,6 +70,14 @@ class EnvironmentRootTests(unittest.TestCase):
                 self.assertNotIn("azurerm.connectivity", source)
                 self.assertIn('data "tfe_outputs" "governance"', source)
 
+    def test_context_is_published_directly_from_the_blueprint(self):
+        for root in ROOTS:
+            with self.subTest(root=root.name):
+                self.assertRegex(
+                    (root / "outputs.tf").read_text(),
+                    r'output "context"\s*\{[^}]*value\s*=\s*try\(module\.blueprint\[0\]\.context, null\)',
+                )
+
     def test_dns_references_do_not_require_a_dns_provider_or_legacy_state(self):
         catalog = WORKLOAD.parents[1]
         pattern = catalog / "patterns/terraform-azurerm-compeer-spoke-landing-zone"

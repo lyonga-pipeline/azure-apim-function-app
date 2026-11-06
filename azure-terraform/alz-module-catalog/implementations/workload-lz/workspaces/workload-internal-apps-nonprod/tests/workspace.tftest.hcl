@@ -240,7 +240,7 @@ run "wrong_dns_service_zone_is_rejected" {
 run "committed_placeholders_are_inert" {
   command = plan
   assert {
-    condition     = output.spoke == null && output.spoke_virtual_network_id == null && length(output.subnet_ids) == 0
+    condition     = output.context == null && output.spoke == null && output.spoke_virtual_network_id == null && length(output.subnet_ids) == 0
     error_message = "Committed placeholders must not create a partial spoke or read client platform outputs."
   }
 }
@@ -312,6 +312,10 @@ run "enabled_workspace_consumes_public_contracts" {
   }
   assert {
     condition = (
+      output.context == output.spoke.context &&
+      output.context.tenant_id == var.tenant_id && output.context.subscription_id == var.subscription_id &&
+      output.context.environment == output.attachment_contract.naming_context.environment &&
+      output.context.appcode == output.attachment_contract.naming_context.appcode &&
       output.spoke.contract_version == "1.0.0" &&
       output.attachment_contract.owner == "central-attachment-workspace" &&
       output.attachment_contract.contract_version == "2.0.0" &&
