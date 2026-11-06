@@ -66,7 +66,7 @@ Use the [root template](../../implementations/platform-lz/templates/network-atta
 ## Operation
 
 1. Network reviewers approve the Git inventory: immutable attachment key, classification, producer workspace/version, CIDRs, optional explicit VNet ID pins, IPAM/change references, DNS zones and gateway/forwarding intent. Workload-v2 also supplies naming context. Only declared workspace selectors are read; outputs cannot add attachments. Azure RBAC authorizes the actual deployment.
-2. Read only `tfe_outputs.nonsensitive_values`. The hub publishes contract `0.1.0`, its VNet ID and address spaces. Existing workloads may keep public `attachment_contract` v2.0.0 plus context (directly or under `spoke`). Generic platform/workload owners publish `network_attachment_contract` v3.0.0 with context, CIDRs and DNS intent through the [output-only producer adapter](producer/README.md).
+2. Read only `tfe_outputs.nonsensitive_values`. The hub publishes contract `0.1.0`, its VNet ID and address spaces. Workloads publish `attachment_contract` v2.0.0; select workspace context (default) or the explicit contract/Azure compatibility source below. Generic platform/workload owners publish `network_attachment_contract` v3.0.0 with context, CIDRs and DNS intent through the [output-only producer adapter](producer/README.md).
 3. Fail closed on mismatched tenant/environment/IDs/context/versions/DNS intent or live CIDRs. Check overlap within the batch, against the hub and against supplied external IPAM ranges. These are not automatic estate-wide checks: supply the relevant external ranges. Approval/IPAM references are evidence pointers, not live ticket or IPAM-system verification. Empty inventories make no producer or Azure reads and create no attachments.
 4. Create all approved hub halves, then spoke halves, then DNS links. Transit defaults off; enabling it requires matching producer intent and explicit hub gateway readiness. Forwarded traffic is an independent paired setting. Peerings are not an atomic transaction.
 5. Both peering resources use the same AzAPI provider-process `locks` key. This serializes their mutations within that provider process, including across map entries. These are **not Azure management/resource locks** and do not coordinate different HCP runs. DNS mutations are similarly serialized per zone within this process.
@@ -97,19 +97,35 @@ Explicit IDs remain backward-compatible pins and must match the producer; they a
 
 | Producer Contract | Classification / Metadata | Public Output |
 | --- | --- | --- |
-| v2.0.0 (default, unchanged) | `attachment_kind=workload`; required `naming_context={region,environment,domain,appcode}` | Existing `attachment_contract` plus context |
+| v2.0.0 | `attachment_kind=workload`; required `naming_context={region,environment,domain,appcode}` | Existing `attachment_contract`; context source selected below |
 | v3.0.0 (generic) | Explicit matching `attachment_kind=platform` or `workload`; omit `naming_context` | `network_attachment_contract` from the VNet owner, including context and address spaces |
 
 | Optional Attachment Field | Default | Use |
 | --- | --- | --- |
 | `environment` | v2 naming context, otherwise boundary | Actual environment expected from this producer; declare explicitly for grouped v3 entries. Never relabel it `nonprod` |
 | `attachment_kind` | `workload` | `platform` or `workload`, independently cross-checked with the v3 producer; platform requires v3 |
+| `producer_context_source` | `workspace` | Existing context outputs, or explicit `contract-and-azure` for v2 producers without them; see below |
 | `gateway_transit` | `false` | Hub offers transit; spoke consumes it. No hub remote gateway or spoke transit offering |
 | `allow_forwarded_traffic` | `true` | Approved hub NVA forwarding in both directions; routes/NSGs/firewall still govern flows |
 | `private_dns_zone_ids` | `{}` | Exact central zone IDs matching producer intent; v2 keys are `key_vault` and `storage_blob`; v3 supports other approved keys. Empty means no links only when the producer also requests none |
 | `peering_names` | `null` | Explicit approved `hub_to_spoke`/`spoke_to_hub` names for new connections or preserving live names. The two roots use `peer-hub-to-<vnet>`/`peer-<vnet>-to-hub`; omitted names retain the existing canonical naming helper |
 | `private_dns_link_names` | `{}` | Optional approved link-name overrides by a key present in `private_dns_zone_ids`; omitted names default to `<spoke-vnet-name>-link` |
 | `tags` | `{}` | Reviewed tags on owned DNS links; peering resources do not support tags |
+
+### Existing V2 Producers Without Context
+
+For Compeer's existing pilot producer, use **`producer_context_source="contract-and-azure"`** inside each applicable root attachment entry. This keeps the change in the peering repository; no new pilot output or producer apply is needed. Subsequent onboarding changes only the reviewed root inventory, not the reusable pattern.
+
+| Source | Tenant / Subscription Evidence | Environment Evidence | Tradeoff |
+| --- | --- | --- | --- |
+| `workspace` (backward-compatible default) | Published `context` or `spoke.context`; v3 uses its contract context | Same context | No additional subscription metadata read; producer must publish context |
+| `contract-and-azure` (v2 only) | Read-only Azure GET of the resolved VNet's subscription; validate returned `tenantId` and `subscriptionId`. Also check the hub subscription | Existing `attachment_contract.naming_context.environment` | No producer changes, but requires subscription metadata-read authorization |
+
+The alternative does **not** copy expected values from the root to make validation pass, infer an environment from a VNet name, or ignore contradictory published context. Naming, ownership, versions, IDs, CIDRs/IPAM, DNS and gateway guards remain active. Missing metadata/permissions fail closed. API reads are keyed by stable attachment keys; several VNets may share a subscription without extra providers. The subscription data source uses [AzAPI's supported subscription type](https://github.com/Azure/terraform-provider-azapi/blob/v2.4.0/docs/data-sources/resource.md) and the [Azure subscription GET API](https://learn.microsoft.com/en-us/rest/api/resources/subscriptions/get?view=rest-resources-2022-12-01).
+
+Both plan and apply identities need narrowly scoped `Microsoft.Resources/subscriptions/read` on the hub subscription and each subscription using the alternative. This is metadata-only, not subscription-wide resource Reader or write access. Have platform authorization supply/test it; do not broaden peering privileges. See the [permission matrix](../../implementations/platform-lz/network-attachments/README.md#permission-review).
+
+Keep all `contracts.tf` preconditions enabled. In particular, `naming_context.appcode` must equal the producer contract: `ptinapp` and `pltinapp` are different. The stable attachment map key and existing explicit peering names need not be renamed to correct that metadata. Context-source changes preserve managed resource addresses and need no state move/import; review a fresh full plan before apply. The attachment schema remains v2.0.0; this option is not a contract-version upgrade.
 
 ## Outputs
 

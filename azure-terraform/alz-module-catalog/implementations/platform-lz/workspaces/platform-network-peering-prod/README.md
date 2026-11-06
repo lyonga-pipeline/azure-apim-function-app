@@ -17,6 +17,8 @@ Replace all documentation values, retain only existing VNets and use stable keys
 
 This UNAPPLIED root stays disabled with its inventory populated. Before enabling, publish/pin the verified HCP pattern and naming dependency, configure public-output access, scoped OIDC/RBAC and the protected shared-hub gate, and record actual adoption approvals. **Never disable a live state to pause it**: stop/lock runs instead.
 
+The committed v2 inventory selects `producer_context_source="contract-and-azure"`: existing producer contract environment/naming plus live Azure tenant/subscription metadata, without a new VNet-owner output. Both plan/apply identities need metadata-only `Microsoft.Resources/subscriptions/read` at the hub and relevant spoke subscriptions, in addition to exact VNet/zone rights. Existing callers default to `workspace` context; generic v3 is unchanged. Keep every producer precondition enabled. See the [configuration and pilot checklist](../platform-network-peering-nonprod/README.md#pilot-fix-without-changing-its-vnet-repository).
+
 ## Isolation And Ownership
 
 HCP workspace: `platform-network-peering-prod`; working directory: this root. Keep an independent release pin, main-branch trigger path, production plan/apply identities and production approvals. Non-production lives in `platform-network-peering-nonprod`, not runtime-selected tfvars against this backend.

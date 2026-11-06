@@ -60,6 +60,7 @@ Repeat this object for each actual VNet. Multiple entries may belong to the same
 | `address_space` | Required | Nonempty actual IPv4 CIDRs matching the live VNet; v3 also checks producer CIDRs. An IPAM reference alone does not replace these values. |
 | `producer.organization`, `producer.workspace` | Both required | Existing HCP VNet-owner workspace publishing the approved public attachment contract. Not this attachment workspace itself. |
 | `producer.contract_version` | Optional; `"2.0.0"` | Existing workload blueprint v2, or generic platform/workload v3 (`"3.0.0"`). This selects an output schema, not a module package version. |
+| `producer_context_source` | Optional; `"workspace"`; committed v2 examples select `"contract-and-azure"` | Choose existing workspace context, or validate v2 contract environment against reviewed inventory and tenant/subscription against live Azure without adding producer outputs. See below. |
 | `attachment_kind` | Optional; `"workload"` | `workload` for application VNets; `platform` requires v3 and matching producer classification. Does not create application/platform resources. |
 | `environment` | Conditional; explicitly supplied in these examples | Actual producer environment, present in the root allowlist and equal to the producer output. V2 can derive it from `naming_context.environment`; grouped v3 entries must declare it. Never substitute `nonprod`. |
 | `naming_context` | Required for v2; omit for v3 | `{ region, environment, domain, appcode }`, exactly matching the workload producer. Example: centralus / dev / internal-apps / orders. It is validation metadata, not an instruction to rename the VNet. |
@@ -72,7 +73,7 @@ Repeat this object for each actual VNet. Multiple entries may belong to the same
 | `private_dns_link_names` | Optional; `{}` | Per-zone overrides for the DNS **link resource names**, not zone names or DNS records. Omitted keys use generated names; they do not omit links. |
 | `tags` | Optional; `{}` | Applied only to the managed DNS VNet links. Not to the peerings, VNets or referenced services. Supply approved tag values where policy requires them. |
 
-V2 producers publish `attachment_contract` plus context (directly or under `spoke`); v3 publishes `network_attachment_contract`. Both must identify `owner="central-attachment-workspace"` and agree with the approved hub/VNet/environment. Producer peering names must remain unset; v2 DNS intent must leave central link names unset and permit linking. This workspace supplies those names. Publishing output values does not transfer existing resource ownership.
+V2 producers publish `attachment_contract`, with context supplied by the selected source below; v3 publishes `network_attachment_contract` including context. Both must identify `owner="central-attachment-workspace"` and agree with the approved hub/VNet/environment. Producer peering names must remain unset; v2 DNS intent must leave central link names unset and permit linking. This workspace supplies those names. Publishing output values does not transfer existing resource ownership.
 
 ### Read VNet IDs From Workspace Outputs
 
@@ -84,9 +85,27 @@ The committed tfvars omits both VNet ID fields. Select the approved connectivity
 | Workload spoke | `spoke_virtual_network_id`, checked against `attachment_contract.spoke_virtual_network_id` |
 | Wrapped v2 / generic v3 | Supported `spoke.attachment_contract` / `network_attachment_contract` ID when no top-level spoke ID is published |
 
-The selected owner must still publish its versioned contract/context. Keep `hub.contract_version="0.1.0"` and workload `producer.contract_version="2.0.0"`; a workload root's general `contract_version="1.0.0"` is a different output. Keep CIDRs, approval/IPAM references and optional DNS intent in the reviewed inventory.
+The selected owner must still publish its versioned contract and the evidence required by the chosen context source. Keep `hub.contract_version="0.1.0"` and workload `producer.contract_version="2.0.0"`; a workload root's general `contract_version="1.0.0"` is a different output. Keep CIDRs, approval/IPAM references and optional DNS intent in the reviewed inventory.
 
 Existing explicit IDs remain supported and checked. Removing a matching ID pin preserves addresses, names and state ownership; no import is needed. Without pins, a producer rebuild can propose replacement of the peerings/links: require renewed network approval and review the resolved IDs in the full plan. The public-output read identity needs access only to the selected workspaces. Neither sensitive-output fallback nor broad state download is used.
+
+### Pilot Fix Without Changing Its VNet Repository
+
+The committed v2 examples use the peering-only compatibility mode. For an existing pilot inventory, add this **inside** `attachments.<stable-key>`, alongside `producer`:
+
+```hcl
+producer_context_source = "contract-and-azure"
+```
+
+This uses the existing v2 contract for environment/naming and reads Azure subscription metadata for actual tenant/subscription identity. No new pilot `context` output is required. The approved `producer.workspace` selects the VNet dynamically; no VNet ID is hardcoded in shared locals. For each additional VNet, add only a reviewed root entry and its authorization grants.
+
+Before re-planning:
+
+1. Grant/test `Microsoft.Resources/subscriptions/read` for both plan/apply identities on the hub subscription and each spoke subscription selecting this mode. Use a metadata-only custom role, not broad Reader/Contributor. Existing VNet-scoped peering rights remain unchanged.
+2. Match all four `naming_context` fields to `attachment_contract.naming_context`. For the pilot, use `appcode="pltinapp"` **if that is what the actual producer contract publishes**, not the mismatching `ptinapp`. Keep the existing stable map key and approved peering names.
+3. Restore the commented-out producer precondition in your exported peering copy, use the updated pattern/root schema, then run tests and a fresh full plan. Do not apply the plan generated with the check disabled.
+
+`workspace` remains the default for existing callers and requires `context`/`spoke.context`; v3 always keeps its existing contract context. The compatibility mode is v2-only and rejects missing metadata, wrong tenants/subscriptions, environment/naming drift and contradictory published context. No Azure resource addresses, names or state ownership change merely by selecting it. See the [source comparison](../../../../patterns/terraform-azapi-compeer-network-attachments/README.md#existing-v2-producers-without-context).
 
 ## DNS Inputs And Ownership
 

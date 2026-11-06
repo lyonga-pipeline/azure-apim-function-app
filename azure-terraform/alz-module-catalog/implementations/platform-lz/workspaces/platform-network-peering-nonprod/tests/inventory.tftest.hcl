@@ -5,6 +5,26 @@ mock_provider "azapi" {
   mock_resource "azapi_resource" { defaults = { output = { properties = { peeringState = "Connected", provisioningState = "Succeeded" } } } }
 }
 mock_provider "tfe" {}
+override_data {
+  target = module.attachments[0].data.azapi_resource.hub_subscription[0]
+  values = { output = { tenantId = "cccccccc-cccc-cccc-cccc-cccccccccccc", subscriptionId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" } }
+}
+override_data {
+  target = module.attachments[0].data.azapi_resource.spoke_subscription["orders_dev"]
+  values = { output = { tenantId = "cccccccc-cccc-cccc-cccc-cccccccccccc", subscriptionId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" } }
+}
+override_data {
+  target = module.attachments[0].data.azapi_resource.spoke_subscription["orders_test"]
+  values = { output = { tenantId = "cccccccc-cccc-cccc-cccc-cccccccccccc", subscriptionId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" } }
+}
+override_data {
+  target = module.attachments[0].data.azapi_resource.spoke_subscription["orders_uat"]
+  values = { output = { tenantId = "cccccccc-cccc-cccc-cccc-cccccccccccc", subscriptionId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" } }
+}
+override_data {
+  target = module.attachments[0].data.azapi_resource.spoke_subscription["orders_sandbox"]
+  values = { output = { tenantId = "cccccccc-cccc-cccc-cccc-cccccccccccc", subscriptionId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" } }
+}
 variables {
   enabled              = true
   allow_local_cli_auth = true

@@ -33,6 +33,7 @@ attachments = {
     # spoke_virtual_network_id comes from the approved producer below, not a copied ARM ID.
     address_space           = ["10.20.0.0/24"]
     producer                = { organization = "Compeer-Financial-Services", workspace = "workload-orders-prod", contract_version = "2.0.0" }
+    producer_context_source = "contract-and-azure" # Existing v2 contract + live Azure; no new producer outputs.
     naming_context          = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_PRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_PRODUCTION_IPAM_RESERVATION"

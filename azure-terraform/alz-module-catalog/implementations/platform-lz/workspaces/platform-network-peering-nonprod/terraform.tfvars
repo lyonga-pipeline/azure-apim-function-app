@@ -36,6 +36,7 @@ attachments = {
     # spoke_virtual_network_id comes from the approved producer below, not a copied ARM ID.
     address_space           = ["10.21.0.0/24"]
     producer                = { organization = "Compeer-Financial-Services", workspace = "workload-orders-dev", contract_version = "2.0.0" }
+    producer_context_source = "contract-and-azure" # Existing v2 contract + live Azure; no new producer outputs.
     naming_context          = { region = "centralus", environment = "dev", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_DEV_IPAM_RESERVATION"
@@ -61,6 +62,7 @@ attachments = {
     environment             = "test" # Real producer environment, NOT "nonprod".
     address_space           = ["10.22.0.0/24"]
     producer                = { organization = "Compeer-Financial-Services", workspace = "workload-orders-test", contract_version = "2.0.0" }
+    producer_context_source = "contract-and-azure" # Existing v2 contract + live Azure; no new producer outputs.
     naming_context          = { region = "centralus", environment = "test", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_TEST_IPAM_RESERVATION"
@@ -86,6 +88,7 @@ attachments = {
     environment             = "uat" # Real producer environment, NOT "nonprod".
     address_space           = ["10.23.0.0/24"]
     producer                = { organization = "Compeer-Financial-Services", workspace = "workload-orders-uat", contract_version = "2.0.0" }
+    producer_context_source = "contract-and-azure" # Existing v2 contract + live Azure; no new producer outputs.
     naming_context          = { region = "centralus", environment = "uat", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_UAT_IPAM_RESERVATION"
@@ -111,6 +114,7 @@ attachments = {
     environment             = "sandbox" # Real producer environment, NOT "nonprod".
     address_space           = ["10.24.0.0/24"]
     producer                = { organization = "Compeer-Financial-Services", workspace = "workload-orders-sandbox", contract_version = "2.0.0" }
+    producer_context_source = "contract-and-azure" # Existing v2 contract + live Azure; no new producer outputs.
     naming_context          = { region = "centralus", environment = "sandbox", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_SANDBOX_IPAM_RESERVATION"

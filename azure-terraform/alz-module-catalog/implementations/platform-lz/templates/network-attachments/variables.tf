@@ -50,6 +50,7 @@ variable "attachments" {
       workspace        = string
       contract_version = optional(string, "2.0.0")
     })
+    producer_context_source = optional(string, "workspace")
     naming_context          = optional(object({ region = string, environment = string, domain = string, appcode = string }))
     approval_reference      = string
     ipam_reference          = string

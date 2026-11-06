@@ -2,6 +2,13 @@ resource "terraform_data" "inventory_contract" {
   input = keys(var.attachments)
   lifecycle {
     precondition {
+      condition = length(local.azure_context_attachments) == 0 ? true : try(
+        lower(data.azapi_resource.hub_subscription[0].output.tenantId) == lower(var.tenant_id) &&
+        lower(data.azapi_resource.hub_subscription[0].output.subscriptionId) == lower(split("/", local.hub_virtual_network_id)[2]), false
+      )
+      error_message = "The live hub subscription must match its resolved VNet ID and the approved tenant when contract-and-azure context is selected."
+    }
+    precondition {
       condition = !local.active || try(
         lower(data.azapi_client_config.current[0].tenant_id) == lower(var.tenant_id) &&
         length(distinct([for id in values(local.spoke_virtual_network_ids) : lower(id)])) == length(var.attachments) &&

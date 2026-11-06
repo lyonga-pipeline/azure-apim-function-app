@@ -42,6 +42,34 @@ data "azapi_resource" "spoke" {
   }
 }
 
+# PHASE 2: optional read-only adapter for existing v2 producers without context outputs.
+# Stable attachment keys keep planning independent of computed subscription IDs.
+data "azapi_resource" "spoke_subscription" {
+  for_each               = local.azure_context_attachments
+  type                   = "Microsoft.Resources/subscriptions@2022-12-01"
+  resource_id            = try(regex("(?i)^/subscriptions/[0-9a-f-]{36}", local.spoke_virtual_network_ids[each.key]), null)
+  response_export_values = ["tenantId", "subscriptionId"]
+  lifecycle {
+    precondition {
+      condition     = can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", local.spoke_virtual_network_ids[each.key]))
+      error_message = "Attachment ${each.key}: a valid producer VNet ID is required before reading its subscription metadata."
+    }
+  }
+}
+
+data "azapi_resource" "hub_subscription" {
+  count                  = length(local.azure_context_attachments) > 0 ? 1 : 0
+  type                   = "Microsoft.Resources/subscriptions@2022-12-01"
+  resource_id            = try(regex("(?i)^/subscriptions/[0-9a-f-]{36}", local.hub_virtual_network_id), null)
+  response_export_values = ["tenantId", "subscriptionId"]
+  lifecycle {
+    precondition {
+      condition     = can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", local.hub_virtual_network_id))
+      error_message = "A valid hub producer VNet ID is required before reading its subscription metadata."
+    }
+  }
+}
+
 module "naming" {
   source                 = "./modules/attachment-names"
   for_each               = var.attachments

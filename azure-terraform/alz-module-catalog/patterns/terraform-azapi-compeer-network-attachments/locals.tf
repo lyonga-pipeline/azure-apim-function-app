@@ -12,7 +12,14 @@ locals {
     local.spoke_outputs[key].spoke.attachment_contract,
     null
   ) }
-  contexts = { for key, attachment in var.attachments : key => attachment.producer.contract_version == "3.0.0" ? try(local.contracts[key].context, null) : try(local.spoke_outputs[key].context, local.spoke_outputs[key].spoke.context, null) }
+  workspace_contexts        = { for key, attachment in var.attachments : key => attachment.producer.contract_version == "3.0.0" ? try(local.contracts[key].context, null) : try(local.spoke_outputs[key].context, local.spoke_outputs[key].spoke.context, null) }
+  azure_context_attachments = { for key, attachment in var.attachments : key => attachment if attachment.producer_context_source == "contract-and-azure" }
+  # Observed metadata, not the expected tenant/environment supplied by this consumer.
+  contexts = { for key, attachment in var.attachments : key => attachment.producer_context_source == "contract-and-azure" ? {
+    tenant_id       = try(data.azapi_resource.spoke_subscription[key].output.tenantId, null)
+    subscription_id = try(data.azapi_resource.spoke_subscription[key].output.subscriptionId, null)
+    environment     = try(local.contracts[key].naming_context.environment, null)
+  } : local.workspace_contexts[key] }
   # Workspace selectors are reviewed inventory. Existing explicit IDs remain checked pins.
   hub_virtual_network_id = try(coalesce(var.hub.virtual_network_id, try(local.hub_outputs.hub_virtual_network_id, null)), null)
   spoke_virtual_network_ids = { for key, attachment in var.attachments : key => try(coalesce(
@@ -62,6 +69,12 @@ locals {
     tenant         = try(lower(local.contexts[key].tenant_id) == lower(var.tenant_id), false)
     subscription   = try(lower(local.contexts[key].subscription_id) == lower(split("/", local.spoke_virtual_network_ids[key])[2]), false)
     environment    = try(contains(local.allowed_environments, local.attachment_environments[key]) && local.contexts[key].environment == local.attachment_environments[key], false)
+    # An explicitly published context cannot contradict the alternative metadata source.
+    published_context = attachment.producer_context_source != "contract-and-azure" || local.workspace_contexts[key] == null ? true : try(
+      lower(local.workspace_contexts[key].tenant_id) == lower(local.contexts[key].tenant_id) &&
+      lower(local.workspace_contexts[key].subscription_id) == lower(local.contexts[key].subscription_id) &&
+      local.workspace_contexts[key].environment == local.contexts[key].environment, false
+    )
     live_cidrs     = try(toset(data.azapi_resource.spoke[key].output.properties.addressSpace.addressPrefixes) == attachment.address_space, false)
     producer_cidrs = attachment.producer.contract_version != "3.0.0" || try(toset(local.contracts[key].address_space) == attachment.address_space, false)
     central_names  = try(local.contracts[key].peering_names, null) == null

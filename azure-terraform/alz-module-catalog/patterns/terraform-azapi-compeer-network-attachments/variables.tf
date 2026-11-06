@@ -72,6 +72,8 @@ variable "attachments" {
       workspace        = string
       contract_version = optional(string, "2.0.0")
     })
+    # Opt-in for v2 producers without context outputs; never infer metadata from inventory.
+    producer_context_source = optional(string, "workspace")
     # Legacy workload-v2 metadata only. Generic v3 derives names from existing VNets.
     naming_context     = optional(object({ region = string, environment = string, domain = string, appcode = string }))
     approval_reference = string
@@ -85,6 +87,13 @@ variable "attachments" {
     tags                    = optional(map(string), {})
   }))
   default = {}
+  validation {
+    condition = alltrue([for attachment in values(var.attachments) :
+      contains(["workspace", "contract-and-azure"], attachment.producer_context_source) &&
+      (attachment.producer_context_source != "contract-and-azure" || attachment.producer.contract_version == "2.0.0")
+    ])
+    error_message = "producer_context_source must be workspace (default), or contract-and-azure for workload-v2 producers only."
+  }
   validation {
     condition = alltrue([for key, attachment in var.attachments :
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
