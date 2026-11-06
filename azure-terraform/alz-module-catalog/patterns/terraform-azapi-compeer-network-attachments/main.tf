@@ -19,15 +19,27 @@ data "azapi_client_config" "current" {
 data "azapi_resource" "hub" {
   count                  = local.active ? 1 : 0
   type                   = "Microsoft.Network/virtualNetworks@2024-05-01"
-  resource_id            = var.hub.virtual_network_id
+  resource_id            = local.hub_virtual_network_id
   response_export_values = ["properties.addressSpace.addressPrefixes"]
+  lifecycle {
+    precondition {
+      condition     = can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", local.hub_virtual_network_id))
+      error_message = "The approved hub workspace must publish a valid hub_virtual_network_id, or supply a matching explicit hub.virtual_network_id pin."
+    }
+  }
 }
 
 data "azapi_resource" "spoke" {
   for_each               = var.attachments
   type                   = "Microsoft.Network/virtualNetworks@2024-05-01"
-  resource_id            = each.value.spoke_virtual_network_id
+  resource_id            = local.spoke_virtual_network_ids[each.key]
   response_export_values = ["properties.addressSpace.addressPrefixes"]
+  lifecycle {
+    precondition {
+      condition     = can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", local.spoke_virtual_network_ids[each.key]))
+      error_message = "Attachment ${each.key}: the approved producer must publish a valid spoke_virtual_network_id, directly or in its attachment contract. An explicit ID pin must also match that contract."
+    }
+  }
 }
 
 module "naming" {
@@ -43,17 +55,17 @@ module "naming" {
 resource "azapi_resource" "hub_to_spoke" {
   for_each  = var.attachments
   type      = "Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01"
-  parent_id = var.hub.virtual_network_id
+  parent_id = local.hub_virtual_network_id
   name      = local.peering_names[each.key].hub_to_spoke
   body = { properties = {
-    remoteVirtualNetwork      = { id = each.value.spoke_virtual_network_id }
+    remoteVirtualNetwork      = { id = local.spoke_virtual_network_ids[each.key] }
     allowVirtualNetworkAccess = true
     allowForwardedTraffic     = each.value.allow_forwarded_traffic
     allowGatewayTransit       = each.value.gateway_transit
     useRemoteGateways         = false
   } }
   # Provider-process mutex, NOT an Azure management lock or a cross-workspace gate.
-  locks                  = [lower(var.hub.virtual_network_id)]
+  locks                  = local.hub_virtual_network_id == null ? [] : [lower(local.hub_virtual_network_id)]
   response_export_values = ["properties.peeringState", "properties.provisioningState"]
   depends_on             = [terraform_data.inventory_contract, terraform_data.producer_contract, terraform_data.ipam_contract]
   timeouts {
@@ -66,16 +78,16 @@ resource "azapi_resource" "hub_to_spoke" {
 resource "azapi_resource" "spoke_to_hub" {
   for_each  = var.attachments
   type      = "Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01"
-  parent_id = each.value.spoke_virtual_network_id
+  parent_id = local.spoke_virtual_network_ids[each.key]
   name      = local.peering_names[each.key].spoke_to_hub
   body = { properties = {
-    remoteVirtualNetwork      = { id = var.hub.virtual_network_id }
+    remoteVirtualNetwork      = { id = local.hub_virtual_network_id }
     allowVirtualNetworkAccess = true
     allowForwardedTraffic     = each.value.allow_forwarded_traffic
     allowGatewayTransit       = false
     useRemoteGateways         = each.value.gateway_transit
   } }
-  locks                  = [lower(var.hub.virtual_network_id)]
+  locks                  = local.hub_virtual_network_id == null ? [] : [lower(local.hub_virtual_network_id)]
   response_export_values = ["properties.peeringState", "properties.provisioningState"]
   # All hub permissions must exist before any spoke uses a remote gateway.
   depends_on = [azapi_resource.hub_to_spoke]

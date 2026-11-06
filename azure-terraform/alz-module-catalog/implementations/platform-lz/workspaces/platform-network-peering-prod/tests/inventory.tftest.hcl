@@ -26,6 +26,17 @@ override_data {
   target = module.attachments[0].data.azapi_resource.spoke["orders_prod"]
   values = { output = { properties = { addressSpace = { addressPrefixes = ["10.20.0.0/24"] } } } }
 }
+run "first_plan_resolves_workspace_ids_without_waiting_for_adoption_apply" {
+  command = plan
+  assert {
+    condition = (
+      var.hub.virtual_network_id == null && var.attachments.orders_prod.spoke_virtual_network_id == null &&
+      output.attachments.orders_prod.hub_virtual_network_id == "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet" &&
+      output.attachments.orders_prod.spoke_virtual_network_id == "/subscriptions/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/resourceGroups/orders-prod/providers/Microsoft.Network/virtualNetworks/workload-cus-prod-int-orders-vnet"
+    )
+    error_message = "The first prod plan must read public IDs and evaluate contracts before the new adoption record is applied."
+  }
+}
 run "committed_inventory_creates_both_directions_with_explicit_names" {
   command = apply
   assert {

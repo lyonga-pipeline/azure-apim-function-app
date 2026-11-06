@@ -25,5 +25,5 @@ module "attachments" {
   hub                     = var.hub
   attachments             = var.attachments
   reserved_address_spaces = var.reserved_address_spaces
-  depends_on              = [terraform_data.adoption_contract]
+  # Adoption uses plan-known root inputs; a module-wide dependency would defer producer reads.
 }

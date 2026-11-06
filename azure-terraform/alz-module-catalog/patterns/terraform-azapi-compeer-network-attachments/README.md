@@ -65,7 +65,7 @@ Use the [root template](../../implementations/platform-lz/templates/network-atta
 
 ## Operation
 
-1. Network reviewers approve the Git inventory: immutable attachment key, classification, exact VNet ID/CIDRs, producer workspace/version, IPAM/change references, DNS zones and gateway/forwarding intent. Workload-v2 also supplies naming context. Producer outputs cross-check the inventory; they do not expand it. Azure RBAC authorizes the actual deployment.
+1. Network reviewers approve the Git inventory: immutable attachment key, classification, producer workspace/version, CIDRs, optional explicit VNet ID pins, IPAM/change references, DNS zones and gateway/forwarding intent. Workload-v2 also supplies naming context. Only declared workspace selectors are read; outputs cannot add attachments. Azure RBAC authorizes the actual deployment.
 2. Read only `tfe_outputs.nonsensitive_values`. The hub publishes contract `0.1.0`, its VNet ID and address spaces. Existing workloads may keep public `attachment_contract` v2.0.0 plus context (directly or under `spoke`). Generic platform/workload owners publish `network_attachment_contract` v3.0.0 with context, CIDRs and DNS intent through the [output-only producer adapter](producer/README.md).
 3. Fail closed on mismatched tenant/environment/IDs/context/versions/DNS intent or live CIDRs. Check overlap within the batch, against the hub and against supplied external IPAM ranges. These are not automatic estate-wide checks: supply the relevant external ranges. Approval/IPAM references are evidence pointers, not live ticket or IPAM-system verification. Empty inventories make no producer or Azure reads and create no attachments.
 4. Create all approved hub halves, then spoke halves, then DNS links. Transit defaults off; enabling it requires matching producer intent and explicit hub gateway readiness. Forwarded traffic is an independent paired setting. Peerings are not an atomic transaction.
@@ -81,11 +81,19 @@ Workload-v2 retains its strict **Key Vault and Blob DNS** contract. Generic-v3 p
 | `tenant_id` | UUID string, required | Approved tenant, checked against authenticated provider and producer context |
 | `environment` | approved slug, required | Fixed state boundary, e.g. `prod`, `nonprod`, `shared`; not a runtime selector |
 | `allowed_environments` | set(string), `null` | Explicit actual producer labels permitted in this boundary; null preserves the old exact `environment` check |
-| `hub` | object, required | `virtual_network_id`, `address_space`, producer `organization`/`workspace`; `contract_version="0.1.0"`, `gateway_ready=false` |
+| `hub` | object, required | `address_space`, producer `organization`/`workspace`; optional checked `virtual_network_id` pin, otherwise read `hub_virtual_network_id` from that workspace; `contract_version="0.1.0"`, `gateway_ready=false` |
 | `attachments` | typed map(object), `{}` | Network-approved members, keyed by immutable identity |
 | `reserved_address_spaces` | set(IPv4 CIDR), `[]` | Complete relevant IPAM inventory outside this batch/hub; include on-premises, partners and other environments |
 
-Each attachment requires `spoke_virtual_network_id` (the attached platform/workload VNet), `address_space`, `producer={organization,workspace,contract_version}`, `approval_reference` and `ipam_reference`. The existing `spoke_*` field/resource addresses are preserved for compatibility; they do not restrict the VNet to an application workload.
+Each attachment requires `address_space`, `producer={organization,workspace,contract_version}`, `approval_reference` and `ipam_reference`. `spoke_virtual_network_id` is optional: omit it to resolve the approved producer's public ID, or retain it as an explicit checked pin. The existing `spoke_*` field/resource addresses are preserved for compatibility; they do not restrict the VNet to an application workload.
+
+### Workspace-Resolved VNet IDs
+
+The default is to read **`hub_virtual_network_id`** from the selected connectivity workspace and **`spoke_virtual_network_id`** from each selected VNet-owner workspace. For existing v2 wrappers and generic v3 producers without a top-level spoke ID, the pattern reads the ID from their supported attachment contract. The top-level ID and attachment contract must agree when both exist. A bare ID output does not replace the required versioned contract/context.
+
+Omit `hub.virtual_network_id` and `attachments.<key>.spoke_virtual_network_id` from tfvars; do not put `data.tfe_outputs` expressions in a tfvars file. Both reads already occur inside the pattern. Required CIDRs, workspace selectors, naming context, approvals and DNS intent remain reviewed inputs. Missing/malformed IDs and producer mismatches fail during plan in the supplied roots, which deliberately avoid a module-wide `depends_on` on the adoption record.
+
+Explicit IDs remain backward-compatible pins and must match the producer; they are not an override that bypasses validation. Removing a matching pin changes no resource address or Azure ID and needs no import. Review a full plan: without a pin, a producer VNet replacement can propose peering/link replacement. Protect producer changes and require renewed network approval, current VNet-scoped RBAC and the shared-hub gate. Keep pins where policy requires an independent exact-ID assertion; never auto-apply a newly published VNet ID.
 
 | Producer Contract | Classification / Metadata | Public Output |
 | --- | --- | --- |

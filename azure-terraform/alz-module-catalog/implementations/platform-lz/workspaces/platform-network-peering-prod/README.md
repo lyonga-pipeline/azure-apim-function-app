@@ -13,6 +13,8 @@ Each entry always creates both halves. Naming follows Compeer's identity/hub con
 
 Replace all documentation values, retain only existing VNets and use stable keys. DNS intent must match producer outputs exactly. Gateway transit stays off unless approved and the actual hub gateway is ready. Routes/firewall inspection remain separate owner changes.
 
+**VNet IDs come from workspace outputs:** the committed tfvars omits `hub.virtual_network_id` and each `spoke_virtual_network_id`. The pattern reads `hub_virtual_network_id` from the approved connectivity workspace and the attached VNet ID from its approved producer's public output/contract during plan. Missing outputs or mismatches fail closed. Existing explicit IDs remain checked pins; removing matching pins does not require state migration. A producer rebuild/new ID still requires network approval and full replacement-plan review. See the [workspace-output reference](../platform-network-peering-nonprod/README.md#read-vnet-ids-from-workspace-outputs).
+
 This UNAPPLIED root stays disabled with its inventory populated. Before enabling, publish/pin the verified HCP pattern and naming dependency, configure public-output access, scoped OIDC/RBAC and the protected shared-hub gate, and record actual adoption approvals. **Never disable a live state to pause it**: stop/lock runs instead.
 
 ## Isolation And Ownership

@@ -18,7 +18,8 @@ run "new_root_is_inert" {
 run "rejects_unapproved_adoption" {
   command = plan
   variables {
-    enabled = true
+    enabled     = true
+    attachments = {}
     hub = {
       virtual_network_id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/hub/providers/Microsoft.Network/virtualNetworks/shared-hub-vnet"
       address_space      = ["10.0.0.0/16"]

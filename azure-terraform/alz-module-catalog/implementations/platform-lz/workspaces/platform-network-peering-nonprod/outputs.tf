@@ -3,7 +3,7 @@ output "contract_version" {
   description = "Environment attachment consumer contract."
 }
 output "attachments" {
-  value       = try(module.attachments[0].attachments, {})
+  value       = var.enabled ? module.attachments[0].attachments : {}
   description = "Owned peering/DNS child IDs, never ownership of their VNet parents."
 }
 output "environment" {

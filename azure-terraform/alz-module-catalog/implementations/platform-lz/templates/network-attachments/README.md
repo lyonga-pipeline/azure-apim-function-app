@@ -6,6 +6,8 @@ Compeer's default roots are prod and consolidated nonprod, not one per non-produ
 
 Use `attachment_kind="platform"` for a hub-to-platform VNet attachment and `"workload"` for a hub-to-application VNet. Generic producers publish `network_attachment_contract` v3; the existing workload `attachment_contract` v2 remains supported without changing its producers. No dummy application code, workload domain or naming context is needed for v3. Platform and workload VNets keep their original owners; this root creates only both peering directions and approved links.
 
+Omit `hub.virtual_network_id` and attachment `spoke_virtual_network_id` to read them from the selected public producer outputs/contracts during plan. Explicit IDs remain optional checked pins for existing callers or stricter identity approval. Workspace selectors, reviewed CIDRs, contracts and approvals remain required; a producer rebuild/new ID requires a reviewed replacement plan, not automatic adoption. The [pattern reference](../../../../patterns/terraform-azapi-compeer-network-attachments/README.md#workspace-resolved-vnet-ids) documents output names and compatibility.
+
 Examples:
 - [Shared platform VNet](../../../../patterns/terraform-azapi-compeer-network-attachments/examples/shared-platform.tfvars.example).
 - [Applications with one, two and three environments](../../../../patterns/terraform-azapi-compeer-network-attachments/examples/application-environments/README.md).

@@ -49,6 +49,31 @@ override_data {
   target = data.azapi_resource.spoke["platform"]
   values = { output = { properties = { addressSpace = { addressPrefixes = ["10.40.0.0/24"] } } } }
 }
+run "generic_v3_resolves_both_ids_without_inventory_id_literals" {
+  command = plan
+  variables {
+    hub = { address_space = ["10.0.0.0/16"], organization = "Compeer-Financial-Services", workspace = "platform-connectivity" }
+    attachments = {
+      platform = {
+        attachment_kind      = "platform"
+        address_space        = ["10.40.0.0/24"]
+        producer             = { organization = "Compeer-Financial-Services", workspace = "platform-services-owner", contract_version = "3.0.0" }
+        approval_reference   = "NET-123"
+        ipam_reference       = "IPAM-123"
+        private_dns_zone_ids = { storage_file = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net" }
+      }
+    }
+  }
+  assert {
+    condition = (
+      azapi_resource.hub_to_spoke["platform"].parent_id == local.hub_outputs.hub_virtual_network_id &&
+      azapi_resource.spoke_to_hub["platform"].parent_id == local.contracts.platform.spoke_virtual_network_id &&
+      azapi_resource.dns_link["platform/storage_file"].body.properties.virtualNetwork.id == local.contracts.platform.spoke_virtual_network_id &&
+      alltrue(values(local.producer_checks.platform))
+    )
+    error_message = "Generic v3 must derive IDs from the actual owner contract without requiring a top-level spoke output or workload naming context."
+  }
+}
 run "generic_producer_publishes_real_vnet_metadata_without_resources" {
   command = apply
   module { source = "./producer" }

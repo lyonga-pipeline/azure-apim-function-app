@@ -186,6 +186,21 @@ class OwnershipTests(unittest.TestCase):
         for env in ["np1", "np2", "np3"]:
             self.assertFalse((roots / ("platform-network-peering-" + env) / "main.tf").exists())
 
+    def test_workspace_resolution_keeps_plan_time_adoption_and_stable_module_address(self):
+        roots = CATALOG / "implementations/platform-lz/workspaces"
+        directories = [roots / ("platform-network-peering-" + env) for env in ["nonprod", "prod"]]
+        directories.append(CATALOG / "implementations/platform-lz/templates/network-attachments")
+        for root in directories:
+            with self.subTest(root=root.name):
+                main = (root / "main.tf").read_text()
+                variables = (root / "variables.tf").read_text()
+                self.assertIn('resource "terraform_data" "adoption_contract"', main)
+                self.assertIn('module "attachments"', main)
+                self.assertRegex(main, r"count\s*= var.enabled \? 1 : 0")
+                self.assertNotRegex(main, r"depends_on\s*=\s*\[terraform_data.adoption_contract\]")
+                self.assertRegex(variables, r"virtual_network_id\s*= optional\(string\)")
+                self.assertRegex(variables, r"spoke_virtual_network_id\s*= optional\(string\)")
+
 
 if __name__ == "__main__":
     unittest.main()

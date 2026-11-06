@@ -22,9 +22,9 @@ variable "execution_subscription_id" {
   description = "Provider context only; child resources are addressed by full hub/spoke/zone IDs."
 }
 variable "hub" {
-  description = "Approved shared hub and public connectivity producer."
+  description = "Approved shared hub producer and CIDRs. Omit virtual_network_id to use its workspace output; explicit IDs remain checked pins."
   type = object({
-    virtual_network_id = string
+    virtual_network_id = optional(string)
     address_space      = set(string)
     organization       = string
     workspace          = string
@@ -43,7 +43,7 @@ variable "attachments" {
   type = map(object({
     attachment_kind          = optional(string, "workload")
     environment              = optional(string)
-    spoke_virtual_network_id = string
+    spoke_virtual_network_id = optional(string)
     address_space            = set(string)
     producer = object({
       organization     = string

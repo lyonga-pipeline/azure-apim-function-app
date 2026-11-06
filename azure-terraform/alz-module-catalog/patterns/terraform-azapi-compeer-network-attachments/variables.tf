@@ -31,9 +31,9 @@ variable "allowed_environments" {
 }
 
 variable "hub" {
-  description = "Network-approved hub and versioned public producer contract, not values selected by an application."
+  description = "Network-approved hub producer and CIDRs. Omit virtual_network_id to read its public output; an explicit ID remains a checked inventory pin."
   type = object({
-    virtual_network_id = string
+    virtual_network_id = optional(string)
     address_space      = set(string)
     organization       = string
     workspace          = string
@@ -42,11 +42,11 @@ variable "hub" {
   })
   validation {
     condition = (
-      can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", var.hub.virtual_network_id)) &&
+      (var.hub.virtual_network_id == null ? true : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", var.hub.virtual_network_id))) &&
       length(var.hub.address_space) > 0 && alltrue([for cidr in var.hub.address_space : can(cidrnetmask(cidr))]) &&
       var.hub.contract_version == "0.1.0" && length(trimspace(var.hub.organization)) > 0 && length(trimspace(var.hub.workspace)) > 0
     )
-    error_message = "hub needs a VNet ARM ID, approved IPv4 CIDRs, public producer location and supported contract 0.1.0."
+    error_message = "hub needs approved IPv4 CIDRs, a public producer workspace and supported contract 0.1.0. If supplied, virtual_network_id must be a VNet ARM ID."
   }
 }
 
@@ -65,7 +65,7 @@ variable "attachments" {
   type = map(object({
     attachment_kind          = optional(string, "workload")
     environment              = optional(string)
-    spoke_virtual_network_id = string
+    spoke_virtual_network_id = optional(string)
     address_space            = set(string)
     producer = object({
       organization     = string
@@ -88,7 +88,7 @@ variable "attachments" {
   validation {
     condition = alltrue([for key, attachment in var.attachments :
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
-      can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", attachment.spoke_virtual_network_id)) &&
+      (attachment.spoke_virtual_network_id == null ? true : can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$", attachment.spoke_virtual_network_id))) &&
       length(attachment.address_space) > 0 && alltrue([for cidr in attachment.address_space : can(cidrnetmask(cidr))]) &&
       contains(["workload", "platform"], attachment.attachment_kind) &&
       (attachment.environment == null ? true : length(attachment.environment) <= 32 && can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", attachment.environment))) &&

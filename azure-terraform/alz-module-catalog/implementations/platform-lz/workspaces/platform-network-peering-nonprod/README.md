@@ -43,7 +43,7 @@ Use **`sandbox` as the canonical label** with the current workload-v2 blueprint,
 
 | Field | Requirement / Default | Meaning |
 | --- | --- | --- |
-| `virtual_network_id` | Required | Full existing hub VNet ARM ID, not a subscription ID or peering ID. Must match the hub producer. |
+| `virtual_network_id` | Optional; resolved from producer | Omit to read `hub_virtual_network_id` from the approved connectivity workspace. An explicit full VNet ARM ID remains a checked pin and must match that output. |
 | `address_space` | Required | Nonempty set of actual hub IPv4 CIDRs, matching both public outputs and the live VNet. This does not change its address space. |
 | `organization`, `workspace` | Both required | HCP organization and the existing hub producer workspace, normally `Compeer-Financial-Services` / `platform-connectivity`. These are not Azure subscription names. |
 | `contract_version` | Optional; `"0.1.0"` | Supported hub output schema. Not the Terraform CLI or registry module release version. |
@@ -56,7 +56,7 @@ Repeat this object for each actual VNet. Multiple entries may belong to the same
 | Field | Requirement / Default | Meaning / Example |
 | --- | --- | --- |
 | Map key, e.g. `orders_dev` | Required, stable | Terraform resource identity. Lowercase leading letter, then letters/digits/underscores/hyphens. Not an Azure resource name. |
-| `spoke_virtual_network_id` | Required | Full existing attached VNet ARM ID. Platform VNets use the same field. No VNet is created/imported into attachment state. |
+| `spoke_virtual_network_id` | Optional; resolved from producer | Omit to read the approved VNet-owner workspace's public ID or supported attachment contract. An explicit ID remains a checked pin. No VNet is created/imported into attachment state. |
 | `address_space` | Required | Nonempty actual IPv4 CIDRs matching the live VNet; v3 also checks producer CIDRs. An IPAM reference alone does not replace these values. |
 | `producer.organization`, `producer.workspace` | Both required | Existing HCP VNet-owner workspace publishing the approved public attachment contract. Not this attachment workspace itself. |
 | `producer.contract_version` | Optional; `"2.0.0"` | Existing workload blueprint v2, or generic platform/workload v3 (`"3.0.0"`). This selects an output schema, not a module package version. |
@@ -73,6 +73,20 @@ Repeat this object for each actual VNet. Multiple entries may belong to the same
 | `tags` | Optional; `{}` | Applied only to the managed DNS VNet links. Not to the peerings, VNets or referenced services. Supply approved tag values where policy requires them. |
 
 V2 producers publish `attachment_contract` plus context (directly or under `spoke`); v3 publishes `network_attachment_contract`. Both must identify `owner="central-attachment-workspace"` and agree with the approved hub/VNet/environment. Producer peering names must remain unset; v2 DNS intent must leave central link names unset and permit linking. This workspace supplies those names. Publishing output values does not transfer existing resource ownership.
+
+### Read VNet IDs From Workspace Outputs
+
+The committed tfvars omits both VNet ID fields. Select the approved connectivity producer in `hub.organization`/`hub.workspace` and the **actual VNet owner** in each attachment's `producer`. The pattern resolves IDs from those public outputs during plan; there is no additional `data` block to add to a tfvars file. A workspace's display name is not evidence that it owns the VNet: verify its published outputs and contract.
+
+| Target | Output Read |
+| --- | --- |
+| Hub | `hub_virtual_network_id` from `hub.workspace` |
+| Workload spoke | `spoke_virtual_network_id`, checked against `attachment_contract.spoke_virtual_network_id` |
+| Wrapped v2 / generic v3 | Supported `spoke.attachment_contract` / `network_attachment_contract` ID when no top-level spoke ID is published |
+
+The selected owner must still publish its versioned contract/context. Keep `hub.contract_version="0.1.0"` and workload `producer.contract_version="2.0.0"`; a workload root's general `contract_version="1.0.0"` is a different output. Keep CIDRs, approval/IPAM references and optional DNS intent in the reviewed inventory.
+
+Existing explicit IDs remain supported and checked. Removing a matching ID pin preserves addresses, names and state ownership; no import is needed. Without pins, a producer rebuild can propose replacement of the peerings/links: require renewed network approval and review the resolved IDs in the full plan. The public-output read identity needs access only to the selected workspaces. Neither sensitive-output fallback nor broad state download is used.
 
 ## DNS Inputs And Ownership
 

@@ -4,9 +4,9 @@ resource "terraform_data" "inventory_contract" {
     precondition {
       condition = !local.active || try(
         lower(data.azapi_client_config.current[0].tenant_id) == lower(var.tenant_id) &&
-        length(distinct([for attachment in values(var.attachments) : lower(attachment.spoke_virtual_network_id)])) == length(var.attachments) &&
+        length(distinct([for id in values(local.spoke_virtual_network_ids) : lower(id)])) == length(var.attachments) &&
         alltrue([for attachment_key, attachment in var.attachments :
-          lower(attachment.spoke_virtual_network_id) != lower(var.hub.virtual_network_id) &&
+          lower(local.spoke_virtual_network_ids[attachment_key]) != lower(local.hub_virtual_network_id) &&
           contains(local.allowed_environments, local.attachment_environments[attachment_key]) &&
           (attachment.producer.contract_version == "3.0.0" || try(attachment.naming_context.environment == local.attachment_environments[attachment_key], false)) &&
           (!attachment.gateway_transit || var.hub.gateway_ready)
@@ -26,7 +26,7 @@ resource "terraform_data" "producer_contract" {
     precondition {
       condition = !local.active || try(
         local.hub_outputs.contract_version == var.hub.contract_version &&
-        lower(local.hub_outputs.hub_virtual_network_id) == lower(var.hub.virtual_network_id) &&
+        lower(local.hub_outputs.hub_virtual_network_id) == lower(local.hub_virtual_network_id) &&
         toset(local.hub_outputs.hub_virtual_network_address_space) == var.hub.address_space &&
         toset(data.azapi_resource.hub[0].output.properties.addressSpace.addressPrefixes) == var.hub.address_space,
         false

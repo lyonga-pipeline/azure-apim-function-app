@@ -12,9 +12,16 @@ locals {
     local.spoke_outputs[key].spoke.attachment_contract,
     null
   ) }
-  contexts    = { for key, attachment in var.attachments : key => attachment.producer.contract_version == "3.0.0" ? try(local.contracts[key].context, null) : try(local.spoke_outputs[key].context, local.spoke_outputs[key].spoke.context, null) }
-  hub_name    = try(split("/", var.hub.virtual_network_id)[8], "invalid")
-  spoke_names = { for key, attachment in var.attachments : key => try(split("/", attachment.spoke_virtual_network_id)[8], "invalid") }
+  contexts = { for key, attachment in var.attachments : key => attachment.producer.contract_version == "3.0.0" ? try(local.contracts[key].context, null) : try(local.spoke_outputs[key].context, local.spoke_outputs[key].spoke.context, null) }
+  # Workspace selectors are reviewed inventory. Existing explicit IDs remain checked pins.
+  hub_virtual_network_id = try(coalesce(var.hub.virtual_network_id, try(local.hub_outputs.hub_virtual_network_id, null)), null)
+  spoke_virtual_network_ids = { for key, attachment in var.attachments : key => try(coalesce(
+    attachment.spoke_virtual_network_id,
+    try(local.spoke_outputs[key].spoke_virtual_network_id, null),
+    try(local.contracts[key].spoke_virtual_network_id, null)
+  ), null) }
+  hub_name    = try(split("/", local.hub_virtual_network_id)[8], "invalid")
+  spoke_names = { for key, id in local.spoke_virtual_network_ids : key => try(split("/", id)[8], "invalid") }
   peering_names = { for key, attachment in var.attachments : key => {
     hub_to_spoke = attachment.peering_names == null ? module.naming[key].vnet_peering_names.hub : attachment.peering_names.hub_to_spoke
     spoke_to_hub = attachment.peering_names == null ? module.naming[key].vnet_peering_names.spoke : attachment.peering_names.spoke_to_hub
@@ -23,7 +30,7 @@ locals {
     for zone_key, zone_id in attachment.private_dns_zone_ids : "${key}/${zone_key}" => {
       attachment_key     = key
       zone_id            = zone_id
-      virtual_network_id = attachment.spoke_virtual_network_id
+      virtual_network_id = local.spoke_virtual_network_ids[key]
       name               = lookup(attachment.private_dns_link_names, zone_key, module.naming[key].private_dns_link_names[local.spoke_names[key]])
       tags               = attachment.tags
     }
@@ -40,17 +47,20 @@ locals {
   } }
   spoke_cidrs = flatten([for key, attachment in var.attachments : [for cidr in attachment.address_space : { key = key, cidr = cidr }]])
   producer_checks = { for key, attachment in var.attachments : key => {
-    version        = try(local.contracts[key].contract_version == attachment.producer.contract_version, false)
-    owner          = try(local.contracts[key].owner == "central-attachment-workspace", false)
-    hub_id         = try(lower(local.contracts[key].hub_virtual_network_id) == lower(var.hub.virtual_network_id), false)
-    spoke_id       = try(lower(local.contracts[key].spoke_virtual_network_id) == lower(attachment.spoke_virtual_network_id), false)
-    spoke_name     = try(lower(local.contracts[key].spoke_virtual_network_name) == lower(split("/", attachment.spoke_virtual_network_id)[8]), false)
-    resource_group = try(lower(local.contracts[key].spoke_resource_group_name) == lower(split("/", attachment.spoke_virtual_network_id)[4]), false)
+    version  = try(local.contracts[key].contract_version == attachment.producer.contract_version, false)
+    owner    = try(local.contracts[key].owner == "central-attachment-workspace", false)
+    hub_id   = try(lower(local.contracts[key].hub_virtual_network_id) == lower(local.hub_virtual_network_id), false)
+    spoke_id = try(lower(local.contracts[key].spoke_virtual_network_id) == lower(local.spoke_virtual_network_ids[key]), false)
+    public_spoke_id = try(local.spoke_outputs[key].spoke_virtual_network_id, null) == null || try(
+      lower(local.spoke_outputs[key].spoke_virtual_network_id) == lower(local.spoke_virtual_network_ids[key]), false
+    )
+    spoke_name     = try(lower(local.contracts[key].spoke_virtual_network_name) == lower(split("/", local.spoke_virtual_network_ids[key])[8]), false)
+    resource_group = try(lower(local.contracts[key].spoke_resource_group_name) == lower(split("/", local.spoke_virtual_network_ids[key])[4]), false)
     naming         = attachment.producer.contract_version == "3.0.0" || try(alltrue([for field, value in attachment.naming_context : local.contracts[key].naming_context[field] == value]), false)
     kind           = attachment.producer.contract_version == "3.0.0" ? try(local.contexts[key].attachment_kind == attachment.attachment_kind, false) : attachment.attachment_kind == "workload"
     gateway        = try(local.contracts[key].gateway_transit_enabled == attachment.gateway_transit, false)
     tenant         = try(lower(local.contexts[key].tenant_id) == lower(var.tenant_id), false)
-    subscription   = try(lower(local.contexts[key].subscription_id) == lower(split("/", attachment.spoke_virtual_network_id)[2]), false)
+    subscription   = try(lower(local.contexts[key].subscription_id) == lower(split("/", local.spoke_virtual_network_ids[key])[2]), false)
     environment    = try(contains(local.allowed_environments, local.attachment_environments[key]) && local.contexts[key].environment == local.attachment_environments[key], false)
     live_cidrs     = try(toset(data.azapi_resource.spoke[key].output.properties.addressSpace.addressPrefixes) == attachment.address_space, false)
     producer_cidrs = attachment.producer.contract_version != "3.0.0" || try(toset(local.contracts[key].address_space) == attachment.address_space, false)

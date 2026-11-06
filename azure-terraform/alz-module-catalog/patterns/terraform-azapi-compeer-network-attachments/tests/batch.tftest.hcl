@@ -6,6 +6,30 @@ mock_provider "azapi" {
 }
 mock_provider "tfe" {}
 
+run "wrapped_workload_v2_resolves_ids_from_its_existing_contract" {
+  command = plan
+  variables {
+    hub = { address_space = ["10.0.0.0/16"], organization = "Compeer-Financial-Services", workspace = "platform-connectivity" }
+    attachments = {
+      orders = {
+        address_space        = ["10.20.0.0/24"]
+        producer             = { organization = "Compeer-Financial-Services", workspace = "workload-orders-prod" }
+        naming_context       = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "orders" }
+        approval_reference   = "NET-123"
+        ipam_reference       = "IPAM-orders"
+        private_dns_zone_ids = { key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" }
+      }
+    }
+  }
+  assert {
+    condition = (
+      var.attachments.orders.spoke_virtual_network_id == null &&
+      azapi_resource.spoke_to_hub["orders"].parent_id == local.contracts.orders.spoke_virtual_network_id &&
+      alltrue(values(local.producer_checks.orders))
+    )
+    error_message = "Existing v2 contract/context wrappers must work without new top-level outputs or copied inventory IDs."
+  }
+}
 run "approved_gateway_transit_is_paired" {
   command = apply
   variables {
