@@ -41,8 +41,9 @@ resource "terraform_data" "producer_contract" {
       error_message = "Approved hub ID/CIDRs/version must match its public producer outputs and live Azure VNet."
     }
     precondition {
-      condition     = alltrue(flatten([for checks in values(local.producer_checks) : values(checks)]))
-      error_message = "Producer/inventory mismatch (attachment => failed fields): ${jsonencode({ for key, checks in local.producer_checks : key => [for field, passed in checks : field if !passed] if !alltrue(values(checks)) })}. Outputs never authorize inventory changes."
+      condition = alltrue(flatten([for checks in values(local.producer_checks) : values(checks)]))
+      # Declassify only inventory keys and static check labels, never compared values.
+      error_message = "Producer/inventory mismatch (attachment => failed fields): ${nonsensitive(jsonencode({ for key, checks in local.producer_checks : key => [for field, passed in checks : field if !passed] if !alltrue(values(checks)) }))}. Outputs never authorize inventory changes."
     }
   }
 }

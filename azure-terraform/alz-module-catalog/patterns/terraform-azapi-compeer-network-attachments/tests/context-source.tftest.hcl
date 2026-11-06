@@ -91,6 +91,23 @@ run "v2_without_context_preserves_both_resource_addresses" {
     error_message = "The compatibility source must not change resource identity or introduce DNS links."
   }
 }
+run "sensitive_comparison_keeps_validation_active" {
+  command = plan
+  variables { tenant_id = sensitive("cccccccc-cccc-cccc-cccc-cccccccccccc") }
+  assert {
+    condition     = issensitive(local.producer_checks.orders.tenant) && alltrue(values(local.producer_checks.orders))
+    error_message = "Sensitive comparison results must remain protected without changing validation."
+  }
+}
+run "sensitive_tenant_mismatch_still_fails" {
+  command = plan
+  variables { tenant_id = sensitive("cccccccc-cccc-cccc-cccc-cccccccccccc") }
+  override_data {
+    target = data.azapi_resource.spoke_subscription["orders"]
+    values = { output = { tenantId = "dddddddd-dddd-dddd-dddd-dddddddddddd", subscriptionId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" } }
+  }
+  expect_failures = [terraform_data.producer_contract]
+}
 run "wrong_spoke_tenant_fails" {
   command = plan
   override_data {
