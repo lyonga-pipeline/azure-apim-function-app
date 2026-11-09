@@ -1,0 +1,26 @@
+# PHASE 2 ROUTING FOLLOW-UP - coordinated INTERNAL Identity cutover.
+# Merge ONLY this new top-level input into the deployed Identity owner's root.
+# Do not copy this repository's old sample VNet prefixes or redeploy its DCs.
+firewall_routing = {
+  enabled                   = false
+  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"]
+  trust_ilb_frontend_ip     = "REPLACE_WITH_VERIFIED_TRUST_ILB_FRONTEND_IP"
+  hub_address_prefixes      = ["REPLACE_WITH_DEPLOYED_HUB_VNET_CIDR"]
+  change_reference          = "REPLACE_WITH_APPROVED_IDENTITY_ROUTING_CHANGE"
+  ownership_reviewed        = false
+  firewall_path_ready       = false
+  static_route_set_reviewed = false
+
+  # Dan does not enumerate the complete Identity static destination set.
+  # Require network/AD approval, including on-prem DC/DNS/management ranges
+  # needed after BGP is disabled. Do not infer CIDRs from individual DNS IPs.
+  # Default + hub routes are added by the overlay. Other required spokes and
+  # more-specific hybrid routes are declared here; all use the verified ILB.
+  remote_address_prefixes = {
+    pilot_application      = ["REPLACE_WITH_DEPLOYED_PILOT_VNET_CIDR"]
+    onprem_domain_services = ["REPLACE_WITH_APPROVED_ON_PREMISES_DC_NETWORK_CIDR"]
+  }
+  remove_route_keys = {
+    # EXISTING_INTERNAL_RT_KEY = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+  }
+}

@@ -84,7 +84,9 @@ locals {
   }
 
   route_tables = {
-    for key, rt in try(var.directory_services.route_tables, {}) : key => merge(
+    # PHASE 2 ROUTING FOLLOW-UP: preserve table keys/names; apply static routes
+    # and BGP=false together only after the separate cutover is approved.
+    for key, rt in local.identity_firewall_effective_route_tables : key => merge(
       { name = local.std_names.route_table[key] },
       rt
     )

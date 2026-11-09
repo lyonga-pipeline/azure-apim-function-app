@@ -6,6 +6,10 @@
 # The azurerm provider reads both from those Terraform variables.
 #
 
+# PHASE 2 ROUTING FOLLOW-UP: opt-in coordinated static routes + BGP-off.
+# Use firewall-routing.tfvars.example; do not replace deployed VNet/DC settings.
+firewall_routing = { enabled = false }
+
 location                    = "centralus"
 environment                 = "prod"
 tfe_organization            = "Compeer-Financial-Services"

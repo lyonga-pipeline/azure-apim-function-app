@@ -68,6 +68,7 @@ locals {
   )
 }
 
+# PHASE 2 ROUTING FOLLOW-UP: opt-in overlays retain the existing owner and keys.
 module "connectivity" {
   source = "../../../../patterns/terraform-azurerm-compeer-platform-connectivity"
   count  = local.enabled ? 1 : 0
@@ -89,7 +90,7 @@ module "connectivity" {
   environment                     = var.environment
   platform_tags                   = merge(var.platform_tags, try(var.connectivity.platform_tags, {}), { created_on = local.deployment_created_on })
   resource_group                  = try(var.connectivity.resource_group, {})
-  hub_vnet                        = try(var.connectivity.hub_vnet, {})
+  hub_vnet                        = local.firewall_effective_hub_vnet
   additional_vnet_peerings        = local.additional_vnet_peerings
   ddos_protection_plan            = try(var.connectivity.ddos_protection_plan, { enabled = false })
   palo_alto                       = try(var.connectivity.palo_alto, { enabled = false })
@@ -97,8 +98,8 @@ module "connectivity" {
   bastion                         = local.bastion
   network_security_groups         = try(var.connectivity.network_security_groups, {})
   subnet_nsg_associations         = try(var.connectivity.subnet_nsg_associations, {})
-  route_tables                    = try(var.connectivity.route_tables, {})
-  subnet_route_table_associations = try(var.connectivity.subnet_route_table_associations, {})
+  route_tables                    = local.firewall_effective_route_tables
+  subnet_route_table_associations = local.firewall_effective_associations
   load_balancers                  = try(var.connectivity.load_balancers, {})
   network_watchers                = try(var.connectivity.network_watchers, {})
   network_watcher_flow_logs       = try(var.connectivity.network_watcher_flow_logs, {})

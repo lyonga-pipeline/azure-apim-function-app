@@ -40,6 +40,10 @@ For opt-in backfill of existing subscriptions after the DINE rollout, see
 It reuses existing assignments and keeps targets empty until explicit approval;
 the comments explain the related implementation changes and rollout checks.
 
+## Firewall Routing Follow-Up
+
+**PHASE 2 ROUTING FOLLOW-UP:** Dan's deferred firewall routes are implemented as disabled-by-default overlays in the existing connectivity and directory-services owners. See the [routing matrix, placeholder inputs, cutover and rollback runbook](firewall-routing/README.md). Do not move Hub/Identity routes into the central peering state, change deployed VNet prefixes or enable the cutover before confirming the actual Trust ILB, table ownership, return paths and Identity static destinations. Management routing remains deferred pending clarification of the document's conflicting instructions.
+
 ## Dependency Model
 
 Dependent roots consume approved outputs with the HCP Terraform `tfe_outputs` data source, or through explicit IDs supplied as workspace variables. Do not use broad remote-state access for normal dependencies.

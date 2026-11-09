@@ -219,3 +219,8 @@ connectivity = {
 # Do not replace this workspace's existing management/policy/VM object.
 # See implementations/phase2/ENGINEERING-HANDOFF.md for resource ownership.
 # =============================================================================
+
+# PHASE 2 ROUTING FOLLOW-UP: Dan's deferred Hub route matrix is opt-in.
+# Merge firewall-routing.tfvars.example only after deployed-state reconciliation.
+# Defaults deliberately leave all existing Phase 1 routes/associations unchanged.
+firewall_routing = { enabled = false }

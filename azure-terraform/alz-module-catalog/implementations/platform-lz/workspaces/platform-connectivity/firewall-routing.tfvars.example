@@ -1,0 +1,50 @@
+# PHASE 2 ROUTING FOLLOW-UP - Dan's deferred Hub firewall routing.
+# Merge this NEW top-level object into the EXISTING connectivity root tfvars.
+# Do not replace connectivity={}, its subnet prefixes, names, NSGs or peerings.
+# This example remains DISABLED. Fill every REPLACE value before enabling.
+# Design: Azure Resource Deployment in New Landing Zone_v2, Hub Route Tables.
+firewall_routing = {
+  enabled                  = false
+  trust_ilb_frontend_ip    = "REPLACE_WITH_VERIFIED_TRUST_ILB_FRONTEND_IP"
+  change_reference         = "REPLACE_WITH_APPROVED_ROUTING_CHANGE"
+  ownership_reviewed       = false
+  firewall_path_ready      = false
+  management_oob_confirmed = false
+  management_subnet_key    = "prod-mgmt-subnet"
+
+  # One key per deployed VNet, every actual prefix, including existing spokes.
+  # Document candidates: Identity internal 10.102.8.0/27; last reviewed pilot
+  # plan 10.102.64.0/27. These are not a live inventory: confirm before copying.
+  # Do not add a separate spoke for firewall NIC subnets: those live in the hub.
+  spoke_address_prefixes = {
+    identity_internal = ["REPLACE_WITH_DEPLOYED_INTERNAL_IDENTITY_VNET_CIDR"]
+    pilot_application = ["REPLACE_WITH_DEPLOYED_PILOT_VNET_CIDR"]
+    # identity_external = ["REPLACE_ONLY_IF_EXTERNAL_IDENTITY_IS_DEPLOYED"]
+  }
+
+  # ROLE -> EXISTING Terraform map key + EXISTING subnet key.
+  # The keys below match this repository's example, NOT a verified live state.
+  # Replace keys/subnet keys with the deployed owner's current configuration.
+  # Existing tables: name=null preserves the original explicit/generated name.
+  # Missing/new table: name must be the approved creation name, not the name
+  # of an unmanaged Azure table; import that table into this owner first.
+  table_bindings = {
+    gateway    = { route_table_key = "gateway", subnet_key = "GatewaySubnet", name = "REPLACE_WITH_APPROVED_GATEWAY_RT_NAME_IF_NEW" }
+    sdwan_lan  = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
+    sdwan_wan  = { route_table_key = "sdwan_wan", subnet_key = "prod-sdwan-wan-subnet" }
+    shared     = { route_table_key = "shared", subnet_key = "prod-shared-subnet", name = "REPLACE_WITH_APPROVED_SHARED_RT_NAME_IF_NEW" }
+    appgw      = { route_table_key = "appgw", subnet_key = "prod-appgw-subnet", name = "REPLACE_WITH_APPROVED_APPGW_RT_NAME_IF_NEW" }
+    cftagent   = { route_table_key = "to_firewall", subnet_key = "prod-cftagent-subnet" }
+    fw_trust   = { route_table_key = "fw_trust", subnet_key = "prod-fw-trust-subnet", name = "REPLACE_WITH_APPROVED_FW_TRUST_RT_NAME_IF_NEW" }
+    fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "REPLACE_WITH_APPROVED_FW_UNTRUST_RT_NAME_IF_NEW" }
+    fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "REPLACE_WITH_APPROVED_FW_PARTNER_RT_NAME_IF_NEW" }
+  }
+
+  # Remove ONLY named, reviewed temporary bypass routes from the base inputs.
+  # Map key is the CURRENT route-table key; names are CURRENT inline route keys.
+  # If a required destination already exists, its route name is reused and
+  # its next hop is corrected automatically; do not remove it just to rename it.
+  remove_route_keys = {
+    # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+  }
+}
