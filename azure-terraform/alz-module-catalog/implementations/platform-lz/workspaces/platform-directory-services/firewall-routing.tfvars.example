@@ -1,11 +1,13 @@
 # PHASE 2 ROUTING FOLLOW-UP - coordinated INTERNAL Identity cutover.
 # Merge ONLY this new top-level input into the deployed Identity owner's root.
 # Do not copy this repository's old sample VNet prefixes or redeploy its DCs.
+# A .tfvars.example file is not auto-loaded. See ../../firewall-routing/README.md.
+# Confirm documented values live; complete remaining placeholders before enabling.
 firewall_routing = {
   enabled                   = false
-  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"]
-  trust_ilb_frontend_ip     = "REPLACE_WITH_VERIFIED_TRUST_ILB_FRONTEND_IP"
-  hub_address_prefixes      = ["REPLACE_WITH_DEPLOYED_HUB_VNET_CIDR"]
+  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"] # Document Azure name: cus-prod-intdc-rt, NOT its Terraform key.
+  trust_ilb_frontend_ip     = "10.102.4.42"                                      # Documented Trust ILB frontend; verify live health and IP.
+  hub_address_prefixes      = ["10.102.0.0/21"]                                  # Documented hub; verify against producer/Azure.
   change_reference          = "REPLACE_WITH_APPROVED_IDENTITY_ROUTING_CHANGE"
   ownership_reviewed        = false
   firewall_path_ready       = false
@@ -17,7 +19,7 @@ firewall_routing = {
   # Default + hub routes are added by the overlay. Other required spokes and
   # more-specific hybrid routes are declared here; all use the verified ILB.
   remote_address_prefixes = {
-    pilot_application      = ["REPLACE_WITH_DEPLOYED_PILOT_VNET_CIDR"]
+    pilot_application      = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document; verify live.
     onprem_domain_services = ["REPLACE_WITH_APPROVED_ON_PREMISES_DC_NETWORK_CIDR"]
   }
   remove_route_keys = {

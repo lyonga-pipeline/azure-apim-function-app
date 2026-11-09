@@ -1,6 +1,6 @@
 # Deferred Firewall Routing Cutover
 
-PHASE 2 ROUTING FOLLOW-UP: complete Dan's static Hub routes now that the Palo Alto forwarding path is ready, then cut Internal Identity over from temporary gateway propagation to reviewed static routes. This is **not** a peering migration, firewall rebuild, new workspace or automatic production cutover.
+PHASE 2 ROUTING FOLLOW-UP: prepare Dan's static Hub routes, verify the Palo Alto forwarding path, then cut Internal Identity over from temporary gateway propagation to reviewed static routes. This is **not** a peering migration, firewall rebuild, new workspace or automatic production cutover.
 
 ## Scope And Source
 
@@ -43,6 +43,21 @@ The gateway keeps BGP propagation enabled and has **no default UDR**. The App Ga
 
 ## Values To Obtain From Compeer
 
+### Values Already Supplied In The Examples
+
+The document does supply several values; they are now populated rather than left as placeholders. **Documented does not mean verified live.** Reconcile these against the deployed owners and Azure before enabling either example.
+
+| Value | Source And Use |
+| --- | --- |
+| `10.102.4.42` | Document, **Trust Load Balancer**: static frontend of `platform-cus-prod-fw-trust-ilb`, frontend `platform-cus-prod-fw-trust-feip-01`. Used as the next hop in both examples; it is not a firewall NIC IP or an arbitrary free address |
+| `10.102.0.0/21` | Document, **Hub Virtual Network**: Identity's explicit hub destination. Hub destinations also use the existing connectivity inputs |
+| `10.102.8.0/27` | Document, **Identity Domain Controller VNET (Internal)**: Internal Identity VNet prefix, populated in the Hub spoke inventory |
+| `10.102.64.0/27` | User's last reviewed **pilot plan**, not the design document: pilot VNet prefix, populated in both examples. Confirm its current producer output/Azure allocation |
+| Six explicit Hub binding names | Document, **Hub Route Tables**: `cus-prod-gateway-rt`, `cus-prod-shared-rt`, `cus-prod-appgw-rt`, `cus-prod-fw-trust-rt`, `cus-prod-fw-untrust-rt`, `cus-prod-fw-partner-rt`. These are creation names only when the table is genuinely new; omit `name` for an existing table to preserve its deployed name |
+| Existing SD-WAN/Cloudflare table names | Deliberately omitted from the bindings so their current names are preserved. The document calls them `cus-prod-sdwan-lan-rt`, `cus-prod-sdwan-wan-rt` and `cus-prod-cftagent-rt`; this is not permission to rename/import a deployed table |
+
+### Values That Still Need Deployment Evidence
+
 | Required Evidence | What To Confirm | Why |
 | --- | --- | --- |
 | Trust ILB identity and frontend | Actual subscription, RG, LB name, frontend configuration name and private IP; backend/probe health and failover | The document names `platform-cus-prod-fw-trust-ilb` and `10.102.4.42`, but these must match the deployed service; never choose an unused/random IP |
@@ -53,17 +68,40 @@ The gateway keeps BGP propagation enabled and has **no default UDR**. The App Ga
 | Temporary workarounds | Current route names/destinations/next hops in Azure and in source/state | Required destinations can be corrected in place; unrelated bypasses require explicit reviewed removal |
 | Change and ownership approval | Ticket/reference, coordinated hub/Identity/app changes, protected hub gate, rollback owners and test evidence | Terraform readiness flags record these decisions; they do not implement or verify the approvals/health themselves |
 
-The Trust ILB RG/name are **verification facts**, not extra resources to create. These roots already own their resource groups/VNets/tables; the overlay consumes their inputs and accepts the confirmed frontend IP. Placeholder strings are supplied in the examples for unknown deployed details and are rejected when enabling. No bootstrap keys, credentials or other document secrets are copied into code.
+The remaining Identity placeholders are its **Terraform route-table map key**, approved on-premises destination CIDRs and change reference. The document names the Azure table `cus-prod-intdc-rt`, but cannot tell you the key used by your deployed Terraform configuration. This repository's older example uses `to_firewall`; do not assume Compeer uses the same key. Read the actual owner's `route_tables` map and run `terraform state list` against its correct backend. For example, an address containing `module.route_tables["to_firewall"]` identifies the key `to_firewall`, not the Azure table name. Do not create a new key to bypass this reconciliation.
+
+Obtain the complete static destination list from Dan/network engineering and the AD team/IPAM, including required DC replication, DNS and management networks. DNS-server addresses and broad NSG allow rules are not an authoritative routing inventory. Do not invent a CIDR from either. The change references come from the approved routing change; readiness flags stay false until the named owners provide evidence. `remove_route_keys={}` is optional and removes nothing; fill it only with verified, approved bypass-route names.
+
+The Trust ILB RG/name are **verification facts**, not extra resources to create. Locate the real LB in Azure or the Palo Alto owner's published `load_balancer_ids`; do not assume the document's hub RG is also the LB RG. These read-only commands help confirm the actual frontend and existing table routes:
+
+```bash
+az network lb frontend-ip list \
+  --subscription "<actual-firewall-subscription>" \
+  --resource-group "<actual-load-balancer-rg>" \
+  --lb-name "<actual-trust-ilb-name>" \
+  --query "[].{name:name,ip:privateIPAddress,subnet:subnet.id}" -o json
+
+az network route-table show \
+  --subscription "<actual-table-subscription>" \
+  --resource-group "<actual-table-rg>" --name "<actual-table-name>" \
+  --query "{name:name,bgpDisabled:disableBgpRoutePropagation,routes:routes,subnets:subnets[].id}" -o json
+```
+
+Neither query proves forwarding health. Also check the LB's backend membership/probe health, effective routes and Palo Alto sessions with the network owner. [Frontend query](https://learn.microsoft.com/en-us/cli/azure/network/lb/frontend-ip#az-network-lb-frontend-ip-list), [route-table query](https://learn.microsoft.com/en-us/cli/azure/network/route-table#az-network-route-table-show).
+
+No bootstrap keys, credentials or other document secrets are copied into code.
 
 ## Hub Configuration And Compatibility
 
 Merge [firewall-routing.tfvars.example](../workspaces/platform-connectivity/firewall-routing.tfvars.example) as a **new top-level object** in the existing Hub root. Do not replace `connectivity` wholesale, change VNet CIDRs, rename tables to match the document or repoint a backend.
 
+**Setting only `firewall_routing={enabled=true}` is not sufficient.** Terraform does not auto-load `.tfvars.example` files. Merge the complete reviewed object into the root's existing `terraform.tfvars`, replacing its disabled `firewall_routing` object, or explicitly pass `-var-file=firewall-routing.tfvars.example` for a local plan. Do not define the same attribute twice. An explicit variable file replaces the object supplied by an earlier file, not individual nested fields. For HCP runs, supply the reviewed configuration through the workspace's normal Git/variable process; do not assume a local CLI flag configures VCS-driven runs.
+
 | Input | How To Use It |
 | --- | --- |
 | `enabled` | Keep false during reconciliation. True changes routing in the existing owner; it is not an operational pause switch after adoption |
 | `trust_ilb_frontend_ip` | Verified deployed frontend IPv4 address, in the trust subnet. Both Hub and Identity/pilot next hops must match |
-| `spoke_address_prefixes` | Map of stable VNet labels to sets of **all** their confirmed IPv4 network prefixes. Identity and pilot placeholders are supplied. Add other deployed spokes; do not treat firewall NIC subnets as spoke VNets |
+| `spoke_address_prefixes` | Map of stable VNet labels to sets of **all** their confirmed IPv4 network prefixes. Identity and pilot source-backed values are supplied. Add other deployed spokes; do not treat firewall NIC subnets as spoke VNets |
 | `table_bindings` | Exactly the nine matrix roles, each bound to a unique existing/approved `route_table_key` and current `subnet_key`. Hub intra-subnet route prefixes are read from those existing subnet inputs |
 | Binding `name` | Leave null/omitted for an existing table to preserve its current explicit/generated name. For a genuinely new table, supply its approved Azure name. A different binding name cannot rename an existing table |
 | `remove_route_keys` | Optional map of current table keys to the **current inline route names** of reviewed workarounds to remove. Default `{}` deletes no unrelated routes |
@@ -85,19 +123,31 @@ Do not enable External Identity or change its tables as part of this cutover unl
 The pilot blueprint already supports the required spoke-side controls. Review/merge these **fields inside the existing `spoke` object**; this is not a replacement tfvars file:
 
 ```hcl
-# Confirm the actual deployed frontend; never choose an arbitrary VNet IP.
-egress_next_hop_ip = "REPLACE_WITH_VERIFIED_TRUST_ILB_FRONTEND_IP"
+# Documented Trust ILB frontend; confirm its live IP and forwarding health.
+egress_next_hop_ip = "10.102.4.42"
 
 # The blueprint already includes the platform hub prefixes in inspected routes.
 # Add all OTHER relevant approved destinations, especially other peered spokes
 # whose more-specific system routes otherwise outrank the default route.
 inspection_address_prefixes = [
-  "REPLACE_WITH_DEPLOYED_INTERNAL_IDENTITY_VNET_CIDR",
-  "REPLACE_WITH_OTHER_REQUIRED_SPOKE_OR_ONPREM_CIDR",
+  "10.102.8.0/27", # Documented Internal Identity VNet; verify live.
+  # Add other approved spoke/on-premises CIDRs where inspection is required.
 ]
 ```
 
 Keep `bgp_route_propagation_enabled=false` on every applicable existing application/private-endpoint subnet and any other subnet being inspected. Confirm that the published platform hub address space is correct, and that subnet route tables contain the explicit hub/remote destinations plus the default via the ILB. Check NSG/PE policies and workload exemptions before assuming a UDR controls every service flow. The document's final note requires this spoke-side review; Hub routes alone do not finish it. Peering allows forwarded traffic but does not create these routes or Palo Alto policies.
+
+## Remaining Palo Alto And Pilot Work
+
+The Hub and Identity code covers **those owners' UDR changes**, not end-to-end acceptance. Do not copy `firewall_routing` into Palo Alto or central peering: the NIC subnets are part of the Hub VNet, and connectivity remains their route-table owner.
+
+| Owner | Still Required Before Cutover |
+| --- | --- |
+| Palo Alto Terraform/firewall team | Reconcile deployed frontend/rules/probes, populate Trust backends with the actual forwarding NIC IP configurations, verify IP forwarding and HA, and configure Panorama policies, appliance routes and symmetric return paths |
+| Pilot VNet owner | Set/confirm the existing root inputs shown above, review each subnet's BGP/UDRs and inspect the plan. Existing blueprint inputs support this; this routing change does not require another shared pattern release |
+| Network/AD operations | Approve the management decision and complete Identity static routes, then validate allowed/denied traffic and DC/DNS/hybrid reachability during the coordinated window |
+
+**Palo Alto sample discrepancies found during this review:** the repository's [sample tfvars](../workspaces/platform-palo-alto/terraform.tfvars) has a Trust LB name `platform-cus-prod-fw-ilb` and TCP/443 probes, while the document specifies `platform-cus-prod-fw-trust-ilb` and HTTP/80 `/unauth/php/health.php` with a 15-second interval. Its rule inputs also differ from the document's Source-IP persistence / Floating-IP-disabled settings. The current Palo Alto composition creates backend pools but does not declare NIC-to-backend-pool associations. These overlays do not fix those gaps. Confirm whether another deployed owner/manual configuration already supplies the associations; otherwise they must be implemented in the existing Palo Alto owner before enabling traffic routing. Do not blindly rename/recreate LBs or re-IP firewalls to make the old sample match the document. Review the live deployment with the firewall engineer first.
 
 ## Controlled Cutover And Rollback
 
