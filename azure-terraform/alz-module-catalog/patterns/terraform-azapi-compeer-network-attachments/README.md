@@ -4,6 +4,14 @@ Platform-owned Terraform pattern for attaching existing workload and platform VN
 
 The pattern uses AzAPI with full parent resource IDs to manage attachments across subscriptions without subscription-specific AzureRM provider aliases. It does not manage the parent VNets or replace their foundation states. Existing AzureRM patterns and resource addresses remain unchanged.
 
+## Plain-Language Overview
+
+The platform team lists approved hub/spoke **workspace names** in the deployment root. The attachment pattern reads their published VNet IDs, checks the producer contracts and live Azure details, then creates both peering directions and any requested DNS VNet links. There are no per-application VNet IDs hardcoded into shared locals. Hub and spoke VNets keep their original state owners.
+
+For an existing v2 producer without a separate context output, `producer_context_source="contract-and-azure"` reads environment/naming from its existing contract and tenant/subscription metadata from Azure. It still uses the selected workspace outputs to identify the VNet and keeps all validation active.
+
+Start with the [step-by-step team walkthrough](../../implementations/platform-lz/network-attachments/README.md#how-it-works-in-plain-language), including a pilot-shaped tfvars example, output lookup sequence, context modes, ownership, permissions, DNS limits and onboarding. The sections below are the pattern reference.
+
 ## Benefits Over The Legacy Pattern
 
 **This is the recommended pattern for new Compeer attachments.** Its advantage is simpler multi-subscription onboarding and batch ownership, not a different or inherently more secure Azure peering service.

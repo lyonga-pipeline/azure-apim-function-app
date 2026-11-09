@@ -4,6 +4,8 @@ PHASE 2: one platform-owned HCP workspace/state connects approved non-production
 
 **Status:** implementation and mock tests are complete; live adoption is not. The committed [terraform.tfvars](terraform.tfvars) contains documentation IDs/CIDRs and `enabled=false`. It currently creates no Azure resources. Publish/pin the verified pattern and naming dependency, supply approved values, configure external controls and complete a live pilot before rollout. The repository's relative module source is for development, not an approved registry release pin.
 
+For a simple end-to-end explanation of workspace names, output-derived IDs, the attachment pattern and `contract-and-azure`, read [How It Works In Plain Language](../../network-attachments/README.md#how-it-works-in-plain-language). This README is the root input/configuration reference.
+
 ## What This Deploys
 
 For **each entry** in `attachments`, the enabled workspace:

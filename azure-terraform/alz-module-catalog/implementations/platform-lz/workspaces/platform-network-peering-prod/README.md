@@ -2,6 +2,8 @@
 
 PHASE 2: one platform-owned production-only attachment state. Each declared VNet gets both peering directions and approved DNS VNet links, using one AzAPI provider across subscriptions. The root fixes `allowed_environments=["prod"]`; non-production producers are rejected.
 
+For the simple end-to-end flow, including output-derived IDs, `contract-and-azure`, ownership and onboarding, see [How It Works In Plain Language](../../network-attachments/README.md#how-it-works-in-plain-language). The production root uses the same pattern with its own state, release and approvals.
+
 ## Configure
 
 The committed [terraform.tfvars](terraform.tfvars) includes hub/producer references, CIDRs, IPAM/change references, forwarding/transit intent, exact private DNS zones/link names and both explicit names:
