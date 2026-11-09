@@ -141,6 +141,41 @@ run "every_documented_destination_and_no_extra_route_is_generated" {
     error_message = "Each table must match the document's exact inspection and blackhole destination set, not just a count or default route."
   }
 }
+run "additional_spokes_never_route_firewall_interfaces_to_their_own_ilb" {
+  command = plan
+  variables {
+    firewall_routing = merge(var.firewall_routing, {
+      spoke_address_prefixes = merge(var.firewall_routing.spoke_address_prefixes, { additional = ["10.102.96.0/24"] })
+    })
+  }
+  assert {
+    condition = alltrue([for role, prefixes in {
+      fw_trust   = ["0.0.0.0/0", "10.102.4.64/27", "10.102.4.96/27"]
+      fw_untrust = ["10.102.0.0/21"]
+      fw_partner = ["0.0.0.0/0", "10.102.4.64/27", "10.102.4.32/27"]
+      } : (
+      toset([for r in values(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) : r.address_prefix]) == toset(prefixes) &&
+      length(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) == length(prefixes) &&
+      alltrue([for r in values(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) :
+        r.next_hop_type == "None" && r.next_hop_in_ip_address == null
+      ]) &&
+      local.firewall_effective_hub_vnet.subnets[var.firewall_routing.table_bindings[role].subnet_key].route_table_key == var.firewall_routing.table_bindings[role].route_table_key
+    )])
+    error_message = "The effective firewall-interface tables/associations must contain only their exact blackholes, with no next-hop IP, regardless of the spoke inventory size."
+  }
+  assert {
+    condition = (
+      local.firewall_effective_route_tables.fw_trust.bgp_route_propagation_enabled &&
+      !local.firewall_effective_route_tables.fw_untrust.bgp_route_propagation_enabled &&
+      local.firewall_effective_route_tables.fw_partner.bgp_route_propagation_enabled &&
+      try(local.firewall_effective_hub_vnet.subnets["prod-mgmt-subnet"].route_table_key, null) == null &&
+      alltrue([for role in ["gateway", "sdwan_lan", "shared", "appgw", "cftagent"] :
+        length([for r in values(local.firewall_desired_routes[role]) : r if r.address_prefix == "10.102.96.0/24" && r.next_hop_type == "VirtualAppliance"]) == 1
+      ])
+    )
+    error_message = "Preserve per-interface BGP and OOB management; only the five documented ingress roles expand for an added spoke."
+  }
+}
 run "explicit_association_key_is_preserved_without_duplicate" {
   command = plan
   variables { connectivity = merge(var.connectivity, {

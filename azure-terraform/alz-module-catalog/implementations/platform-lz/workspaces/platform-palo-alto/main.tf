@@ -2,6 +2,10 @@
 # PHASE 2 EXISTING CAPABILITY - NET-07 / NET-14
 # Existing partner NIC/HA-port ILB composition; Panorama SNAT and path symmetry require Network approval.
 # Engineering map: implementations/phase2/ENGINEERING-HANDOFF.md
+# PHASE 2 ROUTING FOLLOW-UP: platform-connectivity owns the Hub firewall-subnet
+# route tables/associations (fw_trust, fw_untrust, fw_partner blackhole roles).
+# Do not duplicate those resources here or route firewall NICs to their own ILB.
+# Cutover details: ../../firewall-routing/README.md
 # =============================================================================
 data "tfe_outputs" "connectivity" {
   count        = var.use_tfe_outputs && var.tfe_organization != null ? 1 : 0

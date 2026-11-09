@@ -220,7 +220,56 @@ connectivity = {
 # See implementations/phase2/ENGINEERING-HANDOFF.md for resource ownership.
 # =============================================================================
 
-# PHASE 2 ROUTING FOLLOW-UP: Dan's deferred Hub route matrix is opt-in.
-# Merge firewall-routing.tfvars.example only after deployed-state reconciliation.
-# Defaults deliberately leave all existing Phase 1 routes/associations unchanged.
-firewall_routing = { enabled = false }
+# =============================================================================
+# PHASE 2 ROUTING FOLLOW-UP - merged from firewall-routing.tfvars.example.
+# This workspace owns ALL Hub subnet route tables, including firewall interfaces.
+# Disabled preserves existing Phase 1 routes/associations. Verify deployed keys,
+# documented values and readiness before enabling; do not replace connectivity.
+# Runbook: ../../firewall-routing/README.md
+# =============================================================================
+firewall_routing = {
+  enabled                  = false
+  trust_ilb_frontend_ip    = "10.102.4.42" # Documented Trust ILB frontend; verify live health/IP.
+  change_reference         = "REPLACE_WITH_APPROVED_ROUTING_CHANGE"
+  ownership_reviewed       = false
+  firewall_path_ready      = false
+  management_oob_confirmed = false
+  management_subnet_key    = "prod-mgmt-subnet"
+
+  # Identity CIDR is documented; pilot CIDR is from the last reviewed pilot plan.
+  # Verify both against producer/Azure and add every other deployed spoke VNet.
+  # Firewall NIC subnets belong to the hub, not this spoke inventory.
+  spoke_address_prefixes = {
+    identity_internal = ["10.102.8.0/27"]
+    pilot_application = ["10.102.64.0/27"]
+    # identity_external = ["REPLACE_ONLY_IF_EXTERNAL_IDENTITY_IS_DEPLOYED"]
+  }
+
+  # Bind roles to this owner's CURRENT table/subnet map keys; reconcile Compeer
+  # state before copying. For an existing table, omit name to preserve its name.
+  # Explicit names below are documented creation names, not automatic imports.
+  table_bindings = {
+    gateway   = { route_table_key = "gateway", subnet_key = "GatewaySubnet", name = "cus-prod-gateway-rt" }
+    sdwan_lan = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
+    sdwan_wan = { route_table_key = "sdwan_wan", subnet_key = "prod-sdwan-wan-subnet" }
+    shared    = { route_table_key = "shared", subnet_key = "prod-shared-subnet", name = "cus-prod-shared-rt" }
+    appgw     = { route_table_key = "appgw", subnet_key = "prod-appgw-subnet", name = "cus-prod-appgw-rt" }
+    cftagent  = { route_table_key = "to_firewall", subnet_key = "prod-cftagent-subnet" }
+
+    # Firewall interfaces: BLACKHOLES ONLY are generated, never spoke routes or
+    # a next hop back to their own Trust ILB. CIDRs derive from existing subnets.
+    # Trust: 0/0, untrust, partner -> None. BGP stays enabled.
+    fw_trust = { route_table_key = "fw_trust", subnet_key = "prod-fw-trust-subnet", name = "cus-prod-fw-trust-rt" }
+    # Untrust: every Hub VNet prefix -> None. BGP stays disabled.
+    fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "cus-prod-fw-untrust-rt" }
+    # Partner: 0/0, untrust, trust -> None. BGP stays enabled.
+    fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
+    # Management is intentionally unbound: OOB/no UDR requires Dan's confirmation.
+  }
+
+  # Optional: remove only verified, approved inline bypass-route names.
+  # Existing required destinations are corrected in place without renaming.
+  remove_route_keys = {
+    # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+  }
+}

@@ -25,6 +25,8 @@ locals {
   firewall_routing_active = local.enabled && var.firewall_routing.enabled
   # Exact Hub Route Tables matrix from Azure Resource Deployment v2. Management
   # is excluded: its route list conflicts with the explicit out-of-band note.
+  # The three fw_* roles generate blackholes only, never the common spoke/ILB
+  # routes. They stay in this Hub owner, not the Palo Alto VM/NIC workspace.
   firewall_route_matrix = {
     gateway    = { inspect = ["sdwan_lan", "shared", "appgw", "cftagent"], drop = ["fw_untrust"], spokes = true, default = false, drop_internet = false, drop_hub = false, bgp = true }
     sdwan_lan  = { inspect = ["shared", "appgw", "cftagent"], drop = ["fw_untrust"], spokes = true, default = true, drop_internet = false, drop_hub = false, bgp = false }

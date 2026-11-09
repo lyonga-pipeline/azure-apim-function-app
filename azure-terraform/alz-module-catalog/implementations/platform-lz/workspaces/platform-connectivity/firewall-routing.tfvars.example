@@ -33,15 +33,20 @@ firewall_routing = {
   # Missing/new table: name must be the approved creation name, not the name
   # of an unmanaged Azure table; import that table into this owner first.
   table_bindings = {
-    gateway    = { route_table_key = "gateway", subnet_key = "GatewaySubnet", name = "cus-prod-gateway-rt" }
-    sdwan_lan  = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
-    sdwan_wan  = { route_table_key = "sdwan_wan", subnet_key = "prod-sdwan-wan-subnet" }
-    shared     = { route_table_key = "shared", subnet_key = "prod-shared-subnet", name = "cus-prod-shared-rt" }
-    appgw      = { route_table_key = "appgw", subnet_key = "prod-appgw-subnet", name = "cus-prod-appgw-rt" }
-    cftagent   = { route_table_key = "to_firewall", subnet_key = "prod-cftagent-subnet" }
+    gateway   = { route_table_key = "gateway", subnet_key = "GatewaySubnet", name = "cus-prod-gateway-rt" }
+    sdwan_lan = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
+    sdwan_wan = { route_table_key = "sdwan_wan", subnet_key = "prod-sdwan-wan-subnet" }
+    shared    = { route_table_key = "shared", subnet_key = "prod-shared-subnet", name = "cus-prod-shared-rt" }
+    appgw     = { route_table_key = "appgw", subnet_key = "prod-appgw-subnet", name = "cus-prod-appgw-rt" }
+    cftagent  = { route_table_key = "to_firewall", subnet_key = "prod-cftagent-subnet" }
+
+    # Owned HERE, not in platform-palo-alto. Generate blackholes only:
+    # trust -> 0/0 + untrust + partner; untrust -> hub; partner -> 0/0 + untrust + trust.
+    # All next hops are None (no IP), never VirtualAppliance/self-ILB or spoke routes.
     fw_trust   = { route_table_key = "fw_trust", subnet_key = "prod-fw-trust-subnet", name = "cus-prod-fw-trust-rt" }
     fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "cus-prod-fw-untrust-rt" }
     fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
+    # No management binding: keep OOB/no UDR separate pending Dan's confirmation.
   }
 
   # Remove ONLY named, reviewed temporary bypass routes from the base inputs.

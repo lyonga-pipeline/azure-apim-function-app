@@ -6,9 +6,34 @@
 # The azurerm provider reads both from those Terraform variables.
 #
 
-# PHASE 2 ROUTING FOLLOW-UP: opt-in coordinated static routes + BGP-off.
-# Use firewall-routing.tfvars.example; do not replace deployed VNet/DC settings.
-firewall_routing = { enabled = false }
+# =============================================================================
+# PHASE 2 ROUTING FOLLOW-UP - merged from firewall-routing.tfvars.example.
+# Disabled: existing VNet/DC configuration and routing below are NOT replaced.
+# Select the deployed INTERNAL Identity table key and complete approved static
+# destinations before enabling BGP-off. See ../../firewall-routing/README.md.
+# =============================================================================
+firewall_routing = {
+  enabled = false
+  # Azure name is cus-prod-intdc-rt. Confirm the deployed owner's Terraform key;
+  # do not assume this repository's older, shared to_firewall table is that table.
+  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"]
+  trust_ilb_frontend_ip     = "10.102.4.42"     # Documented frontend; verify live health/IP.
+  hub_address_prefixes      = ["10.102.0.0/21"] # Documented hub; verify producer/Azure.
+  change_reference          = "REPLACE_WITH_APPROVED_IDENTITY_ROUTING_CHANGE"
+  ownership_reviewed        = false
+  firewall_path_ready       = false
+  static_route_set_reviewed = false
+
+  # Default and hub routes are generated. Network/AD must approve ALL remaining
+  # static destinations before BGP is disabled; do not infer them from DNS IPs.
+  remote_address_prefixes = {
+    pilot_application      = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document.
+    onprem_domain_services = ["REPLACE_WITH_APPROVED_ON_PREMISES_DC_NETWORK_CIDR"]
+  }
+  remove_route_keys = {
+    # EXISTING_INTERNAL_RT_KEY = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+  }
+}
 
 location                    = "centralus"
 environment                 = "prod"

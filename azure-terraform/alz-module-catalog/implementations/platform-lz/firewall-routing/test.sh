@@ -12,6 +12,8 @@ for owner in platform-connectivity platform-directory-services; do
   terraform -chdir="$root" init -backend=false -input=false -no-color
   terraform -chdir="$root" validate -no-color
   terraform -chdir="$root" test -no-color
+  # Exercise the actual merged root tfvars as well as the portable example.
+  terraform -chdir="$root" test -no-color -test-directory=routing-example-tests
   terraform -chdir="$root" test -no-color -test-directory=routing-example-tests -var-file=firewall-routing.tfvars.example
   terraform -chdir="$root" test -no-color -test-directory=phase2-tests -var-file=phase2.tfvars.example
 done
