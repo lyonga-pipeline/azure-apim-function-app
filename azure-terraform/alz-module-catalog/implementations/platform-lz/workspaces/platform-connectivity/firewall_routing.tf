@@ -104,33 +104,56 @@ locals {
     first = try(sum([for i, octet in split(".", cidrhost(prefix, 0)) : parseint(octet, 10) * pow(256, 3 - i)]), -1)
     last  = try(sum([for i, octet in split(".", cidrhost(prefix, -1)) : parseint(octet, 10) * pow(256, 3 - i)]), -1)
   } }
+
+  # Report the exact failed check instead of masking unrelated input errors in
+  # one large try(). These checks retain the existing cutover restrictions.
+  firewall_readiness_checks = {
+    connectivity_enabled     = local.enabled
+    ownership_reviewed       = var.firewall_routing.ownership_reviewed
+    firewall_path_ready      = var.firewall_routing.firewall_path_ready
+    management_oob_confirmed = var.firewall_routing.management_oob_confirmed
+  }
+  firewall_binding_checks = merge({
+    required_roles     = toset(keys(var.firewall_routing.table_bindings)) == toset(keys(local.firewall_route_matrix))
+    unique_table_keys  = length(distinct([for b in values(var.firewall_routing.table_bindings) : b.route_table_key])) == 9
+    unique_subnet_keys = length(distinct([for b in values(var.firewall_routing.table_bindings) : b.subnet_key])) == 9
+    gateway_subnet     = try(var.firewall_routing.table_bindings.gateway.subnet_key == "GatewaySubnet", false)
+    }, merge({}, [for role, b in var.firewall_routing.table_bindings : {
+      "${role}.table_key_valid"      = can(regex("^[a-z][a-z0-9_-]*$", b.route_table_key))
+      "${role}.subnet_exists"        = try(length(var.connectivity.hub_vnet.subnets[b.subnet_key].address_prefixes) > 0, false)
+      "${role}.single_association"   = length([for a in values(local.firewall_base_associations) : a if a.subnet_key == b.subnet_key]) <= 1
+      "${role}.name_valid"           = b.name == null ? true : length(trimspace(b.name)) > 0 && !can(regex("(?i)(REPLACE|TODO|PLACEHOLDER)", b.name))
+      "${role}.table_name_preserved" = b.name == null || !contains(keys(local.firewall_base_route_tables), b.route_table_key) || try(b.name == local.firewall_base_route_tables[b.route_table_key].name, false)
+      "${role}.subnet_role_allowed"  = role == "gateway" || !contains(["GatewaySubnet", "RouteServerSubnet", var.firewall_routing.management_subnet_key], b.subnet_key)
+  }]...))
+  firewall_route_checks = merge({
+    "management.subnet_exists"           = contains(keys(try(var.connectivity.hub_vnet.subnets, {})), var.firewall_routing.management_subnet_key)
+    "management.not_reserved_or_bound"   = !contains(concat(["GatewaySubnet", "RouteServerSubnet"], keys(local.firewall_subnet_table_keys)), var.firewall_routing.management_subnet_key)
+    "management.no_inline_route_table"   = try(var.connectivity.hub_vnet.subnets[var.firewall_routing.management_subnet_key].route_table_key, null) == null
+    "management.no_explicit_association" = alltrue([for a in values(local.firewall_base_associations) : a.subnet_key != var.firewall_routing.management_subnet_key])
+    }, {
+    for role, routes in local.firewall_retained_routes : "${role}.unique_destinations" => length(distinct([for r in values(routes) : r.address_prefix])) == length(routes)
+    }, {
+    for role in ["gateway", "appgw"] : "${role}.no_default_route" => try(alltrue([
+      for r in values(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) : r.address_prefix != "0.0.0.0/0"
+    ]), false)
+    }, {
+    for key, names in var.firewall_routing.remove_route_keys : "${key}.removal_keys_exist" => try(
+      contains(keys(local.firewall_route_overlays), key) && alltrue([for name in names : contains(keys(local.firewall_base_route_tables[key].routes), name)]), false
+    )
+  })
 }
 
 resource "terraform_data" "firewall_routing_contract" {
   count = var.firewall_routing.enabled ? 1 : 0
   lifecycle {
     precondition {
-      condition = (
-        local.enabled && var.firewall_routing.ownership_reviewed && var.firewall_routing.firewall_path_ready &&
-        var.firewall_routing.management_oob_confirmed
-      )
-      error_message = "Hub routing cutover requires the existing owner, reviewed ownership/workaround inventory, a healthy firewall/return path and approved out-of-band management."
+      condition     = alltrue(values(local.firewall_readiness_checks))
+      error_message = "Hub routing readiness not confirmed: ${join(", ", [for check, passed in local.firewall_readiness_checks : check if !passed])}. Confirm these facts before enabling; do not bypass the checks."
     }
     precondition {
-      condition = try(
-        toset(keys(var.firewall_routing.table_bindings)) == toset(keys(local.firewall_route_matrix)) &&
-        length(distinct([for b in values(var.firewall_routing.table_bindings) : b.route_table_key])) == 9 &&
-        length(distinct([for b in values(var.firewall_routing.table_bindings) : b.subnet_key])) == 9 &&
-        alltrue([for b in values(var.firewall_routing.table_bindings) :
-          can(regex("^[a-z][a-z0-9_-]*$", b.route_table_key)) && contains(keys(var.connectivity.hub_vnet.subnets), b.subnet_key) &&
-          length(var.connectivity.hub_vnet.subnets[b.subnet_key].address_prefixes) > 0 &&
-          length([for a in values(local.firewall_base_associations) : a if a.subnet_key == b.subnet_key]) <= 1 &&
-          (b.name == null ? true : length(trimspace(b.name)) > 0 && !can(regex("(?i)(REPLACE|TODO|PLACEHOLDER)", b.name))) &&
-          (b.name == null || !contains(keys(local.firewall_base_route_tables), b.route_table_key) || try(b.name == local.firewall_base_route_tables[b.route_table_key].name, false))
-        ]) && var.firewall_routing.table_bindings.gateway.subnet_key == "GatewaySubnet" &&
-        alltrue([for role, b in var.firewall_routing.table_bindings : role == "gateway" || !contains(["GatewaySubnet", "RouteServerSubnet", var.firewall_routing.management_subnet_key], b.subnet_key)]), false
-      )
-      error_message = "Bind exactly the nine documented non-management roles to unique existing subnet/table keys. Preserve existing table names; use name=null for an existing generated name. Gateway must bind GatewaySubnet; management and RouteServerSubnet are excluded."
+      condition     = alltrue(values(local.firewall_binding_checks))
+      error_message = "Hub routing binding checks failed: ${join(", ", [for check, passed in local.firewall_binding_checks : check if !passed])}. Use existing table/subnet keys. If table_name_preserved fails, omit name for an existing table; a binding must not rename it."
     }
     precondition {
       condition = try(
@@ -144,16 +167,8 @@ resource "terraform_data" "firewall_routing_contract" {
       error_message = "Supply the verified Trust ILB IPv4 frontend inside the trust subnet, plus complete, canonical, non-overlapping deployed hub/spoke IPv4 CIDRs. No guessed next hop or placeholder is accepted when enabled."
     }
     precondition {
-      condition = try(
-        contains(keys(var.connectivity.hub_vnet.subnets), var.firewall_routing.management_subnet_key) &&
-        !contains(concat(["GatewaySubnet", "RouteServerSubnet"], keys(local.firewall_subnet_table_keys)), var.firewall_routing.management_subnet_key) &&
-        try(var.connectivity.hub_vnet.subnets[var.firewall_routing.management_subnet_key].route_table_key, null) == null &&
-        alltrue([for a in values(local.firewall_base_associations) : a.subnet_key != var.firewall_routing.management_subnet_key]) &&
-        alltrue([for role, routes in local.firewall_retained_routes : length(distinct([for r in values(routes) : r.address_prefix])) == length(routes)]) &&
-        alltrue([for role in ["gateway", "appgw"] : alltrue([for r in values(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) : r.address_prefix != "0.0.0.0/0"])]) &&
-        alltrue([for key, names in var.firewall_routing.remove_route_keys : contains(keys(local.firewall_route_overlays), key) && alltrue([for name in names : contains(keys(local.firewall_base_route_tables[key].routes), name)])]), false
-      )
-      error_message = "Management must remain out-of-band; reconcile its existing association separately. Remove duplicate/bypass routes explicitly. Gateway and App Gateway cannot retain a default UDR. Removal keys must exist in selected tables."
+      condition     = alltrue(values(local.firewall_route_checks))
+      error_message = "Hub routing safety checks failed: ${join(", ", [for check, passed in local.firewall_route_checks : check if !passed])}. Keep management out-of-band. Remove an approved App Gateway/Gateway default route through remove_route_keys, not by deleting this precondition."
     }
   }
 }

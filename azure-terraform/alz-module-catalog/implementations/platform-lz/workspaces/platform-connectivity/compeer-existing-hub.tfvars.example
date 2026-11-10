@@ -1,0 +1,35 @@
+# PHASE 2 ROUTING FOLLOW-UP - existing Compeer Hub, based on the supplied plan.
+# Merge ONLY firewall_routing into the actual deployed root. Do not replace
+# connectivity={}, change backend/module source or rename existing map keys.
+# All nine target tables already exist; omit binding names to preserve them.
+# Unlike this repo's older sample, Compeer uses cftagent, NOT to_firewall.
+firewall_routing = {
+  enabled                  = false
+  trust_ilb_frontend_ip    = "10.102.4.42"
+  ownership_reviewed       = false
+  firewall_path_ready      = false
+  management_oob_confirmed = false
+  management_subnet_key    = "prod-mgmt-subnet"
+  spoke_address_prefixes = {
+    identity_internal = ["10.102.8.0/27"]
+    pilot_application = ["10.102.64.0/27"]
+    # Add every other deployed spoke included in the approved routing scope.
+  }
+  table_bindings = {
+    gateway    = { route_table_key = "gateway", subnet_key = "GatewaySubnet" }
+    sdwan_lan  = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
+    sdwan_wan  = { route_table_key = "sdwan_wan", subnet_key = "prod-sdwan-wan-subnet" }
+    shared     = { route_table_key = "shared", subnet_key = "prod-shared-subnet" }
+    appgw      = { route_table_key = "appgw", subnet_key = "prod-appgw-subnet" }
+    cftagent   = { route_table_key = "cftagent", subnet_key = "prod-cftagent-subnet" }
+    fw_trust   = { route_table_key = "fw_trust", subnet_key = "prod-fw-trust-subnet" }
+    fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet" }
+    fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet" }
+  }
+  # The supplied plan retains appgw.routes.default (0/0 -> Trust ILB).
+  # Dan's App Gateway matrix has NO default UDR. Review this explicit removal
+  # before enabling. Leave all unrelated existing routes alone.
+  remove_route_keys = {
+    appgw = ["default"]
+  }
+}
