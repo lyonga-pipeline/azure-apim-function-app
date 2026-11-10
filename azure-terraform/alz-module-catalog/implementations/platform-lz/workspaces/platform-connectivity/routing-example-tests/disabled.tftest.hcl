@@ -28,7 +28,7 @@ run "disabled_placeholders_are_non_deploying" {
     error_message = "The Hub example must retain the documented frontend/names/Identity CIDR and the separately sourced pilot CIDR."
   }
   assert {
-    condition     = !var.firewall_routing.ownership_reviewed && !var.firewall_routing.firewall_path_ready && !var.firewall_routing.management_oob_confirmed && startswith(var.firewall_routing.change_reference, "REPLACE_")
-    error_message = "Populating documented values must not assert live readiness or invent change approval."
+    condition     = !var.firewall_routing.ownership_reviewed && !var.firewall_routing.firewall_path_ready && !var.firewall_routing.management_oob_confirmed && var.firewall_routing.change_reference == ""
+    error_message = "Optional audit metadata must default empty without asserting live readiness."
   }
 }

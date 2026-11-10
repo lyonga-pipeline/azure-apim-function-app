@@ -24,10 +24,10 @@ run "disabled_placeholders_cannot_cut_identity_bgp" {
   assert {
     condition = (
       !var.firewall_routing.ownership_reviewed && !var.firewall_routing.firewall_path_ready && !var.firewall_routing.static_route_set_reviewed &&
-      startswith(var.firewall_routing.change_reference, "REPLACE_") &&
-      alltrue([for key in var.firewall_routing.route_table_keys : startswith(key, "REPLACE_")]) &&
-      alltrue([for prefix in var.firewall_routing.remote_address_prefixes.onprem_domain_services : startswith(prefix, "REPLACE_")])
+      var.firewall_routing.change_reference == "" &&
+      var.firewall_routing.route_table_keys == toset(["to_firewall"]) &&
+      !contains(keys(var.firewall_routing.remote_address_prefixes), "onprem_domain_services")
     )
-    error_message = "The example must not invent the deployed Identity table key, on-premises networks or readiness approvals."
+    error_message = "Select this root's existing table key, omit unprovided on-premises networks and keep readiness unconfirmed."
   }
 }

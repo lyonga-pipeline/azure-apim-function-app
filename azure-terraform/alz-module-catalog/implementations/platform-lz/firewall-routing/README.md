@@ -76,9 +76,11 @@ The document does supply several values; they are now populated rather than left
 | Temporary workarounds | Current route names/destinations/next hops in Azure and in source/state | Required destinations can be corrected in place; unrelated bypasses require explicit reviewed removal |
 | Change and ownership approval | Ticket/reference, coordinated hub/Identity/app changes, protected hub gate, rollback owners and test evidence | Terraform readiness flags record these decisions; they do not implement or verify the approvals/health themselves |
 
-The remaining Identity placeholders are its **Terraform route-table map key**, approved on-premises destination CIDRs and change reference. The document names the Azure table `cus-prod-intdc-rt`, but cannot tell you the key used by your deployed Terraform configuration. This repository's older example uses `to_firewall`; do not assume Compeer uses the same key. Read the actual owner's `route_tables` map and run `terraform state list` against its correct backend. For example, an address containing `module.route_tables["to_firewall"]` identifies the key `to_firewall`, not the Azure table name. Do not create a new key to bypass this reconciliation.
+The Identity inputs now select **`route_table_keys=["to_firewall"]`**, matching the table key already defined in this repository's `directory_services.route_tables`. That is not a claim about the deployed Compeer key. The document names the Azure table `cus-prod-intdc-rt`, but cannot tell you the key used by its deployment code. Read the actual owner's `route_tables` map and run `terraform state list` against its correct backend. For example, an address containing `module.route_tables["to_firewall"]` identifies the key `to_firewall`, not the Azure table name. Replace the selector with the existing key if different; do not rename or create a table just to match the example.
 
-Obtain the complete static destination list from Dan/network engineering and the AD team/IPAM, including required DC replication, DNS and management networks. DNS-server addresses and broad NSG allow rules are not an authoritative routing inventory. Do not invent a CIDR from either. The change references come from the approved routing change; readiness flags stay false until the named owners provide evidence. `remove_route_keys={}` is optional and removes nothing; fill it only with verified, approved bypass-route names.
+Obtain the complete static destination list from Dan/network engineering and the AD team/IPAM, including required DC replication, DNS and management networks. DNS-server addresses and broad NSG allow rules are not an authoritative routing inventory. Do not invent a CIDR from either. Unknown on-premises destinations are now omitted from the active inputs, not populated with placeholder strings or empty lists. **Missing information does not mean no routes are needed:** keep `static_route_set_reviewed=false` and Identity routing disabled until the complete set is confirmed. Readiness flags stay false until the named owners provide evidence. `remove_route_keys={}` is optional and removes nothing; fill it only with verified, approved bypass-route names.
+
+`change_reference` is **optional string audit metadata**, retained for compatibility with existing callers. Omit it or use `change_reference=""`; `[]` is the wrong type. It does not configure Azure, verify a ticket or gate routing. Record approvals through the existing PR/change/HCP process; ownership, firewall-path, management and static-route readiness checks still apply independently. A supplied reference can identify the shared approved change covering both roots.
 
 The Trust ILB RG/name are **verification facts**, not extra resources to create. Locate the real LB in Azure or the Palo Alto owner's published `load_balancer_ids`; do not assume the document's hub RG is also the LB RG. These read-only commands help confirm the actual frontend and existing table routes:
 
@@ -114,7 +116,8 @@ The actual Hub root already contains the full `firewall_routing` object. The [po
 | Binding `name` | Leave null/omitted for an existing table to preserve its current explicit/generated name. For a genuinely new table, supply its approved Azure name. A different binding name cannot rename an existing table |
 | `remove_route_keys` | Optional map of current table keys to the **current inline route names** of reviewed workarounds to remove. Default `{}` deletes no unrelated routes |
 | `management_subnet_key` | Current management subnet key; used to ensure this change does not reroute it |
-| `change_reference` and readiness flags | Actual approved change and reviewed ownership, working firewall path and out-of-band management. Set true only after the external evidence exists |
+| `change_reference` | Optional audit string; omit or use `""`, not `[]`. It is not an Azure routing setting or a deployment gate |
+| Readiness flags | Reviewed ownership, working firewall path and out-of-band management. Set true only after the external evidence exists; optional audit metadata does not replace these checks |
 
 Existing table map keys and module addresses remain the same. For a required destination already present in a selected table, the overlay reuses its inline route key/name and replaces the next hop/type with the required value. It adds only missing required destinations; other routes survive unless explicitly listed for removal. Duplicate destinations, overlapping supplied hub/spoke prefixes and default UDRs on Gateway/App Gateway fail the plan. The complete estate inventory is still a human/network responsibility; the code cannot detect an omitted deployed spoke.
 
@@ -125,6 +128,23 @@ An existing explicit subnet association retains its map key, with no second inli
 ## Internal Identity And Pilot Return Paths
 
 The Identity root also contains the full disabled overlay; use its [portable example](../workspaces/platform-directory-services/firewall-routing.tfvars.example) when porting into the actual deployed Internal Identity owner. Select only the existing route-table keys; the document calls the internal table `cus-prod-intdc-rt`, but its Terraform key may differ. The overlay preserves its name/key, reuses existing route names by destination, adds default plus explicit hub and reviewed remote CIDRs through the Trust ILB, and switches BGP propagation off in the same configuration change. Unselected tables, VNet addresses, DCs and peering ownership are unchanged.
+
+### Identity Table Selection Versus Destinations
+
+`route_table_keys` selects **which Identity-owned tables are modified**. It is required and nonempty when Identity routing is enabled; it is not a list of destination VNets, DC IPs or tables owned by other workspaces. For this repository, the existing key is `to_firewall`, so merge these fields inside the existing Identity `firewall_routing` object:
+
+```hcl
+route_table_keys = ["to_firewall"]
+remote_address_prefixes = {
+  pilot_application = ["10.102.64.0/27"]
+  # Add approved on-premises CIDRs when network/AD supplies the complete set.
+}
+static_route_set_reviewed = false # Keep false while that information is missing.
+```
+
+List multiple table keys only if multiple **existing Identity-owned tables** are explicitly in scope. Do not list `fw_trust`, `fw_untrust`, `fw_partner` or the pilot's table here: the firewall-interface tables remain in connectivity's `table_bindings`, and the pilot's own routes remain in its spoke deployment root. Hub and pilot CIDRs are destinations supplied through `hub_address_prefixes` and `remote_address_prefixes`, respectively. The Identity DC subnet is the source subnet using the selected table, not another required destination entry.
+
+The `onprem_domain_services` label is an example, not a mandatory key. Omit it until approved CIDRs are available; do not use `onprem_domain_services=[]` when enabling. The remote map must contain reviewed nonempty prefix sets (currently the pilot entry), but a populated map alone does not establish completeness. Only set `static_route_set_reviewed=true` after network/AD confirms the entire required set, including whether any on-premises entries are needed.
 
 Do not enable External Identity or change its tables as part of this cutover unless it is deployed and explicitly included. If internal and external subnets currently share a table, a table-level propagation change affects both: review/split that ownership and routing scope before proceeding. `static_route_set_reviewed=true` means the AD/network team approved the complete replacement set, not simply that the input map is nonempty.
 
@@ -174,4 +194,4 @@ The Hub and Identity code covers **those owners' UDR changes**, not end-to-end a
 bash azure-terraform/alz-module-catalog/implementations/platform-lz/firewall-routing/test.sh
 ```
 
-The suite uses real root/child configuration with mocked providers. It covers the matrix, five-table spoke selection, per-role BGP/default/blackhole behavior, inline route/name preservation, explicit workaround removal, stable associations, disabled backward compatibility, Identity static-route/BGP coordination and negative readiness/input cases. It explicitly verifies that onboarding another spoke leaves the effective firewall-interface blackhole sets/associations unchanged. Both the merged root tfvars and portable disabled examples are tested, alongside the existing Phase 2 owner tests. These tests perform no Azure/HCP writes and do not prove deployed resource names, provider write permissions, appliance health or live connectivity.
+The suite uses real root/child configuration with mocked providers. It covers the matrix, five-table spoke selection, per-role BGP/default/blackhole behavior, inline route/name preservation, explicit workaround removal, stable associations, disabled backward compatibility, Identity static-route/BGP coordination and negative readiness/input cases. It explicitly verifies that onboarding another spoke leaves the effective firewall-interface blackhole sets/associations unchanged, optional audit metadata does not gate routing, and omitted on-premises entries cannot bypass static-route review. Empty/foreign Identity table selectors and empty remote-prefix entries are rejected. Both the merged root tfvars and portable disabled examples are tested, alongside the existing Phase 2 owner tests. These tests perform no Azure/HCP writes and do not prove deployed resource names, provider write permissions, appliance health or live connectivity.

@@ -14,12 +14,14 @@
 # =============================================================================
 firewall_routing = {
   enabled = false
-  # Azure name is cus-prod-intdc-rt. Confirm the deployed owner's Terraform key;
-  # do not assume this repository's older, shared to_firewall table is that table.
-  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"]
-  trust_ilb_frontend_ip     = "10.102.4.42"     # Documented frontend; verify live health/IP.
-  hub_address_prefixes      = ["10.102.0.0/21"] # Documented hub; verify producer/Azure.
-  change_reference          = "REPLACE_WITH_APPROVED_IDENTITY_ROUTING_CHANGE"
+  # Select ONLY tables in directory_services.route_tables, not destination VNets.
+  # This root already defines to_firewall below. Both sample DC subnets share it;
+  # verify the actual Internal Identity owner's key/associations before cutover.
+  # Do not put Hub fw_trust/fw_untrust/fw_partner or pilot table keys here.
+  route_table_keys      = ["to_firewall"]
+  trust_ilb_frontend_ip = "10.102.4.42"     # Documented frontend; verify live health/IP.
+  hub_address_prefixes  = ["10.102.0.0/21"] # Documented hub; verify producer/Azure.
+  # change_reference = "" # Optional audit reference; omit or use a string, never [].
   ownership_reviewed        = false
   firewall_path_ready       = false
   static_route_set_reviewed = false
@@ -27,11 +29,13 @@ firewall_routing = {
   # Default and hub routes are generated. Network/AD must approve ALL remaining
   # static destinations before BGP is disabled; do not infer them from DNS IPs.
   remote_address_prefixes = {
-    pilot_application      = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document.
-    onprem_domain_services = ["REPLACE_WITH_APPROVED_ON_PREMISES_DC_NETWORK_CIDR"]
+    pilot_application = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document.
+    # On-premises CIDRs are not supplied yet: omit the entry, do not use [].
+    # Add onprem_domain_services = ["APPROVED_CIDR"] after network/AD review.
+    # Leave static_route_set_reviewed=false until the complete set is approved.
   }
   remove_route_keys = {
-    # EXISTING_INTERNAL_RT_KEY = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+    # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
   }
 }
 

@@ -75,6 +75,56 @@ run "unreviewed_static_set_is_rejected" {
   variables { firewall_routing = merge(var.firewall_routing, { static_route_set_reviewed = false }) }
   expect_failures = [terraform_data.firewall_routing_contract]
 }
+run "audit_reference_can_be_omitted_without_changing_routes" {
+  command = plan
+  variables { firewall_routing = { for key, value in var.firewall_routing : key => value if key != "change_reference" } }
+  assert {
+    condition = (
+      var.firewall_routing.change_reference == "" &&
+      length(local.route_tables.to_firewall.routes) == 4 &&
+      !local.route_tables.to_firewall.bgp_route_propagation_enabled &&
+      local.route_tables.to_firewall.name == "cus-prod-intdc-rt" &&
+      local.route_tables.untouched.bgp_route_propagation_enabled
+    )
+    error_message = "Optional audit metadata must not gate or change an otherwise reviewed Identity cutover."
+  }
+}
+run "pilot_only_remote_set_can_be_used_after_complete_review" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, { remote_address_prefixes = { pilot = ["10.102.64.0/27"] } }) }
+  assert {
+    condition = (
+      var.firewall_routing.static_route_set_reviewed &&
+      toset([for route in values(local.route_tables.to_firewall.routes) : route.address_prefix]) == toset(["0.0.0.0/0", "10.102.0.0/21", "10.102.64.0/27"]) &&
+      !local.route_tables.to_firewall.bgp_route_propagation_enabled
+    )
+    error_message = "No specifically named on-premises entry is mandatory when the complete approved set needs only hub/default/pilot routes."
+  }
+}
+run "omitting_onprem_does_not_bypass_static_route_review" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, {
+    remote_address_prefixes = { pilot = ["10.102.64.0/27"] }, static_route_set_reviewed = false
+  }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
+run "empty_onprem_entry_is_rejected_instead_of_silently_ignored" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, {
+    remote_address_prefixes = { pilot = ["10.102.64.0/27"], onprem_domain_services = [] }
+  }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
+run "empty_table_selection_is_rejected_when_enabled" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, { route_table_keys = [], remove_route_keys = {} }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
+run "firewall_and_pilot_table_keys_cannot_be_selected_in_identity" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, { route_table_keys = ["to_firewall", "fw_trust", "pilot_application"] }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
 run "missing_remote_routes_are_rejected" {
   command = plan
   variables { firewall_routing = merge(var.firewall_routing, { remote_address_prefixes = {} }) }

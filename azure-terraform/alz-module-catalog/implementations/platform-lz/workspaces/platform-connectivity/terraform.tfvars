@@ -228,9 +228,9 @@ connectivity = {
 # Runbook: ../../firewall-routing/README.md
 # =============================================================================
 firewall_routing = {
-  enabled                  = false
-  trust_ilb_frontend_ip    = "10.102.4.42" # Documented Trust ILB frontend; verify live health/IP.
-  change_reference         = "REPLACE_WITH_APPROVED_ROUTING_CHANGE"
+  enabled               = false
+  trust_ilb_frontend_ip = "10.102.4.42" # Documented Trust ILB frontend; verify live health/IP.
+  # change_reference = "" # Optional audit reference; omit or use a string, never [].
   ownership_reviewed       = false
   firewall_path_ready      = false
   management_oob_confirmed = false

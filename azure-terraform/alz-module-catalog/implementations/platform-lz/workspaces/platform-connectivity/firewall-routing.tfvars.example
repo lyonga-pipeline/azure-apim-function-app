@@ -2,13 +2,14 @@
 # Merge this NEW top-level object into the EXISTING connectivity root tfvars.
 # Do not replace connectivity={}, its subnet prefixes, names, NSGs or peerings.
 # This example remains DISABLED. Confirm documented values against Azure and
-# fill every REPLACE value before enabling. See ../../firewall-routing/README.md.
+# reconcile table keys and readiness before enabling. Optional removal examples
+# can stay commented. See ../../firewall-routing/README.md.
 # A .tfvars.example file is not auto-loaded by Terraform.
 # Design: Azure Resource Deployment in New Landing Zone_v2, Hub Route Tables.
 firewall_routing = {
-  enabled                  = false
-  trust_ilb_frontend_ip    = "10.102.4.42" # Documented Trust ILB frontend; verify live IP/probe/backend health.
-  change_reference         = "REPLACE_WITH_APPROVED_ROUTING_CHANGE"
+  enabled               = false
+  trust_ilb_frontend_ip = "10.102.4.42" # Documented Trust ILB frontend; verify live IP/probe/backend health.
+  # change_reference = "" # Optional audit reference; omit or use a string, never [].
   ownership_reviewed       = false
   firewall_path_ready      = false
   management_oob_confirmed = false

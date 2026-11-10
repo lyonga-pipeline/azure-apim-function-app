@@ -194,6 +194,19 @@ run "missing_cutover_approval_is_rejected" {
   variables { firewall_routing = merge(var.firewall_routing, { firewall_path_ready = false }) }
   expect_failures = [terraform_data.firewall_routing_contract]
 }
+run "audit_reference_can_be_omitted_without_changing_routes" {
+  command = plan
+  variables { firewall_routing = { for key, value in var.firewall_routing : key => value if key != "change_reference" } }
+  assert {
+    condition = (
+      var.firewall_routing.change_reference == "" &&
+      local.firewall_effective_route_tables.to_firewall.routes.legacy-default.next_hop_in_ip_address == "10.102.4.42" &&
+      local.firewall_effective_route_tables.fw_trust.routes.drop-internet.next_hop_type == "None" &&
+      length(local.firewall_effective_route_tables) == 9
+    )
+    error_message = "Optional audit metadata must not gate or change otherwise reviewed Hub routing."
+  }
+}
 run "unselected_route_table_is_unchanged" {
   command = plan
   variables { connectivity = merge(var.connectivity, {

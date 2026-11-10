@@ -2,13 +2,17 @@
 # Merge ONLY this new top-level input into the deployed Identity owner's root.
 # Do not copy this repository's old sample VNet prefixes or redeploy its DCs.
 # A .tfvars.example file is not auto-loaded. See ../../firewall-routing/README.md.
-# Confirm documented values live; complete remaining placeholders before enabling.
+# Confirm documented values, deployed table keys and the complete route set before enabling.
 firewall_routing = {
-  enabled                   = false
-  route_table_keys          = ["REPLACE_WITH_EXISTING_INTERNAL_IDENTITY_RT_KEY"] # Document Azure name: cus-prod-intdc-rt, NOT its Terraform key.
-  trust_ilb_frontend_ip     = "10.102.4.42"                                      # Documented Trust ILB frontend; verify live health and IP.
-  hub_address_prefixes      = ["10.102.0.0/21"]                                  # Documented hub; verify against producer/Azure.
-  change_reference          = "REPLACE_WITH_APPROVED_IDENTITY_ROUTING_CHANGE"
+  enabled = false
+  # Matches this repository's existing directory_services.route_tables.to_firewall.
+  # Use the actual deployed Identity table key if different; document Azure name
+  # cus-prod-intdc-rt is not the Terraform key. Check every associated DC subnet.
+  # Hub firewall/pilot tables are owned elsewhere and must not be listed here.
+  route_table_keys      = ["to_firewall"]
+  trust_ilb_frontend_ip = "10.102.4.42"     # Documented Trust ILB frontend; verify live health and IP.
+  hub_address_prefixes  = ["10.102.0.0/21"] # Documented hub; verify against producer/Azure.
+  # change_reference = "" # Optional audit reference; omit or use a string, never [].
   ownership_reviewed        = false
   firewall_path_ready       = false
   static_route_set_reviewed = false
@@ -19,10 +23,13 @@ firewall_routing = {
   # Default + hub routes are added by the overlay. Other required spokes and
   # more-specific hybrid routes are declared here; all use the verified ILB.
   remote_address_prefixes = {
-    pilot_application      = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document; verify live.
-    onprem_domain_services = ["REPLACE_WITH_APPROVED_ON_PREMISES_DC_NETWORK_CIDR"]
+    pilot_application = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document; verify live.
+    # Omit unknown on-premises CIDRs, rather than an empty or invented entry.
+    # Add onprem_domain_services = ["APPROVED_CIDR"] once supplied by network/AD.
+    # Missing information is NOT evidence that the static set is complete:
+    # keep static_route_set_reviewed=false until that review is complete.
   }
   remove_route_keys = {
-    # EXISTING_INTERNAL_RT_KEY = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
+    # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
   }
 }

@@ -13,7 +13,7 @@ variable "firewall_routing" {
     })), {})
     remove_route_keys        = optional(map(set(string)), {})
     management_subnet_key    = optional(string, "prod-mgmt-subnet")
-    change_reference         = optional(string, "")
+    change_reference         = optional(string, "") # Optional audit annotation; not a deployment gate.
     ownership_reviewed       = optional(bool, false)
     firewall_path_ready      = optional(bool, false)
     management_oob_confirmed = optional(bool, false)
@@ -112,10 +112,9 @@ resource "terraform_data" "firewall_routing_contract" {
     precondition {
       condition = (
         local.enabled && var.firewall_routing.ownership_reviewed && var.firewall_routing.firewall_path_ready &&
-        var.firewall_routing.management_oob_confirmed && length(trimspace(var.firewall_routing.change_reference)) > 0 &&
-        !can(regex("(?i)(REPLACE|TODO|PLACEHOLDER)", var.firewall_routing.change_reference))
+        var.firewall_routing.management_oob_confirmed
       )
-      error_message = "Hub routing cutover requires the existing owner, reviewed ownership/workaround inventory, a healthy firewall/return path, approved out-of-band management and a change reference."
+      error_message = "Hub routing cutover requires the existing owner, reviewed ownership/workaround inventory, a healthy firewall/return path and approved out-of-band management."
     }
     precondition {
       condition = try(

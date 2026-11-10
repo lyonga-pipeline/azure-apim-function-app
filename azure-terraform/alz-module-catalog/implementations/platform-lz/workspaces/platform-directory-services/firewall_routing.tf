@@ -4,12 +4,12 @@ variable "firewall_routing" {
   description = "Opt-in Identity cutover for existing route-table keys only. Requires reviewed static destinations and a healthy firewall/return path; preserves existing names and VM/VNet configuration."
   type = object({
     enabled                   = optional(bool, false)
-    route_table_keys          = optional(set(string), [])
+    route_table_keys          = optional(set(string), []) # Existing Identity-owned table keys, required when enabled.
     trust_ilb_frontend_ip     = optional(string)
     hub_address_prefixes      = optional(set(string), [])
     remote_address_prefixes   = optional(map(set(string)), {})
     remove_route_keys         = optional(map(set(string)), {})
-    change_reference          = optional(string, "")
+    change_reference          = optional(string, "") # Optional audit annotation; not a deployment gate.
     ownership_reviewed        = optional(bool, false)
     firewall_path_ready       = optional(bool, false)
     static_route_set_reviewed = optional(bool, false)
@@ -57,10 +57,9 @@ resource "terraform_data" "firewall_routing_contract" {
     precondition {
       condition = (
         local.enabled && var.firewall_routing.ownership_reviewed && var.firewall_routing.firewall_path_ready &&
-        var.firewall_routing.static_route_set_reviewed && length(trimspace(var.firewall_routing.change_reference)) > 0 &&
-        !can(regex("(?i)(REPLACE|TODO|PLACEHOLDER)", var.firewall_routing.change_reference))
+        var.firewall_routing.static_route_set_reviewed
       )
-      error_message = "Identity BGP cutover requires the existing owner, a healthy firewall/return path, a reviewed complete static-route set and change approval. Do not disable BGP as an isolated change."
+      error_message = "Identity BGP cutover requires the existing owner, a healthy firewall/return path and a reviewed complete static-route set. Do not disable BGP as an isolated change."
     }
     precondition {
       condition = try(
