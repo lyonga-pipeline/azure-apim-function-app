@@ -87,7 +87,8 @@ connectivity = {
 
       # service_endpoints let the bootstrap storage account / Key Vault firewall
       # to this subnet without a public endpoint (see GUARDRAIL-EXCEPTIONS.md).
-      prod-mgmt-subnet     = { address_prefixes = ["10.102.4.0/27"], nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
+      # PHASE 2: Dan confirmed management retains its route table association.
+      prod-mgmt-subnet     = { address_prefixes = ["10.102.4.0/27"], route_table_key = "mgmt", nsg_key = "palo_mgmt", service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"] }
       prod-fw-trust-subnet = { address_prefixes = ["10.102.4.32/27"] }
       # Dan's table showed 10.10.4.64/27 and 10.10.4.96/27 for these two - read
       # as typos for 10.102.4.64/27 / 10.102.4.96/27 (consistent with the rest
@@ -146,6 +147,28 @@ connectivity = {
   # Palo Alto team - verify both files agree before this route table is ever
   # applied.
   route_tables = {
+    # PHASE 2: retain management BGP/default and inspect both deployed spokes.
+    # Extend these explicit destinations for additional approved deployed spokes.
+    mgmt = {
+      bgp_route_propagation_enabled = true
+      routes = {
+        default = {
+          address_prefix         = "0.0.0.0/0"
+          next_hop_type          = "VirtualAppliance"
+          next_hop_in_ip_address = "10.102.4.42"
+        }
+        inspect_identity_internal = {
+          address_prefix         = "10.102.8.0/27"
+          next_hop_type          = "VirtualAppliance"
+          next_hop_in_ip_address = "10.102.4.42"
+        }
+        inspect_pilot_application = {
+          address_prefix         = "10.102.64.0/27"
+          next_hop_type          = "VirtualAppliance"
+          next_hop_in_ip_address = "10.102.4.42"
+        }
+      }
+    }
     to_firewall = {
       bgp_route_propagation_enabled = false
       routes = {
@@ -231,13 +254,11 @@ firewall_routing = {
   enabled               = false
   trust_ilb_frontend_ip = "10.102.4.42" # Documented Trust ILB frontend; verify live health/IP.
   # change_reference = "" # Optional audit reference; omit or use a string, never [].
-  ownership_reviewed       = false
-  firewall_path_ready      = false
-  management_oob_confirmed = false
-  management_subnet_key    = "prod-mgmt-subnet"
-  # Existing Compeer Hub: set management_route_table_key="mgmt" and restore
-  # its ORIGINAL base subnet association; preserve table routes and BGP=true.
-  # This older disabled sample has no management table; do not invent one here.
+  ownership_reviewed         = false
+  firewall_path_ready        = false
+  management_oob_confirmed   = false
+  management_subnet_key      = "prod-mgmt-subnet"
+  management_route_table_key = "mgmt" # Validates the association configured above.
 
   # Identity CIDR is documented; pilot CIDR is from the last reviewed pilot plan.
   # Verify both against producer/Azure and add every other deployed spoke VNet.

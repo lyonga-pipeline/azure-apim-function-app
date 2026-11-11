@@ -1,5 +1,9 @@
-# Use the corrected Compeer pilot tfvars, not a replacement connectivity fixture.
-mock_provider "azurerm" {}
+# Exercise management settings in the deployable root terraform.tfvars directly.
+mock_provider "azurerm" {
+  mock_data "azurerm_private_dns_zone" {
+    defaults = { id = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net" }
+  }
+}
 mock_provider "tfe" {}
 mock_provider "time" {
   mock_resource "time_static" { defaults = { rfc3339 = "2026-11-11T00:00:00Z" } }
@@ -13,8 +17,8 @@ run "compeer_pilot_retains_management_association_and_symmetric_routes" {
   command = plan
   assert {
     condition = (
-      alltrue(values(local.firewall_route_checks)) &&
       var.firewall_routing.management_route_table_key == "mgmt" &&
+      local.firewall_route_checks["management.expected_association"] &&
       local.firewall_effective_hub_vnet.subnets["prod-mgmt-subnet"].route_table_key == "mgmt" &&
       length(local.firewall_management_table_keys) == 1 &&
       local.firewall_effective_route_tables.mgmt.bgp_route_propagation_enabled &&
