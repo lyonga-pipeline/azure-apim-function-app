@@ -50,7 +50,7 @@ firewall_routing = {
     fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "cus-prod-fw-untrust-rt" }
     fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
     # No management matrix binding: retain its EXISTING association/routes/BGP.
-    # Dan confirmed the table stays attached; default-route intent is unresolved.
+    # Dan confirmed it stays attached with default and explicit spoke routes.
   }
 
   # Remove ONLY named, reviewed temporary bypass routes from the base inputs.

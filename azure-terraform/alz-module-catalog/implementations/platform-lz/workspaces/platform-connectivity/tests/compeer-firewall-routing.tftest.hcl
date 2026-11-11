@@ -196,6 +196,6 @@ run "management_routes_are_preserved_not_interpreted" {
   }) }
   assert {
     condition     = local.firewall_effective_route_tables.mgmt == var.connectivity.route_tables.mgmt
-    error_message = "Do not add or delete management routes while default-route intent is unresolved."
+    error_message = "The nine-role generator must preserve management routes supplied by the base table owner."
   }
 }

@@ -26,7 +26,7 @@ locals {
   firewall_routing_active = local.enabled && var.firewall_routing.enabled
   # Exact Hub Route Tables matrix from Azure Resource Deployment v2. Management
   # stays outside this generator. Dan confirmed its table must stay attached;
-  # preserve existing routes pending clarification of the listed default route.
+  # keep default/spoke routes in the base management table, as Dan confirmed.
   # The three fw_* roles generate blackholes only, never the common spoke/ILB
   # routes. They stay in this Hub owner, not the Palo Alto VM/NIC workspace.
   firewall_route_matrix = {

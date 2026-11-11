@@ -268,7 +268,7 @@ firewall_routing = {
     # Partner: 0/0, untrust, trust -> None. BGP stays enabled.
     fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
     # Management is excluded from this generator, NOT detached. Dan confirmed
-    # its existing table stays attached; default-route intent remains unresolved.
+    # its existing table stays attached with default and explicit spoke routes.
   }
 
   # Optional: remove only verified, approved inline bypass-route names.
