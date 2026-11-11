@@ -10,6 +10,11 @@ firewall_routing = {
   firewall_path_ready      = false
   management_oob_confirmed = false
   management_subnet_key    = "prod-mgmt-subnet"
+  management_route_table_key = "mgmt"
+  # Dan confirmed the existing management table stays attached. Restore the
+  # ORIGINAL prod-mgmt-subnet association in connectivity inputs if removed.
+  # Keep connectivity.route_tables.mgmt.bgp_route_propagation_enabled=true.
+  # Preserve management routes; default-route intent still needs clarification.
   spoke_address_prefixes = {
     identity_internal = ["10.102.8.0/27"]
     pilot_application = ["10.102.64.0/27"]

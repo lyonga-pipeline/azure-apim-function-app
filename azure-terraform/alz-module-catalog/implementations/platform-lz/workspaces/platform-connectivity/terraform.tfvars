@@ -235,6 +235,9 @@ firewall_routing = {
   firewall_path_ready      = false
   management_oob_confirmed = false
   management_subnet_key    = "prod-mgmt-subnet"
+  # Existing Compeer Hub: set management_route_table_key="mgmt" and restore
+  # its ORIGINAL base subnet association; preserve table routes and BGP=true.
+  # This older disabled sample has no management table; do not invent one here.
 
   # Identity CIDR is documented; pilot CIDR is from the last reviewed pilot plan.
   # Verify both against producer/Azure and add every other deployed spoke VNet.
@@ -264,7 +267,8 @@ firewall_routing = {
     fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "cus-prod-fw-untrust-rt" }
     # Partner: 0/0, untrust, trust -> None. BGP stays enabled.
     fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
-    # Management is intentionally unbound: OOB/no UDR requires Dan's confirmation.
+    # Management is excluded from this generator, NOT detached. Dan confirmed
+    # its existing table stays attached; default-route intent remains unresolved.
   }
 
   # Optional: remove only verified, approved inline bypass-route names.

@@ -11,12 +11,13 @@ variable "firewall_routing" {
       subnet_key      = string
       name            = optional(string)
     })), {})
-    remove_route_keys        = optional(map(set(string)), {})
-    management_subnet_key    = optional(string, "prod-mgmt-subnet")
-    change_reference         = optional(string, "") # Optional audit annotation; not a deployment gate.
-    ownership_reviewed       = optional(bool, false)
-    firewall_path_ready      = optional(bool, false)
-    management_oob_confirmed = optional(bool, false)
+    remove_route_keys          = optional(map(set(string)), {})
+    management_subnet_key      = optional(string, "prod-mgmt-subnet")
+    management_route_table_key = optional(string)     # Existing association to retain; never a new matrix role.
+    change_reference           = optional(string, "") # Optional audit annotation; not a deployment gate.
+    ownership_reviewed         = optional(bool, false)
+    firewall_path_ready        = optional(bool, false)
+    management_oob_confirmed   = optional(bool, false) # Compatibility name: reviewed management path, NOT permission to detach.
   })
   default = {}
 }
@@ -24,7 +25,8 @@ variable "firewall_routing" {
 locals {
   firewall_routing_active = local.enabled && var.firewall_routing.enabled
   # Exact Hub Route Tables matrix from Azure Resource Deployment v2. Management
-  # is excluded: its route list conflicts with the explicit out-of-band note.
+  # stays outside this generator. Dan confirmed its table must stay attached;
+  # preserve existing routes pending clarification of the listed default route.
   # The three fw_* roles generate blackholes only, never the common spoke/ILB
   # routes. They stay in this Hub owner, not the Palo Alto VM/NIC workspace.
   firewall_route_matrix = {
@@ -85,6 +87,11 @@ locals {
   firewall_effective_route_tables = merge(local.firewall_base_route_tables, local.firewall_route_overlays)
   firewall_subnet_table_keys      = { for role, binding in local.firewall_bindings : binding.subnet_key => binding.route_table_key }
   firewall_base_associations      = try(var.connectivity.subnet_route_table_associations, {})
+  firewall_management_table_keys = concat(
+    try(var.connectivity.hub_vnet.subnets[var.firewall_routing.management_subnet_key].route_table_key, null) == null ? [] : [var.connectivity.hub_vnet.subnets[var.firewall_routing.management_subnet_key].route_table_key],
+    [for a in values(local.firewall_base_associations) : a.route_table_key if a.subnet_key == var.firewall_routing.management_subnet_key]
+  )
+  firewall_management_table_key = try(one(local.firewall_management_table_keys), null)
   firewall_effective_associations = { for key, association in local.firewall_base_associations : key => merge(association,
     contains(keys(local.firewall_subnet_table_keys), association.subnet_key) ? { route_table_key = local.firewall_subnet_table_keys[association.subnet_key] } : {}
   ) }
@@ -127,10 +134,19 @@ locals {
       "${role}.subnet_role_allowed"  = role == "gateway" || !contains(["GatewaySubnet", "RouteServerSubnet", var.firewall_routing.management_subnet_key], b.subnet_key)
   }]...))
   firewall_route_checks = merge({
-    "management.subnet_exists"           = contains(keys(try(var.connectivity.hub_vnet.subnets, {})), var.firewall_routing.management_subnet_key)
-    "management.not_reserved_or_bound"   = !contains(concat(["GatewaySubnet", "RouteServerSubnet"], keys(local.firewall_subnet_table_keys)), var.firewall_routing.management_subnet_key)
-    "management.no_inline_route_table"   = try(var.connectivity.hub_vnet.subnets[var.firewall_routing.management_subnet_key].route_table_key, null) == null
-    "management.no_explicit_association" = alltrue([for a in values(local.firewall_base_associations) : a.subnet_key != var.firewall_routing.management_subnet_key])
+    "management.subnet_exists"         = contains(keys(try(var.connectivity.hub_vnet.subnets, {})), var.firewall_routing.management_subnet_key)
+    "management.not_reserved_or_bound" = !contains(concat(["GatewaySubnet", "RouteServerSubnet"], keys(local.firewall_subnet_table_keys)), var.firewall_routing.management_subnet_key)
+    "management.single_association"    = length(local.firewall_management_table_keys) <= 1
+    "management.expected_association" = var.firewall_routing.management_route_table_key == null ? true : try(
+      local.firewall_management_table_key == var.firewall_routing.management_route_table_key, false
+    )
+    "management.dedicated_existing_table" = local.firewall_management_table_key == null ? true : (
+      contains(keys(local.firewall_base_route_tables), local.firewall_management_table_key) &&
+      !contains([for b in values(local.firewall_bindings) : b.route_table_key], local.firewall_management_table_key)
+    )
+    "management.bgp_preserved_enabled" = local.firewall_management_table_key == null ? true : try(
+      local.firewall_base_route_tables[local.firewall_management_table_key].bgp_route_propagation_enabled == true, false
+    )
     }, {
     for role, routes in local.firewall_retained_routes : "${role}.unique_destinations" => length(distinct([for r in values(routes) : r.address_prefix])) == length(routes)
     }, {
@@ -168,7 +184,7 @@ resource "terraform_data" "firewall_routing_contract" {
     }
     precondition {
       condition     = alltrue(values(local.firewall_route_checks))
-      error_message = "Hub routing safety checks failed: ${join(", ", [for check, passed in local.firewall_route_checks : check if !passed])}. Keep management out-of-band. Remove an approved App Gateway/Gateway default route through remove_route_keys, not by deleting this precondition."
+      error_message = "Hub routing safety checks failed: ${join(", ", [for check, passed in local.firewall_route_checks : check if !passed])}. Restore the existing management association in connectivity inputs, preserve its dedicated table and BGP=true, and do not add management to table_bindings. Remove an approved App Gateway/Gateway default through remove_route_keys, not by deleting this precondition."
     }
   }
 }

@@ -29,7 +29,7 @@ variables {
         prod-shared-subnet     = { address_prefixes = ["10.102.1.0/24"], route_table_key = "shared" }
         prod-appgw-subnet      = { address_prefixes = ["10.102.2.0/24"], route_table_key = "appgw" }
         prod-cftagent-subnet   = { address_prefixes = ["10.102.3.0/26"], route_table_key = "cftagent" }
-        prod-mgmt-subnet       = { address_prefixes = ["10.102.4.0/27"] }
+        prod-mgmt-subnet       = { address_prefixes = ["10.102.4.0/27"], route_table_key = "mgmt" }
         prod-fw-trust-subnet   = { address_prefixes = ["10.102.4.32/27"], route_table_key = "fw_trust" }
         prod-fw-untrust-subnet = { address_prefixes = ["10.102.4.64/27"], route_table_key = "fw_untrust" }
         prod-fw-partner-subnet = { address_prefixes = ["10.102.4.96/27"], route_table_key = "fw_partner" }
@@ -57,9 +57,10 @@ variables {
     privatelink_zone_catalogue = []
   }
   firewall_routing = {
-    enabled                = true, trust_ilb_frontend_ip = "10.102.4.42"
-    ownership_reviewed     = true, firewall_path_ready = true, management_oob_confirmed = true
-    spoke_address_prefixes = { identity = ["10.102.8.0/27"], pilot = ["10.102.64.0/27"] }
+    enabled                    = true, trust_ilb_frontend_ip = "10.102.4.42"
+    ownership_reviewed         = true, firewall_path_ready = true, management_oob_confirmed = true
+    management_route_table_key = "mgmt"
+    spoke_address_prefixes     = { identity = ["10.102.8.0/27"], pilot = ["10.102.64.0/27"] }
     table_bindings = {
       gateway    = { route_table_key = "gateway", subnet_key = "GatewaySubnet" }
       sdwan_lan  = { route_table_key = "sdwan_lan", subnet_key = "prod-sdwan-lan-subnet" }
@@ -138,9 +139,63 @@ run "existing_management_association_is_not_silently_removed" {
   variables { connectivity = merge(var.connectivity, { hub_vnet = merge(var.connectivity.hub_vnet, {
     subnets = merge(var.connectivity.hub_vnet.subnets, { prod-mgmt-subnet = { address_prefixes = ["10.102.4.0/27"], route_table_key = "mgmt" } })
   }) }) }
+  assert {
+    condition     = alltrue(values(local.firewall_route_checks)) && local.firewall_effective_hub_vnet.subnets["prod-mgmt-subnet"].route_table_key == "mgmt"
+    error_message = "Dan confirmed the existing management association must stay attached."
+  }
+}
+
+run "missing_expected_management_association_is_rejected" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, { hub_vnet = merge(var.connectivity.hub_vnet, {
+    subnets = merge(var.connectivity.hub_vnet.subnets, { prod-mgmt-subnet = { address_prefixes = ["10.102.4.0/27"] } })
+  }) }) }
   expect_failures = [terraform_data.firewall_routing_contract]
   assert {
-    condition     = !local.firewall_route_checks["management.no_inline_route_table"] && local.firewall_effective_hub_vnet.subnets["prod-mgmt-subnet"].route_table_key == "mgmt"
-    error_message = "A real management association needs a reviewed decision; do not remove it to make the precondition pass."
+    condition     = !local.firewall_route_checks["management.expected_association"]
+    error_message = "A removed management association must fail the declared existing-table check."
+  }
+}
+
+run "explicit_management_association_keeps_its_address" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    hub_vnet = merge(var.connectivity.hub_vnet, {
+      subnets = merge(var.connectivity.hub_vnet.subnets, { prod-mgmt-subnet = { address_prefixes = ["10.102.4.0/27"] } })
+    })
+    subnet_route_table_associations = { original_management = { subnet_key = "prod-mgmt-subnet", route_table_key = "mgmt" } }
+  }) }
+  assert {
+    condition     = alltrue(values(local.firewall_route_checks)) && local.firewall_effective_associations == var.connectivity.subnet_route_table_associations
+    error_message = "Keep the explicit management association key and target unchanged."
+  }
+}
+
+run "management_bgp_cannot_be_disabled_by_cutover_inputs" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    route_tables = merge(var.connectivity.route_tables, { mgmt = { bgp_route_propagation_enabled = false, routes = {} } })
+  }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
+
+run "duplicate_management_association_forms_are_rejected" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    subnet_route_table_associations = { duplicate_management = { subnet_key = "prod-mgmt-subnet", route_table_key = "mgmt" } }
+  }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+}
+
+run "management_routes_are_preserved_not_interpreted" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    route_tables = merge(var.connectivity.route_tables, { mgmt = { bgp_route_propagation_enabled = true, routes = {
+      existing_default = { address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = "10.102.4.42" }
+    } } })
+  }) }
+  assert {
+    condition     = local.firewall_effective_route_tables.mgmt == var.connectivity.route_tables.mgmt
+    error_message = "Do not add or delete management routes while default-route intent is unresolved."
   }
 }

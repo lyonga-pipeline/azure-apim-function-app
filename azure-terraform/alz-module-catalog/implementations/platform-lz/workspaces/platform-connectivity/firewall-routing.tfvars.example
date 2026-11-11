@@ -14,6 +14,8 @@ firewall_routing = {
   firewall_path_ready      = false
   management_oob_confirmed = false
   management_subnet_key    = "prod-mgmt-subnet"
+  # For the existing Compeer Hub use management_route_table_key="mgmt" and
+  # retain the ORIGINAL association in base connectivity inputs (BGP=true).
 
   # One key per deployed VNet, every actual prefix, including existing spokes.
   # Identity is from the design document; pilot is from the last reviewed
@@ -47,7 +49,8 @@ firewall_routing = {
     fw_trust   = { route_table_key = "fw_trust", subnet_key = "prod-fw-trust-subnet", name = "cus-prod-fw-trust-rt" }
     fw_untrust = { route_table_key = "fw_untrust", subnet_key = "prod-fw-untrust-subnet", name = "cus-prod-fw-untrust-rt" }
     fw_partner = { route_table_key = "fw_partner", subnet_key = "prod-fw-partner-subnet", name = "cus-prod-fw-partner-rt" }
-    # No management binding: keep OOB/no UDR separate pending Dan's confirmation.
+    # No management matrix binding: retain its EXISTING association/routes/BGP.
+    # Dan confirmed the table stays attached; default-route intent is unresolved.
   }
 
   # Remove ONLY named, reviewed temporary bypass routes from the base inputs.
