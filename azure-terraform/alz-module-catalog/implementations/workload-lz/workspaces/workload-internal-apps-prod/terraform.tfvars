@@ -16,9 +16,9 @@ spoke = {
   location                = "centralus"
   address_space           = ["REPLACE_IPAM_APPROVED_PROD_VNET_CIDR"]
   reserved_address_spaces = []
-  # Complete approved remote prefixes before enabling; hub prefixes are automatic.
-  # Hub-only peering: no other-spoke inventory is needed; default routing uses the firewall.
-  # inspection_address_prefixes = ["REPLACE_ONLY_WITH_APPROVED_SPECIFIC_ROUTE_EXCEPTION"]
+  # PHASE 2: Dan confirmed no Identity/other-spoke route is needed here.
+  # Hub prefixes are automatic; the firewall default covers other spokes.
+  inspection_address_prefixes   = []
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IP"
   allow_azure_provided_dns      = false
   manage_hub_attachment         = false # Both peerings and VNet/DNS links belong to central attachment.

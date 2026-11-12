@@ -1452,6 +1452,32 @@ run "phase_one_default_has_no_deferred_or_duplicate_services" {
   }
 }
 
+run "hub_only_spoke_has_no_implicit_identity_route" {
+  command = plan
+  variables { inspection_address_prefixes = [] }
+  assert {
+    condition = (
+      toset(local.inspection_address_prefixes) == toset(["10.102.0.0/21"]) &&
+      alltrue([for table in values(local.routes) :
+        toset(keys(table)) == toset(["default-egress", "baseline-inspect-10-102-0-0-21"]) &&
+        alltrue([for route in values(table) : route.next_hop_type == "VirtualAppliance" && route.next_hop_in_ip_address == var.egress_next_hop_ip])
+      ])
+    )
+    error_message = "Hub-only spokes need only the Hub-specific route and firewall default, not a hardcoded Identity/other-spoke route."
+  }
+}
+
+run "identity_route_is_only_generated_when_explicitly_requested" {
+  command = plan
+  variables { inspection_address_prefixes = ["10.102.8.0/27"] }
+  assert {
+    condition = alltrue([for table in values(local.routes) :
+      length(table) == 3 && table["baseline-inspect-10-102-8-0-27"].address_prefix == "10.102.8.0/27"
+    ])
+    error_message = "The extra Identity route must be caller-owned input, not inferred by the blueprint or Hub routing changes."
+  }
+}
+
 run "hub_and_approved_remote_routes_require_inspection" {
   command = apply
   variables { inspection_address_prefixes = ["10.102.8.0/26", "172.20.0.0/16", "10.201.0.0/20"] }

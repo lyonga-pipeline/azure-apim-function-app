@@ -45,9 +45,32 @@ All example IPs are synthetic and must be replaced.
   rule plus the independently approved Palo Alto policy.
 - `private_endpoint_client_cidrs` remains accepted for source compatibility but
   no longer creates rules. Move those source CIDRs into explicit endpoint rules.
-- Add exact approved remote CIDRs to `inspection_address_prefixes`; hub prefixes
-  and the NVA default route remain automatic. For additional permitted NVA or
-  blackhole routes, use `subnets.<key>.routes`. Do not duplicate generated prefixes.
+- For Compeer's Hub-only peering topology, use `inspection_address_prefixes=[]`.
+  Hub prefixes and the NVA default route remain automatic. Do not add every other
+  spoke/Identity prefix: those destinations use the firewall default. Explicit
+  inspection prefixes remain available for network-approved exceptions, such as
+  a direct peering or another more-specific bypass route. For additional permitted
+  NVA/blackhole routes, use `subnets.<key>.routes`; do not duplicate generated prefixes.
+
+### Remove An Unnecessary Identity Route
+
+Dan confirmed the pilot should retain `baseline-inspect-10-102-0-0-21` and
+`default-egress`, not `baseline-inspect-10-102-8-0-27`. Set
+`spoke.inspection_address_prefixes=[]` in the actual pilot deployment tfvars and
+re-plan that spoke workspace. The blueprint computes inspection prefixes from
+`platform.hub_address_space` plus this explicit input; it does not discover or
+hardcode Identity. Ensure the published Hub prefixes (or `platform_inputs`
+override) contain only the actual Hub VNet ranges, not the Identity VNet range.
+If the same route was manually added under a subnet's `routes` map, remove that
+specific approved entry too; do not edit `.terraform/modules` or delete Azure
+routes by hand. This input correction does not require a blueprint registry release.
+
+`10.102.0.0/21` ends at `10.102.7.255`; it does not contain `10.102.8.0/27`.
+For the confirmed topology, the default route through the firewall covers that
+Identity destination. The explicit Hub route is still required to override the
+Hub peering path. Expect only the extra Identity route removed on each affected
+spoke subnet table, with BGP disabled and no table/subnet/association replacements.
+Hub-to-spoke routes in Connectivity/management remain unchanged.
 
 The [explicit-subnet-deny variant](examples/variants/explicit-subnet-deny.tfvars)
 demonstrates a team-owned deny-by-default profile with explicit DNS/private HTTPS

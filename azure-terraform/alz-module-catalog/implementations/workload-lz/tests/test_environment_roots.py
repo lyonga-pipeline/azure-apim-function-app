@@ -13,6 +13,18 @@ ROOTS = [WORKLOAD / "workspaces" / f"workload-internal-apps-{env}" for env in ("
 
 
 class EnvironmentRootTests(unittest.TestCase):
+    def test_hub_only_roots_do_not_request_identity_or_other_spoke_routes(self):
+        for root in ROOTS:
+            with self.subTest(root=root.name):
+                self.assertRegex(
+                    (root / "terraform.tfvars").read_text(),
+                    r"(?m)^\s*inspection_address_prefixes\s*=\s*\[\s*\]",
+                )
+                self.assertRegex(
+                    (root / "main.tf").read_text(),
+                    r"inspection_address_prefixes\s*=\s*try\(var\.spoke\.inspection_address_prefixes, \[\]\)",
+                )
+
     def test_policy_dns_ignores_only_externally_owned_group(self):
         catalog = WORKLOAD.parents[1]
         parent = catalog / "modules/terraform-azurerm-compeer-private-endpoint"
