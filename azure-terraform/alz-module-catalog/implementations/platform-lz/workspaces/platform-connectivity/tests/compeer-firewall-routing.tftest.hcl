@@ -199,3 +199,60 @@ run "management_routes_are_preserved_not_interpreted" {
     error_message = "The nine-role generator must preserve management routes supplied by the base table owner."
   }
 }
+
+run "required_blackhole_names_are_consistent_across_tables" {
+  command = plan
+  assert {
+    condition = alltrue(flatten([for role, routes in local.firewall_desired_routes : [
+      for name, route in routes : contains(keys(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes), name) && startswith(name, "blackhole_")
+      if route.next_hop_type == "None"
+    ]]))
+    error_message = "Required blackholes must use the same canonical blackhole_* names, not retained drop-* aliases."
+  }
+}
+
+run "legacy_drop_names_are_normalized_without_duplicate_destinations" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    route_tables = merge(var.connectivity.route_tables, { fw_trust = { bgp_route_propagation_enabled = true, routes = {
+      drop-fw_untrust-10-102-4-64-27 = { address_prefix = "10.102.4.64/27", next_hop_type = "None" }
+      drop-fw_partner-10-102-4-96-27 = { address_prefix = "10.102.4.96/27", next_hop_type = "None" }
+      drop-internet                  = { address_prefix = "0.0.0.0/0", next_hop_type = "None" }
+      unrelated_drop                 = { address_prefix = "203.0.113.0/24", next_hop_type = "None" }
+    } } })
+  }) }
+  assert {
+    condition = (
+      toset(keys(local.firewall_effective_route_tables.fw_trust.routes)) == toset(["blackhole_fw_untrust", "blackhole_fw_partner", "blackhole_internet", "unrelated_drop"]) &&
+      toset([for r in values(local.firewall_effective_route_tables.fw_trust.routes) : r.address_prefix]) == toset(["10.102.4.64/27", "10.102.4.96/27", "0.0.0.0/0", "203.0.113.0/24"]) &&
+      local.firewall_effective_route_tables.mgmt == var.connectivity.route_tables.mgmt &&
+      local.firewall_effective_hub_vnet == var.connectivity.hub_vnet
+    )
+    error_message = "Normalize only required blackhole names; preserve destinations, associations, management and unrelated drops."
+  }
+}
+
+run "canonical_blackhole_name_cannot_overwrite_another_destination" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, {
+    route_tables = merge(var.connectivity.route_tables, { fw_trust = { bgp_route_propagation_enabled = true, routes = {
+      blackhole_fw_untrust = { address_prefix = "203.0.113.0/24", next_hop_type = "None" }
+    } } })
+  }) }
+  expect_failures = [terraform_data.firewall_routing_contract]
+  assert {
+    condition     = !local.firewall_route_checks["fw_trust.blackhole_name_available"]
+    error_message = "A canonical name collision requires an explicit review, not silent loss of an unrelated destination."
+  }
+}
+
+run "multiple_hub_prefixes_have_unique_blackhole_names" {
+  command = plan
+  variables { connectivity = merge(var.connectivity, { hub_vnet = merge(var.connectivity.hub_vnet, {
+    address_space = ["10.102.0.0/21", "10.102.16.0/24"]
+  }) }) }
+  assert {
+    condition     = toset(keys(local.firewall_desired_routes.fw_untrust)) == toset(["blackhole_hub_10_102_0_0_21", "blackhole_hub_10_102_16_0_24"])
+    error_message = "Multi-prefix destinations must receive deterministic CIDR suffixes rather than duplicate map keys."
+  }
+}

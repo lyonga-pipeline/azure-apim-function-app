@@ -17,18 +17,10 @@ firewall_routing = {
   firewall_path_ready       = false
   static_route_set_reviewed = false
 
-  # Dan does not enumerate the complete Identity static destination set.
-  # Require network/AD approval, including on-prem DC/DNS/management ranges
-  # needed after BGP is disabled. Do not infer CIDRs from individual DNS IPs.
-  # Default + hub routes are added by the overlay. Other required spokes and
-  # more-specific hybrid routes are declared here; all use the verified ILB.
-  remote_address_prefixes = {
-    pilot_application = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document; verify live.
-    # Omit unknown on-premises CIDRs, rather than an empty or invented entry.
-    # Add onprem_domain_services = ["APPROVED_CIDR"] once supplied by network/AD.
-    # Missing information is NOT evidence that the static set is complete:
-    # keep static_route_set_reviewed=false until that review is complete.
-  }
+  # Dan confirmed: no other-spoke CIDRs for Hub-only spoke peering. The default
+  # firewall route serves those destinations; the explicit Hub route is retained.
+  # Optional exceptions require network/AD approval, never guessed DNS networks.
+  remote_address_prefixes = {}
   remove_route_keys = {
     # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
   }

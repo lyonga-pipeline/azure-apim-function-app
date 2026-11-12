@@ -7,7 +7,7 @@ variable "firewall_routing" {
     route_table_keys          = optional(set(string), []) # Existing Identity-owned table keys, required when enabled.
     trust_ilb_frontend_ip     = optional(string)
     hub_address_prefixes      = optional(set(string), [])
-    remote_address_prefixes   = optional(map(set(string)), {})
+    remote_address_prefixes   = optional(map(set(string)), {}) # Optional reviewed exceptions, not a spoke inventory.
     remove_route_keys         = optional(map(set(string)), {})
     change_reference          = optional(string, "") # Optional audit annotation; not a deployment gate.
     ownership_reviewed        = optional(bool, false)
@@ -68,12 +68,11 @@ resource "terraform_data" "firewall_routing_contract" {
         can(cidrnetmask("${var.firewall_routing.trust_ilb_frontend_ip}/32")) &&
         length(var.firewall_routing.hub_address_prefixes) > 0 &&
         anytrue([for prefix in var.firewall_routing.hub_address_prefixes : cidrhost("${var.firewall_routing.trust_ilb_frontend_ip}/${split("/", prefix)[1]}", 0) == cidrhost(prefix, 0)]) &&
-        length(var.firewall_routing.remote_address_prefixes) > 0 &&
         alltrue([for prefixes in values(var.firewall_routing.remote_address_prefixes) : length(prefixes) > 0]) &&
         length(distinct(local.identity_reviewed_prefixes)) == length(local.identity_reviewed_prefixes) &&
         alltrue([for prefix in local.identity_reviewed_prefixes : can(cidrnetmask(prefix)) && cidrhost(prefix, 0) == split("/", prefix)[0] && prefix != "0.0.0.0/0"]), false
       )
-      error_message = "Select existing Identity route-table keys and provide the verified Trust ILB IP, canonical hub and approved remote IPv4 CIDRs. Remote prefixes (pilot/other spokes/on-premises) must be reviewed, not inferred from DNS-server IPs."
+      error_message = "Select existing Identity route-table keys and provide the verified Trust ILB IP and canonical hub CIDRs. remote_address_prefixes may be empty for Hub-only peering with default firewall routing; supplied exceptions must contain reviewed, nonempty canonical IPv4 prefixes, not guessed DNS-server networks."
     }
     precondition {
       condition = try(

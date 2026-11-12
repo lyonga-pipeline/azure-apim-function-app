@@ -18,6 +18,8 @@ for owner in platform-connectivity platform-directory-services; do
   if [[ "$owner" == "platform-connectivity" ]]; then
     terraform -chdir="$root" test -no-color -test-directory=compeer-example-tests -var-file=compeer-existing-hub.tfvars.example
     terraform -chdir="$root" test -no-color -test-directory=compeer-pilot-tests
+  else
+    terraform -chdir="$root" test -no-color -test-directory=routing-input-tests
   fi
   terraform -chdir="$root" test -no-color -test-directory=phase2-tests -var-file=phase2.tfvars.example
 done

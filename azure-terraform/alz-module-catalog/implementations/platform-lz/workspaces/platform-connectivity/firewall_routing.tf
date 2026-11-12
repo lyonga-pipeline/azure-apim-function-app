@@ -59,7 +59,7 @@ locals {
       }
     }]...),
     merge({}, [for destination in local.firewall_route_matrix[role].drop : {
-      for prefix in lookup(local.firewall_role_prefixes, destination, []) : "drop-${destination}-${replace(replace(prefix, ".", "-"), "/", "-")}" => {
+      for prefix in lookup(local.firewall_role_prefixes, destination, []) : "blackhole_${destination}${length(lookup(local.firewall_role_prefixes, destination, [])) > 1 ? "_${replace(replace(prefix, ".", "_"), "/", "_")}" : ""}" => {
         address_prefix = prefix, next_hop_type = "None", next_hop_in_ip_address = null
       }
     }]...),
@@ -67,21 +67,24 @@ locals {
     local.firewall_route_matrix[role].default ? { default = { address_prefix = "0.0.0.0/0", next_hop_type = "VirtualAppliance", next_hop_in_ip_address = var.firewall_routing.trust_ilb_frontend_ip } } : {},
     # Internet is NOT a supported UDR service tag. A default drop is the explicit
     # representation here; more-specific routes still win. Review before cutover.
-    local.firewall_route_matrix[role].drop_internet ? { drop-internet = { address_prefix = "0.0.0.0/0", next_hop_type = "None", next_hop_in_ip_address = null } } : {},
-    local.firewall_route_matrix[role].drop_hub ? { for prefix in try(var.connectivity.hub_vnet.address_space, []) : "drop-hub-${replace(replace(prefix, ".", "-"), "/", "-")}" => {
+    local.firewall_route_matrix[role].drop_internet ? { blackhole_internet = { address_prefix = "0.0.0.0/0", next_hop_type = "None", next_hop_in_ip_address = null } } : {},
+    local.firewall_route_matrix[role].drop_hub ? { for prefix in try(var.connectivity.hub_vnet.address_space, []) : "blackhole_hub${length(try(var.connectivity.hub_vnet.address_space, [])) > 1 ? "_${replace(replace(prefix, ".", "_"), "/", "_")}" : ""}" => {
       address_prefix = prefix, next_hop_type = "None", next_hop_in_ip_address = null
     } } : {}
   ) }
-  # Reuse an existing inline route NAME when its destination already exists.
-  # Required routes replace their temporary next hop in-place; unrelated routes
-  # survive unless named explicitly in the reviewed removal list.
+  # Preserve inspection-route names. Dan requested canonical blackhole names
+  # across tables, so replace old names for the SAME required drop destination.
+  # Unrelated routes survive unless explicitly listed for reviewed removal.
   firewall_route_overlays = { for role, binding in local.firewall_bindings : binding.route_table_key => {
     name                          = contains(keys(local.firewall_base_route_tables), binding.route_table_key) ? try(local.firewall_base_route_tables[binding.route_table_key].name, null) : binding.name
     bgp_route_propagation_enabled = local.firewall_route_matrix[role].bgp
-    routes = merge(local.firewall_retained_routes[role], {
-      for name, route in local.firewall_desired_routes[role] : coalesce(try(one([
+    routes = merge({
+      for name, route in local.firewall_retained_routes[role] : name => route
+      if !contains([for desired in values(local.firewall_desired_routes[role]) : desired.address_prefix if desired.next_hop_type == "None"], route.address_prefix)
+      }, {
+      for name, route in local.firewall_desired_routes[role] : (route.next_hop_type == "None" ? name : coalesce(try(one([
         for old_name, old in local.firewall_retained_routes[role] : old_name if old.address_prefix == route.address_prefix
-      ]), null), name) => route
+      ]), null), name)) => route
     })
   } }
   firewall_effective_route_tables = merge(local.firewall_base_route_tables, local.firewall_route_overlays)
@@ -149,6 +152,11 @@ locals {
     )
     }, {
     for role, routes in local.firewall_retained_routes : "${role}.unique_destinations" => length(distinct([for r in values(routes) : r.address_prefix])) == length(routes)
+    }, {
+    for role, routes in local.firewall_desired_routes : "${role}.blackhole_name_available" => alltrue([
+      for name, route in routes : try(local.firewall_retained_routes[role][name].address_prefix == route.address_prefix, true)
+      if route.next_hop_type == "None"
+    ])
     }, {
     for role in ["gateway", "appgw"] : "${role}.no_default_route" => try(alltrue([
       for r in values(local.firewall_effective_route_tables[var.firewall_routing.table_bindings[role].route_table_key].routes) : r.address_prefix != "0.0.0.0/0"

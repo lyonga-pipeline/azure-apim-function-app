@@ -17,9 +17,9 @@ run "disabled_placeholders_cannot_cut_identity_bgp" {
     condition = (
       var.firewall_routing.trust_ilb_frontend_ip == "10.102.4.42" &&
       var.firewall_routing.hub_address_prefixes == toset(["10.102.0.0/21"]) &&
-      var.firewall_routing.remote_address_prefixes.pilot_application == toset(["10.102.64.0/27"])
+      length(var.firewall_routing.remote_address_prefixes) == 0
     )
-    error_message = "The Identity example must retain the documented frontend/hub CIDR and the separately sourced pilot CIDR."
+    error_message = "Retain the documented frontend/hub CIDR and do not reintroduce other-spoke routes."
   }
   assert {
     condition = (

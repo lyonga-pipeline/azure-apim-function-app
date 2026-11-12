@@ -36,7 +36,7 @@ variables {
   firewall_routing = {
     enabled                 = true, route_table_keys = ["to_firewall"], trust_ilb_frontend_ip = "10.102.4.42"
     hub_address_prefixes    = ["10.102.0.0/21"]
-    remote_address_prefixes = { pilot = ["10.102.64.0/27"], onprem_test_fixture = ["168.173.0.0/16"] }
+    remote_address_prefixes = { onprem_test_fixture = ["168.173.0.0/16"] }
     remove_route_keys       = { to_firewall = ["temporary-direct"] }
     change_reference        = "NET-123", ownership_reviewed = true, firewall_path_ready = true, static_route_set_reviewed = true
   }
@@ -62,12 +62,12 @@ run "routes_and_bgp_change_together_without_renaming" {
       local.route_tables.to_firewall.routes.temporary-egress.next_hop_type == "VirtualAppliance" &&
       local.route_tables.to_firewall.routes.temporary-egress.next_hop_in_ip_address == "10.102.4.42" &&
       !contains(keys(local.route_tables.to_firewall.routes), "temporary-direct") &&
-      length(local.route_tables.to_firewall.routes) == 4 &&
+      length(local.route_tables.to_firewall.routes) == 3 &&
       alltrue([for route in values(local.route_tables.to_firewall.routes) : route.next_hop_type == "VirtualAppliance" && route.next_hop_in_ip_address == "10.102.4.42"]) &&
       local.route_tables.untouched.bgp_route_propagation_enabled &&
       local.identity_vnet.address_space == var.directory_services.identity_vnet.address_space
     )
-    error_message = "Preserve existing key/name, route name and VNet addresses; add default/hub/pilot/on-prem static routes, switch BGP off and leave unselected tables alone."
+    error_message = "Preserve key/name and VNet addresses; add default/hub and an approved optional exception, switch BGP off and leave unselected tables alone."
   }
 }
 run "unreviewed_static_set_is_rejected" {
@@ -81,7 +81,7 @@ run "audit_reference_can_be_omitted_without_changing_routes" {
   assert {
     condition = (
       var.firewall_routing.change_reference == "" &&
-      length(local.route_tables.to_firewall.routes) == 4 &&
+      length(local.route_tables.to_firewall.routes) == 3 &&
       !local.route_tables.to_firewall.bgp_route_propagation_enabled &&
       local.route_tables.to_firewall.name == "cus-prod-intdc-rt" &&
       local.route_tables.untouched.bgp_route_propagation_enabled
@@ -89,8 +89,8 @@ run "audit_reference_can_be_omitted_without_changing_routes" {
     error_message = "Optional audit metadata must not gate or change an otherwise reviewed Identity cutover."
   }
 }
-run "pilot_only_remote_set_can_be_used_after_complete_review" {
-  command = plan
+run "explicit_remote_exceptions_remain_backward_compatible" {
+  command = apply
   variables { firewall_routing = merge(var.firewall_routing, { remote_address_prefixes = { pilot = ["10.102.64.0/27"] } }) }
   assert {
     condition = (
@@ -98,13 +98,27 @@ run "pilot_only_remote_set_can_be_used_after_complete_review" {
       toset([for route in values(local.route_tables.to_firewall.routes) : route.address_prefix]) == toset(["0.0.0.0/0", "10.102.0.0/21", "10.102.64.0/27"]) &&
       !local.route_tables.to_firewall.bgp_route_propagation_enabled
     )
-    error_message = "No specifically named on-premises entry is mandatory when the complete approved set needs only hub/default/pilot routes."
+    error_message = "Preserve caller-approved optional remote routes without automatically adding a spoke inventory."
+  }
+}
+run "removing_old_generated_pilot_route_keeps_default_hub_and_bgp_off" {
+  command = plan
+  variables { firewall_routing = merge(var.firewall_routing, { remote_address_prefixes = {} }) }
+  assert {
+    condition = (
+      !local.route_tables.to_firewall.bgp_route_propagation_enabled &&
+      local.route_tables.to_firewall.name == "cus-prod-intdc-rt" &&
+      length(local.route_tables.to_firewall.routes) == 2 &&
+      alltrue([for route in values(local.route_tables.to_firewall.routes) : route.address_prefix != "10.102.64.0/27"]) &&
+      local.identity_vnet == var.directory_services.identity_vnet
+    )
+    error_message = "After an older generated remote route, empty remote inputs must remove that route without renaming the table or changing VNet inputs."
   }
 }
 run "omitting_onprem_does_not_bypass_static_route_review" {
   command = plan
   variables { firewall_routing = merge(var.firewall_routing, {
-    remote_address_prefixes = { pilot = ["10.102.64.0/27"] }, static_route_set_reviewed = false
+    remote_address_prefixes = {}, static_route_set_reviewed = false
   }) }
   expect_failures = [terraform_data.firewall_routing_contract]
 }
@@ -125,10 +139,17 @@ run "firewall_and_pilot_table_keys_cannot_be_selected_in_identity" {
   variables { firewall_routing = merge(var.firewall_routing, { route_table_keys = ["to_firewall", "fw_trust", "pilot_application"] }) }
   expect_failures = [terraform_data.firewall_routing_contract]
 }
-run "missing_remote_routes_are_rejected" {
+run "hub_only_spoke_uses_default_without_other_spoke_routes" {
   command = plan
   variables { firewall_routing = merge(var.firewall_routing, { remote_address_prefixes = {} }) }
-  expect_failures = [terraform_data.firewall_routing_contract]
+  assert {
+    condition = (
+      toset([for route in values(local.route_tables.to_firewall.routes) : route.address_prefix]) == toset(["0.0.0.0/0", "10.102.0.0/21"]) &&
+      !local.route_tables.to_firewall.bgp_route_propagation_enabled &&
+      local.route_tables.to_firewall.routes.temporary-egress.next_hop_in_ip_address == "10.102.4.42"
+    )
+    error_message = "Hub-only spoke routing must accept an empty remote map, retain Hub/default firewall routes and disable BGP."
+  }
 }
 run "new_table_key_cannot_replace_deployed_identity_owner" {
   command = plan

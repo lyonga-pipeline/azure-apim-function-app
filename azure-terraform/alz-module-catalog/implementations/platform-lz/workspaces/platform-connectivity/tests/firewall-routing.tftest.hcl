@@ -110,8 +110,8 @@ run "defaults_blackholes_and_subnet_bindings_match_document" {
     condition = (
       alltrue([for role in ["gateway", "appgw"] : alltrue([for r in values(local.firewall_desired_routes[role]) : r.address_prefix != "0.0.0.0/0"])]) &&
       alltrue([for role in ["sdwan_lan", "shared", "cftagent"] : local.firewall_desired_routes[role].default.next_hop_type == "VirtualAppliance"]) &&
-      local.firewall_desired_routes.fw_trust.drop-internet.next_hop_type == "None" &&
-      local.firewall_desired_routes.fw_partner.drop-internet.address_prefix == "0.0.0.0/0" &&
+      local.firewall_desired_routes.fw_trust.blackhole_internet.next_hop_type == "None" &&
+      local.firewall_desired_routes.fw_partner.blackhole_internet.address_prefix == "0.0.0.0/0" &&
       length(local.firewall_desired_routes.sdwan_wan) == 2 && length(local.firewall_desired_routes.fw_untrust) == 1 &&
       local.firewall_effective_hub_vnet.subnets["prod-fw-trust-subnet"].route_table_key == "fw_trust" &&
       try(local.firewall_effective_hub_vnet.subnets["prod-mgmt-subnet"].route_table_key, null) == null &&
@@ -201,7 +201,7 @@ run "audit_reference_can_be_omitted_without_changing_routes" {
     condition = (
       var.firewall_routing.change_reference == "" &&
       local.firewall_effective_route_tables.to_firewall.routes.legacy-default.next_hop_in_ip_address == "10.102.4.42" &&
-      local.firewall_effective_route_tables.fw_trust.routes.drop-internet.next_hop_type == "None" &&
+      local.firewall_effective_route_tables.fw_trust.routes.blackhole_internet.next_hop_type == "None" &&
       length(local.firewall_effective_route_tables) == 9
     )
     error_message = "Optional audit metadata must not gate or change otherwise reviewed Hub routing."

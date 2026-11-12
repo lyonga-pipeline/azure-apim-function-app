@@ -26,14 +26,10 @@ firewall_routing = {
   firewall_path_ready       = false
   static_route_set_reviewed = false
 
-  # Default and hub routes are generated. Network/AD must approve ALL remaining
-  # static destinations before BGP is disabled; do not infer them from DNS IPs.
-  remote_address_prefixes = {
-    pilot_application = ["10.102.64.0/27"] # Last reviewed pilot plan, not the document.
-    # On-premises CIDRs are not supplied yet: omit the entry, do not use [].
-    # Add onprem_domain_services = ["APPROVED_CIDR"] after network/AD review.
-    # Leave static_route_set_reviewed=false until the complete set is approved.
-  }
+  # PHASE 2: Dan confirmed other-spoke CIDRs are unnecessary in spoke tables.
+  # Default firewall routing serves those destinations in the Hub-only topology.
+  # Keep optional exceptions empty unless network/AD approves specific routes.
+  remote_address_prefixes = {}
   remove_route_keys = {
     # to_firewall = ["REPLACE_WITH_ACTUAL_TEMPORARY_BYPASS_ROUTE_NAME"]
   }
@@ -113,6 +109,7 @@ directory_services = {
 
   route_tables = {
     to_firewall = {
+      # PHASE 2: Identity gateway propagation stays disabled, as Dan confirmed.
       bgp_route_propagation_enabled = false
       routes = {
         # Same firewall ILB IP as platform-connectivity's own to_firewall
