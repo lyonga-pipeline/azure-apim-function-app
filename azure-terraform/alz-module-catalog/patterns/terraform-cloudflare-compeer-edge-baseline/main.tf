@@ -8,19 +8,21 @@ resource "cloudflare_zone" "zone" {
   paused     = try(each.value.paused, false)
 }
 
-resource "cloudflare_record" "record" {
-  for_each = var.enabled ? var.records : {}
+module "dns_records" {
+  source = "../../modules/terraform-cloudflare-compeer-zero-trust-tunnel/modules/dns-records"
+  records = {
+    for key, record in var.records : key => merge(record, {
+      zone_id = coalesce(try(record.zone_id, null), try(cloudflare_zone.zone[record.zone_key].id, null))
+      content = coalesce(record.content, record.value)
+    }) if var.enabled
+  }
+  depends_on = [terraform_data.enterprise_contract]
+}
 
-  zone_id         = coalesce(try(each.value.zone_id, null), try(cloudflare_zone.zone[each.value.zone_key].id, null))
-  name            = each.value.name
-  content         = coalesce(try(each.value.content, null), try(each.value.value, null))
-  type            = each.value.type
-  ttl             = try(each.value.ttl, 1)
-  proxied         = try(each.value.proxied, true)
-  comment         = try(each.value.comment, null)
-  priority        = try(each.value.priority, null)
-  allow_overwrite = try(each.value.allow_overwrite, false)
-  tags            = try(each.value.tags, null)
+# PHASE 2: move the whole keyed collection without recreating existing records.
+moved {
+  from = cloudflare_record.record
+  to   = module.dns_records.cloudflare_record.record
 }
 
 resource "cloudflare_ruleset" "ruleset" {
@@ -58,6 +60,13 @@ locals {
     for key, value in var.tunnels : key => value
     if coalesce(try(value.enabled, null), true)
   } : {}
+
+  generic_dns_identities = [for record in values(var.enabled ? var.records : {}) :
+    "${lower(coalesce(record.zone_id, try(cloudflare_zone.zone[record.zone_key].id, null), "missing-zone"))}:${lower(trimsuffix(record.name, "."))}"
+  ]
+  tunnel_dns_identities = flatten([for tunnel in values(local.enabled_tunnels) : [for record in values(tunnel.dns_records) :
+    "${lower(coalesce(try(record.zone_id, null), try(cloudflare_zone.zone[record.zone_key].id, null), "missing-zone"))}:${lower(trimsuffix(record.name, "."))}"
+  ]])
 }
 
 resource "terraform_data" "tunnel_secret_contract" {
@@ -103,6 +112,11 @@ module "zero_trust_tunnels" {
 resource "terraform_data" "enterprise_contract" {
   input = keys(local.enabled_tunnels)
   lifecycle {
+    precondition {
+      condition = (length(distinct(local.tunnel_dns_identities)) == length(local.tunnel_dns_identities) &&
+      length(setintersection(toset(local.generic_dns_identities), toset(local.tunnel_dns_identities))) == 0)
+      error_message = "A tunnel zone/hostname must have one owner, with no overlap between generic and tunnel DNS maps. Use fully qualified record names."
+    }
     precondition {
       condition = !var.enforce_enterprise_controls || alltrue([for key, tunnel in local.enabled_tunnels :
         can(regex("^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$", lookup(var.tunnel_secrets, coalesce(tunnel.tunnel_secret_key, key), "")))

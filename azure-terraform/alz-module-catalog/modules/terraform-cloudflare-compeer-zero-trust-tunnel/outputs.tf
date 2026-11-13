@@ -26,7 +26,7 @@ output "config_id" {
 
 output "dns_record_ids" {
   description = "Map of caller-supplied key to Cloudflare DNS record ID routed through the tunnel."
-  value       = { for key, value in cloudflare_record.record : key => value.id }
+  value       = module.dns_records.ids
 }
 
 output "access_application_ids" {

@@ -72,9 +72,13 @@ locals {
   })]
 }
 
-resource "cloudflare_record" "record" {
-  for_each = var.dns_records
-
+module "dns_records" {
+  source = "./modules/dns-records"
+  records = {
+    for key, record in var.dns_records : key => merge(record, {
+      content = coalesce(record.content, cloudflare_zero_trust_tunnel_cloudflared.tunnel.cname)
+    })
+  }
   # PHASE 2: publish only after the configured security resources exist.
   # Connector health still needs a separate pipeline acceptance gate.
   depends_on = [
@@ -83,16 +87,12 @@ resource "cloudflare_record" "record" {
     cloudflare_zero_trust_access_policy.access_policy,
   ]
 
-  zone_id         = each.value.zone_id
-  name            = each.value.name
-  type            = try(each.value.type, "CNAME")
-  content         = coalesce(try(each.value.content, null), cloudflare_zero_trust_tunnel_cloudflared.tunnel.cname)
-  ttl             = try(each.value.ttl, 1)
-  proxied         = try(each.value.proxied, true)
-  comment         = try(each.value.comment, null)
-  priority        = try(each.value.priority, null)
-  allow_overwrite = try(each.value.allow_overwrite, false)
-  tags            = try(each.value.tags, null)
+}
+
+# PHASE 2: preserve every existing DNS record's ID and caller-supplied key.
+moved {
+  from = cloudflare_record.record
+  to   = module.dns_records.cloudflare_record.record
 }
 
 resource "cloudflare_zero_trust_access_application" "access_application" {

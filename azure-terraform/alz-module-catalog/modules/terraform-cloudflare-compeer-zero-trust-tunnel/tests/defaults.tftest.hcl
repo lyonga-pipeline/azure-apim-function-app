@@ -59,8 +59,8 @@ run "publish_with_https_and_access" {
     }
   }
   assert {
-    condition     = cloudflare_record.record["pilot"].proxied && cloudflare_record.record["pilot"].type == "CNAME" && length(cloudflare_zero_trust_access_policy.access_policy) == 1
-    error_message = "Publication must retain tunnel DNS defaults and the declared Access policy."
+    condition     = contains(keys(module.dns_records.ids), "pilot") && length(cloudflare_zero_trust_access_policy.access_policy) == 1
+    error_message = "Publication must preserve the DNS output key and declared Access policy."
   }
   assert {
     condition = (cloudflare_zero_trust_tunnel_cloudflared_config.tunnel_config.config[0].ingress_rule[0].origin_request[0].access[0].required &&

@@ -5,7 +5,7 @@ output "zone_ids" {
 
 output "record_ids" {
   description = "Cloudflare record IDs keyed by input key."
-  value       = { for key, record in cloudflare_record.record : key => record.id }
+  value       = module.dns_records.ids
 }
 
 output "ruleset_ids" {
