@@ -58,6 +58,14 @@ run "windows_bootstrap_is_secret_reference_only" {
     endswith(azurerm_role_assignment.tunnel_token_reader["np01"].scope, "/secrets/cloudflare-nonprod-token"))
     error_message = "Bootstrap must be installed and secret reader permission scoped to the named secret."
   }
+  assert {
+    condition = alltrue([for required in [
+      "Get-FileHash", "cloudflared-windows-amd64.exe", "metadata/identity/oauth2/token",
+      "--token-file", "New-Service", "sc.exe failure", "New-ScheduledTaskTrigger -AtStartup",
+      "127.0.0.1:20241/ready", "cloudflared.previous.exe"
+    ] : strcontains(azurerm_virtual_machine_run_command.cloudflared["np01"].source[0].script, required)])
+    error_message = "Rendered Windows bootstrap must retain pinned installation, managed identity token-file enrollment, service recovery, reboot refresh, readiness and rollback."
+  }
 }
 
 run "windows_password_is_required" {

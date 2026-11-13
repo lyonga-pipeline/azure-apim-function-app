@@ -53,7 +53,14 @@ variable "rulesets" {
     name        = string
     phase       = string
     description = optional(string)
-    rules       = optional(list(any), [])
+    rules = optional(list(object({
+      action            = optional(string)
+      expression        = string
+      description       = optional(string)
+      enabled           = optional(bool, true)
+      ref               = optional(string)
+      action_parameters = optional(map(string))
+    })), [])
   }))
   default = {}
 }

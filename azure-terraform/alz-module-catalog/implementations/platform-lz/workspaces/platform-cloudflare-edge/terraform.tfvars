@@ -3,6 +3,8 @@
 # Auth is NOT set here: the Cloudflare API token comes from the shared HCP
 # variable set as the env-category variable CLOUDFLARE_API_TOKEN.
 #
+# See example.tfvars for the complete two-tier production-oriented reference.
+# It is not auto-loaded; this deployed root remains disabled pending approvals.
 
 cloudflare_edge = {
   enabled  = false

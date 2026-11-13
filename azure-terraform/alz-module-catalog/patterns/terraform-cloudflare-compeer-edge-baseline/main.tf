@@ -38,10 +38,10 @@ resource "cloudflare_ruleset" "ruleset" {
   dynamic "rules" {
     for_each = try(each.value.rules, [])
     content {
-      action      = try(rules.value.action, null)
+      action      = rules.value.action
       expression  = rules.value.expression
       description = try(rules.value.description, null)
-      enabled     = try(rules.value.enabled, true)
+      enabled     = rules.value.enabled
       ref         = try(rules.value.ref, null)
       dynamic "action_parameters" {
         for_each = try(rules.value.action_parameters, null) == null ? [] : [rules.value.action_parameters]

@@ -72,3 +72,42 @@ run "managed_waf_execute_supports_existing_zone" {
     error_message = "Managed WAF ruleset ID must reach execute action parameters."
   }
 }
+
+run "custom_and_managed_waf_coexist" {
+  command = plan
+  variables {
+    rulesets = {
+      custom = {
+        zone_id = "0123456789abcdef0123456789abcdef"
+        name    = "Custom WAF", kind = "zone", phase = "http_request_firewall_custom"
+        rules   = [{ action = "block", expression = "http.host eq \"pilot.example.com\"" }]
+      }
+      managed = {
+        zone_id = "0123456789abcdef0123456789abcdef"
+        name    = "Managed WAF", kind = "zone", phase = "http_request_firewall_managed"
+        rules   = [{ action = "execute", expression = "true", action_parameters = { id = "0123456789abcdef0123456789abcdef" } }]
+      }
+    }
+  }
+  assert {
+    condition = (length(cloudflare_ruleset.ruleset) == 2 &&
+      cloudflare_ruleset.ruleset["custom"].rules[0].enabled &&
+      cloudflare_ruleset.ruleset["managed"].rules[0].enabled &&
+    cloudflare_ruleset.ruleset["managed"].rules[0].action_parameters[0].id == "0123456789abcdef0123456789abcdef")
+    error_message = "Custom and managed rules must share a typed contract with safe enabled defaults."
+  }
+}
+
+run "unsupported_waf_action_parameters_are_rejected" {
+  command = plan
+  variables {
+    rulesets = { managed = {
+      zone_id = "0123456789abcdef0123456789abcdef"
+      name    = "Managed WAF", kind = "zone", phase = "http_request_firewall_managed"
+      rules = [{ action = "execute", expression = "true", action_parameters = {
+        id = "0123456789abcdef0123456789abcdef", unsupported = "not-applied"
+      } }]
+    } }
+  }
+  expect_failures = [terraform_data.enterprise_contract]
+}

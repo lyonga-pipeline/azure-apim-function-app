@@ -63,6 +63,38 @@ and ou_path. Supply `domain_join_passwords` through sensitive workspace inputs.
 Domain join precedes other extensions/bootstrap. Administrator and domain-join
 passwords remain in Terraform state; enforce restricted backend access.
 
+## Bootstrap Script and Cloudflare Configuration
+
+[`scripts/bootstrap-windows.ps1.tftpl`](scripts/bootstrap-windows.ps1.tftpl) is
+rendered by `windows.tf` and executed as SYSTEM through Managed Run Command.
+It downloads the pinned Windows amd64 release, verifies SHA256, retrieves the
+runtime token from Key Vault with the VM's system identity, restricts local file
+access, and installs/configures the automatic `cloudflared` Windows service.
+The service uses `tunnel run --token-file` rather than a token in its command
+line. Recovery restarts, startup credential refresh, loopback readiness/metrics,
+log-directory configuration and a previous-binary fallback are included.
+
+These are **remotely managed** tunnels: the edge workspace owns ingress and
+Access configuration. Do not add `cloudflared login`, account certificates,
+local ingress YAML or per-VM tunnel creation from a locally-managed tutorial.
+Cloudflare documents [Windows service parameters](https://developers.cloudflare.com/tunnel/reference/run-parameters/)
+and [token-file enrollment](https://developers.cloudflare.com/tunnel/reference/run-parameters/#token-file)
+(2025.4.0 or newer). The script automates the Windows service configuration;
+Ansible or a manual installer must not simultaneously own it.
+
+For the supplied Central US diagram, `np01`/`np02` read
+`cloudflare-nonprod-token`; `prod01`/`prod02` read `cloudflare-prod-token`.
+The edge example's `external_nonprod` and `external_prod` tunnels provide those
+distinct runtime tokens via the controlled release job. Each pair spans two AZs;
+all replicas of a tunnel must reach all its assigned private origins. Public
+access restrictions on App Gateway/App Service/APIM remain with the origin owner.
+No connector script should change those services or hub routes implicitly.
+
+This bootstrap still requires real approved version/hash, image, vault/secret,
+identity permissions and egress inputs. Mock tests inspect the rendered script;
+Windows execution, service startup, token revocation and external application
+acceptance must be tested in the tenant before production.
+
 ## Existing Hub Integration
 
 The deployment root accepts `hub_workspaces` and resolves each connector's
