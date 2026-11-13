@@ -1,0 +1,117 @@
+# PHASE 2: SYSTEM-only bootstrap. This payload contains secret references, not tokens.
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$root = Join-Path $env:ProgramData 'Compeer\cloudflared'
+New-Item -ItemType Directory -Force -Path $root | Out-Null
+& icacls.exe $root /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Unable to protect runtime directory.' }
+$configJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${configuration}'))
+[IO.File]::WriteAllText((Join-Path $root 'config.json'), $configJson)
+$config = $configJson | ConvertFrom-Json
+$binary = Join-Path $root 'cloudflared.exe'
+$candidate = Join-Path $root 'cloudflared.next.exe'
+$backup = Join-Path $root 'cloudflared.previous.exe'
+
+# This separate persisted script is also used at startup to refresh credentials.
+$refreshScript = @'
+param([switch]$RefreshOnly)
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$root = $PSScriptRoot
+$config = Get-Content (Join-Path $root 'config.json') -Raw | ConvertFrom-Json
+$tokenPath = Join-Path $root 'tunnel.token'
+$success = $false
+for ($attempt = 0; $attempt -lt 24; $attempt++) {
+    try {
+        $identity = Invoke-RestMethod -Method Get -Uri 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -Headers @{ Metadata = 'true' } -TimeoutSec 15
+        $uri = $config.key_vault_uri.TrimEnd('/') + '/secrets/' + $config.token_secret_name + '?api-version=7.4'
+        $secret = Invoke-RestMethod -Method Get -Uri $uri -Headers @{ Authorization = ('Bearer ' + $identity.access_token) } -TimeoutSec 20
+        if ([string]::IsNullOrWhiteSpace($secret.value)) { throw 'Empty token.' }
+        $changed = !(Test-Path $tokenPath) -or ([IO.File]::ReadAllText($tokenPath) -cne $secret.value)
+        if ($changed) {
+            $temporary = Join-Path $root 'tunnel.token.next'
+            [IO.File]::WriteAllText($temporary, $secret.value, (New-Object Text.UTF8Encoding($false)))
+            Move-Item -Force $temporary $tokenPath
+        }
+        $success = $true
+        break
+    } catch {
+        # Never forward REST exception bodies, headers or secret values into extension logs.
+        Start-Sleep -Seconds 10
+    } finally {
+        $identity = $null
+        $secret = $null
+    }
+}
+if (!$success) { throw 'Token retrieval failed. Check identity RBAC, secret existence and Key Vault networking.' }
+if ($RefreshOnly) {
+    if ($changed) { Restart-Service cloudflared -ErrorAction Stop }
+    else { Start-Service cloudflared -ErrorAction Stop }
+}
+'@
+$refreshPath = Join-Path $root 'Refresh-Token.ps1'
+[IO.File]::WriteAllText($refreshPath, $refreshScript)
+& $refreshPath
+
+$desiredHash = $config.binary_sha256.ToUpperInvariant()
+$needsInstall = !(Test-Path $binary) -or ((Get-FileHash $binary -Algorithm SHA256).Hash -ne $desiredHash)
+if ($needsInstall) {
+    $download = 'https://github.com/cloudflare/cloudflared/releases/download/' + $config.cloudflared_version + '/cloudflared-windows-amd64.exe'
+    Invoke-WebRequest -UseBasicParsing -Uri $download -OutFile $candidate -TimeoutSec 180
+    if ((Get-FileHash $candidate -Algorithm SHA256).Hash -ne $desiredHash) {
+        Remove-Item -Force $candidate
+        throw 'cloudflared artifact SHA256 mismatch.'
+    }
+}
+$service = Get-Service cloudflared -ErrorAction SilentlyContinue
+if ($service) {
+    Stop-Service cloudflared -Force
+    $service.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(45))
+}
+if ($needsInstall) {
+    if (Test-Path $binary) { Copy-Item -Force $binary $backup }
+    Move-Item -Force $candidate $binary
+}
+$tokenFile = Join-Path $root 'tunnel.token'
+$logDirectory = Join-Path $root 'logs'
+New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+$command = '"' + $binary + '" tunnel --no-autoupdate --loglevel info --log-directory "' + $logDirectory + '" --metrics 127.0.0.1:20241 --protocol ' + $config.protocol + ' run --token-file "' + $tokenFile + '"'
+if (!$service) {
+    if (![Diagnostics.EventLog]::SourceExists('Cloudflared')) {
+        New-EventLog -LogName Application -Source 'Cloudflared'
+    }
+    New-Service -Name cloudflared -DisplayName 'Compeer Cloudflare Tunnel' -BinaryPathName $command -StartupType Automatic | Out-Null
+} else {
+    Set-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\cloudflared' -Name ImagePath -Value $command
+    Set-Service cloudflared -StartupType Automatic
+}
+& sc.exe failure cloudflared reset= 86400 actions= restart/10000/restart/30000/restart/60000 | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Unable to configure service recovery.' }
+& sc.exe failureflag cloudflared 1 | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Unable to enable recovery on service errors.' }
+
+# Refresh after reboot; routine rotation is deliberately replica-by-replica, not a synchronized timer.
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $refreshPath + '" -RefreshOnly')
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+Register-ScheduledTask -TaskName 'Compeer-Cloudflared-Token-Refresh' -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+Start-Service cloudflared
+$ready = $false
+for ($attempt = 0; $attempt -lt 36; $attempt++) {
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:20241/ready' -TimeoutSec 5
+        if ($response.StatusCode -eq 200) { $ready = $true; break }
+    } catch { Start-Sleep -Seconds 5 }
+}
+if (!$ready) {
+    # Keep a previously verified binary available. Do not expose tokens while reporting failure.
+    if ($needsInstall -and (Test-Path $backup)) {
+        Stop-Service cloudflared -Force -ErrorAction SilentlyContinue
+        Copy-Item -Force $backup $binary
+        Start-Service cloudflared -ErrorAction SilentlyContinue
+    }
+    throw 'Tunnel readiness failed; inspect restricted local logs and outbound 7844 connectivity.'
+}
+Write-Output 'cloudflared service is connected. External origin and authorization acceptance are separate release gates.'

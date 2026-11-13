@@ -3,6 +3,11 @@ output "resource_group_name" {
   value       = try(module.cloudflare_connectors[0].resource_group_name, null)
 }
 
+output "windows_runtime_command_ids" {
+  description = "Managed cloudflared bootstrap command IDs, without runtime credentials."
+  value       = try(module.cloudflare_connectors[0].windows_runtime_command_ids, {})
+}
+
 output "network_interface_ids" {
   description = "Resource IDs of the connector VM NICs."
   value       = try(module.cloudflare_connectors[0].network_interface_ids, {})

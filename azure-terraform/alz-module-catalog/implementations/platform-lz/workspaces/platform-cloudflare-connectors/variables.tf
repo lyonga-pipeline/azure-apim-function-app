@@ -24,6 +24,7 @@ variable "platform_tags" {
   description = "Enterprise tag contract for Cloudflare connector resources."
   type = object({
     application           = optional(string)
+    appcode               = optional(string)
     owner                 = optional(string)
     source_repo           = optional(string)
     created_on            = optional(string)
@@ -81,11 +82,34 @@ variable "cloudflare_connectors" {
   }
 }
 
+# PHASE 2: each connector selects a producer using hub_key; subnet ownership stays in that state.
+variable "hub_workspaces" {
+  type = map(object({
+    organization = string
+    workspace    = string
+  }))
+  default     = {}
+  description = "Approved existing hub producers exposing hub_virtual_network_id and subnet_ids. Connector subnet_key selects an existing subnet."
+}
+
+variable "windows_image_version" {
+  type        = string
+  default     = null
+  description = "Approved MicrosoftWindowsServer:WindowsServer:2022-datacenter-g2 image version. Required for the production runtime profile; obtain from Azure image inventory."
+}
+
 variable "admin_passwords" {
   description = "Sensitive local administrator passwords keyed by connector key."
   type        = map(string)
   sensitive   = true
   default     = {}
+}
+
+variable "domain_join_passwords" {
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+  description = "Approved OU-scoped domain-join credentials; supply via sensitive workspace variables, not committed tfvars."
 }
 
 variable "custom_data_by_key" {

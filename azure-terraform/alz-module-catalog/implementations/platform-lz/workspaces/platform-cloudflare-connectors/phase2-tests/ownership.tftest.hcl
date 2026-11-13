@@ -11,6 +11,13 @@ variables {
   use_tfe_outputs                  = false
   log_analytics_workspace_id       = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.OperationalInsights/workspaces/central-law"
   phase2_agent_ownership_confirmed = true
+  phase2_agents = { connector01 = {
+    os_type                     = "Linux"
+    managed_identity_id         = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/identity-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ama-mi"
+    identity_and_network_ready  = true
+    data_collection_rules       = { baseline = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.Insights/dataCollectionRules/linux-syslog" }
+    data_collection_endpoint_id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/monitor-rg/providers/Microsoft.Insights/dataCollectionEndpoints/private-dce"
+  } }
 
   cloudflare_connectors = {
     enabled = true

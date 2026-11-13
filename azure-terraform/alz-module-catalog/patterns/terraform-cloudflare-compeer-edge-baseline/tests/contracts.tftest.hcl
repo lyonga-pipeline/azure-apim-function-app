@@ -2,8 +2,8 @@ mock_provider "cloudflare" {}
 
 # Exercises terraform_data.tunnel_secret_contract - the precondition that stops
 # an enabled tunnel from planning without its sensitive secret already present
-# in tunnel_secrets (design doc §8.6: tunnel secrets come from HCP sensitive
-# variables, never plaintext tfvars). Had zero test coverage before this file.
+# in tunnel_secrets. Secret handling is an implementation security control;
+# this test does not verify connector runtime credentials or installation.
 
 run "no_tunnels_is_a_noop" {
   command = plan
@@ -84,4 +84,19 @@ run "custom_secret_key_is_honored" {
     condition     = length(terraform_data.tunnel_secret_contract) == 1
     error_message = "expected tunnel_secret_key to resolve against tunnel_secrets"
   }
+}
+
+run "enabled_tunnel_rejects_blank_secret" {
+  command = plan
+  variables {
+    enabled = true
+    tunnels = {
+      external_apps = {
+        account_id = "0123456789abcdef0123456789abcdef"
+        name       = "compeer-external-apps"
+      }
+    }
+    tunnel_secrets = { external_apps = "   " }
+  }
+  expect_failures = [terraform_data.tunnel_secret_contract]
 }

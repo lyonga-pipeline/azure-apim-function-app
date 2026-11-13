@@ -47,6 +47,7 @@ variable "rulesets" {
   description = "Cloudflare rulesets keyed by logical name."
   type = map(object({
     zone_key    = optional(string)
+    zone_id     = optional(string)
     account_id  = optional(string)
     kind        = string
     name        = string
@@ -70,6 +71,7 @@ variable "tunnels" {
     dns_records         = optional(map(any), {})
     access_applications = optional(map(any), {})
     access_policies     = optional(map(any), {})
+    access_team_name    = optional(string)
   }))
   default = {}
 }
@@ -79,4 +81,20 @@ variable "tunnel_secrets" {
   type        = map(string)
   sensitive   = true
   default     = {}
+}
+
+variable "enforce_enterprise_controls" {
+  type        = bool
+  default     = false
+  description = "Enforce reviewed external-app inventory, HTTPS origins and Access coverage or an approved public-auth exception. Enable in the deployment root."
+}
+
+variable "approved_public_applications" {
+  type = map(object({
+    classification                 = string
+    approval_reference             = string
+    external_authentication_reason = optional(string)
+  }))
+  default     = {}
+  description = "Approved exact public hostnames; classification must be external-apps. Non-Access apps require an explicit alternative-authentication justification."
 }

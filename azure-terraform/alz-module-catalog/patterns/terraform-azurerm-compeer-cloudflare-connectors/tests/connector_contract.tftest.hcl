@@ -10,7 +10,7 @@ variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
   location        = "centralus"
   environment     = "prod"
-  resource_group  = { name = "rg-cf-connectors" }
+  resource_group  = { name = "platform-cus-prod-cfc-rg" }
 }
 
 run "no_connectors_is_a_noop" {

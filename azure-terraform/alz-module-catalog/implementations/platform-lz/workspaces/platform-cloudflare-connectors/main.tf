@@ -12,6 +12,13 @@ data "tfe_outputs" "connectivity" {
 
 resource "time_static" "deployment_created" {}
 
+# PHASE 2: resolve arbitrary existing hub boundaries without managing their VNets.
+data "tfe_outputs" "hub" {
+  for_each     = local.enabled && var.use_tfe_outputs ? var.hub_workspaces : {}
+  organization = each.value.organization
+  workspace    = each.value.workspace
+}
+
 locals {
   enabled = try(var.cloudflare_connectors.enabled, false)
 
@@ -37,11 +44,15 @@ locals {
 
   connectors = {
     for key, connector in try(var.cloudflare_connectors.connectors, {}) : key => merge(connector, {
-      subnet_id = coalesce(
+      domain_join = try(connector.domain_join, try(var.cloudflare_connectors.common_domain_join, null))
+      source_image_reference = try(connector.source_image_reference, null) != null ? connector.source_image_reference : (try(connector.os_type, "Linux") == "Windows" ? {
+        publisher = "MicrosoftWindowsServer", offer = "WindowsServer", sku = "2022-datacenter-g2", version = coalesce(var.windows_image_version, "latest")
+      } : null)
+      subnet_id = try(connector.hub_key, null) != null ? try(data.tfe_outputs.hub[connector.hub_key].nonsensitive_values.subnet_ids[connector.subnet_key], null) : try(coalesce(
         try(connector.subnet_id, null),
         try(local.connectivity_outputs.subnet_ids[connector.subnet_key], null),
         try(local.connectivity_outputs.subnet_ids["prod-cftagent-subnet"], null)
-      )
+      ), null)
       diagnostics = (
         coalesce(try(connector.diagnostics.enabled, null), false) &&
         local.log_analytics_workspace_id != null &&
@@ -50,6 +61,30 @@ locals {
           log_analytics_workspace_id = local.log_analytics_workspace_id
       }) : try(connector.diagnostics, {})
     })
+  }
+}
+
+resource "terraform_data" "hub_contract" {
+  count = local.enabled ? 1 : 0
+  lifecycle {
+    precondition {
+      condition = !try(var.cloudflare_connectors.require_windows_runtime, false) || (
+        var.phase2_agent_ownership_confirmed && alltrue([for key in keys(local.connectors) : contains(keys(var.phase2_agents), key)])
+      )
+      error_message = "Production rollout requires Windows AMA/DCR configuration for every connector through phase2_agents and confirmed ownership. Use install_agent=false with an existing confirmed agent when Azure Policy owns AMA."
+    }
+    precondition {
+      condition = alltrue([for key, connector in try(var.cloudflare_connectors.connectors, {}) :
+        try(connector.hub_key, null) == null ? true : try(
+          contains(keys(var.hub_workspaces), connector.hub_key) &&
+        startswith(lower(local.connectors[key].subnet_id), "${lower(data.tfe_outputs.hub[connector.hub_key].nonsensitive_values.hub_virtual_network_id)}/subnets/"), false)
+      ])
+      error_message = "Each hub_key must name an approved producer with public hub_virtual_network_id and subnet_ids outputs; subnet_key must belong to that hub. Enable producer output reads."
+    }
+    precondition {
+      condition     = alltrue([for connector in values(local.connectors) : try(startswith(lower(connector.subnet_id), "/subscriptions/${lower(var.subscription_id)}/"), false)])
+      error_message = "VM NICs and their subnet must share a subscription. For hubs in different subscriptions deploy this root once per subscription; do not attempt cross-subscription NIC attachment."
+    }
   }
 }
 
@@ -68,12 +103,16 @@ module "cloudflare_connectors" {
   resource_group               = merge({ name = local.std_names.resource_group }, try(var.cloudflare_connectors.resource_group, {}))
   connectors                   = local.connectors
   admin_passwords              = var.admin_passwords
+  domain_join_passwords        = var.domain_join_passwords
   custom_data_by_key           = var.custom_data_by_key
   extension_protected_settings = var.extension_protected_settings
   role_assignments             = try(var.cloudflare_connectors.role_assignments, {})
   management_locks             = try(var.cloudflare_connectors.management_locks, {})
   additional_scopes            = try(var.cloudflare_connectors.additional_scopes, {})
   operational_contracts        = try(var.cloudflare_connectors.operational_contracts, {})
+  windows_bootstrap            = try(var.cloudflare_connectors.windows_bootstrap, {})
+  require_windows_runtime      = try(var.cloudflare_connectors.require_windows_runtime, false)
+  depends_on                   = [terraform_data.hub_contract]
 }
 
 # =============================================================================
@@ -97,14 +136,14 @@ resource "terraform_data" "phase2_agent_contract" {
     }
     precondition {
       condition = alltrue([for key, agent in var.phase2_agents :
-        contains(keys(try(var.cloudflare_connectors.connectors, {})), key) && agent.os_type == "Linux" &&
+        contains(keys(try(var.cloudflare_connectors.connectors, {})), key) && agent.os_type == try(var.cloudflare_connectors.connectors[key].os_type, "Linux") &&
         try(contains(var.cloudflare_connectors.connectors[key].identity.identity_ids, agent.managed_identity_id), false)
       ])
-      error_message = "Each agent key must identify this root's Linux VM, with the declared UAMI already assigned in its identity configuration."
+      error_message = "Each agent must match its connector OS and have its declared UAMI assigned to that VM."
     }
     precondition {
       condition = alltrue([for key, agent in var.phase2_agents : !agent.install_agent || alltrue([
-        for extension in values(try(var.cloudflare_connectors.connectors[key].extensions, {})) : extension.type != "AzureMonitorLinuxAgent"
+        for extension in values(try(var.cloudflare_connectors.connectors[key].extensions, {})) : !contains(["AzureMonitorLinuxAgent", "AzureMonitorWindowsAgent"], extension.type)
       ])])
       error_message = "The connector's existing extension map already owns AMA. Reuse it with install_agent=false; do not define a second extension."
     }

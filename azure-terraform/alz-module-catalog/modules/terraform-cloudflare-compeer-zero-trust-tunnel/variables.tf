@@ -16,8 +16,13 @@ variable "tunnel_secret" {
 
 variable "config_src" {
   type        = string
-  description = "Tunnel configuration source."
+  description = "Remote configuration source; this module owns the Cloudflare-hosted configuration."
   default     = "cloudflare"
+
+  validation {
+    condition     = var.config_src == "cloudflare"
+    error_message = "This module manages remote ingress configuration; config_src must be cloudflare. Use a separate implementation for locally managed tunnels."
+  }
 }
 
 variable "ingress_rules" {
@@ -42,10 +47,25 @@ variable "ingress_rules" {
       proxy_type               = optional(string)
       tcp_keep_alive           = optional(string)
       tls_timeout              = optional(string)
+      access = optional(object({
+        required  = bool
+        team_name = string
+        aud_tag   = set(string)
+      }))
     }))
   }))
   default     = []
   description = "Remotely managed tunnel ingress rules. A terminal catch-all rule is appended automatically."
+}
+
+variable "access_team_name" {
+  type        = string
+  default     = null
+  description = "Zero Trust team slug. When set, require connector-side Access JWT validation for matching declared application hostnames; audiences come from created applications."
+  validation {
+    condition     = var.access_team_name == null ? true : can(regex("^[a-zA-Z0-9-]+$", var.access_team_name))
+    error_message = "Use the Zero Trust team slug only, not a full cloudflareaccess.com URL."
+  }
 }
 
 variable "catch_all_service" {

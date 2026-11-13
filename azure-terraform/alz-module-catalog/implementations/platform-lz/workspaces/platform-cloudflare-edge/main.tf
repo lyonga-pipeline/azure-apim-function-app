@@ -16,5 +16,7 @@ module "cloudflare_edge" {
   rulesets = try(var.cloudflare_edge.rulesets, {})
   tunnels  = try(var.cloudflare_edge.tunnels, {})
 
-  tunnel_secrets = var.cloudflare_tunnel_secrets
+  tunnel_secrets               = var.cloudflare_tunnel_secrets
+  enforce_enterprise_controls  = true
+  approved_public_applications = try(var.cloudflare_edge.approved_public_applications, {})
 }

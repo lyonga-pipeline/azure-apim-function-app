@@ -1,4 +1,4 @@
-# PHASE2 EXISTING: v5 4.3 NET-33: shared cloudflared VM infrastructure stays in the connectivity hub, not each application spoke. Bootstrap/health and tenant approval remain operator responsibilities.
+# PHASE2 EXISTING: NET-33: shared connector infrastructure stays in existing hubs, not application spokes. Windows bootstrap is additive; external acceptance remains a release gate.
 module "tags" {
   source = "../../modules/terraform-azurerm-compeer-platform-tags"
 
@@ -35,6 +35,10 @@ module "resource_group" {
 }
 
 locals {
+  # PHASE 2: preserve Linux addresses; Windows is an additive resource family.
+  linux_connectors   = { for key, connector in var.connectors : key => connector if connector.os_type == "Linux" }
+  windows_connectors = { for key, connector in var.connectors : key => connector if connector.os_type == "Windows" }
+  virtual_machines   = merge(azurerm_linux_virtual_machine.vm, azurerm_windows_virtual_machine.vm)
   default_linux_image = {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
@@ -59,7 +63,7 @@ locals {
       for key, value in module.network_interfaces : "nic:${key}" => value.id
     },
     {
-      for key, value in azurerm_linux_virtual_machine.vm : "vm:${key}" => value.id
+      for key, value in local.virtual_machines : "vm:${key}" => value.id
     },
     var.additional_scopes
   )
@@ -81,7 +85,7 @@ resource "terraform_data" "connector_contract" {
     precondition {
       condition = alltrue([
         for key, connector in var.connectors :
-        !coalesce(try(connector.disable_password_authentication, null), true) || length(try(connector.admin_ssh_keys, [])) > 0
+        connector.os_type == "Windows" || !coalesce(try(connector.disable_password_authentication, null), true) || length(try(connector.admin_ssh_keys, [])) > 0
       ])
       error_message = "Each connector using SSH authentication must include at least one admin_ssh_keys entry."
     }
@@ -89,9 +93,9 @@ resource "terraform_data" "connector_contract" {
     precondition {
       condition = alltrue([
         for key, connector in var.connectors :
-        coalesce(try(connector.disable_password_authentication, null), true) || contains(keys(var.admin_passwords), key)
+        (connector.os_type == "Linux" && coalesce(try(connector.disable_password_authentication, null), true)) || try(length(trimspace(var.admin_passwords[key])) > 0, false)
       ])
-      error_message = "admin_passwords must contain a sensitive password entry for each connector with password authentication enabled."
+      error_message = "admin_passwords must contain a non-empty sensitive password for every Windows connector and password-enabled Linux connector."
     }
   }
 }
@@ -118,7 +122,7 @@ module "network_interfaces" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  for_each = var.connectors
+  for_each = local.linux_connectors
 
   name                            = each.value.name
   computer_name                   = try(each.value.computer_name, null)
@@ -127,7 +131,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   size                            = try(each.value.vm_size, "Standard_D2s_v5")
   zone                            = try(each.value.zone, null)
   admin_username                  = try(each.value.admin_username, "azureadmin")
-  admin_password                  = try(each.value.disable_password_authentication, true) ? null : var.admin_passwords[each.key]
+  admin_password                  = try(each.value.disable_password_authentication, true) ? null : lookup(var.admin_passwords, each.key, null)
   disable_password_authentication = try(each.value.disable_password_authentication, true)
   network_interface_ids           = [module.network_interfaces[each.key].id]
   custom_data                     = try(var.custom_data_by_key[each.key], null)
@@ -196,10 +200,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
 }
 
 resource "azurerm_virtual_machine_extension" "extension" {
-  for_each = local.extensions
+  for_each   = local.extensions
+  depends_on = [azurerm_virtual_machine_extension.domain_join]
 
   name                       = coalesce(try(each.value.name, null), each.value.extension_key)
-  virtual_machine_id         = azurerm_linux_virtual_machine.vm[each.value.connector_key].id
+  virtual_machine_id         = local.virtual_machines[each.value.connector_key].id
   publisher                  = each.value.publisher
   type                       = each.value.type
   type_handler_version       = each.value.type_handler_version
@@ -222,8 +227,8 @@ module "vm_diagnostics" {
     ])
   }
 
-  name                           = coalesce(try(each.value.name, null), "${azurerm_linux_virtual_machine.vm[each.key].name}-diag")
-  target_resource_id             = azurerm_linux_virtual_machine.vm[each.key].id
+  name                           = coalesce(try(each.value.name, null), "${local.virtual_machines[each.key].name}-diag")
+  target_resource_id             = local.virtual_machines[each.key].id
   log_analytics_workspace_id     = try(each.value.log_analytics_workspace_id, null)
   log_analytics_destination_type = try(each.value.log_analytics_destination_type, null)
   storage_account_id             = try(each.value.storage_account_id, null)

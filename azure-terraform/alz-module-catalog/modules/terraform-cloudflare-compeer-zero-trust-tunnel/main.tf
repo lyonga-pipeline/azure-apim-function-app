@@ -15,7 +15,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "tunnel_config" {
 
   config {
     dynamic "ingress_rule" {
-      for_each = concat(var.ingress_rules, [{ service = var.catch_all_service }])
+      for_each = concat(local.effective_ingress_rules, [{ service = var.catch_all_service }])
       content {
         hostname = try(ingress_rule.value.hostname, null)
         path     = try(ingress_rule.value.path, null)
@@ -40,6 +40,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "tunnel_config" {
             proxy_type               = try(origin_request.value.proxy_type, null)
             tcp_keep_alive           = try(origin_request.value.tcp_keep_alive, null)
             tls_timeout              = try(origin_request.value.tls_timeout, null)
+            dynamic "access" {
+              for_each = try(origin_request.value.access, null) == null ? [] : [origin_request.value.access]
+              content {
+                required  = access.value.required
+                team_name = access.value.team_name
+                aud_tag   = access.value.aud_tag
+              }
+            }
           }
         }
       }
@@ -47,8 +55,33 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "tunnel_config" {
   }
 }
 
+# PHASE 2: bind JWT audiences to the actual Access application, not pasted IDs.
+locals {
+  ingress_access = [for rule in var.ingress_rules : var.access_team_name != null && anytrue([
+    for app in values(var.access_applications) : app.domain == rule.hostname
+    ]) ? {
+    required  = true
+    team_name = var.access_team_name
+    aud_tag   = toset([for key, app in var.access_applications : cloudflare_zero_trust_access_application.access_application[key].aud if app.domain == rule.hostname])
+  } : try(rule.origin_request.access, null)]
+  effective_ingress_rules = [for index, rule in var.ingress_rules : merge(rule, {
+    origin_request = rule.origin_request == null && local.ingress_access[index] == null ? null : merge(
+      rule.origin_request,
+      { access = local.ingress_access[index] }
+    )
+  })]
+}
+
 resource "cloudflare_record" "record" {
   for_each = var.dns_records
+
+  # PHASE 2: publish only after the configured security resources exist.
+  # Connector health still needs a separate pipeline acceptance gate.
+  depends_on = [
+    cloudflare_zero_trust_tunnel_cloudflared_config.tunnel_config,
+    cloudflare_zero_trust_access_application.access_application,
+    cloudflare_zero_trust_access_policy.access_policy,
+  ]
 
   zone_id         = each.value.zone_id
   name            = each.value.name
@@ -96,7 +129,7 @@ resource "cloudflare_zero_trust_access_policy" "access_policy" {
 
   account_id                     = var.account_id
   zone_id                        = try(each.value.zone_id, null)
-  application_id                 = coalesce(try(each.value.application_id, null), try(cloudflare_zero_trust_access_application.access_application[each.value.application_key].id, null))
+  application_id                 = try(coalesce(try(each.value.application_id, null), try(cloudflare_zero_trust_access_application.access_application[each.value.application_key].id, null)), "00000000-0000-4000-8000-000000000000")
   name                           = each.value.name
   decision                       = try(each.value.decision, "allow")
   precedence                     = each.value.precedence
@@ -174,8 +207,10 @@ resource "cloudflare_zero_trust_access_policy" "access_policy" {
 
   lifecycle {
     precondition {
-      condition     = try(each.value.application_id, null) != null || try(each.value.application_key, null) != null
-      error_message = "Each access policy must set either application_id or application_key."
+      condition = try(each.value.application_id != null ? (
+        each.value.application_key == null && length(trimspace(each.value.application_id)) > 0
+      ) : contains(keys(var.access_applications), each.value.application_key), false)
+      error_message = "Each Access policy must reference exactly one existing application_id or a valid application_key in this module."
     }
   }
 }

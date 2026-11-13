@@ -15,18 +15,18 @@ output "network_interface_private_ip_addresses" {
 
 output "connector_vm_ids" {
   description = "Resource IDs of the Cloudflare connector VMs, keyed the same as var.connectors."
-  value       = { for key, value in azurerm_linux_virtual_machine.vm : key => value.id }
+  value       = { for key, value in local.virtual_machines : key => value.id }
 }
 
 output "connector_vm_private_ips" {
   description = "Private IP addresses of the connector VMs, keyed the same as var.connectors."
-  value       = { for key, value in azurerm_linux_virtual_machine.vm : key => value.private_ip_addresses }
+  value       = { for key, value in local.virtual_machines : key => value.private_ip_addresses }
 }
 
 output "connector_vm_principal_ids" {
   description = "Principal ID of each connector VM's system-assigned managed identity, keyed the same as var.connectors, or null if identity isn't enabled for that VM."
   value = {
-    for key, value in azurerm_linux_virtual_machine.vm : key => try(value.identity[0].principal_id, null)
+    for key, value in local.virtual_machines : key => try(value.identity[0].principal_id, null)
   }
 }
 

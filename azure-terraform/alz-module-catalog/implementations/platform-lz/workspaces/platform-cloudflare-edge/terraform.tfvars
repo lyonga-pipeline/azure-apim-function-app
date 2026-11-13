@@ -10,6 +10,11 @@ cloudflare_edge = {
   records  = {}
   rulesets = {}
   tunnels  = {}
+  # PHASE 2: exact approved public hostnames only. Internal/regulated apps
+  # are rejected. Access is required unless alternative authentication is approved.
+  approved_public_applications = {
+    # "pilot.example.com" = { classification = "external-apps", approval_reference = "REPLACE_WITH_APPROVED_CHANGE" }
+  }
 }
 
 cloudflare_tunnel_secrets = {}
