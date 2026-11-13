@@ -9,6 +9,28 @@ outbound connections, so they need no public inbound IP or tunnel listener.
 Client -> Cloudflare edge/Access -> Tunnel -> Hub connector -> Palo Alto -> private origin
 ```
 
+## Core Concepts
+
+| Concept | Meaning in this solution |
+|---|---|
+| **Account** | Administrative boundary containing zones and account-scoped resources such as tunnels and Access configuration. `account_id` selects the approved Compeer account. |
+| **Zone** | A domain's Cloudflare DNS/security configuration, such as `example.com`. Reference its existing `zone_id`; create a zone only under explicit ownership approval. |
+| **DNS record** | Associates a hostname with a destination. A proxied CNAME for `pilot.example.com` points to the generated tunnel hostname, not an Azure public IP. DNS does not authorize users. |
+| **Ruleset and rule** | A ruleset is an ordered collection executed in a processing phase; each rule has an expression and action. This pattern supports reviewed WAF rules, not every Cloudflare rules feature. |
+| **Zero Trust and Access** | Zero Trust is the security approach; Cloudflare provides services supporting it. Access evaluates application access using identity and optional device context. A tunnel alone is not authorization. |
+| **Access application** | The protected hostname and login/session settings. `access_applications.pilot.domain` identifies `pilot.example.com`; it is not the Azure application resource itself. |
+| **Access policy** | Who may enter that application and under which conditions. `application_key = "pilot"` binds the policy to the declared Access application. Origin application roles/data permissions remain separate. |
+| **Identity provider and Access group** | The IdP, such as Entra ID, authenticates users. An Access group holds reusable access conditions. Cloudflare IdP/group IDs are not Entra tenant/group IDs; IAM owns the mapping and MFA requirements. |
+| **Cloudflare Tunnel** | Named connectivity resource whose `cloudflared` instances establish outbound connections. It avoids a public inbound listener for this path, but does not itself remove other origin exposure. |
+| **Connector and replica** | A connector is a running `cloudflared` instance; a replica is another instance of the same tunnel. Multiple connections from one instance are not multiple replicas. Every replica must reach every assigned origin. |
+| **Published application and ingress** | DNS directs the public hostname to the tunnel; ordered `ingress_rules` map hostname/path to a private service URL. Private CIDR routing/WARP access is a different model, not configured here. |
+| **Origin** | Private Azure backend reached by the connector, such as `https://pilot.origin.internal:443`. Its DNS, TLS, firewall permits and application authorization retain their own owners. |
+| **API token and tunnel credentials** | The scoped API token lets Terraform manage Cloudflare resources. Creation secrets and runtime tokens serve different purposes; see the credential table. Never use the API token as a connector credential. |
+
+**In short:** DNS identifies the destination; WAF inspects requests; Access
+controls entry; Tunnel and connectors provide delivery. Azure network controls
+and application authorization complete the protection.
+
 ## Ownership and Prerequisites
 
 | Owner | What it configures |
@@ -50,24 +72,17 @@ Azure network/connector owners
   connector subnet -> approved routing/firewall path -> private Azure origin
 ```
 
-| Terraform wiring | Security outcome and boundary |
-|---|---|
-| Root `main.tf` passes `cloudflare_edge` maps to this pattern and sets `enforce_enterprise_controls = true` | Rejects unapproved publication, insecure origin TLS and missing declared authentication coverage. These checks enforce configuration rules, not every Compeer security requirement. |
-| Pattern `main.tf` creates one `zero_trust_tunnels` helper instance per enabled tunnel key | Separates named tunnel configurations without creating a new workspace per application. Put an app in the tunnel whose connector fleet is approved to reach its Azure environment. |
-| `access_applications.pilot.domain` matches the ingress hostname; `access_policies.*.application_key = "pilot"` | The helper resolves the application ID and attaches the policy to the correct app. Corporate IdP/group and optional posture conditions control who can enter; application-level authorization is still required. |
-| Helper derives `origin_request.access` from the matching application audience and `access_team_name` | Configures cloudflared to validate Access JWTs for that hostname. No pasted audience is needed. Approved alternative-authentication apps require their own reviewed authentication design instead. |
-| `rulesets` references the DNS zone and contains hostname-scoped expressions | WAF inspects matching requests independently of user identity. There is no automatic application-to-WAF binding: the security owner must declare the correct zone, phase, expression and actions. |
-| `dns_records` uses the same hostname and defaults to the created tunnel CNAME | Sends public requests to the intended tunnel after declared ingress/Access resources exist. It does not create an Azure public endpoint or prove runtime readiness. |
-| Ingress `service` and TLS settings identify the private Azure origin | The selected connector fleet forwards to that private HTTPS service with certificate verification. Azure DNS, routing, NSGs, peering and Palo Alto policy must allow only the approved path. This edge pattern does not create or verify those Azure controls. |
+Root `main.tf` passes the maps to this pattern with enterprise checks enabled.
+Pattern `main.tf` creates one tunnel-helper instance per enabled tunnel key;
+the helper resolves Access application IDs, derives JWT audiences and creates
+ingress/Access/DNS resources. WAF coverage is explicit: its zone, phase and host
+expression must match the application. It is not inferred from an Access app.
 
-For the pilot example below, an approved user requests `pilot.example.com`.
-Cloudflare applies the configured request protections and Access authentication;
-an accepted request is routed over the tunnel. The connector validates the
-configured Access token and reaches `pilot.origin.internal` over the approved
-Azure path. The origin still enforces its own application roles and data access.
-An unauthorized user should fail Access; malicious matching requests should be
-handled by the configured WAF rules. Test both outcomes: neither a tunnel nor a
-successful Terraform apply proves these protections work end to end.
+For `pilot.example.com`, DNS sends the client to Cloudflare, where applicable
+request protections and Access control entry. Accepted traffic travels through
+the tunnel; the connector validates the configured Access JWT and reaches the
+private HTTPS origin over the approved Azure path. This describes responsibilities,
+not a universal execution order for every Cloudflare feature.
 
 **Environment isolation is explicit.** Use the nonprod/prod hostnames, Access
 groups, tunnel keys, connector assignments and private origin URLs approved for
@@ -77,12 +92,6 @@ that label. Azure workspace-output consumption and connector placement belong to
 the connector pattern; spoke/hub routing remains with the network owners.
 Confirm that one environment's connectors cannot reach another environment's
 origins unless explicitly authorized.
-
-Before publication, jointly verify hostname consistency, Access allow/deny and
-posture behavior, WAF coverage, JWT validation, private origin TLS, Azure firewall
-paths and blocked direct-origin access. Attach that evidence to the release
-approval. This is how the separate Terraform configurations become a reviewed
-application security path rather than just a set of successfully created objects.
 
 ## Configure the Edge Root
 
@@ -145,10 +154,15 @@ explicit security exception, not a recommendation to bypass authentication.
 
 ## Zero Trust Applications and Policies
 
-An Access application identifies the protected hostname and its login/session
-settings. An Access policy grants or denies access to that application. Neither
-a tunnel nor a DNS record grants user authorization. WAF rules inspect requests;
-they do not replace identity-based Access policies.
+| | WAF rulesets | Access policies |
+|---|---|---|
+| Purpose | Inspect and handle requests | Authorize application entry |
+| Typical inputs | Hostname, URL, IP, request characteristics | Identity, group, device posture, service token |
+| Example | Block matching suspicious requests | Allow approved users on compliant devices |
+
+Both may protect the same hostname; neither replaces the other or origin
+application authorization. Supported actions depend on this adapter and tenant
+entitlements, not just Cloudflare's broader product capabilities.
 
 Use `application_key` to reference an application in the same tunnel map. Terraform
 resolves its ID and JWT audience; engineers must not paste those generated IDs.
@@ -194,6 +208,12 @@ owner and pass their Cloudflare IDs here. A Tunnel/Access deployment is not a
 complete enterprise-wide Zero Trust deployment. Confirm MFA/group claims with
 IAM rather than assuming that `allowed_idps` enforces them.
 See [Access policy semantics](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/).
+
+Azure VMs and the service belong to the
+[connector pattern](../terraform-azurerm-compeer-cloudflare-connectors/README.md).
+Its current Windows path uses Terraform-managed Run Command bootstrap with
+managed-identity token retrieval. Ansible is an alternative only after an explicit
+runtime-ownership decision, not a required or competing installer.
 
 ## Rulesets and WAF Configuration
 
