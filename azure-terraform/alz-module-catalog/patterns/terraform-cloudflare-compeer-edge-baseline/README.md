@@ -26,6 +26,64 @@ The provider remains **Cloudflare v4**. Keep the lock file; v5 examples use
 different schemas. See Cloudflare's [setup](https://developers.cloudflare.com/tunnel/get-started/)
 and [Terraform guide](https://developers.cloudflare.com/tunnel/guides/terraform/).
 
+## How the Application Security Is Wired Together
+
+For each approved external Compeer application, the **public hostname** is the
+common link between DNS, Access, tunnel ingress and hostname-scoped WAF rules.
+The **private origin URL** connects that Cloudflare configuration to the Azure
+application. These associations are declared in the deployment root; the reusable
+pattern does not discover applications, their Azure environments or their security
+requirements automatically.
+
+```text
+Edge root: cloudflare_edge
+  approved_public_applications["pilot.example.com"] -> publication approval
+  rulesets -> zone + phase + rules matching pilot.example.com
+  tunnels["external_nonprod"]
+    access_applications["pilot"] -> domain = pilot.example.com
+    access_policies["pilot_users"] -> application_key = pilot
+    ingress_rules -> pilot.example.com -> https://pilot.origin.internal:443
+    dns_records["pilot"] -> pilot.example.com -> generated tunnel CNAME
+
+Azure network/connector owners
+  tunnel runtime token -> replicas connected to this tunnel
+  connector subnet -> approved routing/firewall path -> private Azure origin
+```
+
+| Terraform wiring | Security outcome and boundary |
+|---|---|
+| Root `main.tf` passes `cloudflare_edge` maps to this pattern and sets `enforce_enterprise_controls = true` | Rejects unapproved publication, insecure origin TLS and missing declared authentication coverage. These checks enforce configuration rules, not every Compeer security requirement. |
+| Pattern `main.tf` creates one `zero_trust_tunnels` helper instance per enabled tunnel key | Separates named tunnel configurations without creating a new workspace per application. Put an app in the tunnel whose connector fleet is approved to reach its Azure environment. |
+| `access_applications.pilot.domain` matches the ingress hostname; `access_policies.*.application_key = "pilot"` | The helper resolves the application ID and attaches the policy to the correct app. Corporate IdP/group and optional posture conditions control who can enter; application-level authorization is still required. |
+| Helper derives `origin_request.access` from the matching application audience and `access_team_name` | Configures cloudflared to validate Access JWTs for that hostname. No pasted audience is needed. Approved alternative-authentication apps require their own reviewed authentication design instead. |
+| `rulesets` references the DNS zone and contains hostname-scoped expressions | WAF inspects matching requests independently of user identity. There is no automatic application-to-WAF binding: the security owner must declare the correct zone, phase, expression and actions. |
+| `dns_records` uses the same hostname and defaults to the created tunnel CNAME | Sends public requests to the intended tunnel after declared ingress/Access resources exist. It does not create an Azure public endpoint or prove runtime readiness. |
+| Ingress `service` and TLS settings identify the private Azure origin | The selected connector fleet forwards to that private HTTPS service with certificate verification. Azure DNS, routing, NSGs, peering and Palo Alto policy must allow only the approved path. This edge pattern does not create or verify those Azure controls. |
+
+For the pilot example below, an approved user requests `pilot.example.com`.
+Cloudflare applies the configured request protections and Access authentication;
+an accepted request is routed over the tunnel. The connector validates the
+configured Access token and reaches `pilot.origin.internal` over the approved
+Azure path. The origin still enforces its own application roles and data access.
+An unauthorized user should fail Access; malicious matching requests should be
+handled by the configured WAF rules. Test both outcomes: neither a tunnel nor a
+successful Terraform apply proves these protections work end to end.
+
+**Environment isolation is explicit.** Use the nonprod/prod hostnames, Access
+groups, tunnel keys, connector assignments and private origin URLs approved for
+that environment. A label such as `external_nonprod` does not enforce isolation.
+The edge code does not look up a spoke VNet or select an Azure subscription from
+that label. Azure workspace-output consumption and connector placement belong to
+the connector pattern; spoke/hub routing remains with the network owners.
+Confirm that one environment's connectors cannot reach another environment's
+origins unless explicitly authorized.
+
+Before publication, jointly verify hostname consistency, Access allow/deny and
+posture behavior, WAF coverage, JWT validation, private origin TLS, Azure firewall
+paths and blocked direct-origin access. Attach that evidence to the release
+approval. This is how the separate Terraform configurations become a reviewed
+application security path rather than just a set of successfully created objects.
+
 ## Configure the Edge Root
 
 Put application configuration in the edge root's `cloudflare_edge` object,
