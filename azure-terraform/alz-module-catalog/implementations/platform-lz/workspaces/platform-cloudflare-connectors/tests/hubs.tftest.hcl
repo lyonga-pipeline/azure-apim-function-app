@@ -71,3 +71,48 @@ run "windows_ama_matches_windows_connector" {
     error_message = "Windows connectors must support Windows AMA through the existing observability owner."
   }
 }
+
+run "common_mde_keeps_network_watcher_and_requires_owner" {
+  command = plan
+  variables {
+    mde_extension_ownership_confirmed = false
+    cloudflare_connectors = {
+      enabled = true
+      common_extensions = { mde_windows = {
+        name                   = "MDE.Windows", publisher = "Microsoft.Azure.AzureDefenderForServers", type = "MDE.Windows", type_handler_version = "1.0"
+        protected_settings_key = "mde"
+      } }
+      connectors = { np01 = {
+        os_type    = "Windows", name = "cus-np-cft-01", nic_name = "cus-np-cft-01-nic", hub_key = "primary", subnet_key = "connectors"
+        extensions = { network_watcher = { publisher = "Microsoft.Azure.NetworkWatcher", type = "NetworkWatcherAgentWindows", type_handler_version = "1.4" } }
+      } }
+    }
+    extension_protected_settings = { mde = "{\"defenderForEndpointOnboardingScript\":\"c3ludGhldGljLXRlc3Qtb25seQ==\"}" }
+  }
+  expect_failures = [terraform_data.hub_contract]
+}
+
+run "confirmed_mde_is_merged_with_existing_extensions" {
+  command = plan
+  variables {
+    mde_extension_ownership_confirmed = true
+    cloudflare_connectors = {
+      enabled = true
+      common_extensions = { mde_windows = {
+        name                   = "MDE.Windows", publisher = "Microsoft.Azure.AzureDefenderForServers", type = "MDE.Windows", type_handler_version = "1.0"
+        protected_settings_key = "mde"
+      } }
+      connectors = { np01 = {
+        os_type    = "Windows", name = "cus-np-cft-01", nic_name = "cus-np-cft-01-nic", hub_key = "primary", subnet_key = "connectors"
+        extensions = { network_watcher = { publisher = "Microsoft.Azure.NetworkWatcher", type = "NetworkWatcherAgentWindows", type_handler_version = "1.4" } }
+      } }
+    }
+    extension_protected_settings = { mde = "{\"defenderForEndpointOnboardingScript\":\"c3ludGhldGljLXRlc3Qtb25seQ==\"}" }
+  }
+  assert {
+    condition = (length(local.connectors["np01"].extensions) == 2 &&
+      local.connectors["np01"].extensions.mde_windows.type == "MDE.Windows" &&
+    local.connectors["np01"].extensions.network_watcher.type == "NetworkWatcherAgentWindows")
+    error_message = "Common MDE extension must not overwrite per-VM Network Watcher."
+  }
+}

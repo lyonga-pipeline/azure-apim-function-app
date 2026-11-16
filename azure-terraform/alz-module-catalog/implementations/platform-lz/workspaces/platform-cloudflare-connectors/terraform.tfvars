@@ -7,12 +7,13 @@
 # Connector runtime credentials are separate tunnel tokens, delivered securely.
 #
 
-location                    = "centralus"
-environment                 = "prod"
-tfe_organization            = "Compeer-Financial-Services"
-management_workspace_name   = "platform-management"
-connectivity_workspace_name = "platform-connectivity"
-windows_image_version       = null # REQUIRED: approved 2022-datacenter-g2 version before enabling.
+location                          = "centralus"
+environment                       = "prod"
+tfe_organization                  = "Compeer-Financial-Services"
+management_workspace_name         = "platform-management"
+connectivity_workspace_name       = "platform-connectivity"
+windows_image_version             = null  # REQUIRED: approved 2022-datacenter-g2 version before enabling.
+mde_extension_ownership_confirmed = false # REQUIRED before Terraform-managed MDE: check licensing and existing Policy/Defender ownership.
 
 platform_tags = {
   application = "alz-platform-cloudflare-connectors"
@@ -61,6 +62,23 @@ cloudflare_connectors = {
   require_windows_runtime = true
 
   resource_group = {}
+
+  # Applied to all four connectors; per-VM extensions (Network Watcher below)
+  # are merged with these by the deployment root. Each creates its OWN resource.
+  # If Defender for Cloud/Policy retains MDE ownership, omit mde_windows here;
+  # verify onboarding externally instead of enabling a competing Terraform owner.
+  common_extensions = {
+    mde_windows = {
+      name                       = "MDE.Windows"
+      publisher                  = "Microsoft.Azure.AzureDefenderForServers"
+      type                       = "MDE.Windows"
+      type_handler_version       = "1.0"
+      auto_upgrade_minor_version = true
+      settings                   = { vNextEnabled = "true", installedBy = "Terraform" }
+      protected_settings_key     = "connector-mde-windows"
+      # azureResourceId is derived from the VM, never pasted into tfvars.
+    }
+  }
 
   # PHASE 2: supply the approved join account/OU and sensitive
   # domain_join_passwords["connector-domain-join"] in HCP before enabling.
@@ -138,9 +156,13 @@ cloudflare_connectors = {
   }
 }
 
-admin_passwords              = {}
-custom_data_by_key           = {}
-extension_protected_settings = {}
+admin_passwords    = {}
+custom_data_by_key = {}
+# Supply extension_protected_settings["connector-mde-windows"] as sensitive
+# JSON in HCP: {"defenderForEndpointOnboardingScript":"ACTUAL_BASE64_PACKAGE"}.
+# Obtain onboardingPackageWindows from Microsoft.Security/mdeOnboardings/Windows
+# for THIS subscription through the approved Security process. Do not commit it.
+# Do not set an empty tfvars map here that overrides the sensitive workspace input.
 
 # =============================================================================
 # PHASE 2 ADDITIONS - existing configuration above is intentionally retained.

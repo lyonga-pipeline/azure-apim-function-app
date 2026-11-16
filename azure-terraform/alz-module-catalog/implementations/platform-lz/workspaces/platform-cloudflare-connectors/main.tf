@@ -44,6 +44,7 @@ locals {
 
   connectors = {
     for key, connector in try(var.cloudflare_connectors.connectors, {}) : key => merge(connector, {
+      extensions  = merge(try(var.cloudflare_connectors.common_extensions, {}), try(connector.extensions, {}))
       domain_join = try(connector.domain_join, try(var.cloudflare_connectors.common_domain_join, null))
       source_image_reference = try(connector.source_image_reference, null) != null ? connector.source_image_reference : (try(connector.os_type, "Linux") == "Windows" ? {
         publisher = "MicrosoftWindowsServer", offer = "WindowsServer", sku = "2022-datacenter-g2", version = coalesce(var.windows_image_version, "latest")
@@ -67,6 +68,12 @@ locals {
 resource "terraform_data" "hub_contract" {
   count = local.enabled ? 1 : 0
   lifecycle {
+    precondition {
+      condition = var.mde_extension_ownership_confirmed || alltrue([for connector in values(local.connectors) :
+        alltrue([for extension in values(connector.extensions) : extension.type != "MDE.Windows"])
+      ])
+      error_message = "Terraform-managed MDE.Windows requires confirmed licensing/onboarding and exclusive ownership. If Defender for Cloud/Policy owns it, remove the MDE entry and verify onboarding externally."
+    }
     precondition {
       condition = !try(var.cloudflare_connectors.require_windows_runtime, false) || (
         var.phase2_agent_ownership_confirmed && alltrue([for key in keys(local.connectors) : contains(keys(var.phase2_agents), key)])

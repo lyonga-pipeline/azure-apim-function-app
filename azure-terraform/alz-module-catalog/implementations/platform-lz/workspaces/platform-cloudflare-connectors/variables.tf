@@ -125,3 +125,9 @@ variable "extension_protected_settings" {
   sensitive   = true
   default     = {}
 }
+
+variable "mde_extension_ownership_confirmed" {
+  type        = bool
+  default     = false
+  description = "Confirm licensing, subscription onboarding package and exclusive MDE.Windows ownership after reviewing Defender for Cloud/Policy. Does not disable policy or transfer existing state ownership."
+}

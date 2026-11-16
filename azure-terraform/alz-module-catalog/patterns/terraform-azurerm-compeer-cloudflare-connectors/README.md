@@ -63,6 +63,37 @@ and ou_path. Supply `domain_join_passwords` through sensitive workspace inputs.
 Domain join precedes other extensions/bootstrap. Administrator and domain-join
 passwords remain in Terraform state; enforce restricted backend access.
 
+## Windows Agent Extensions
+
+All three requested agents have explicit configuration paths:
+
+| Extension | Terraform owner and inputs |
+|---|---|
+| `AzureMonitorWindowsAgent` | Existing observability pattern through root `phase2_agents`; supply the monitoring UAMI, approved DCR/DCE and ownership confirmation for each VM. Reuse an existing Policy-owned AMA with `install_agent=false` and confirmed ownership. |
+| Network Watcher (`NetworkWatcherAgentWindows`) | Each connector's `extensions.network_watcher`; already configured for the four deployed-root entries. |
+| `MDE.Windows` | Root `cloudflare_connectors.common_extensions.mde_windows`, merged into each connector's extension map; one independent extension resource per VM. |
+
+The deployed root remains disabled. Before Terraform-managed MDE, confirm
+Defender for Servers licensing, subscription/tenant onboarding and no competing
+Defender for Cloud/Policy/state owner, then set
+`mde_extension_ownership_confirmed=true`. Supply
+`extension_protected_settings["connector-mde-windows"]` as sensitive JSON:
+`{"defenderForEndpointOnboardingScript":"ACTUAL_BASE64_PACKAGE"}`.
+Protected settings are sensitive but still reside in Terraform state; restrict
+state/plan access and never commit the onboarding package.
+Security obtains the subscription's `onboardingPackageWindows` through the
+[Microsoft onboarding API](https://learn.microsoft.com/en-us/rest/api/defenderforcloud-composite/mde-onboardings/get?view=rest-defenderforcloud-composite-preview).
+The payload schema follows Microsoft's
+[Windows MDE policy](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policyDefinitions/Security%20Center/ASC_MicrosoftDefenderForEndpoint_WindowsAgent_VM_DINE.json).
+VM resource IDs are derived automatically. Protected settings still reside in
+restricted Terraform state: never commit the onboarding package or print it.
+
+If Defender for Cloud retains MDE ownership, omit the MDE entry from
+`common_extensions` instead; the confirmation flag does not turn off competing
+automation. For an already-managed extension, plan a reviewed import/handoff
+before Terraform adoption. Removing an extension is not a complete MDE offboarding
+procedure. Verify sensor health and the correct tenant's device record after apply.
+
 ## Bootstrap Script and Cloudflare Configuration
 
 [`scripts/bootstrap-windows.ps1.tftpl`](scripts/bootstrap-windows.ps1.tftpl) is

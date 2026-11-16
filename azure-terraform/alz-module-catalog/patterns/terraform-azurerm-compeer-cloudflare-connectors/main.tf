@@ -97,6 +97,12 @@ resource "terraform_data" "connector_contract" {
       ])
       error_message = "admin_passwords must contain a non-empty sensitive password for every Windows connector and password-enabled Linux connector."
     }
+    precondition {
+      condition = alltrue([for connector in values(var.connectors) :
+        length(distinct([for extension in values(connector.extensions) : lower("${extension.publisher}/${extension.type}")])) == length(connector.extensions)
+      ])
+      error_message = "Each connector may declare a publisher/extension type only once; do not duplicate AMA, Network Watcher or MDE under different map keys."
+    }
   }
 }
 
@@ -210,9 +216,22 @@ resource "azurerm_virtual_machine_extension" "extension" {
   type_handler_version       = each.value.type_handler_version
   auto_upgrade_minor_version = try(each.value.auto_upgrade_minor_version, true)
   automatic_upgrade_enabled  = try(each.value.automatic_upgrade_enabled, null)
-  settings                   = jsonencode(try(each.value.settings, {}))
-  protected_settings         = try(var.extension_protected_settings[coalesce(try(each.value.protected_settings_key, null), each.key)], null)
-  tags                       = merge(module.tags.tags, try(each.value.tags, {}))
+  settings = jsonencode(merge(try(each.value.settings, {}), each.value.type == "MDE.Windows" ? {
+    azureResourceId = local.virtual_machines[each.value.connector_key].id
+  } : {}))
+  protected_settings = try(var.extension_protected_settings[coalesce(try(each.value.protected_settings_key, null), each.key)], null)
+  tags               = merge(module.tags.tags, try(each.value.tags, {}))
+  lifecycle {
+    precondition {
+      condition = each.value.type != "MDE.Windows" || try(
+        var.connectors[each.value.connector_key].os_type == "Windows" &&
+        each.value.publisher == "Microsoft.Azure.AzureDefenderForServers" &&
+        length(trimspace(base64decode(jsondecode(var.extension_protected_settings[
+          coalesce(each.value.protected_settings_key, each.key)
+      ]).defenderForEndpointOnboardingScript))) > 0, false)
+      error_message = "MDE.Windows requires a Windows VM, Microsoft.Azure.AzureDefenderForServers publisher and sensitive JSON protected settings with a non-empty base64 defenderForEndpointOnboardingScript from the approved subscription onboarding package."
+    }
+  }
 }
 
 module "vm_diagnostics" {
