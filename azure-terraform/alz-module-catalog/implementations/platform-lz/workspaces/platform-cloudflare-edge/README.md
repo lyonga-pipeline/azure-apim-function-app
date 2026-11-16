@@ -6,6 +6,14 @@ This root configures Cloudflare, not Azure connector VMs. The deployable
 one shared nonprod tunnel, one prod tunnel, protected hostnames, a zone, Access
 applications/policies, and custom plus managed WAF rulesets.
 
+[five-apps.example.tfvars](five-apps.example.tfvars) demonstrates repeatable
+onboarding of three nonprod apps and two production apps with fictional domains.
+It reuses the same two tunnels/four-connector topology, references an externally
+owned zone, and shows the matching approval, ingress, Access, WAF and DNS entries
+for every app. It is an alternative complete input, not an overlay to the first
+example. For a new migration, preserve existing apps and stage only the new app's
+DNS after acceptance; do not replace a live inventory with fictional examples.
+
 ## Adapt the Example
 
 1. Replace example hostnames/origins, account IDs, team slug, IdP/Access-group and
@@ -62,3 +70,5 @@ After `terraform init -backend=false`, run `python3 example-tests/verify_example
 It reads the actual example through Terraform's parser, substitutes only synthetic
 placeholder IDs/creation secrets in a temporary file, and runs the mocked plan.
 It does not use a Cloudflare API token or apply infrastructure.
+To verify the five-app variant, run
+`python3 example-tests/verify_example.py five-apps.example.tfvars`.

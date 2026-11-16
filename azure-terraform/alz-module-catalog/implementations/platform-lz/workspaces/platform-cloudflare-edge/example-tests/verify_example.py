@@ -5,6 +5,7 @@ caches need not live in the repository. No real account/API token is needed.
 """
 
 import base64
+import argparse
 import json
 import os
 from pathlib import Path
@@ -16,14 +17,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("example", nargs="?", default="example.tfvars",
+                        choices=["example.tfvars", "five-apps.example.tfvars"])
+    args = parser.parse_args()
     env = os.environ.copy()
     env.pop("CLOUDFLARE_API_TOKEN", None)
     result = subprocess.run(
-        ["terraform", "console", "-var-file=example.tfvars"],
+        ["terraform", "console", f"-var-file={args.example}"],
         input="jsonencode(var.cloudflare_edge)\n",
         text=True, capture_output=True, check=True, cwd=ROOT, env=env,
     )
     edge = json.loads(json.loads(result.stdout.strip()))
+    if args.example == "five-apps.example.tfvars":
+        counts = {key: len(tunnel["access_applications"])
+                  for key, tunnel in edge["tunnels"].items()}
+        assert counts == {"external_nonprod": 3, "external_prod": 2}, counts
 
     def sanitize(value):
         if isinstance(value, dict):
