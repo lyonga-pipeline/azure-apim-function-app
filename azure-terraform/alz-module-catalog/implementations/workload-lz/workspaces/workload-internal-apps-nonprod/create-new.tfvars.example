@@ -27,7 +27,7 @@ spoke = {
   private_endpoint_client_cidrs = ["10.40.10.0/24"]
   allow_azure_provided_dns      = false
   manage_hub_attachment         = false # Central attachment owns BOTH peerings and VNet/DNS links.
-  gateway_transit_enabled       = false # Enable intent only after central gateway approval.
+  gateway_transit_enabled       = true # Dan's shared hub gateway/Route Server standard.
 
   workload_tags = {
     application           = "orders"

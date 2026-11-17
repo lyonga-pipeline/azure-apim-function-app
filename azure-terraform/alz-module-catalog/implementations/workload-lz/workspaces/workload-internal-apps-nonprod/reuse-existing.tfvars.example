@@ -26,7 +26,7 @@ spoke = {
   private_endpoint_client_cidrs = ["10.40.10.0/24"]
   allow_azure_provided_dns      = false
   manage_hub_attachment         = false # Both directions and VNet/DNS links stay centrally owned.
-  gateway_transit_enabled       = false
+  gateway_transit_enabled       = true
 
   workload_tags = {
     application           = "orders"

@@ -13,7 +13,7 @@ The committed [terraform.tfvars](terraform.tfvars) includes hub/producer referen
 
 Each entry always creates both halves. Naming follows Compeer's identity/hub convention, but existing identity peerings are NOT added or migrated. Preserve live names on an approved import; renaming a peering can replace it.
 
-Replace all documentation values, retain only existing VNets and use stable keys. DNS intent must match producer outputs exactly. Gateway transit stays off unless approved and the actual hub gateway is ready. Routes/firewall inspection remain separate owner changes.
+Replace all documentation values, retain only existing VNets and use stable keys. DNS intent must match producer outputs exactly. Per Dan's shared-hub standard, every spoke entry explicitly sets gateway_transit=true and hub.gateway_ready=true for the approved existing gateway/Route Server. Publish matching spoke gateway_transit_enabled=true intent first. Routes/firewall inspection remain separate owner changes. See the attachment pattern's Compeer shared-hub standard for rollout and validation.
 
 **VNet IDs come from workspace outputs:** the committed tfvars omits `hub.virtual_network_id` and each `spoke_virtual_network_id`. The pattern reads `hub_virtual_network_id` from the approved connectivity workspace and the attached VNet ID from its approved producer's public output/contract during plan. Missing outputs or mismatches fail closed. Existing explicit IDs remain checked pins; removing matching pins does not require state migration. A producer rebuild/new ID still requires network approval and full replacement-plan review. See the [workspace-output reference](../platform-network-peering-nonprod/README.md#read-vnet-ids-from-workspace-outputs).
 

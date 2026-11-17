@@ -16,7 +16,7 @@ hub = {
   organization     = "Compeer-Financial-Services"
   workspace        = "platform-connectivity"
   contract_version = "0.1.0"
-  gateway_ready    = false
+  gateway_ready    = true # Dan confirmed shared hub gateway/Route Server transit design.
 }
 
 # Replace with complete external IPAM; include prod, exclude THIS batch and the hub.
@@ -40,7 +40,7 @@ attachments = {
     naming_context          = { region = "centralus", environment = "dev", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_DEV_IPAM_RESERVATION"
-    gateway_transit         = false
+    gateway_transit         = true
     allow_forwarded_traffic = true
     peering_names = {
       spoke_to_hub = "peer-workload-cus-dev-int-orders-vnet-to-hub"
@@ -66,7 +66,7 @@ attachments = {
     naming_context          = { region = "centralus", environment = "test", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_TEST_IPAM_RESERVATION"
-    gateway_transit         = false
+    gateway_transit         = true
     allow_forwarded_traffic = true
     peering_names = {
       spoke_to_hub = "peer-workload-cus-test-int-orders-vnet-to-hub"
@@ -92,7 +92,7 @@ attachments = {
     naming_context          = { region = "centralus", environment = "uat", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_UAT_IPAM_RESERVATION"
-    gateway_transit         = false
+    gateway_transit         = true
     allow_forwarded_traffic = true
     peering_names = {
       spoke_to_hub = "peer-workload-cus-uat-int-orders-vnet-to-hub"
@@ -118,7 +118,7 @@ attachments = {
     naming_context          = { region = "centralus", environment = "sandbox", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_NONPRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_SANDBOX_IPAM_RESERVATION"
-    gateway_transit         = false
+    gateway_transit         = true
     allow_forwarded_traffic = true
     peering_names = {
       spoke_to_hub = "peer-workload-cus-sandbox-int-orders-vnet-to-hub"

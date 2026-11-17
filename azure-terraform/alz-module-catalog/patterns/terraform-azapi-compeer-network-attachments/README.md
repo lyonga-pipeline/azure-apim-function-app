@@ -76,7 +76,58 @@ Use the [root template](../../implementations/platform-lz/templates/network-atta
 1. Network reviewers approve the Git inventory: immutable attachment key, classification, producer workspace/version, CIDRs, optional explicit VNet ID pins, IPAM/change references, DNS zones and gateway/forwarding intent. Workload-v2 also supplies naming context. Only declared workspace selectors are read; outputs cannot add attachments. Azure RBAC authorizes the actual deployment.
 2. Read only `tfe_outputs.nonsensitive_values`. The hub publishes contract `0.1.0`, its VNet ID and address spaces. Workloads publish `attachment_contract` v2.0.0; select workspace context (default) or the explicit contract/Azure compatibility source below. Generic platform/workload owners publish `network_attachment_contract` v3.0.0 with context, CIDRs and DNS intent through the [output-only producer adapter](producer/README.md).
 3. Fail closed on mismatched tenant/environment/IDs/context/versions/DNS intent or live CIDRs. Check overlap within the batch, against the hub and against supplied external IPAM ranges. These are not automatic estate-wide checks: supply the relevant external ranges. Approval/IPAM references are evidence pointers, not live ticket or IPAM-system verification. Empty inventories make no producer or Azure reads and create no attachments.
-4. Create all approved hub halves, then spoke halves, then DNS links. Transit defaults off; enabling it requires matching producer intent and explicit hub gateway readiness. Forwarded traffic is an independent paired setting. Peerings are not an atomic transaction.
+4. Create all approved hub halves, then spoke halves, then DNS links. The reusable module retains a transit-off compatibility default; Compeer's shared-hub spoke inventory explicitly enables transit per the standard below. Matching producer intent and hub readiness are required. Forwarded traffic is independent. Peerings are not an atomic transaction.
+
+### Compeer Shared Hub Gateway and Route Server Standard
+
+Dan confirmed that all spokes using the shared hub must use its gateway/Route
+Server so SD-WAN can exchange the required spoke routes. Set **all three**:
+
+```hcl
+# Central attachment root
+hub = {
+  # Preserve the actual producer selector, contract version and approved CIDRs.
+  gateway_ready = true
+}
+# Within EACH existing attachments.<key> entry:
+# gateway_transit = true
+# allow_forwarded_traffic = true
+
+# Spoke producer root, within its existing spoke object:
+spoke = {
+  gateway_transit_enabled = true
+}
+```
+
+These are excerpts to merge into existing objects, not replacement inventories.
+For the affected pilot, change its existing attachment for
+`pltinapp-cus-dev-spoke-vnet` (`10.102.64.0/27`); preserve its workspace selector,
+resource keys, resolved VNet IDs and live peering names. Apply/publish the spoke
+producer's updated attachment contract first, then plan the central peering root.
+Do not bypass a producer mismatch: its `gateway_transit_enabled` must also be true.
+
+| Peering direction | ARM setting | Required value |
+|---|---|---|
+| Hub to spoke | `allowGatewayTransit` | `true` |
+| Spoke to hub | `useRemoteGateways` | `true` |
+| Hub to spoke | `useRemoteGateways` | `false` |
+| Spoke to hub | `allowGatewayTransit` | `false` |
+
+`gateway_ready` confirms an existing approved gateway **or Route Server**, not
+only a VPN gateway; it does not deploy or discover one. The code updates the hub
+halves before the spoke halves. A spoke must not have a conflicting local gateway
+or use another remote gateway. Exceptions require a reviewed network design.
+The reusable module's default remains false for other consumers: do not omit the
+explicit true value when onboarding a Compeer spoke.
+
+This change does not enable BGP propagation on subnet route tables or remove the
+firewall default/hub UDRs. Keep the reviewed inspection and symmetric return-path
+design. Review an in-place peering update with no unintended replacements, then
+confirm both peerings are Connected, the SD-WAN/Route Server learns the pilot
+prefix, return routes cross the expected firewall path, and RDP succeeds through
+approved NSG/firewall rules. Peering flags alone do not authorize RDP.
+See [Azure Route Server spoke route exchange](https://learn.microsoft.com/en-us/azure/route-server/route-server-faq)
+and [peering gateway settings](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-manage-peering).
 5. Both peering resources use the same AzAPI provider-process `locks` key. This serializes their mutations within that provider process, including across map entries. These are **not Azure management/resource locks** and do not coordinate different HCP runs. DNS mutations are similarly serialized per zone within this process.
 6. All workspaces writing the shared hub use one protected external deployment gate, including core/legacy exceptions. Preserve state and re-plan after a partial failure. Accept the network only after live reciprocal Connected status, DNS and inspected/forbidden flow tests.
 

@@ -10,7 +10,7 @@ hub = {
  organization = "Compeer-Financial-Services"
  workspace = "platform-connectivity"
  contract_version = "0.1.0"
- gateway_ready = false # Set only after an approved, tested gateway/inspection decision.
+ gateway_ready = true # Dan's approved shared hub gateway/Route Server standard.
 }
 # External estate only: include all real on-prem, partner and OTHER environment ranges.
 reserved_address_spaces = ["10.169.0.0/16", "172.16.0.0/12"]
@@ -29,7 +29,7 @@ attachments = {}
 #     naming_context = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "orders" }
 #     approval_reference = "NET-CHANGE-123"
 #     ipam_reference = "IPAM-RESERVATION-123"
-#     gateway_transit = false
+#     gateway_transit = true
 #     allow_forwarded_traffic = true
 #     private_dns_zone_ids = {
 #       key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
@@ -48,7 +48,7 @@ attachments = {}
 #     naming_context = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "claims" }
 #     approval_reference = "NET-CHANGE-124"
 #     ipam_reference = "IPAM-RESERVATION-124"
-#     gateway_transit = false
+#     gateway_transit = true
 #     allow_forwarded_traffic = true
 #     # No DNS links ONLY if the producer also requests none (e.g. no vault/blob).
 #     private_dns_zone_ids = {}

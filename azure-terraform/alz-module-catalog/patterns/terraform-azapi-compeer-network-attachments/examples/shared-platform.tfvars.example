@@ -10,7 +10,7 @@ hub = {
   organization = "Compeer-Financial-Services"
   workspace = "platform-connectivity"
   contract_version = "0.1.0"
-  gateway_ready = false
+  gateway_ready = true # Approved shared hub gateway/Route Server.
 }
 reserved_address_spaces = ["10.169.0.0/16", "172.16.0.0/12"]
 deployment_controls = { approval_reference = "REPLACE", exclusive_ownership_verified = false, shared_hub_gate_configured = false }
@@ -24,7 +24,7 @@ attachments = {}
 #     producer = { organization = "Compeer-Financial-Services", workspace = "platform-services-owner", contract_version = "3.0.0" }
 #     approval_reference = "NET-PLATFORM-CHANGE"
 #     ipam_reference = "IPAM-PLATFORM-RESERVATION"
-#     gateway_transit = false
+#     gateway_transit = true
 #     allow_forwarded_traffic = true
 #     private_dns_zone_ids = { key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" }
 #     tags = { Environment = "shared", Owner = "PlatformNetworking", CostCenter = "REPLACE" }

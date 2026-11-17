@@ -47,7 +47,7 @@ module "blueprint" {
   egress_next_hop_ip            = try(var.spoke.egress_next_hop_ip, "unset")
   allow_azure_provided_dns      = try(var.spoke.allow_azure_provided_dns, false)
   manage_hub_attachment         = try(var.spoke.manage_hub_attachment, false)
-  gateway_transit_enabled       = try(var.spoke.gateway_transit_enabled, false)
+  gateway_transit_enabled       = try(var.spoke.gateway_transit_enabled, true)
   private_endpoint_client_cidrs = try(var.spoke.private_endpoint_client_cidrs, [])
   key_vault                     = try(var.spoke.key_vault, {})
   workload_access_group_ids     = try(var.spoke.workload_access_group_ids, {})

@@ -93,6 +93,7 @@ run "sandbox_root_supports_flexible_subnets" {
   assert {
     condition = (
       output.spoke.context.environment == "sandbox" && output.spoke.context.tags.expiration_date == "2027-01-13" &&
+      output.attachment_contract.gateway_transit_enabled &&
       output.spoke.security_baseline.private_endpoint_subnet_key == "endpoints" &&
       toset(keys(output.subnet_ids)) == toset(["app", "data", "presentation", "endpoints"]) &&
       output.spoke.key_vault.private_endpoint_id != null && output.spoke.application_services.storage.data.private_endpoint_id != null

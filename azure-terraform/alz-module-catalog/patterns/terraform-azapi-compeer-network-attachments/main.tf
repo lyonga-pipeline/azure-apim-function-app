@@ -89,7 +89,7 @@ resource "azapi_resource" "hub_to_spoke" {
     remoteVirtualNetwork      = { id = local.spoke_virtual_network_ids[each.key] }
     allowVirtualNetworkAccess = true
     allowForwardedTraffic     = each.value.allow_forwarded_traffic
-    allowGatewayTransit       = each.value.gateway_transit
+    allowGatewayTransit       = each.value.gateway_transit # Hub offers its gateway/Route Server.
     useRemoteGateways         = false
   } }
   # Provider-process mutex, NOT an Azure management lock or a cross-workspace gate.
@@ -113,7 +113,7 @@ resource "azapi_resource" "spoke_to_hub" {
     allowVirtualNetworkAccess = true
     allowForwardedTraffic     = each.value.allow_forwarded_traffic
     allowGatewayTransit       = false
-    useRemoteGateways         = each.value.gateway_transit
+    useRemoteGateways         = each.value.gateway_transit # Spoke consumes the hub gateway/Route Server.
   } }
   locks                  = local.hub_virtual_network_id == null ? [] : [lower(local.hub_virtual_network_id)]
   response_export_values = ["properties.peeringState", "properties.provisioningState"]

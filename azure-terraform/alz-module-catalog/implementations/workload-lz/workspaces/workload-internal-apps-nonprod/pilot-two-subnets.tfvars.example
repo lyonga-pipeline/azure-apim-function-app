@@ -37,7 +37,7 @@ spoke = {
   egress_next_hop_ip            = "REPLACE_APPROVED_HUB_NVA_IPV4"
   allow_azure_provided_dns      = false
   manage_hub_attachment         = false
-  gateway_transit_enabled       = false
+  gateway_transit_enabled       = true
   private_endpoint_client_cidrs = ["10.40.10.0/24"] # Confirm this supplied client range.
 
   workload_tags = {

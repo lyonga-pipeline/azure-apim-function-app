@@ -13,7 +13,7 @@ hub = {
   organization     = "Compeer-Financial-Services"
   workspace        = "platform-connectivity"
   contract_version = "0.1.0"
-  gateway_ready    = false
+  gateway_ready    = true # Dan confirmed shared hub gateway/Route Server transit design.
 }
 
 # Replace with COMPLETE on-prem/partner/other-boundary IPAM ranges. Exclude this batch/hub.
@@ -37,8 +37,8 @@ attachments = {
     naming_context          = { region = "centralus", environment = "prod", domain = "internal-apps", appcode = "orders" }
     approval_reference      = "REPLACE_WITH_APPROVED_PRODUCTION_CHANGE"
     ipam_reference          = "REPLACE_WITH_PRODUCTION_IPAM_RESERVATION"
-    gateway_transit         = false # Not needed simply for Palo Alto forwarding.
-    allow_forwarded_traffic = true  # Must match the approved NVA/UDR/return-path design.
+    gateway_transit         = true # Required for shared hub gateway/Route Server route exchange.
+    allow_forwarded_traffic = true # Must match the approved NVA/UDR/return-path design.
     peering_names = {
       spoke_to_hub = "peer-workload-cus-prod-int-orders-vnet-to-hub"
       hub_to_spoke = "peer-hub-to-workload-cus-prod-int-orders-vnet"

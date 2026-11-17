@@ -11,7 +11,7 @@ module "network_attachment_contract" {
     id            = module.platform_vnet.id
     address_space = module.platform_vnet.address_space
   }
-  gateway_transit = false
+  gateway_transit = true # Must match the central attachment inventory.
   private_dns_zone_ids = {
     # Optional: exact existing zones approved for this VNet's DNS resolution design.
     key_vault = "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"

@@ -69,7 +69,7 @@ Repeat this object for each actual VNet. Multiple entries may belong to the same
 | `approval_reference` | Required, nonempty | Network-approved change/ticket reference or URL, e.g. `NET-CHANGE-123`. Records authorization for this attachment's membership/settings. |
 | `ipam_reference` | Required, nonempty | Real approved address reservation/reference or URL, e.g. `IPAM-RESERVATION-123`. Evidence for this VNet's CIDR allocation. |
 | `allow_forwarded_traffic` | Optional; `true` | Sets forwarded-traffic permission on both halves for the approved hub NVA design. Does not create UDRs, firewall rules or guarantee inspection/return routing. |
-| `gateway_transit` | Optional; `false` | True makes the hub offer transit and the spoke use its remote gateway. Requires matching producer intent, `hub.gateway_ready=true` and real gateway/inspection approval. Not required merely for Palo Alto forwarding. |
+| `gateway_transit` | Compatibility default `false`; explicitly `true` for Compeer spokes | Enables hub transit and spoke remote gateway/Route Server use, as Dan requires for SD-WAN route exchange. Requires producer `gateway_transit_enabled=true` and `hub.gateway_ready=true`. Does not change subnet BGP/UDRs. |
 | `peering_names` | Optional; `null` | If provided, both `hub_to_spoke` and `spoke_to_hub` are required. Explicit Compeer names are supplied in tfvars; omission uses the existing naming helper, as explained below. |
 | `private_dns_zone_ids` | Conditional; default `{}` | Existing central DNS zones to link to this VNet. Must exactly match producer keys/IDs. Details below. |
 | `private_dns_link_names` | Optional; `{}` | Per-zone overrides for the DNS **link resource names**, not zone names or DNS records. Omitted keys use generated names; they do not omit links. |
@@ -168,7 +168,7 @@ peering_names = {
   hub_to_spoke = "peer-hub-to-workload-cus-dev-int-orders-vnet"
 }
 allow_forwarded_traffic = true
-gateway_transit         = false
+gateway_transit         = true
 ```
 
 Keep explicit names to follow this convention. If `peering_names` is omitted, the backward-compatible helper uses `<hub-vnet-name>-to-<spoke-vnet-name>` and the reverse, **not** the `peer-...-to-hub` shorthand. There is no single-direction opt-out. Virtual-network access is always enabled on both halves. The hub never uses the spoke's gateway; the spoke never offers gateway transit back to the hub.

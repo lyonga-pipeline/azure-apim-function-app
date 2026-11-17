@@ -31,7 +31,7 @@ module "blueprint" {
   egress_next_hop_ip               = var.spoke.egress_next_hop_ip
   allow_azure_provided_dns         = false
   manage_hub_attachment            = false
-  gateway_transit_enabled          = false
+  gateway_transit_enabled          = true
   private_endpoint_client_cidrs    = var.spoke.private_endpoint_client_cidrs
   workload_access_group_ids        = var.spoke.workload_access_group_ids
   key_vault                        = var.key_vault
