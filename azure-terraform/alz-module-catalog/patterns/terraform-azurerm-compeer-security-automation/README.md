@@ -1,5 +1,11 @@
 # Secret Rotation Delivery
 
+For the complete scheduler/queue/worker platform, approved manual/emergency
+requests, authority adapters and workload onboarding, use the
+[secrets lifecycle pattern](../terraform-azurerm-compeer-secret-lifecycle/README.md).
+This existing pattern remains delivery-only for compatibility. Do not subscribe
+both handlers to the same vault secret without a reviewed migration.
+
 **PHASE2 NEW:** v5 SEC-13. Named-secret Key Vault near-expiry event subscriptions, constrained handler RBAC, retry and identity-backed dead-letter delivery.
 
 ## Ownership And Defaults

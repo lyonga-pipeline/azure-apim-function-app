@@ -1,0 +1,78 @@
+# Illustrative NONPRODUCTION only. Replace resource IDs, names and approvals.
+# Independent prod workspace must use a different subscription, names, identities,
+# storage, queues, registry, Entra API registration and operator approvals.
+subscription_id     = "REPLACE_ROTATION_NONPROD_SUBSCRIPTION_UUID"
+tenant_id           = "REPLACE_TENANT_UUID"
+environment         = "nonprod"
+location            = "centralus"
+resource_group_name = "platform-cus-np-rotation-rg"
+names = {
+  worker        = "REPLACE-globally-unique-np-rotation-worker"
+  scheduler     = "REPLACE-globally-unique-np-rotation-scheduler"
+  plan          = "platform-cus-np-rotation-plan"
+  host_storage  = "REPLACEuniquenphost"
+  state_storage = "REPLACEuniquenpstate"
+  service_bus   = "REPLACE-globally-unique-np-rotation-bus"
+}
+tags = { environment = "nonprod", appcode = "rotation", owner = "REPLACE_OWNER", cost_center = "REPLACE_COST_CENTER" }
+integration_subnet_id        = "REPLACE_EXISTING_DELEGATED_FUNCTION_SUBNET_ID"
+private_endpoint_subnet_id   = "REPLACE_EXISTING_PRIVATE_ENDPOINT_SUBNET_ID"
+log_analytics_workspace_id   = "REPLACE_EXISTING_LOG_ANALYTICS_ID"
+action_group_ids            = ["REPLACE_EXISTING_ACTION_GROUP_ID"]
+manual_api_client_id        = "REPLACE_ENTRA_API_APPLICATION_CLIENT_UUID"
+operator_group_ids          = ["REPLACE_OPERATOR_GROUP_UUID"]
+event_delivery_exception_approved = false
+dns_owned_by_policy = true # Only when central policy actually creates PE zone groups.
+private_dns_zone_ids = {}
+package_path = null # Stage 1; set to Linux-built rotation.zip after private endpoints/DNS are ready.
+consumer_hosts = ["rotation-agent.example.internal"]
+vaults = {
+  pilot = {
+    id  = "/subscriptions/REPLACE_WORKLOAD_UUID/resourceGroups/REPLACE_RG/providers/Microsoft.KeyVault/vaults/REPLACE_VAULT"
+    url = "https://REPLACE_VAULT.vault.azure.net"
+  }
+}
+assets = {
+  pilot-storage = {
+    enabled                     = false # Enable only after all acceptance tests/approvals.
+    environment                 = "nonprod"
+    vault_id                    = "/subscriptions/REPLACE_WORKLOAD_UUID/resourceGroups/REPLACE_RG/providers/Microsoft.KeyVault/vaults/REPLACE_VAULT"
+    vault_url                   = "https://REPLACE_VAULT.vault.azure.net"
+    secret_name                 = "pilot-storage-key"
+    adapter                     = "storage_dual_key"
+    target = {
+      resource_id                   = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/replace-rg/providers/Microsoft.Storage/storageAccounts/replacestorage"
+      alternate_key_unused_confirmed = "false"
+      sas_dependencies_reviewed      = "false"
+    }
+    owner                       = "REPLACE_SERVICE_OWNER"
+    support_group               = "REPLACE_SUPPORT_GROUP"
+    approval_reference          = "REPLACE_APPROVED_CHANGE"
+    recovery_reference          = "REPLACE_TESTED_RECOVERY_RUNBOOK"
+    adapter_approved            = false
+    consumer_inventory_reviewed = false
+    initial_due                 = "2027-01-01T00:00:00Z" # Set actual owner-approved schedule.
+    interval_days               = 45
+    credential_lifetime_days    = 90
+    overlap_hours               = 24
+    minimum_overlap_minutes     = 15
+    consumers = [{
+      name         = "pilot-app"
+      refresh_url  = "https://rotation-agent.example.internal/refresh"
+      validate_url = "https://rotation-agent.example.internal/validate"
+      audience     = "api://REPLACE_CONSUMER_API_CLIENT_UUID"
+    }]
+  }
+}
+manual_approvals = {}
+# Approved example, not an operational authorization:
+# manual_approvals = {
+#   change-123-rotation-1 = {
+#     asset_id = "pilot-storage"
+#     mode = "manual" # emergency requires a reviewed incident and clean identity.
+#     approval_reference = "CHG123"
+#     expires_at = "2027-01-02T00:00:00Z"
+#     operator_object_ids = ["REPLACE_OPERATOR_OBJECT_UUID"]
+#     clean_identity_confirmed = false
+#   }
+# }
