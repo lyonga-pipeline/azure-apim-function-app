@@ -1,9 +1,8 @@
 # Secrets Rotation DevOps Implementation Guide
 
-This guide explains how the Terraform and runtime code implement the secrets
-rotation service, how workloads connect to it, and how DevOps operates it. The
-security lead's design remains the authority for approved controls, intervals and
-exceptions; this README describes the implementation rather than replacing that design.
+We use Terraform to deploy and configure the secrets rotation service, then run
+credential lifecycle workflows through private workers. This walkthrough explains
+the execution flow, workload onboarding, security controls and day-to-day operation.
 
 The service changes a credential **at its source**, publishes its replacement to
 Key Vault, coordinates application adoption, validates fresh authentication, then
@@ -78,9 +77,10 @@ subscriptions, identities, queues, registry and execution state. Vaults remain i
 their workload subscriptions. Split workers further when IAM permissions or
 application trust boundaries require isolation.
 
-DevOps owns the framework, deployment pipeline and reviewed registry. Application
-teams own dependency inventory and consumer adoption. Security approves lifecycle
-controls and exceptions; IAM approves Graph access, and PKI owns issuer requirements.
+We manage the framework, deployment pipeline and reviewed asset registry. Each
+workload supplies its dependency inventory and consumer integration. Lifecycle
+settings, exceptions, Graph permissions and certificate issuers follow the
+applicable approval processes before activation.
 
 Terraform deploys/configures the service; **runtime rotation does not require a
 Terraform apply for each cycle**. DevOps changes Terraform inputs when onboarding
@@ -108,7 +108,7 @@ The timer frequency is not the rotation interval. Each asset declares:
 | `adapter_approved`, `consumer_inventory_reviewed`, `enabled` | Reviewed onboarding gates; these are owner attestations, not automated discovery of every dependency |
 | `exception_until` | Blocks unattended execution while an exception is active or expired, until reviewed and resolved |
 
-Intervals and thresholds require the security/service owner's approval. Emergency
+Configure intervals and thresholds through the approved lifecycle policy. Emergency
 execution is replacement-first; incident containment that requires immediate
 revocation before replacement remains an incident-runbook action.
 
@@ -165,8 +165,8 @@ inventory must be resolved before activation.
 
 ### 4. Connect the Consumers
 
-Application owners implement the refresh/validation contract below, authorize the
-worker identity at those APIs, and grant their own consumer identities the required
+Each workload implements the refresh/validation contract below, authorizes the
+worker identity at those APIs, and grants its consumer identities the required
 vault access. Add each consumer's URLs/audience to the asset and its exact host to
 `consumer_hosts`. Platform deployment does not create these application endpoints.
 
@@ -261,7 +261,7 @@ Azure Policy validates configuration such as RBAC, recovery, public access, expi
 and rotation-policy settings. It does not prove that consumers adopted a credential.
 Assign workload controls at the workload's subscription/management-group scope;
 an assignment on the platform subscription does not cover every workload vault.
-DINE/Modify identities and remediation remain with the central governance owner.
+DINE/Modify identities and remediation are managed through central governance.
 
 **Event delivery is an explicit network decision.** Default mode disables public
 storage/messaging access. Event Grid does not push through these private endpoints.
@@ -324,7 +324,7 @@ as vault contents during recovery.
 | Integrated-CA certificates | Native renewal configuration; service-specific binding/deployment and presented-certificate validation are additional integrations |
 | Database, third-party API, legacy/PAM and nonintegrated CA | Require provider-specific adapters and tested recovery before automated onboarding |
 
-Manage native keys/certificates from the vault owner's root using
+Manage native keys/certificates from the workload deployment root using
 [native-lifecycle](modules/native-lifecycle/main.tf). Import existing resources
 before adopting them; do not recreate encryption keys. Rotation/renewal does not
 prove historical decryption or endpoint deployment, and old encryption-key versions
@@ -332,6 +332,6 @@ must remain available while dependencies require them.
 
 Use [ACCEPTANCE.md](ACCEPTANCE.md) for live acceptance gates and the
 [deployment root guide](../../implementations/platform-lz/workspaces/platform-secret-lifecycle/README.md)
-for prerequisites. Local tests and successful packaging are not evidence of a client
-end-to-end rotation. Production activation requires nonproduction evidence and the
-security/service owners' approval.
+for prerequisites. Local tests and successful packaging do not establish end-to-end
+rotation in the target environment. We activate production assets after recording
+nonproduction evidence and completing the required approvals.
